@@ -21,6 +21,8 @@ import {
   LVLogo,
   LVLangSwitch,
   LVConfigurator,
+  AvailabilityBar,
+  reveal,
   rise,
 } from "@/components/ui/linevault";
 import LandingAtlasShowcase from "@/components/atlas/LandingAtlasShowcase";
@@ -286,7 +288,10 @@ export default function Landing() {
         {/* 1) HERO SECTION (1:1 joyful-heisenberg hero.tsx + LineStream) */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-8 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#19f08c]/25 bg-[#19f08c]/10 px-3 py-1 text-xs font-medium text-[#19f08c]">
+            <motion.p
+              {...reveal(0)}
+              className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#19f08c]/25 bg-[#19f08c]/10 px-3 py-1 text-xs font-medium text-[#19f08c]"
+            >
               <span
                 className="size-1.5 rounded-full bg-[#19f08c]"
                 aria-hidden="true"
@@ -294,9 +299,12 @@ export default function Landing() {
               {isAr
                 ? "مخزون مباشر · تلخيص وتدقيق بالذكاء الاصطناعي"
                 : "Live inventory · AI + FSRS v4.5"}
-            </p>
+            </motion.p>
 
-            <h1 className="text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <motion.h1
+              {...reveal(1)}
+              className="text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
+            >
               <span className="text-gradient">
                 {isAr ? "اسحب بالضبط" : "Pull the exact"}
               </span>{" "}
@@ -306,15 +314,21 @@ export default function Landing() {
               <span className="text-gradient">
                 {isAr ? "التي تحتاجها." : "you need."}
               </span>
-            </h1>
+            </motion.h1>
 
-            <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-[#9aa6b4]">
+            <motion.p
+              {...reveal(2)}
+              className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-[#9aa6b4]"
+            >
               {isAr
                 ? "اختر الباقة أو المقرر، حدّد الكمية والعمق، واستلم ملخصاتك المدققة وكويزاتك خلال دقائق — مخصصة لحسابك وحدك."
                 : "Pick a study pool, choose your credit volume, and generate verified bilingual summaries and FSRS quizzes in minutes."}
-            </p>
+            </motion.p>
 
-            <div className="mt-9 flex flex-wrap items-center gap-3">
+            <motion.div
+              {...reveal(3)}
+              className="mt-9 flex flex-wrap items-center gap-3"
+            >
               <Button asChild size="lg">
                 <Link to={primaryHref}>
                   <span>
@@ -333,9 +347,12 @@ export default function Landing() {
               <Button asChild variant="secondary" size="lg">
                 <a href="#how">{isAr ? "كيف يعمل" : "How it works"}</a>
               </Button>
-            </div>
+            </motion.div>
 
-            <div className="mt-12 border-t border-[rgb(255_255_255/0.09)] pt-6">
+            <motion.div
+              {...reveal(4)}
+              className="mt-12 border-t border-[rgb(255_255_255/0.09)] pt-6"
+            >
               <p className="text-sm text-[#9aa6b4]">
                 {isAr
                   ? "الملخصات والأسئلة الجاهزة في المخزون الآن"
@@ -347,10 +364,10 @@ export default function Landing() {
               >
                 <AnimatedNumber value={192} />
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          <div>
+          <motion.div {...reveal(2)}>
             <LineStream
               locale={locale}
               label={
@@ -359,7 +376,7 @@ export default function Landing() {
                   : "Live Study & Credits Inventory"
               }
             />
-          </div>
+          </motion.div>
         </section>
 
         {/* 2) HOW IT WORKS (1:1 LineVault HowItWorks in landing-sections.tsx) */}
@@ -439,7 +456,7 @@ export default function Landing() {
           </motion.div>
         </Section>
 
-        {/* 5) PRICING SECTION (1:1 LineVault PricingSection in landing-sections.tsx) */}
+        {/* 5) PRICING SECTION (1:1 LineVault PricingSection + PoolGrid in landing-sections.tsx) */}
         <Section
           id="pricing"
           title={
@@ -469,6 +486,16 @@ export default function Landing() {
                         {isAr ? plan.saveAr : plan.saveEn}
                       </span>
                     )}
+                  </div>
+
+                  <div className="mt-4">
+                    <AvailabilityBar
+                      available={plan.id === "free" ? 10 : plan.id === "pro" ? 900 : 2500}
+                      max={2500}
+                      sharePct={plan.id === "free" ? 28 : plan.id === "pro" ? 72 : 100}
+                      label={isAr ? "سعة الباقة" : "Available now"}
+                      availableSuffix={isAr ? "نقطة" : "credits"}
+                    />
                   </div>
 
                   <ul className="my-5 flex-1 divide-y divide-[rgb(255_255_255/0.09)] text-sm">

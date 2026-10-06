@@ -20,9 +20,18 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export const reveal = () => ({});
+export const reveal = (i = 0) => ({
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.08 * i, duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+});
 
-export const rise = () => ({});
+export const rise = (i = 0) => ({
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: "-60px" },
+  transition: { delay: i * 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] },
+});
 
 const defaultFormat = (v) =>
   new Intl.NumberFormat("en-US").format(Math.round(v));
@@ -98,16 +107,39 @@ export function LVLangSwitch({ locale, onChange, className }) {
 }
 
 /**
- * Crisp tabular number display (zero layout shift during scroll)
+ * Exact 1:1 port of joyful-heisenberg AnimatedNumber (components/animated-number.tsx)
+ * Tweens smoothly from 0 on mount and whenever value changes via ref textContent mutation.
  */
 export function AnimatedNumber({
   value,
   className,
   format = defaultFormat,
 }) {
+  const ref = useRef(null);
+  const mv = useMotionValue(0);
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    const target = Number(value) || 0;
+    const paint = (v) => {
+      if (ref.current) ref.current.textContent = format(v);
+    };
+    if (reduce) {
+      mv.set(target);
+      paint(target);
+      return;
+    }
+    const ctrl = animate(mv, target, {
+      duration: 1.1,
+      ease: [0.16, 1, 0.3, 1],
+      onUpdate: paint,
+    });
+    return () => ctrl.stop();
+  }, [value, format, mv, reduce]);
+
   return (
-    <span dir="ltr" className={cn("tabular", className)}>
-      {format(value)}
+    <span ref={ref} dir="ltr" className={cn("tabular", className)}>
+      {format(Number(value) || 0)}
     </span>
   );
 }
@@ -767,6 +799,131 @@ export function Stepper({ steps = [] }) {
 }
 
 /**
+ * Exact port of joyful-heisenberg ConnBadge (checkout/parts.tsx)
+ */
+export function ConnBadge({ mode = "sse", isEn = false }) {
+  const map = {
+    sse: {
+      dot: "bg-[#19f08c]",
+      ping: true,
+      text: isEn ? "Live" : "مباشر",
+    },
+    poll: {
+      dot: "bg-[#ffb547]",
+      ping: false,
+      text: isEn ? "Syncing" : "مزامنة",
+    },
+    offline: {
+      dot: "bg-[#ff5c6c]",
+      ping: false,
+      text: isEn ? "Reconnecting…" : "إعادة اتصال…",
+    },
+  }[mode] || {
+    dot: "bg-[#19f08c]",
+    ping: true,
+    text: isEn ? "Live" : "مباشر",
+  };
+
+  return (
+    <span
+      aria-live="polite"
+      className="inline-flex items-center gap-2 rounded-full border border-[rgb(255_255_255/0.09)] bg-white/[0.03] px-3 py-1 text-xs font-medium text-[#9aa6b4]"
+    >
+      <span className="relative flex size-2">
+        {map.ping && (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-0 rounded-full opacity-75 motion-safe:animate-ping",
+              map.dot
+            )}
+          />
+        )}
+        <span
+          aria-hidden="true"
+          className={cn("relative size-2 rounded-full", map.dot)}
+        />
+      </span>
+      {map.text}
+    </span>
+  );
+}
+
+/**
+ * Exact port of joyful-heisenberg AnimatedCheck (checkout-view.tsx)
+ */
+export function AnimatedCheck() {
+  const reduce = useReducedMotion();
+  return (
+    <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-[#19f08c]/40 bg-[#19f08c]/10 text-[#19f08c]">
+      <svg
+        viewBox="0 0 24 24"
+        className="size-8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <motion.path
+          d="M5 13l4 4L19 7"
+          initial={{ pathLength: reduce ? 1 : 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.45, ease: "easeOut" }}
+        />
+      </svg>
+    </div>
+  );
+}
+
+/**
+ * Exact port of joyful-heisenberg AvailabilityBar (pool-ui.tsx)
+ */
+export function AvailabilityBar({
+  available = 50000,
+  max = 50000,
+  sharePct,
+  label = "Pool availability",
+  availableSuffix = "available",
+}) {
+  const denom = Math.max(max, available, 1);
+  const pct =
+    sharePct !== undefined
+      ? Math.min(100, Math.max(0, sharePct))
+      : Math.min(100, Math.round((available / denom) * 100));
+  const low = available < max * 0.2;
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-3 text-xs">
+        <span className="font-medium uppercase tracking-wider text-[#6b7785]">
+          {label}
+        </span>
+        <span className="font-mono text-[#9aa6b4] tabular" dir="ltr">
+          {formatInt(available)} {availableSuffix}
+        </span>
+      </div>
+      <div
+        role="meter"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={denom}
+        aria-valuenow={available}
+        className="h-2 overflow-hidden rounded-full bg-white/10"
+      >
+        <div
+          className={cn(
+            "h-full rounded-full transition-[width,background-color] duration-500",
+            low ? "bg-[#ffb547]" : "bg-[#19f08c]"
+          )}
+          style={{ width: `${Math.max(pct, 4)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Exact port of LineVault's TierList (pool-ui.tsx)
  */
 export function TierList({
@@ -880,9 +1037,9 @@ export function quoteForCredits(qty) {
 }
 
 /**
- * Exact port of LineVault's Configurator (configurator.tsx)
- * Adapted for Black Fighters Page/AI Credit allocation with logarithmic slider,
- * quick-select chips, live AnimatedNumber quote, tier highlighter, and capacity bar.
+ * Exact port of joyful-heisenberg PoolConfigurator + CheckoutView (configurator.tsx + checkout-view.tsx)
+ * Features logarithmic slider, quick chips, AnimatedNumber tween, AvailabilityBar,
+ * live depleting CountdownRing timer, ConnBadge, and interactive Stepper + AnimatedCheck.
  */
 export function LVConfigurator({
   locale = "ar",
@@ -898,10 +1055,47 @@ export function LVConfigurator({
 
   const [qty, setQty] = useState(selectedQty || 900);
   const [raw, setRaw] = useState(() => formatInt(selectedQty || 900));
+  const [demoStage, setDemoStage] = useState(0);
+  const [timerWindow, setTimerWindow] = useState(() => {
+    const start = Date.now();
+    return {
+      startAt: new Date(start).toISOString(),
+      expiresAt: new Date(start + 15 * 60 * 1000).toISOString(),
+    };
+  });
 
   const quote = useMemo(() => quoteForCredits(qty), [qty]);
   const sliderIdx = useMemo(() => nearestStepIndex(steps, qty), [steps, qty]);
   const share = Math.min(100, (qty / maxQty) * 100);
+
+  const liveSteps = useMemo(() => {
+    const labels = [
+      {
+        key: "awaiting",
+        label: isEn ? "Awaiting transfer" : "في انتظار التحويل",
+        sub: `${quote.totalEgp} ${isEn ? "EGP" : "ج.م"} · ${formatInt(quote.qty)} ${isEn ? "Credits" : "نقطة"}`,
+      },
+      {
+        key: "detected",
+        label: isEn ? "Payment detected" : "رُصدت الدفعة",
+        sub: isEn ? "Receipt verified" : "تم التحقق من الإيصال",
+      },
+      {
+        key: "confirming",
+        label: isEn ? "Confirming ledger entry" : "تأكيد القيد المزدوج",
+        sub: isEn ? "1 / 1 confirmations" : "تأكيد فوري 1 / 1",
+      },
+      {
+        key: "delivered",
+        label: isEn ? "Credits delivered" : "تم شحن الرصيد",
+      },
+    ];
+    return labels.map((s, idx) => ({
+      ...s,
+      state:
+        idx < demoStage ? "done" : idx === demoStage ? "current" : "pending",
+    }));
+  }, [demoStage, isEn, quote.qty, quote.totalEgp]);
 
   const handleSlider = (e) => {
     const idx = Number(e.target.value);
@@ -925,8 +1119,16 @@ export function LVConfigurator({
     setRaw(formatInt(n));
   };
 
+  const resetTimer = () => {
+    const start = Date.now();
+    setTimerWindow({
+      startAt: new Date(start).toISOString(),
+      expiresAt: new Date(start + 15 * 60 * 1000).toISOString(),
+    });
+  };
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
       <GlassCard className="space-y-7 p-5 sm:p-8">
         <div>
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -935,11 +1137,11 @@ export function LVConfigurator({
               className="text-sm font-medium text-[#9aa6b4]"
             >
               {isEn
-                ? "Configure Custom Page & AI Credits"
-                : "أعدّ كمية الكريدتس والصفحات حسب احتياجك"}
+                ? "How many credits do you need?"
+                : "كم نقطة كريدت تحتاج؟"}
             </label>
             <span className="text-xs font-mono text-[#6b7785]" dir="ltr">
-              {isEn ? "100 to 10,000 Credits" : "بين 100 و 10,000 نقطة"}
+              {isEn ? "Between 100 and 10,000" : "بين 100 و 10,000 نقطة"}
             </span>
           </div>
 
@@ -1025,22 +1227,48 @@ export function LVConfigurator({
             isEn={isEn}
           />
         </div>
+
+        {/* Pool Availability Bar (1:1 joyful-heisenberg AvailabilityBar) */}
+        <div className="border-t border-[rgb(255_255_255/0.09)] pt-5">
+          <AvailabilityBar
+            available={poolAvailable}
+            max={poolAvailable}
+            sharePct={Math.max(12, share)}
+            label={isEn ? "Pool Availability" : "توفر المخزون"}
+            availableSuffix={isEn ? "available" : "متاح حالياً"}
+          />
+        </div>
       </GlassCard>
 
-      {/* Live Quote Summary Card */}
+      {/* Live Quote + CountdownRing + Stepper Terminal (1:1 joyful-heisenberg configurator.tsx + checkout-view.tsx) */}
       <GlassCard className="space-y-5 p-5 sm:p-6">
-        <div>
-          <p className="text-sm font-medium text-[#9aa6b4]">
-            {isEn ? "Instant Quote Total" : "الإجمالي الفوري للشريحة"}
-          </p>
-          <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#eef2f6]">
-            <AnimatedNumber value={quote.totalEgp} />
-            <span className="text-base font-normal text-[#9aa6b4]">
-              {isEn ? "EGP" : "ج.م"}
-            </span>
+        <div className="flex items-start justify-between gap-3 border-b border-[rgb(255_255_255/0.09)] pb-4">
+          <div>
+            <div className="mb-2">
+              <ConnBadge mode="sse" isEn={isEn} />
+            </div>
+            <p className="text-sm font-medium text-[#9aa6b4]">
+              {isEn ? "Total" : "الإجمالي"}
+            </p>
+            <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#eef2f6]">
+              <AnimatedNumber value={quote.totalEgp} />
+              <span className="text-base font-normal text-[#9aa6b4]">
+                {isEn ? "EGP" : "ج.م"}
+              </span>
+            </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <CountdownRing
+            startAt={timerWindow.startAt}
+            expiresAt={timerWindow.expiresAt}
+            onElapsed={resetTimer}
+            size={72}
+            label={isEn ? "Price lock time remaining" : "الوقت المتبقي لتثبيت السعر"}
+          />
+        </div>
+
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
             <LVBadge variant="accent">
               {isEn ? quote.tier.nameEn : quote.tier.nameAr}
             </LVBadge>
@@ -1051,17 +1279,17 @@ export function LVConfigurator({
             )}
           </div>
 
-          <p className="mt-3 flex items-center gap-1.5 text-xs text-[#19f08c]">
+          <p className="mt-2.5 flex items-center gap-1.5 text-xs text-[#19f08c]">
             <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
             <span>
               {isEn
                 ? "Verified server rate · Credits never expire"
-                : "سعر مؤكد مباشر · الرصيد لا ينتهي بانتهاء الشهر"}
+                : "سعر مؤكد من الخادم · الرصيد لا ينتهي أبداً"}
             </span>
           </p>
 
           {quote.savingsEgp > 0 && (
-            <p className="mt-1.5 text-xs font-mono text-[#9aa6b4]">
+            <p className="mt-1 text-xs font-mono text-[#9aa6b4]">
               {isEn
                 ? `You save ${quote.savingsEgp} EGP vs base rate`
                 : `توفّر ${quote.savingsEgp} ج.م مقارنة بالسعر الأساسي`}
@@ -1081,35 +1309,45 @@ export function LVConfigurator({
             />
             <span>
               {isEn
-                ? `Add ${(quote.nextTier.min_qty - qty).toLocaleString()} credits to unlock ${quote.nextTier.unit_price.toFixed(2)} EGP/credit`
+                ? `Add ${(quote.nextTier.min_qty - qty).toLocaleString()} credits to drop to ${quote.nextTier.unit_price.toFixed(2)} EGP/credit`
                 : `أضف ${(quote.nextTier.min_qty - qty).toLocaleString()} نقطة ليصبح السعر ${quote.nextTier.unit_price.toFixed(2)} ج.م للنقطة`}
             </span>
           </button>
         )}
 
-        {/* Capacity Meter */}
-        <div>
-          <div className="mb-2 flex items-baseline justify-between gap-3 text-xs">
-            <span className="font-medium uppercase tracking-wider text-[#6b7785]">
-              {isEn ? "Estimated Coverage" : "سعة الصفحات التقريبية"}
+        {/* Live Order Status Stepper (1:1 joyful-heisenberg checkout-view.tsx) */}
+        <div className="rounded-2xl border border-[rgb(255_255_255/0.09)] bg-white/[0.02] p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium uppercase tracking-wider text-[#6b7785]">
+              {isEn ? "Live Delivery Flow" : "مراحل التسليم المباشر"}
             </span>
-            <span className="font-mono text-[#9aa6b4] tabular" dir="ltr">
-              ~{formatInt(qty * 2)} {isEn ? "pages" : "صفحة"}
-            </span>
+            <button
+              type="button"
+              onClick={() => setDemoStage((s) => (s + 1) % 4)}
+              className="font-mono text-[11px] text-[#19f08c] hover:underline"
+            >
+              {isEn ? "Preview stage →" : "معاينة المرحلة ←"}
+            </button>
           </div>
-          <div
-            role="meter"
-            aria-label={isEn ? "Capacity" : "السعة"}
-            aria-valuemin={0}
-            aria-valuemax={poolAvailable}
-            aria-valuenow={qty}
-            className="h-2 overflow-hidden rounded-full bg-white/10"
-          >
-            <div
-              className="h-full rounded-full bg-[#19f08c] transition-[width] duration-500"
-              style={{ width: `${Math.max(share, 4)}%` }}
-            />
-          </div>
+
+          <AnimatePresence mode="wait">
+            {demoStage === 3 ? (
+              <motion.div
+                key="delivered"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="py-2 text-center space-y-2"
+              >
+                <AnimatedCheck />
+                <p className="text-sm font-semibold text-[#eef2f6]">
+                  {isEn ? "Credits Ready in Ledger" : "الرصيد جاهز في حسابك"}
+                </p>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+
+          <Stepper steps={liveSteps} />
         </div>
 
         {onSelectCustomPack && (
@@ -1129,9 +1367,7 @@ export function LVConfigurator({
             }
           >
             <span>
-              {isEn
-                ? "Add Custom Credits to Invoice"
-                : "إضافة الكمية المخصصة للفاتورة"}
+              {isEn ? "Continue to Payment" : "متابعة للدفع"}
             </span>
             <ArrowRight className="rtl:rotate-180" />
           </Button>
@@ -1141,8 +1377,8 @@ export function LVConfigurator({
           <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[#19f08c]" />
           <span>
             {isEn
-              ? "Protected by double-entry ledger: failed jobs auto-refund 100%."
-              : "محمي بدفتر القيد المزدوج: أي عملية تفشل يُرد رصيدها تلقائياً 100%."}
+              ? "Unique order locked for 15 minutes. Auto-delivered on confirmation."
+              : "يُحجز السعر لمدة 15 دقيقة ويُضاف الرصيد تلقائياً فور التأكيد."}
           </span>
         </p>
       </GlassCard>

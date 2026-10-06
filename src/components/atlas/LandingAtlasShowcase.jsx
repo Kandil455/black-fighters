@@ -52,18 +52,20 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
     <div className="space-y-8">
       {/* Live Interactive Reader Preview Card */}
       <LVCard padding="p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#1C222B]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-[rgb(255_255_255/0.09)]">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#22E58B]" />
-              <h3 className="text-base font-bold text-[#F2F4F7]">
+              <BookOpen className="w-4 h-4 text-[#19f08c]" />
+              <h3 className="text-base font-semibold text-[#eef2f6]">
                 {isAr
                   ? "معاينة حية لقارئ الملخصات الذكي"
                   : "Live Interactive Summary Reader Preview"}
               </h3>
-              <LVBadge variant="accent">مدقق رقمياً 100%</LVBadge>
+              <LVBadge variant="accent">
+                {isAr ? "مدقق رقمياً 100%" : "100% Verified"}
+              </LVBadge>
             </div>
-            <p className="text-xs text-[#8B94A3]">
+            <p className="text-xs text-[#9aa6b4]">
               {isAr
                 ? "شرح تمهيدي من الأساس + الاحتفاظ بالمصطلحات الإنجليزية + وضع تسميع تفاعلي"
                 : "Foundational explanation + preserved English terminology + interactive active recall"}
@@ -77,10 +79,10 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
               setRevealedItems({ d1: false, d2: false });
             }}
             className={cn(
-              "px-3.5 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 border transition-colors duration-150 shrink-0",
+              "px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition-colors duration-150 shrink-0",
               declassifyActive
-                ? "bg-[#22E58B] text-[#07090D] border-[#22E58B]"
-                : "bg-[#131820] text-[#F2F4F7] border-[#1C222B] hover:border-[#28313E]"
+                ? "bg-[#19f08c] text-[#03150c] border-[#19f08c]"
+                : "bg-white/[0.04] text-[#eef2f6] border-[rgb(255_255_255/0.09)] hover:border-[rgb(255_255_255/0.16)]"
             )}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -98,23 +100,23 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
 
         <div className="space-y-4">
           {/* Prerequisite Box */}
-          <div className="rounded-xl bg-[#131820] border border-[#1C222B] p-4">
-            <div className="text-xs font-bold text-[#22E58B] mb-1.5">
+          <div className="rounded-xl bg-white/[0.03] border border-[rgb(255_255_255/0.09)] p-4">
+            <div className="text-xs font-semibold text-[#19f08c] mb-1.5">
               {isAr
                 ? "قبل ما تقرا (شرح تمهيدي من الأساس):"
                 : "Prerequisite Foundation:"}
             </div>
-            <p className="text-xs sm:text-sm text-[#F2F4F7]/90 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#eef2f6]/90 leading-relaxed">
               خلية عضلة القلب في وقت الراحة تكون سالبة الشحنة من الداخل (
-              <span dir="ltr" className="font-mono text-[#22E58B] font-semibold">
+              <span dir="ltr" className="font-mono text-[#19f08c] font-semibold">
                 -90 mV
               </span>
               ). أي دخول لأيونات موجبة مثل الصوديوم{" "}
-              <span dir="ltr" className="font-mono text-[#F2F4F7]">
+              <span dir="ltr" className="font-mono text-[#eef2f6]">
                 Na+
               </span>{" "}
               أو الكالسيوم{" "}
-              <span dir="ltr" className="font-mono text-[#F2F4F7]">
+              <span dir="ltr" className="font-mono text-[#eef2f6]">
                 Ca2+
               </span>{" "}
               يرفع الجهد الكهربائي ويطلق الانقباض.
@@ -122,10 +124,10 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
           </div>
 
           {/* Main Summary Paragraph with Interactive Recall */}
-          <div className="rounded-xl bg-[#07090D] border border-[#1C222B] p-4 sm:p-5 space-y-3 text-sm leading-loose text-[#F2F4F7]">
-            <p className="text-[#F2F4F7]">
+          <div className="rounded-xl bg-[#05070a]/70 border border-[rgb(255_255_255/0.09)] p-4 sm:p-5 space-y-3 text-sm leading-loose text-[#eef2f6]">
+            <p className="text-[#eef2f6]">
               1. يتميز{" "}
-              <span className="text-[#22E58B] font-semibold">
+              <span className="text-[#19f08c] font-semibold">
                 طور الهضبة (Phase 2 Plateau)
               </span>{" "}
               في البطين بـ{" "}
@@ -133,38 +135,38 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
                 <button
                   type="button"
                   onClick={() => setRevealedItems((p) => ({ ...p, d1: true }))}
-                  className="px-2.5 py-0.5 mx-1 rounded-md bg-[#131820] border border-[#22E58B]/40 text-xs font-mono text-[#22E58B] hover:bg-[#22E58B]/10 transition-colors"
+                  className="px-2.5 py-0.5 mx-1 rounded-md bg-white/[0.04] border border-[#19f08c]/40 text-xs font-mono text-[#19f08c] hover:bg-[#19f08c]/10 transition-colors"
                 >
                   [اضغط لكشف المعلومة]
                 </button>
               ) : (
-                <span className="px-2 py-0.5 rounded-md bg-[#22E58B]/10 text-[#22E58B] font-mono text-xs font-semibold">
+                <span className="px-2 py-0.5 rounded-md bg-[#19f08c]/10 text-[#19f08c] font-mono text-xs font-semibold">
                   دخول الكالسيوم البطيء عبر قنوات L-type Ca2+
                 </span>
               )}{" "}
               وهي النقطة التي تستهدفها أدوية{" "}
-              <span dir="ltr" className="font-mono text-[#F2F4F7] font-semibold">
+              <span dir="ltr" className="font-mono text-[#eef2f6] font-semibold">
                 Calcium Channel Blockers
               </span>
               .
             </p>
 
-            <p className="text-[#F2F4F7]">
+            <p className="text-[#eef2f6]">
               2. جرعة التحميل الوريدية القياسية لعقار{" "}
-              <strong className="font-mono text-[#F2F4F7]">Amiodarone</strong> في
+              <strong className="font-mono text-[#eef2f6]">Amiodarone</strong> في
               الطوارئ هي{" "}
               {declassifyActive && !revealedItems.d2 ? (
                 <button
                   type="button"
                   onClick={() => setRevealedItems((p) => ({ ...p, d2: true }))}
-                  className="px-2.5 py-0.5 mx-1 rounded-md bg-[#131820] border border-[#22E58B]/40 text-xs font-mono text-[#22E58B] hover:bg-[#22E58B]/10 transition-colors"
+                  className="px-2.5 py-0.5 mx-1 rounded-md bg-white/[0.04] border border-[#19f08c]/40 text-xs font-mono text-[#19f08c] hover:bg-[#19f08c]/10 transition-colors"
                 >
                   [اضغط لكشف الجرعة]
                 </button>
               ) : (
                 <span
                   dir="ltr"
-                  className="px-2 py-0.5 rounded-md bg-[#F5A524]/15 text-[#F5A524] font-mono text-xs font-bold"
+                  className="px-2 py-0.5 rounded-md bg-[#ffb547]/15 text-[#ffb547] font-mono text-xs font-semibold"
                 >
                   150–300 mg IV bolus (ص 13)
                 </span>
@@ -178,7 +180,7 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
       {/* Clean Architectural Comparison Table */}
       <LVCard padding="p-6 sm:p-8" className="overflow-x-auto">
         <div className="mb-5">
-          <h3 className="text-lg sm:text-xl font-bold text-[#F2F4F7]">
+          <h3 className="text-lg sm:text-xl font-semibold text-[#eef2f6]">
             {isAr
               ? "مقارنة مع المذكرات التقليدية و ChatGPT العادي"
               : "How Black Fighters Compares to Static Notes & Generic ChatGPT"}
@@ -187,42 +189,42 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
 
         <table className="w-full text-xs sm:text-sm border-collapse min-w-[600px]">
           <thead>
-            <tr className="border-b border-[#1C222B] text-start">
-              <th className="py-3 px-3 text-[#8B94A3] font-medium text-start">
+            <tr className="border-b border-[rgb(255_255_255/0.09)] text-start">
+              <th className="py-3 px-3 text-[#9aa6b4] font-medium text-start">
                 {isAr ? "المعيار" : "Criterion"}
               </th>
-              <th className="py-3 px-4 text-[#22E58B] font-bold bg-[#131820] rounded-t-xl text-start">
+              <th className="py-3 px-4 text-[#19f08c] font-semibold bg-white/[0.03] rounded-t-xl text-start">
                 Black Fighters
               </th>
-              <th className="py-3 px-3 text-[#8B94A3] font-medium text-start">
+              <th className="py-3 px-3 text-[#9aa6b4] font-medium text-start">
                 {isAr ? "المذكرة التقليدية" : "Static Notes"}
               </th>
-              <th className="py-3 px-3 text-[#8B94A3] font-medium text-start">
+              <th className="py-3 px-3 text-[#9aa6b4] font-medium text-start">
                 {isAr ? "ChatGPT العادي" : "Generic ChatGPT"}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1C222B]">
+          <tbody className="divide-y divide-[rgb(255_255_255/0.09)]">
             {COMPARISON_ROWS.map((row, i) => (
               <tr key={i}>
-                <td className="py-3.5 px-3 font-semibold text-[#F2F4F7]">
+                <td className="py-3.5 px-3 font-semibold text-[#eef2f6]">
                   {isAr ? row.criteriaAr : row.criteriaEn}
                 </td>
-                <td className="py-3.5 px-4 bg-[#131820]/50 text-[#F2F4F7] font-medium">
+                <td className="py-3.5 px-4 bg-white/[0.02] text-[#eef2f6] font-medium">
                   <span className="inline-flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#22E58B] shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-[#19f08c] shrink-0 mt-0.5" />
                     <span>{isAr ? row.bfAr : row.bfEn}</span>
                   </span>
                 </td>
-                <td className="py-3.5 px-3 text-[#8B94A3]">
+                <td className="py-3.5 px-3 text-[#9aa6b4]">
                   <span className="inline-flex items-start gap-2">
-                    <XCircle className="w-4 h-4 text-[#F0545B]/70 shrink-0 mt-0.5" />
+                    <XCircle className="w-4 h-4 text-[#ff5c6c]/70 shrink-0 mt-0.5" />
                     <span>{row.notesAr}</span>
                   </span>
                 </td>
-                <td className="py-3.5 px-3 text-[#8B94A3]">
+                <td className="py-3.5 px-3 text-[#9aa6b4]">
                   <span className="inline-flex items-start gap-2">
-                    <XCircle className="w-4 h-4 text-[#F0545B]/70 shrink-0 mt-0.5" />
+                    <XCircle className="w-4 h-4 text-[#ff5c6c]/70 shrink-0 mt-0.5" />
                     <span>{row.chatgptAr}</span>
                   </span>
                 </td>

@@ -14,6 +14,8 @@ import {
   AnimatedNumber,
   CopyField,
   CountdownRing,
+  ConnBadge,
+  AnimatedCheck,
   Stepper,
   LVConfigurator,
 } from "@/components/ui/linevault";
@@ -572,23 +574,27 @@ export default function Subscriptions() {
                       </span>
                     </div>
                   </div>
-                  <LVBadge variant="accent">
-                    <span className="size-1.5 rounded-full bg-[#19f08c]" />
-                    <span>{isEn ? "Live" : "مباشر"}</span>
-                  </LVBadge>
+                  <ConnBadge mode="sse" isEn={isEn} />
                 </div>
 
-                {/* Animated Total Display (1:1 LineVault Configurator Aside) */}
-                <div>
-                  <p className="text-xs font-medium text-[#9aa6b4]">
-                    {isEn ? "Total Due" : "الإجمالي المطلوب"}
-                  </p>
-                  <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#eef2f6]">
-                    <AnimatedNumber value={totalPrice} />
-                    <span className="text-base font-normal text-[#9aa6b4]">
-                      {isEn ? "EGP" : "ج.م"}
-                    </span>
+                {/* Animated Total Display + CountdownRing (1:1 joyful-heisenberg) */}
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-[#9aa6b4]">
+                      {isEn ? "Total Due" : "الإجمالي المطلوب"}
+                    </p>
+                    <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#eef2f6]">
+                      <AnimatedNumber value={totalPrice} />
+                      <span className="text-base font-normal text-[#9aa6b4]">
+                        {isEn ? "EGP" : "ج.م"}
+                      </span>
+                    </div>
                   </div>
+                  <CountdownRing
+                    startAt={checkoutWindow.startAt}
+                    expiresAt={checkoutWindow.expiresAt}
+                    size={64}
+                  />
                 </div>
 
                 <div className="space-y-3">
@@ -892,9 +898,7 @@ export default function Subscriptions() {
             {done && (
               <div className="py-4 space-y-5">
                 <div className="text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#19f08c]/15 border border-[#19f08c]/30 flex items-center justify-center text-[#19f08c] mx-auto">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
+                  <AnimatedCheck />
                   <div className="space-y-1">
                     <h3 className="text-base font-semibold text-[#eef2f6]">
                       {isEn

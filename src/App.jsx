@@ -11,7 +11,6 @@ import OfflineManager from '@/components/OfflineManager';
 import { initSecurityGuard } from '@/lib/securityGuard';
 import { initReferralTracking } from '@/lib/referralService';
 import RemoteLockOverlay from '@/components/RemoteLockOverlay';
-import FrontendSkinDock from '@/components/FrontendSkinDock';
 
 const PremiumUpgradeModal = lazyWithRetry(() => import('@/components/PremiumUpgradeModal'));
 
@@ -43,7 +42,6 @@ export default function App() {
         <OfflineManager />
         <PremiumUpgradeHost />
         <AppRoutes />
-        <FrontendSkinDock />
       </Router>
       <SonnerToaster theme="dark" position="bottom-center" richColors closeButton />
     </AppProviders>
