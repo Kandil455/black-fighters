@@ -14,8 +14,8 @@ export const FRONTEND_SKINS = [
     num: "2",
     label: "LineVault",
     sub: "Emerald × Carbon",
-    dot: "#19f08c",
-    accent: "#19f08c",
+    dot: "#3DDC97",
+    accent: "#3DDC97",
   },
   {
     id: "atlas",

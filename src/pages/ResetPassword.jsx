@@ -68,15 +68,15 @@ export default function ResetPassword() {
 
   if (verifying) {
     return (
-      <div className="min-h-screen bg-[#07090D] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-[#22E58B]" />
+      <div className="min-h-screen bg-[#07080C] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-[#3DDC97]" />
       </div>
     );
   }
 
   return (
     <div
-      className="min-h-screen bg-[#07090D] flex items-center justify-center px-4 py-10"
+      className="min-h-screen bg-[#07080C] flex items-center justify-center px-4 py-10"
       dir={dir}
     >
       <div className="w-full max-w-md space-y-6">
@@ -87,10 +87,10 @@ export default function ResetPassword() {
         <LVCard padding="p-6 sm:p-8">
           {invalidLink ? (
             <div className="text-center space-y-4">
-              <h1 className="text-xl font-bold text-[#F0545B]">
+              <h1 className="text-xl font-bold text-[#E5484D]">
                 {isEn ? "Invalid or Expired Link" : "رابط غير صالح أو منتهي"}
               </h1>
-              <p className="text-xs text-[#8B94A3]">
+              <p className="text-xs text-[#9AA0AE]">
                 {isEn
                   ? "This password reset link has expired or has already been used."
                   : "انتهت صلاحية هذا الرابط أو تم استخدامه بالفعل."}
@@ -106,11 +106,11 @@ export default function ResetPassword() {
           ) : (
             <>
               <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-[#F2F4F7]">
+                <h1 className="text-2xl font-bold text-[#F2F3F5]">
                   {isEn ? "Set New Password" : "تعيين كلمة مرور جديدة"}
                 </h1>
                 {email && (
-                  <p className="text-xs text-[#8B94A3] mt-1 font-mono">{email}</p>
+                  <p className="text-xs text-[#9AA0AE] mt-1 font-mono">{email}</p>
                 )}
               </div>
 
@@ -125,7 +125,7 @@ export default function ResetPassword() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={cn(
-                      "h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7]",
+                      "h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]",
                       isEn ? "pr-10" : "pl-10"
                     )}
                     required
@@ -134,7 +134,7 @@ export default function ResetPassword() {
                     type="button"
                     onClick={() => setShowPass(!showPass)}
                     className={cn(
-                      "absolute top-1/2 -translate-y-1/2 text-[#8B94A3] hover:text-[#F2F4F7]",
+                      "absolute top-1/2 -translate-y-1/2 text-[#9AA0AE] hover:text-[#F2F3F5]",
                       isEn ? "right-3" : "left-3"
                     )}
                   >
@@ -152,7 +152,7 @@ export default function ResetPassword() {
                   placeholder={isEn ? "Confirm password" : "تأكيد كلمة المرور"}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
-                  className="h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7]"
+                  className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
                   required
                 />
 

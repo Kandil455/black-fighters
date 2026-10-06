@@ -87,7 +87,7 @@ export default function Register() {
 
   return (
     <div
-      className="min-h-screen bg-[#07090D] flex items-center justify-center px-4 py-10"
+      className="min-h-screen bg-[#07080C] flex items-center justify-center px-4 py-10"
       dir={dir}
     >
       <div className="w-full max-w-md space-y-6">
@@ -98,17 +98,17 @@ export default function Register() {
         <LVCard padding="p-6 sm:p-8">
           {otpStep && verificationMode === "link" ? (
             <div className="text-center">
-              <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-[#131820] border border-[#1C222B]">
-                <MailCheck className="w-6 h-6 text-[#22E58B]" />
+              <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-[#131720] border border-[#1E222B]">
+                <MailCheck className="w-6 h-6 text-[#3DDC97]" />
               </div>
-              <h1 className="text-xl font-bold text-[#F2F4F7]">
+              <h1 className="text-xl font-bold text-[#F2F3F5]">
                 {isEn ? "Confirm Your Email" : "أكد بريدك الإلكتروني"}
               </h1>
-              <p className="text-xs text-[#8B94A3] mt-2 mb-6 leading-relaxed">
+              <p className="text-xs text-[#9AA0AE] mt-2 mb-6 leading-relaxed">
                 {isEn ? (
                   <>
                     We sent a confirmation link to{" "}
-                    <span className="text-[#F2F4F7] font-mono font-semibold" dir="ltr">
+                    <span className="text-[#F2F3F5] font-mono font-semibold" dir="ltr">
                       {email}
                     </span>
                     . Open the email, click the link, then sign in.
@@ -116,7 +116,7 @@ export default function Register() {
                 ) : (
                   <>
                     أرسلنا رابط تأكيد إلى{" "}
-                    <span className="text-[#F2F4F7] font-mono font-semibold" dir="ltr">
+                    <span className="text-[#F2F3F5] font-mono font-semibold" dir="ltr">
                       {email}
                     </span>
                     . افتح الرسالة واضغط على الرابط، ثم سجل دخولك.
@@ -160,7 +160,7 @@ export default function Register() {
                   setOtpStep(false);
                   setVerificationMode(null);
                 }}
-                className="mt-4 text-xs text-[#8B94A3] hover:text-[#F2F4F7] font-medium"
+                className="mt-4 text-xs text-[#9AA0AE] hover:text-[#F2F3F5] font-medium"
               >
                 {isEn ? "← Edit information" : "← تعديل البيانات"}
               </button>
@@ -178,10 +178,10 @@ export default function Register() {
           ) : (
             <>
               <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-[#F2F4F7]">
+                <h1 className="text-2xl font-bold text-[#F2F3F5]">
                   {isEn ? "Create Account" : "إنشاء حساب جديد"}
                 </h1>
-                <p className="text-xs text-[#8B94A3] mt-1">
+                <p className="text-xs text-[#9AA0AE] mt-1">
                   {isEn
                     ? "Start organizing your lectures and summaries"
                     : "ابدأ تنظيم محاضراتك وملخصاتك في مكان واحد"}
@@ -190,7 +190,7 @@ export default function Register() {
 
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-[#8B94A3] mb-1.5 block">
+                  <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
                     {isEn ? "Full Name" : "الاسم الكامل"}
                   </label>
                   <Input
@@ -198,12 +198,12 @@ export default function Register() {
                     placeholder={isEn ? "Your full name" : "اسمك الكامل"}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7]"
+                    className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-[#8B94A3] mb-1.5 block">
+                  <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
                     {isEn ? "Email Address" : "البريد الإلكتروني"}
                   </label>
                   <Input
@@ -213,12 +213,12 @@ export default function Register() {
                     placeholder="example@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7]"
+                    className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-[#8B94A3] mb-1.5 block">
+                  <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
                     {isEn ? "Password" : "كلمة المرور"}
                   </label>
                   <div className="relative">
@@ -231,7 +231,7 @@ export default function Register() {
                       }
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className={`h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7] ${
+                      className={`h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5] ${
                         isEn ? "pr-11" : "pl-11"
                       }`}
                     />
@@ -247,7 +247,7 @@ export default function Register() {
                           : "إظهار كلمة المرور"
                       }
                       onClick={() => setShowPass(!showPass)}
-                      className={`absolute top-0 h-11 w-11 flex items-center justify-center text-[#8B94A3] hover:text-[#F2F4F7] transition-colors ${
+                      className={`absolute top-0 h-11 w-11 flex items-center justify-center text-[#9AA0AE] hover:text-[#F2F3F5] transition-colors ${
                         isEn ? "right-0" : "left-0"
                       }`}
                     >
@@ -270,11 +270,11 @@ export default function Register() {
                 </Button>
               </form>
 
-              <p className="text-center text-xs text-[#8B94A3] mt-6">
+              <p className="text-center text-xs text-[#9AA0AE] mt-6">
                 {isEn ? "Already have an account? " : "لديك حساب بالفعل؟ "}
                 <Link
                   to="/login"
-                  className="text-[#22E58B] font-semibold hover:underline"
+                  className="text-[#3DDC97] font-semibold hover:underline"
                 >
                   {isEn ? "Sign In" : "تسجيل الدخول"}
                 </Link>

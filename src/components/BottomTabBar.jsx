@@ -80,7 +80,7 @@ export default function BottomTabBar() {
 
   return (
     <div
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#090c11]/95 border-t border-[rgb(255_255_255/0.09)] pb-safe"
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#0E1117]/95 border-t border-[#1E222B] pb-safe"
       dir={dir}
     >
       <nav
@@ -99,7 +99,7 @@ export default function BottomTabBar() {
                 type="button"
                 onClick={() => handleTab(tab)}
                 aria-label={label}
-                className="flex items-center justify-center mx-1 px-3.5 py-2 rounded-xl bg-[#19f08c] text-[#03150c] shadow-glow hover:brightness-105 transition-colors duration-150"
+                className="flex items-center justify-center mx-1 px-3.5 py-2 rounded-xl bg-[#3DDC97] text-[#03150c] shadow-glow hover:brightness-105 transition-colors duration-150"
               >
                 <Plus className="w-5 h-5 stroke-[2.5]" />
               </button>
@@ -116,8 +116,8 @@ export default function BottomTabBar() {
               className={cn(
                 "flex-1 flex flex-col items-center justify-center py-1 px-1 gap-1 rounded-xl transition-colors duration-150 min-w-0",
                 active
-                  ? "text-[#19f08c]"
-                  : "text-[#9aa6b4] hover:text-[#eef2f6]"
+                  ? "text-[#3DDC97]"
+                  : "text-[#9AA0AE] hover:text-[#F2F3F5]"
               )}
             >
               <Icon className="w-5 h-5 shrink-0" />

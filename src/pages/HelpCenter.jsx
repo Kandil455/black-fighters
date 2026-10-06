@@ -229,7 +229,7 @@ export default function HelpCenter() {
         actions={
           <Link
             to="/dashboard"
-            className="h-10 px-4 rounded-xl bg-[#22E58B] text-[#07090D] hover:bg-[#1CC978] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+            className="h-10 px-4 rounded-xl bg-[#3DDC97] text-[#07080C] hover:bg-[#1CC978] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
           >
             <span>{isEn ? 'Dashboard' : 'لوحة التحكم'}</span>
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -240,7 +240,7 @@ export default function HelpCenter() {
       {/* Search & Category Filter */}
       <LVCard className="p-5 space-y-4">
         <div className="relative">
-          <Search className="w-4 h-4 text-[#8B94A3] absolute top-1/2 -translate-y-1/2 right-3.5 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#9AA0AE] absolute top-1/2 -translate-y-1/2 right-3.5 pointer-events-none" />
           <input
             type="search"
             value={query}
@@ -250,7 +250,7 @@ export default function HelpCenter() {
                 ? 'Search any feature, shortcut, FSRS rule, or Telegram limit...'
                 : 'ابحث في الدليل (يتجاهل التشكيل والهمزات تلقائياً: مثلاً اكتب "جرعات"، "FSRS"، "تيليجرام")...'
             }
-            className="w-full h-11 pr-10 pl-4 rounded-xl bg-[#07090D] border border-[#1C222B] text-sm text-[#F2F4F7] placeholder:text-[#8B94A3] focus:outline-none focus:border-[#22E58B]"
+            className="w-full h-11 pr-10 pl-4 rounded-xl bg-[#07080C] border border-[#1E222B] text-sm text-[#F2F3F5] placeholder:text-[#9AA0AE] focus:outline-none focus:border-[#3DDC97]"
           />
         </div>
 
@@ -260,8 +260,8 @@ export default function HelpCenter() {
             onClick={() => setActiveCategory('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
               activeCategory === 'all'
-                ? 'bg-[#22E58B] text-[#07090D] border-[#22E58B]'
-                : 'bg-[#07090D] text-[#8B94A3] border-[#1C222B] hover:text-[#F2F4F7]'
+                ? 'bg-[#3DDC97] text-[#07080C] border-[#3DDC97]'
+                : 'bg-[#07080C] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]'
             }`}
           >
             {isEn ? 'All 9 Sections' : 'كل الأقسام (9)'}
@@ -273,8 +273,8 @@ export default function HelpCenter() {
               onClick={() => setActiveCategory(sec.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                 activeCategory === sec.id
-                  ? 'bg-[#22E58B] text-[#07090D] border-[#22E58B]'
-                  : 'bg-[#07090D] text-[#8B94A3] border-[#1C222B] hover:text-[#F2F4F7]'
+                  ? 'bg-[#3DDC97] text-[#07080C] border-[#3DDC97]'
+                  : 'bg-[#07080C] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]'
               }`}
             >
               <span className="font-mono ml-1">{sec.number}.</span>
@@ -290,17 +290,17 @@ export default function HelpCenter() {
           const Icon = section.icon;
           return (
             <LVCard key={section.id} id={section.id} className="p-6 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#1C222B]">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#1E222B]">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#07090D] border border-[#1C222B] text-[#22E58B] flex items-center justify-center font-mono font-bold text-xs">
+                  <div className="w-9 h-9 rounded-xl bg-[#07080C] border border-[#1E222B] text-[#3DDC97] flex items-center justify-center font-mono font-bold text-xs">
                     {section.number}
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-[#F2F4F7] flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-[#22E58B]" />
+                    <h2 className="text-base font-bold text-[#F2F3F5] flex items-center gap-2">
+                      <Icon className="w-4 h-4 text-[#3DDC97]" />
                       <span>{isEn ? section.titleEn : section.titleAr}</span>
                     </h2>
-                    <p className="text-xs text-[#8B94A3] mt-0.5">
+                    <p className="text-xs text-[#9AA0AE] mt-0.5">
                       {isEn ? section.summaryEn : section.summaryAr}
                     </p>
                   </div>
@@ -315,12 +315,12 @@ export default function HelpCenter() {
                 {section.items.map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-xl bg-[#07090D] border border-[#1C222B]"
+                    className="p-4 rounded-xl bg-[#07080C] border border-[#1E222B]"
                   >
-                    <h3 className="font-bold text-sm text-[#F2F4F7] mb-1.5">
+                    <h3 className="font-bold text-sm text-[#F2F3F5] mb-1.5">
                       {isEn ? item.qEn : item.qAr}
                     </h3>
-                    <p className="text-xs text-[#8B94A3] whitespace-pre-line leading-relaxed">
+                    <p className="text-xs text-[#9AA0AE] whitespace-pre-line leading-relaxed">
                       {isEn ? item.aEn : item.aAr}
                     </p>
                   </div>

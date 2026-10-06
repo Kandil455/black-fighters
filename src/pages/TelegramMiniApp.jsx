@@ -112,14 +112,14 @@ export default function TelegramMiniApp() {
   };
 
   return (
-    <main dir="rtl" className="min-h-dvh bg-[#07090D] text-[#F2F4F7] p-4 max-w-3xl mx-auto space-y-4">
+    <main dir="rtl" className="min-h-dvh bg-[#07080C] text-[#F2F3F5] p-4 max-w-3xl mx-auto space-y-4">
       {/* Compact Telegram Mini App Header */}
-      <header className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#1C222B]">
+      <header className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#1E222B]">
         <div>
-          <div className="text-[11px] font-mono text-[#8B94A3]">
+          <div className="text-[11px] font-mono text-[#9AA0AE]">
             TELEGRAM MINI APP · /tg · SYNCED ({cloudPosition})
           </div>
-          <strong className="text-base font-bold text-[#F2F4F7]">
+          <strong className="text-base font-bold text-[#F2F3F5]">
             BLACK FIGHTERS — القارئ السحابي المصغر
           </strong>
         </div>
@@ -127,7 +127,7 @@ export default function TelegramMiniApp() {
         <button
           type="button"
           onClick={() => handleSaveCloudProgress('ص 13')}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[#22E58B]/40 bg-[#22E58B]/10 text-[#22E58B] hover:bg-[#22E58B]/20 transition-colors"
+          className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[#3DDC97]/40 bg-[#3DDC97]/10 text-[#3DDC97] hover:bg-[#3DDC97]/20 transition-colors"
         >
           حفظ الموضع سحابياً
         </button>
@@ -150,8 +150,8 @@ export default function TelegramMiniApp() {
             }}
             className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-colors ${
               activeTab === tab.id
-                ? 'bg-[#22E58B] text-[#07090D] border-[#22E58B]'
-                : 'bg-[#0E1117] text-[#8B94A3] border-[#1C222B] hover:text-[#F2F4F7]'
+                ? 'bg-[#3DDC97] text-[#07080C] border-[#3DDC97]'
+                : 'bg-[#0E1117] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]'
             }`}
           >
             {tab.label}
@@ -170,12 +170,12 @@ export default function TelegramMiniApp() {
       {activeTab === 'review' && (
         <div className="space-y-4">
           <LVCard className="p-5 space-y-4">
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#1C222B]">
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#1E222B]">
               <div>
-                <div className="text-[11px] font-mono text-[#8B94A3]">
+                <div className="text-[11px] font-mono text-[#9AA0AE]">
                   FSRS v4.5 ACTIVE RECALL
                 </div>
-                <h2 className="text-base font-bold text-[#F2F4F7]">
+                <h2 className="text-base font-bold text-[#F2F3F5]">
                   بطاقة استدعاء نشط متزامنة مع البوت
                 </h2>
               </div>
@@ -184,7 +184,7 @@ export default function TelegramMiniApp() {
               </LVBadge>
             </div>
 
-            <p className="text-sm font-semibold text-[#F2F4F7] leading-relaxed">
+            <p className="text-sm font-semibold text-[#F2F3F5] leading-relaxed">
               {srsCard.promptAr}
             </p>
 
@@ -198,8 +198,8 @@ export default function TelegramMiniApp() {
                 }}
                 className={`px-4 py-2 rounded-xl text-sm font-mono font-semibold border transition-colors ${
                   srsRevealed
-                    ? 'bg-[#22E58B]/10 border-[#22E58B]/40 text-[#22E58B]'
-                    : 'bg-[#131820] border-[#28313E] text-transparent select-none hover:border-[#22E58B]/40'
+                    ? 'bg-[#3DDC97]/10 border-[#3DDC97]/40 text-[#3DDC97]'
+                    : 'bg-[#131720] border-[#28313E] text-transparent select-none hover:border-[#3DDC97]/40'
                 }`}
               >
                 {srsCard.answerTerm}
@@ -207,8 +207,8 @@ export default function TelegramMiniApp() {
             </div>
 
             {srsRevealed && (
-              <div className="p-4 rounded-xl bg-[#07090D] border border-[#1C222B] space-y-3">
-                <p className="text-xs text-[#8B94A3] leading-relaxed">
+              <div className="p-4 rounded-xl bg-[#07080C] border border-[#1E222B] space-y-3">
+                <p className="text-xs text-[#9AA0AE] leading-relaxed">
                   {srsCard.contextSentence}
                 </p>
                 <div className="grid grid-cols-4 gap-2">
@@ -222,7 +222,7 @@ export default function TelegramMiniApp() {
                       key={b.r}
                       type="button"
                       onClick={() => handleGradeSrs(b.r)}
-                      className="py-2 px-2 rounded-lg border border-[#1C222B] bg-[#0E1117] text-[#F2F4F7] hover:border-[#22E58B]/40 hover:text-[#22E58B] text-xs font-mono transition-colors"
+                      className="py-2 px-2 rounded-lg border border-[#1E222B] bg-[#0E1117] text-[#F2F3F5] hover:border-[#3DDC97]/40 hover:text-[#3DDC97] text-xs font-mono transition-colors"
                     >
                       {b.label}
                     </button>
@@ -238,9 +238,9 @@ export default function TelegramMiniApp() {
 
       {activeTab === 'quiz' && (
         <LVCard className="p-5 space-y-4">
-          <div className="pb-3 border-b border-[#1C222B]">
-            <div className="text-[11px] font-mono text-[#8B94A3]">QUICK VERIFICATION QUIZ</div>
-            <h2 className="text-base font-bold text-[#F2F4F7]">
+          <div className="pb-3 border-b border-[#1E222B]">
+            <div className="text-[11px] font-mono text-[#9AA0AE]">QUICK VERIFICATION QUIZ</div>
+            <h2 className="text-base font-bold text-[#F2F3F5]">
               اختبار التثبيت السريع داخل تليجرام
             </h2>
           </div>
@@ -252,21 +252,21 @@ export default function TelegramMiniApp() {
               return (
                 <div
                   key={q.id}
-                  className="p-4 rounded-xl bg-[#07090D] border border-[#1C222B] space-y-3"
+                  className="p-4 rounded-xl bg-[#07080C] border border-[#1E222B] space-y-3"
                 >
-                  <p className="text-sm font-bold text-[#F2F4F7]">
+                  <p className="text-sm font-bold text-[#F2F3F5]">
                     {qIdx + 1}. {q.questionAr}
                   </p>
                   <div className="grid gap-2">
                     {q.options.map((opt, oIdx) => {
                       const isCorrect = oIdx === q.correctIndex;
                       const isSelected = chosen === oIdx;
-                      let btnClasses = 'bg-[#0E1117] border-[#1C222B] text-[#F2F4F7] hover:border-[#28313E]';
+                      let btnClasses = 'bg-[#0E1117] border-[#1E222B] text-[#F2F3F5] hover:border-[#28313E]';
                       if (isAnswered) {
                         if (isCorrect) {
-                          btnClasses = 'bg-[#22E58B]/15 border-[#22E58B]/50 text-[#22E58B]';
+                          btnClasses = 'bg-[#3DDC97]/15 border-[#3DDC97]/50 text-[#3DDC97]';
                         } else if (isSelected) {
-                          btnClasses = 'bg-[#F0545B]/15 border-[#F0545B]/50 text-[#F0545B]';
+                          btnClasses = 'bg-[#E5484D]/15 border-[#E5484D]/50 text-[#E5484D]';
                         }
                       }
                       return (
@@ -285,7 +285,7 @@ export default function TelegramMiniApp() {
                     })}
                   </div>
                   {isAnswered && (
-                    <p className="text-xs text-[#8B94A3] pt-1">
+                    <p className="text-xs text-[#9AA0AE] pt-1">
                       ✓ {q.explanationAr}
                     </p>
                   )}

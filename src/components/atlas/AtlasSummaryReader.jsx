@@ -371,8 +371,8 @@ export default function AtlasSummaryReader({
           className={cn(
             "inline-flex items-center px-2.5 py-0.5 mx-1 rounded-md text-xs font-mono font-bold border transition-colors duration-150",
             isRevealed
-              ? "bg-[#22E58B]/15 text-[#22E58B] border-[#22E58B]/40"
-              : "bg-[#131820] text-[#8B94A3] border-[#1C222B] hover:border-[#22E58B]/50 hover:text-[#F2F4F7]"
+              ? "bg-[#3DDC97]/15 text-[#3DDC97] border-[#3DDC97]/40"
+              : "bg-[#131720] text-[#9AA0AE] border-[#1E222B] hover:border-[#3DDC97]/50 hover:text-[#F2F3F5]"
           )}
         >
           <span>{isRevealed ? term : "[اضغط للكشف]"}</span>
@@ -391,13 +391,13 @@ export default function AtlasSummaryReader({
                 key={btn.rating}
                 type="button"
                 onClick={() => handleRateFsrs(itemKey, btn.rating)}
-                className="px-2 py-0.5 rounded bg-[#131820] hover:bg-[#181F29] border border-[#1C222B] text-[10px] font-mono text-[#F2F4F7]"
+                className="px-2 py-0.5 rounded bg-[#131720] hover:bg-[#181F29] border border-[#1E222B] text-[10px] font-mono text-[#F2F3F5]"
               >
                 {btn.label}
               </button>
             ))}
             {fsrsState && (
-              <span className="text-[11px] font-mono text-[#22E58B]">
+              <span className="text-[11px] font-mono text-[#3DDC97]">
                 (القادم: {fsrsState.scheduledDays}ي)
               </span>
             )}
@@ -415,26 +415,26 @@ export default function AtlasSummaryReader({
         "rounded-2xl border p-4 sm:p-6 space-y-6 transition-colors duration-150",
         paperLight
           ? "bg-white text-slate-900 border-slate-200 medical-doc-light"
-          : "bg-[#0E1117] text-[#F2F4F7] border-[#1C222B]"
+          : "bg-[#0E1117] text-[#F2F3F5] border-[#1E222B]"
       )}
     >
       {/* ─── Clean Reader Toolbar (2 Modes: مظلم / عادي + التسميع الذاتي) ─── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-[#1C222B] print-hidden">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-[#1E222B] print-hidden">
         <div className="flex items-center gap-2.5 min-w-0">
-          <FileText className="w-5 h-5 text-[#22E58B] shrink-0" />
+          <FileText className="w-5 h-5 text-[#3DDC97] shrink-0" />
           <h2 className="text-base sm:text-lg font-bold truncate">{doc.title}</h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Search Input */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-[#8B94A3] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-[#9AA0AE] absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
             <input
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="بحث في الملخص..."
-              className="h-9 ps-8 pe-3 rounded-xl bg-[#07090D] border border-[#1C222B] text-xs text-[#F2F4F7] placeholder:text-[#8B94A3] focus:outline-none focus:border-[#22E58B]"
+              className="h-9 ps-8 pe-3 rounded-xl bg-[#07080C] border border-[#1E222B] text-xs text-[#F2F3F5] placeholder:text-[#9AA0AE] focus:outline-none focus:border-[#3DDC97]"
             />
           </div>
 
@@ -442,16 +442,16 @@ export default function AtlasSummaryReader({
           <button
             type="button"
             onClick={() => setPaperLight((v) => !v)}
-            className="h-9 px-3 rounded-xl bg-[#131820] hover:bg-[#181F29] border border-[#1C222B] text-xs font-semibold text-[#F2F4F7] inline-flex items-center gap-1.5 transition-colors"
+            className="h-9 px-3 rounded-xl bg-[#131720] hover:bg-[#181F29] border border-[#1E222B] text-xs font-semibold text-[#F2F3F5] inline-flex items-center gap-1.5 transition-colors"
           >
             {paperLight ? (
               <>
-                <Moon className="w-3.5 h-3.5 text-[#22E58B]" />
+                <Moon className="w-3.5 h-3.5 text-[#3DDC97]" />
                 <span>الوضع المظلم</span>
               </>
             ) : (
               <>
-                <Sun className="w-3.5 h-3.5 text-[#22E58B]" />
+                <Sun className="w-3.5 h-3.5 text-[#3DDC97]" />
                 <span>الوضع العادي (ورقي)</span>
               </>
             )}
@@ -464,8 +464,8 @@ export default function AtlasSummaryReader({
             className={cn(
               "h-9 px-3 rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 border transition-colors",
               declassifyMode
-                ? "bg-[#22E58B] text-[#07090D] border-[#22E58B] font-bold"
-                : "bg-[#131820] text-[#F2F4F7] border-[#1C222B] hover:bg-[#181F29]"
+                ? "bg-[#3DDC97] text-[#07080C] border-[#3DDC97] font-bold"
+                : "bg-[#131720] text-[#F2F3F5] border-[#1E222B] hover:bg-[#181F29]"
             )}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -476,9 +476,9 @@ export default function AtlasSummaryReader({
           <button
             type="button"
             onClick={() => setShowGlossaryDrawer((v) => !v)}
-            className="h-9 px-3 rounded-xl bg-[#131820] hover:bg-[#181F29] border border-[#1C222B] text-xs font-semibold text-[#F2F4F7] inline-flex items-center gap-1.5 transition-colors"
+            className="h-9 px-3 rounded-xl bg-[#131720] hover:bg-[#181F29] border border-[#1E222B] text-xs font-semibold text-[#F2F3F5] inline-flex items-center gap-1.5 transition-colors"
           >
-            <BookOpen className="w-3.5 h-3.5 text-[#22E58B]" />
+            <BookOpen className="w-3.5 h-3.5 text-[#3DDC97]" />
             <span>القاموس ({glossaryTerms.length})</span>
           </button>
 
@@ -486,7 +486,7 @@ export default function AtlasSummaryReader({
           <button
             type="button"
             onClick={handleDownloadStandaloneHtml}
-            className="h-9 px-3 rounded-xl bg-[#131820] hover:bg-[#181F29] border border-[#1C222B] text-xs font-semibold text-[#F2F4F7] inline-flex items-center gap-1.5 transition-colors"
+            className="h-9 px-3 rounded-xl bg-[#131720] hover:bg-[#181F29] border border-[#1E222B] text-xs font-semibold text-[#F2F3F5] inline-flex items-center gap-1.5 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             <span>HTML</span>
@@ -495,7 +495,7 @@ export default function AtlasSummaryReader({
           <button
             type="button"
             onClick={() => window.print()}
-            className="h-9 px-3 rounded-xl bg-[#22E58B] hover:bg-[#1ed17e] text-[#07090D] text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
+            className="h-9 px-3 rounded-xl bg-[#3DDC97] hover:bg-[#1ed17e] text-[#07080C] text-xs font-bold inline-flex items-center gap-1.5 transition-colors"
           >
             <Printer className="w-3.5 h-3.5" />
             <span>طباعة PDF</span>
@@ -505,12 +505,12 @@ export default function AtlasSummaryReader({
 
       {/* Search Results Dropdown */}
       {searchQuery.trim() && (
-        <div className="rounded-xl bg-[#07090D] border border-[#1C222B] p-4 space-y-2 print-hidden">
-          <div className="text-xs font-mono text-[#8B94A3]">
+        <div className="rounded-xl bg-[#07080C] border border-[#1E222B] p-4 space-y-2 print-hidden">
+          <div className="text-xs font-mono text-[#9AA0AE]">
             نتائج البحث عن «{searchQuery}» ({searchHits.length} مطابقة):
           </div>
           {searchHits.length === 0 ? (
-            <p className="text-xs text-[#8B94A3]">لا توجد نتائج مطابقة.</p>
+            <p className="text-xs text-[#9AA0AE]">لا توجد نتائج مطابقة.</p>
           ) : (
             <div className="space-y-1.5">
               {searchHits.map((hit, i) => (
@@ -524,9 +524,9 @@ export default function AtlasSummaryReader({
                     if (chIdx >= 0) setActiveChapterIdx(chIdx);
                     setSearchQuery("");
                   }}
-                  className="w-full text-start p-2.5 rounded-lg bg-[#131820] hover:bg-[#181F29] border border-[#1C222B] text-xs text-[#F2F4F7] flex items-center gap-2"
+                  className="w-full text-start p-2.5 rounded-lg bg-[#131720] hover:bg-[#181F29] border border-[#1E222B] text-xs text-[#F2F3F5] flex items-center gap-2"
                 >
-                  <span className="font-mono text-[#22E58B] shrink-0">
+                  <span className="font-mono text-[#3DDC97] shrink-0">
                     [ص {hit.pageNumber}]
                   </span>
                   <span className="truncate">{hit.snippet}</span>
@@ -539,15 +539,15 @@ export default function AtlasSummaryReader({
 
       {/* Glossary Drawer */}
       {showGlossaryDrawer && (
-        <div className="rounded-xl bg-[#07090D] border border-[#1C222B] p-4 space-y-4 print-hidden">
+        <div className="rounded-xl bg-[#07080C] border border-[#1E222B] p-4 space-y-4 print-hidden">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-[#F2F4F7]">
+            <h3 className="text-sm font-bold text-[#F2F3F5]">
               قاموس المصطلحات الموحد (Glossary Lock)
             </h3>
             <button
               type="button"
               onClick={() => setShowGlossaryDrawer(false)}
-              className="text-[#8B94A3] hover:text-[#F2F4F7]"
+              className="text-[#9AA0AE] hover:text-[#F2F3F5]"
             >
               <X className="w-4 h-4" />
             </button>
@@ -557,19 +557,19 @@ export default function AtlasSummaryReader({
             {glossaryTerms.map((item) => (
               <div
                 key={item.en}
-                className="p-2.5 rounded-lg bg-[#131820] border border-[#1C222B] flex items-center justify-between gap-2 text-xs"
+                className="p-2.5 rounded-lg bg-[#131720] border border-[#1E222B] flex items-center justify-between gap-2 text-xs"
               >
-                <span className="font-mono font-semibold text-[#22E58B]" dir="ltr">
+                <span className="font-mono font-semibold text-[#3DDC97]" dir="ltr">
                   {item.en}
                 </span>
-                <span className="text-[#F2F4F7] font-medium">{item.ar}</span>
+                <span className="text-[#F2F3F5] font-medium">{item.ar}</span>
               </div>
             ))}
           </div>
 
           <form
             onSubmit={handleApplyGlossaryEdit}
-            className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#1C222B]"
+            className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#1E222B]"
           >
             <input
               type="text"
@@ -577,18 +577,18 @@ export default function AtlasSummaryReader({
               onChange={(e) => setEditingGlossaryEn(e.target.value)}
               placeholder="English Term"
               dir="ltr"
-              className="h-9 px-3 rounded-xl bg-[#0E1117] border border-[#1C222B] text-xs text-[#F2F4F7]"
+              className="h-9 px-3 rounded-xl bg-[#0E1117] border border-[#1E222B] text-xs text-[#F2F3F5]"
             />
             <input
               type="text"
               value={editingGlossaryAr}
               onChange={(e) => setEditingGlossaryAr(e.target.value)}
               placeholder="الترجمة العربية المعتمدة"
-              className="h-9 px-3 rounded-xl bg-[#0E1117] border border-[#1C222B] text-xs text-[#F2F4F7] flex-1 min-w-[180px]"
+              className="h-9 px-3 rounded-xl bg-[#0E1117] border border-[#1E222B] text-xs text-[#F2F3F5] flex-1 min-w-[180px]"
             />
             <button
               type="submit"
-              className="h-9 px-4 rounded-xl bg-[#22E58B] text-[#07090D] text-xs font-bold hover:bg-[#1ed17e]"
+              className="h-9 px-4 rounded-xl bg-[#3DDC97] text-[#07080C] text-xs font-bold hover:bg-[#1ed17e]"
             >
               حفظ في القاموس
             </button>
@@ -609,8 +609,8 @@ export default function AtlasSummaryReader({
                 className={cn(
                   "px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap border transition-colors",
                   isCurrent
-                    ? "bg-[#131820] text-[#22E58B] border-[#22E58B]/40"
-                    : "bg-[#07090D] text-[#8B94A3] border-[#1C222B] hover:text-[#F2F4F7]"
+                    ? "bg-[#131720] text-[#3DDC97] border-[#3DDC97]/40"
+                    : "bg-[#07080C] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]"
                 )}
               >
                 {ch.title}
@@ -625,14 +625,14 @@ export default function AtlasSummaryReader({
         {(activeChapter?.plates || []).map((plate) => (
           <article
             key={plate.plateNumber}
-            className="rounded-2xl bg-[#07090D] border border-[#1C222B] p-5 sm:p-6 space-y-4 paired-part-card"
+            className="rounded-2xl bg-[#07080C] border border-[#1E222B] p-5 sm:p-6 space-y-4 paired-part-card"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#1C222B]">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#1E222B]">
               <div>
-                <span className="text-[11px] font-mono text-[#22E58B] block">
+                <span className="text-[11px] font-mono text-[#3DDC97] block">
                   {plate.code} · ص {(plate.sourcePages || []).join("–")}
                 </span>
-                <h3 className="text-base sm:text-lg font-bold text-[#F2F4F7] mt-0.5">
+                <h3 className="text-base sm:text-lg font-bold text-[#F2F3F5] mt-0.5">
                   {plate.titleAr}
                 </h3>
               </div>
@@ -648,7 +648,7 @@ export default function AtlasSummaryReader({
                         : plate
                     )
                   }
-                  className="px-2.5 py-1 rounded-lg bg-[#131820] hover:bg-[#181F29] border border-[#1C222B] text-xs font-mono text-[#8B94A3] hover:text-[#F2F4F7]"
+                  className="px-2.5 py-1 rounded-lg bg-[#131720] hover:bg-[#181F29] border border-[#1E222B] text-xs font-mono text-[#9AA0AE] hover:text-[#F2F3F5]"
                 >
                   المصدر الأصلي
                 </button>
@@ -658,11 +658,11 @@ export default function AtlasSummaryReader({
             {/* Prerequisite Box */}
             {Array.isArray(plate.prerequisiteBox) &&
               plate.prerequisiteBox.length > 0 && (
-                <div className="rounded-xl bg-[#131820] border border-[#1C222B] p-4 space-y-1.5">
-                  <div className="text-xs font-bold text-[#22E58B]">
+                <div className="rounded-xl bg-[#131720] border border-[#1E222B] p-4 space-y-1.5">
+                  <div className="text-xs font-bold text-[#3DDC97]">
                     قبل ما تقرا (شرح تمهيدي من الأساس):
                   </div>
-                  <ul className="list-disc ps-5 space-y-1 text-xs sm:text-sm text-[#F2F4F7]/90 leading-relaxed">
+                  <ul className="list-disc ps-5 space-y-1 text-xs sm:text-sm text-[#F2F3F5]/90 leading-relaxed">
                     {plate.prerequisiteBox.map((line, i) => (
                       <li key={i}>{line}</li>
                     ))}
@@ -675,9 +675,9 @@ export default function AtlasSummaryReader({
               {(plate.blocks || []).map((block, bIdx) => (
                 <div
                   key={bIdx}
-                  className="p-3.5 rounded-xl bg-[#0E1117] border border-[#1C222B] text-sm leading-relaxed text-[#F2F4F7]"
+                  className="p-3.5 rounded-xl bg-[#0E1117] border border-[#1E222B] text-sm leading-relaxed text-[#F2F3F5]"
                 >
-                  <span className="inline-block px-2 py-0.5 rounded bg-[#131820] border border-[#1C222B] text-xs font-semibold text-[#22E58B] me-2">
+                  <span className="inline-block px-2 py-0.5 rounded bg-[#131720] border border-[#1E222B] text-xs font-semibold text-[#3DDC97] me-2">
                     {block.labelAr}
                   </span>
                   {renderBlockWithRedaction(block, plate.plateNumber, bIdx)}
@@ -687,13 +687,13 @@ export default function AtlasSummaryReader({
 
             {/* Marginalia Notes */}
             {Array.isArray(plate.marginalia) && plate.marginalia.length > 0 && (
-              <div className="pt-2 border-t border-[#1C222B] space-y-1.5">
+              <div className="pt-2 border-t border-[#1E222B] space-y-1.5">
                 {plate.marginalia.map((m) => (
                   <div
                     key={m.id}
-                    className="text-xs text-[#8B94A3] flex items-start gap-2"
+                    className="text-xs text-[#9AA0AE] flex items-start gap-2"
                   >
-                    <span className="font-mono text-[#22E58B] shrink-0">
+                    <span className="font-mono text-[#3DDC97] shrink-0">
                       [{m.refCode}]
                     </span>
                     <span>{m.noteAr}</span>
@@ -704,22 +704,22 @@ export default function AtlasSummaryReader({
 
             {/* Source Excerpt Drawer */}
             {sourceLensPlate?.plateNumber === plate.plateNumber && (
-              <div className="rounded-xl bg-[#131820] border border-[#22E58B]/30 p-4 space-y-1.5 print-hidden">
+              <div className="rounded-xl bg-[#131720] border border-[#3DDC97]/30 p-4 space-y-1.5 print-hidden">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-[#22E58B]">
+                  <span className="text-xs font-mono font-bold text-[#3DDC97]">
                     مقتطف المصدر الأصلي — ص {(plate.sourcePages || []).join("–")}
                   </span>
                   <button
                     type="button"
                     onClick={() => setSourceLensPlate(null)}
-                    className="text-xs text-[#8B94A3] hover:text-[#F2F4F7]"
+                    className="text-xs text-[#9AA0AE] hover:text-[#F2F3F5]"
                   >
                     إغلاق
                   </button>
                 </div>
                 <p
                   dir="ltr"
-                  className="text-xs font-mono text-[#F2F4F7]/90 leading-relaxed"
+                  className="text-xs font-mono text-[#F2F3F5]/90 leading-relaxed"
                 >
                   {plate.sourceExcerpt}
                 </p>

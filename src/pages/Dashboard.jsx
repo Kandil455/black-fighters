@@ -237,19 +237,19 @@ export default function Dashboard() {
           />
           <LVCard padding="p-5" className="flex flex-col justify-between gap-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-medium text-[#9aa6b4]">
+              <span className="text-xs font-medium text-[#9AA0AE]">
                 {isEn ? "Credit Balance" : "الرصيد والباقة"}
               </span>
-              <div className="grid size-9 place-items-center rounded-xl border border-[#19f08c]/30 bg-[#19f08c]/10 text-[#19f08c]">
+              <div className="grid size-9 place-items-center rounded-xl border border-[#3DDC97]/30 bg-[#3DDC97]/10 text-[#3DDC97]">
                 <Sparkles className="w-4 h-4" />
               </div>
             </div>
             <div className="flex items-end justify-between gap-2">
               <div>
-                <div className="text-2xl sm:text-3xl font-semibold font-mono tabular text-[#eef2f6]">
+                <div className="text-2xl sm:text-3xl font-semibold font-mono tabular text-[#F2F3F5]">
                   <AnimatedNumber value={userCredits} />
                 </div>
-                <p className="text-xs text-[#6b7785] mt-1">
+                <p className="text-xs text-[#8A91A0] mt-1">
                   {isPro
                     ? isEn
                       ? "Pro Membership Active"
@@ -262,7 +262,7 @@ export default function Dashboard() {
               <Link
                 to="/subscriptions"
                 onClick={playClick}
-                className="px-3 py-1.5 rounded-xl bg-[#19f08c]/10 hover:bg-[#19f08c]/20 border border-[#19f08c]/30 text-xs font-medium text-[#19f08c] transition-colors"
+                className="px-3 py-1.5 rounded-xl bg-[#3DDC97]/10 hover:bg-[#3DDC97]/20 border border-[#3DDC97]/30 text-xs font-medium text-[#3DDC97] transition-colors"
               >
                 {isEn ? "Top Up" : "شحن"}
               </Link>
@@ -278,9 +278,9 @@ export default function Dashboard() {
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <h2 className="text-xl font-semibold text-[#eef2f6]">{t("myCourses")}</h2>
+              <h2 className="text-xl font-semibold text-[#F2F3F5]">{t("myCourses")}</h2>
               {all.length > 0 && (
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono tabular bg-white/[0.04] text-[#9aa6b4] border border-[rgb(255_255_255/0.09)]">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-mono tabular bg-white/[0.04] text-[#9AA0AE] border border-[#1E222B]">
                   {filtered.length}
                 </span>
               )}
@@ -289,13 +289,13 @@ export default function Dashboard() {
             {all.length > 0 && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                 <div className="relative min-w-[240px]">
-                  <Search className="w-4 h-4 text-[#6b7785] absolute top-1/2 -translate-y-1/2 start-3.5 pointer-events-none" />
+                  <Search className="w-4 h-4 text-[#8A91A0] absolute top-1/2 -translate-y-1/2 start-3.5 pointer-events-none" />
                   <input
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={isEn ? "Filter courses..." : "صفِّ المقررات والمحاضرات..."}
-                    className="w-full h-10 ps-10 pe-3 rounded-xl bg-white/[0.035] border border-[rgb(255_255_255/0.09)] text-sm text-[#eef2f6] placeholder:text-[#6b7785] focus:outline-none focus:border-[#19f08c]/60"
+                    className="w-full h-10 ps-10 pe-3 rounded-xl bg-white/[0.035] border border-[#1E222B] text-sm text-[#F2F3F5] placeholder:text-[#8A91A0] focus:outline-none focus:border-[#3DDC97]/60"
                   />
                 </div>
 
@@ -303,7 +303,7 @@ export default function Dashboard() {
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="h-10 px-3.5 rounded-xl bg-[#090c11] border border-[rgb(255_255_255/0.09)] text-sm text-[#eef2f6] focus:outline-none focus:border-[#19f08c]/60"
+                    className="h-10 px-3.5 rounded-xl bg-[#0E1117] border border-[#1E222B] text-sm text-[#F2F3F5] focus:outline-none focus:border-[#3DDC97]/60"
                   >
                     <option value="all">{isEn ? "All Subjects" : "كل المواد"}</option>
                     {subjects.map((s) => (

@@ -35,7 +35,7 @@ export default function AtlasPrototypes() {
         actions={
           <Link
             to="/tg"
-            className="h-10 px-4 rounded-xl bg-[#22E58B] text-[#07090D] hover:bg-[#1CC978] text-xs font-semibold inline-flex items-center transition-colors"
+            className="h-10 px-4 rounded-xl bg-[#3DDC97] text-[#07080C] hover:bg-[#1CC978] text-xs font-semibold inline-flex items-center transition-colors"
           >
             فتح تطبيق تليجرام (/tg)
           </Link>
@@ -57,8 +57,8 @@ export default function AtlasPrototypes() {
             onClick={() => setSearchParams({ tab: tab.id })}
             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-colors ${
               activeTab === tab.id
-                ? 'bg-[#22E58B] text-[#07090D] border-[#22E58B]'
-                : 'bg-[#0E1117] text-[#8B94A3] border-[#1C222B] hover:text-[#F2F4F7]'
+                ? 'bg-[#3DDC97] text-[#07080C] border-[#3DDC97]'
+                : 'bg-[#0E1117] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]'
             }`}
           >
             {tab.label}
@@ -87,12 +87,12 @@ export default function AtlasPrototypes() {
 
       {activeTab === 'engine' && (
         <LVCard className="p-6 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#1C222B]">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#1E222B]">
             <div>
-              <div className="text-[11px] font-mono text-[#8B94A3]">
+              <div className="text-[11px] font-mono text-[#9AA0AE]">
                 HIERARCHICAL BIG-DOCUMENT ENGINE · 1 TO 1000 PAGES
               </div>
-              <h2 className="text-lg font-bold text-[#F2F4F7] mt-1">
+              <h2 className="text-lg font-bold text-[#F2F3F5] mt-1">
                 مُقدّر التكلفة والزمن المسبق للكتب والمراجع الضخمة
               </h2>
             </div>
@@ -101,8 +101,8 @@ export default function AtlasPrototypes() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <label className="block space-y-2">
-              <div className="text-sm font-semibold text-[#F2F4F7]">
-                إجمالي صفحات الكتاب: <span className="font-mono text-[#22E58B]">{estimatorPages} صفحة</span>
+              <div className="text-sm font-semibold text-[#F2F3F5]">
+                إجمالي صفحات الكتاب: <span className="font-mono text-[#3DDC97]">{estimatorPages} صفحة</span>
               </div>
               <input
                 type="range"
@@ -110,14 +110,14 @@ export default function AtlasPrototypes() {
                 max={1000}
                 value={estimatorPages}
                 onChange={(e) => setEstimatorPages(Number(e.target.value))}
-                className="w-full accent-[#22E58B]"
+                className="w-full accent-[#3DDC97]"
               />
             </label>
 
             <label className="block space-y-2">
-              <div className="text-sm font-semibold text-[#F2F4F7]">
+              <div className="text-sm font-semibold text-[#F2F3F5]">
                 نسبة الصفحات الممسوحة ضوئياً (OCR/Vision):{' '}
-                <span className="font-mono text-[#22E58B]">{estimatorOcrRatio}%</span>
+                <span className="font-mono text-[#3DDC97]">{estimatorOcrRatio}%</span>
               </div>
               <input
                 type="range"
@@ -125,41 +125,41 @@ export default function AtlasPrototypes() {
                 max={100}
                 value={estimatorOcrRatio}
                 onChange={(e) => setEstimatorOcrRatio(Number(e.target.value))}
-                className="w-full accent-[#22E58B]"
+                className="w-full accent-[#3DDC97]"
               />
             </label>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-[#07090D] border border-[#1C222B]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-[#07080C] border border-[#1E222B]">
             <div>
-              <div className="text-xs text-[#8B94A3] mb-1">
+              <div className="text-xs text-[#9AA0AE] mb-1">
                 عدد الفصول المقسمة (25–40 ص)
               </div>
-              <strong className="text-lg font-mono text-[#F2F4F7]">
+              <strong className="text-lg font-mono text-[#F2F3F5]">
                 {jobEstimate.estimatedParts} فصل مستقل
               </strong>
             </div>
             <div>
-              <div className="text-xs text-[#8B94A3] mb-1">
+              <div className="text-xs text-[#9AA0AE] mb-1">
                 الرصيد المطلوب (Page Credits)
               </div>
-              <strong className="text-lg font-mono text-[#22E58B]">
+              <strong className="text-lg font-mono text-[#3DDC97]">
                 {jobEstimate.creditCost.totalCreditsRequired} نقطة صفحة
               </strong>
             </div>
             <div>
-              <div className="text-xs text-[#8B94A3] mb-1">
+              <div className="text-xs text-[#9AA0AE] mb-1">
                 الزمن التقديري للمعالجة المتوازية
               </div>
-              <strong className="text-lg font-mono text-[#F2F4F7]">
+              <strong className="text-lg font-mono text-[#F2F3F5]">
                 ~{Math.ceil(jobEstimate.estimatedDurationSeconds / 60)} دقيقة
               </strong>
             </div>
             <div>
-              <div className="text-xs text-[#8B94A3] mb-1">
+              <div className="text-xs text-[#9AA0AE] mb-1">
                 صيغة التصدير التلقائية
               </div>
-              <strong className="text-sm font-mono text-[#F2F4F7]">
+              <strong className="text-sm font-mono text-[#F2F3F5]">
                 {estimatorPages <= 60 ? 'ملف HTML واحد (<= 400KB)' : 'حزمة ZIP متعددة الفصول + PDF'}
               </strong>
             </div>

@@ -3,14 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
-  Boxes,
-  Sparkles,
-  Download,
-  Lock,
-  ShieldCheck,
-  EyeOff,
-  Wallet,
   ChevronDown,
+  Send,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,41 +20,42 @@ import {
   reveal,
   rise,
 } from "@/components/ui/linevault";
-import LandingAtlasShowcase from "@/components/atlas/LandingAtlasShowcase";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
 import { cn } from "@/lib/utils";
 
-const STEPS = [
+const SUBJECT_CHIPS = [
+  { ar: "التشريح", en: "Anatomy" },
+  { ar: "الفسيولوجي", en: "Physiology" },
+  { ar: "الباثولوجي", en: "Pathology" },
+  { ar: "الأدوية", en: "Pharmacology" },
+  { ar: "الميكروبيولوجي", en: "Microbiology" },
+  { ar: "الباطنة", en: "Internal Medicine" },
+  { ar: "الجراحة", en: "Surgery" },
+  { ar: "الأطفال", en: "Pediatrics" },
+];
+
+const HOW_STEPS = [
   {
-    key: "s1",
-    Icon: Boxes,
-    titleAr: "اختر المحاضرة أو المرجع (1 إلى 1,000 صفحة)",
-    titleEn: "Select Lecture or Textbook (1 to 1,000 Pages)",
-    descAr:
-      "من محاضرة 20 صفحة إلى مرجع 1,000 صفحة. يقسم المحرك الهرمي الفصول بدقة مع حذف التكرار وتقدير فوري للتكلفة.",
-    descEn:
-      "From a 20-page lecture to a 1,000-page reference. Our hierarchical engine splits chapters cleanly and shows an instant quote.",
+    num: "01",
+    titleAr: "ارفع المحاضرة",
+    titleEn: "Upload the Lecture",
+    descAr: "PDF أو سلايدات أو صور، لحد 1000 صفحة في الملف الواحد.",
+    descEn: "PDF, slides, or images — up to 1,000 pages in a single file.",
   },
   {
-    key: "s2",
-    Icon: Sparkles,
-    titleAr: "افهم من الأساس بتدقيق رقمي مزدوج",
-    titleEn: "Foundational Bilingual Summary + Dual Verifier",
-    descAr:
-      "شرح تمهيدي بالعربي الواضح مع إبقاء المصطلح الإنجليزي في مكانه، ومطابقة كل جرعة ورقم طبي عبر عائلة نماذج ثانية.",
-    descEn:
-      "Clear Arabic foundational intuition with preserved English terminology and cross-family dosage verification.",
+    num: "02",
+    titleAr: "الملخص بيتكتب",
+    titleEn: "Summary Is Written",
+    descAr: "شرح كامل من الأساس، وكل معلومة ليها صفحة مصدر تفتحها.",
+    descEn: "Complete foundational explanation with every fact linked to its source page.",
   },
   {
-    key: "s3",
-    Icon: Download,
-    titleAr: "حمّل ملخصك أو أرسله إلى تيليجرام",
-    titleEn: "Download Offline HTML/PDF or Send to Telegram",
-    descAr:
-      "فور انتهاء التوليد يصبح الملخص لك: افتحه في القارئ التفاعلي، أو حمّل ملف HTML/PDF مستقل، أو أرسله لبوت تيليجرام.",
-    descEn:
-      "Once generated, open in the interactive active-recall reader, download standalone HTML/PDF, or push directly to Telegram.",
+    num: "03",
+    titleAr: "ذاكر وراجع",
+    titleEn: "Study & Review",
+    descAr: "على الموقع أو تيليجرام، مع كويز وبطاقات مراجعة.",
+    descEn: "On the web or Telegram, with active-recall quizzes and FSRS flashcards.",
   },
 ];
 
@@ -74,8 +70,8 @@ const PRICING_TIERS = [
     recommended: false,
     rows: [
       { labelAr: "تلخيص محاضرات أساسي", labelEn: "Core Lecture Summaries", valueAr: "مشمول", valueEn: "Included" },
-      { labelAr: "قالب «شرح من الأساس»", labelEn: "Foundational Bilingual", valueAr: "مشمول", valueEn: "Included" },
-      { labelAr: "بطاقات المراجعة FSRS v4.5", labelEn: "FSRS v4.5 Flashcards", valueAr: "يومي", valueEn: "Daily" },
+      { labelAr: "قالب «قبل ما تقرا»", labelEn: "Foundational Bilingual", valueAr: "مشمول", valueEn: "Included" },
+      { labelAr: "بطاقات المراجعة FSRS", labelEn: "FSRS Flashcards", valueAr: "يومي", valueEn: "Daily" },
       { labelAr: "السعر الشهري", labelEn: "Monthly Price", valueAr: "0 ج.م", valueEn: "0 EGP" },
     ],
   },
@@ -91,8 +87,8 @@ const PRICING_TIERS = [
     saveEn: "Save 25%",
     rows: [
       { labelAr: "رصيد الكريدتس الشهري", labelEn: "Monthly AI Credits", valueAr: "900 نقطة", valueEn: "900 Credits", highlight: true },
-      { labelAr: "المدقق الرقمي المزدوج للجرعات", labelEn: "Cross-Family Dosage Verifier", valueAr: "مفعّل", valueEn: "Active" },
-      { labelAr: "تصدير HTML مستقل + طباعة PDF", labelEn: "Offline HTML + Print PDF", valueAr: "غير محدود", valueEn: "Unlimited" },
+      { labelAr: "توثيق الصفحة + تدقيق الجرعات", labelEn: "Page Citations + Dosage Verifier", valueAr: "مفعّل", valueEn: "Active" },
+      { labelAr: "تصدير HTML + PDF + تيليجرام", labelEn: "HTML + PDF + Telegram Bot", valueAr: "غير محدود", valueEn: "Unlimited" },
       { labelAr: "السعر الشهري", labelEn: "Monthly Price", valueAr: "149 ج.م / شهر", valueEn: "149 EGP / mo" },
     ],
   },
@@ -107,87 +103,38 @@ const PRICING_TIERS = [
     saveAr: "وفّر 40%",
     saveEn: "Save 40%",
     rows: [
-      { labelAr: "محرك الكتب والمراجع الضخمة", labelEn: "Big-Book Engine", valueAr: "2,500 نقطة", valueEn: "2,500 Credits", highlight: true },
+      { labelAr: "محرك المراجع حتى 1000 صفحة", labelEn: "1,000-Page Textbook Engine", valueAr: "2,500 نقطة", valueEn: "2,500 Credits", highlight: true },
       { labelAr: "أولوية قصوى في طابور المعالجة", labelEn: "Priority Queue", valueAr: "فوري", valueEn: "Instant" },
-      { labelAr: "مزامنة كاملة مع بوت وتطبيق تيليجرام", labelEn: "Telegram Bot + Mini App", valueAr: "مشمول", valueEn: "Included" },
+      { labelAr: "مزامنة كاملة مع بوت تيليجرام", labelEn: "Full Telegram Bot Sync", valueAr: "مشمول", valueEn: "Included" },
       { labelAr: "السعر الشهري", labelEn: "Monthly Price", valueAr: "249 ج.م / شهر", valueEn: "249 EGP / mo" },
     ],
   },
 ];
 
-const TRUST_ITEMS = [
-  {
-    key: "t1",
-    Icon: Lock,
-    titleAr: "خصوصية كاملة لمحاضراتك",
-    titleEn: "Encryption & Privacy at Rest",
-    descAr:
-      "ملخصاتك ومذكراتك مربوطة بحسابك فقط. ألغينا النشر العام نهائياً واستبدلناه بتصدير مشفر وملفات HTML مستقلة.",
-    descEn:
-      "Your lectures stay strictly private to your account. Public link leaks are permanently disabled.",
-  },
-  {
-    key: "t2",
-    Icon: ShieldCheck,
-    titleAr: "تدقيق مزدوج للأرقام والجرعات",
-    titleEn: "Cross-Family Verification",
-    descAr:
-      "كل جرعة دوائية أو قيمة معملية تُراجع تلقائياً عبر نموذج ذكاء اصطناعي من عائلة مختلفة قبل اعتماد الملخص.",
-    descEn:
-      "Every clinical dosage and lab value is cross-checked by a second model family against the source page.",
-  },
-  {
-    key: "t3",
-    Icon: EyeOff,
-    titleAr: "بلا تشتيت ولا حشو بصري",
-    titleEn: "No Trackers, Zero Clutter",
-    descAr:
-      "واجهة مركزة مصممة للقراءة الطويلة لساعات بدون إرهاق بصري، مع دعم كامل لاختصارات الكيبورد.",
-    descEn:
-      "Focused terminal-grade interface built for multi-hour study sessions with full keyboard navigation.",
-  },
-  {
-    key: "t4",
-    Icon: Wallet,
-    titleAr: "دفتر رصيد مزدوج القيد",
-    titleEn: "Double-Entry Credit Protection",
-    descAr:
-      "لا يُخصم رصيدك أبداً إذا تعثر أي فصل أثناء المعالجة؛ يُحجز الرصيد مؤقتاً ويُرد تلقائياً عند أي خطأ.",
-    descEn:
-      "Credits are reserved before generation and automatically refunded if any chapter fails.",
-  },
-];
-
 const FAQ_ITEMS = [
   {
-    qAr: "كيف يتعامل النظام مع الكتب والمراجع الكبيرة (300–1000 صفحة)؟",
-    qEn: "How does the platform handle 300–1000 page textbooks?",
-    aAr: "يتم تقسيم الملف تلقائياً إلى فصول (25–40 صفحة) مع تداخل صفحتين بين كل فصل وآخر، وقفل المصطلحات في قاموس موحد، ثم تجميع الملخص في ملف مفهرس بالكامل بدون اقتطاع أي فقرة.",
-    aEn: "Large PDFs are partitioned into 25–40 page chapters with a 2-page overlap and a locked glossary registry so nothing in the middle is ever truncated.",
+    qAr: "إزاي الموقع بيلخص ملفات لحد 1000 صفحة من غير ما يطير نص الكلام؟",
+    qEn: "How does the platform summarize up to 1,000 pages without skipping content?",
+    aAr: "الملف بيتقسم فصول منظمة مع قاموس مصطلحات ثابت، وكل فقرة في الملخص بتفضل مربوطة برقم صفحتها الأصلية في الـ PDF.",
+    aEn: "Large PDFs are partitioned into chapters with a locked glossary, and every paragraph remains linked to its source PDF page.",
   },
   {
-    qAr: "ما هو قالب «شرح من الأساس» (Foundational Bilingual)؟",
-    qEn: "What is the Foundational Bilingual summary template?",
-    aAr: "بدلاً من السرد الجاف الذي يفترض حفظك المسبق، يبدأ كل قسم بصندوق تمهيدي يشرح الفكرة الأساسية بالعربي الواضح مع إبقاء المصطلحات الطبية والعلمية الإنجليزية في مكانها.",
-    aEn: "Every concept starts with a clear Arabic prerequisite bridge while keeping exact English medical and scientific terms inline.",
+    qAr: "يعني إيه «قبل ما تقرا» جوه الملخص؟",
+    qEn: "What is the 'Before You Read' box inside each summary?",
+    aAr: "قبل ما يدخل في تفاصيل الأدوية أو الفسيولوجي، بيبدأ بصندوق يمهد الفكرة الأساسية من الصفر بالعربي البسيط مع المصطلح الإنجليزي في مكانه.",
+    aEn: "Each section starts with a foundational prerequisite bridge in clear Arabic while preserving exact English medical terminology inline.",
   },
   {
-    qAr: "كيف أضمن دقة الجرعات والأرقام الطبية في الملخص؟",
-    qEn: "How are medical dosages and numbers verified?",
-    aAr: "يمر كل ملخص عبر مدقق مستقل من عائلة نماذج ثانية (Cross-Family Verifier) يطابق كل رقم وجرعة مع الصفحة الأصلية في المحاضرة.",
-    aEn: "Every summary passes through a Cross-Family Verifier that checks all numbers, units, and dosages against the source PDF page.",
+    qAr: "إزاي بكمل مذاكرة من تيليجرام؟",
+    qEn: "How do I continue studying from Telegram?",
+    aAr: "أول ما الملخص يخلص، البوت بيبعتلك إشعار تقدر منه تفتح القارئ، تستلم الـ PDF، أو تحل الكويز وبطاقات المراجعة مباشرة.",
+    aEn: "Once your summary is ready, the Telegram bot lets you open the reader, download the PDF, or answer quizzes and flashcards right away.",
   },
   {
-    qAr: "هل أستطيع قراءة الملخصات بدون إنترنت أو طباعتها؟",
-    qEn: "Can I read summaries offline or print them?",
-    aAr: "نعم، بضغطة واحدة يمكنك تحميل الملخص كملف HTML مستقل يعمل بدون إنترنت وبنفس تنسيق القارئ، أو طباعته بصيغة A4 PDF.",
-    aEn: "Yes, export any summary as a single-file offline HTML reader or print-ready A4 PDF.",
-  },
-  {
-    qAr: "كيف يعمل التكامل مع تيليجرام؟",
-    qEn: "How does the Telegram integration work?",
-    aAr: "يمكنك ربط حسابك ببوت تيليجرام وفتح تطبيق القارئ المصغر (/tg) لمراجعة بطاقات FSRS المستحقة واستلام ملفاتك مباشرة داخل تيليجرام.",
-    aEn: "Link your account to our Telegram bot and open the /tg Mini App to review due FSRS cards and receive exported files directly.",
+    qAr: "لو عملية التلخيص وقفت لأي سبب، الكريدتس بتروح عليا؟",
+    qEn: "Are my credits safe if a generation job fails?",
+    aAr: "لا نهائياً. الرصيد بيتحجز مؤقتاً بس، ولو حصل أي خطأ بيرجع لحسابك تلقائياً 100%.",
+    aEn: "Never. Credits are reserved in a double-entry ledger and automatically refunded 100% if any chapter fails.",
   },
 ];
 
@@ -195,256 +142,539 @@ export default function Landing() {
   const { user } = useAuth();
   const { locale, dir, setLocale } = useLocale();
   const navigate = useNavigate();
-  const isAr = locale === "ar";
+  const isAr = locale !== "en";
+
+  const [cardFlipped, setCardFlipped] = useState(false);
+  const [declassified, setDeclassified] = useState({
+    d1: false,
+    d2: false,
+    d3: false,
+  });
+  const [selectedQuizOption, setSelectedQuizOption] = useState(null);
   const [openFaq, setOpenFaq] = useState(0);
 
   const primaryHref = user ? "/dashboard" : "/register";
+  const loginHref = user ? "/dashboard" : "/login";
 
   const navLinks = [
-    { href: "/subscriptions", label: isAr ? "المتجر والرصيد" : "Store", isRoute: true },
-    { href: primaryHref, label: isAr ? "الكورسات" : "Courses", isRoute: true },
-    { href: "#how", label: isAr ? "كيف يعمل" : "How it works" },
+    { href: "#summary", label: isAr ? "المكتبة" : "Library" },
+    { href: "#study-now", label: isAr ? "الكورسات" : "Study Now" },
+    { href: "#how", label: isAr ? "إزاي بيشتغل" : "How it works" },
     { href: "#pricing", label: isAr ? "الأسعار" : "Pricing" },
-    { href: "#faq", label: isAr ? "الأسئلة الشائعة" : "FAQ" },
+    { href: "#faq", label: isAr ? "الأسئلة" : "FAQ" },
   ];
 
+  const toggleDeclassify = (key) => {
+    setDeclassified((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
-    <div dir={dir} className="min-h-screen text-[#eef2f6]">
-      {/* Sticky Header (1:1 joyful-heisenberg layout/header.tsx) */}
-      <header className="sticky top-0 z-50 border-b border-[rgb(255_255_255/0.09)] bg-[#05070a]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <LVLogo to="/" label="BLACK FIGHTERS" />
+    <div dir={dir || "rtl"} className="min-h-screen bg-[#07080C] text-[#F2F3F5]">
+      <div className="mx-auto max-w-[1280px] px-5 sm:px-11">
+        {/* ─── HEADER (1:1 Black Fighters الأطلس – نسخة نضيفة داكنة) ─── */}
+        <header className="flex h-[84px] items-center justify-between gap-4 border-b border-[#151922]">
+          <LVLogo to="/" label="Black Fighters" />
 
           <nav
             aria-label={isAr ? "التنقل الرئيسي" : "Primary Navigation"}
-            className="hidden items-center gap-1 md:flex"
+            className="hidden md:flex items-center gap-8 text-[16px] text-[#9AA0AE]"
           >
-            {navLinks.map((l) =>
-              l.isRoute ? (
-                <Link
-                  key={l.href}
-                  to={l.href}
-                  className="rounded-lg px-3 py-2 text-sm text-[#9aa6b4] transition-colors hover:text-[#eef2f6]"
-                >
-                  {l.label}
-                </Link>
-              ) : (
-                <a
-                  key={l.href}
-                  href={l.href}
-                  className="rounded-lg px-3 py-2 text-sm text-[#9aa6b4] transition-colors hover:text-[#eef2f6]"
-                >
-                  {l.label}
-                </a>
-              )
-            )}
+            {navLinks.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                className="transition-colors hover:text-[#F2F3F5]"
+              >
+                {l.label}
+              </a>
+            ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <LVLangSwitch locale={locale} onChange={setLocale} />
-
-            <Button asChild size="sm" className="hidden sm:inline-flex">
-              <Link to={user ? "/dashboard" : "/subscriptions"}>
+            <Button asChild className="h-[46px] px-6 text-[15px] rounded-[10px]">
+              <Link to={loginHref}>
                 {user
                   ? isAr
                     ? "لوحة التحكم"
                     : "Dashboard"
                   : isAr
-                  ? "اشحن رصيدك"
-                  : "Buy Credits"}
+                  ? "سجّل دخولك"
+                  : "Sign In"}
               </Link>
             </Button>
           </div>
-        </div>
+        </header>
 
-        {/* Mobile sub-nav (1:1 joyful-heisenberg layout/header.tsx) */}
-        <nav
-          aria-label={isAr ? "التنقل الرئيسي" : "Primary Navigation"}
-          className="flex gap-1 overflow-x-auto border-t border-[rgb(255_255_255/0.09)] px-3 py-1.5 md:hidden scrollbar-none"
-        >
-          {navLinks.map((l) =>
-            l.isRoute ? (
-              <Link
-                key={l.href}
-                to={l.href}
-                className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-[#9aa6b4] hover:text-[#eef2f6]"
-              >
-                {l.label}
-              </Link>
-            ) : (
-              <a
-                key={l.href}
-                href={l.href}
-                className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-[#9aa6b4] hover:text-[#eef2f6]"
-              >
-                {l.label}
-              </a>
-            )
-          )}
-        </nav>
-      </header>
-
-      <main className="pb-24">
-        {/* 1) HERO SECTION (1:1 joyful-heisenberg hero.tsx + LineStream) */}
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-8 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.1fr_0.9fr]">
+        {/* ─── HERO SECTION (1:1 Black Fighters الأطلس – نسخة نضيفة داكنة) ─── */}
+        <section className="grid items-center gap-14 pt-[72px] pb-16 lg:grid-cols-[1.2fr_1fr]">
           <div>
-            <motion.p
-              {...reveal(0)}
-              className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#19f08c]/25 bg-[#19f08c]/10 px-3 py-1 text-xs font-medium text-[#19f08c]"
-            >
-              <span
-                className="size-1.5 rounded-full bg-[#19f08c]"
-                aria-hidden="true"
-              />
-              {isAr
-                ? "مخزون مباشر · تلخيص وتدقيق بالذكاء الاصطناعي"
-                : "Live inventory · AI + FSRS v4.5"}
-            </motion.p>
+            <motion.div {...reveal(0)}>
+              <span className="bf-pill">
+                <span className="bf-pulse-dot w-[7px] h-[7px] rounded-full bg-[#3DDC97]" />
+                <span>
+                  {isAr ? "مكتبة بتتحدث أول بأول" : "Live Updated Study Library"}
+                </span>
+              </span>
+            </motion.div>
 
             <motion.h1
               {...reveal(1)}
-              className="text-balance text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
+              className="mt-7 text-5xl sm:text-6xl lg:text-[74px] font-bold leading-[1.12] tracking-[-0.015em] text-[#F2F3F5]"
             >
-              <span className="text-gradient">
-                {isAr ? "اسحب بالضبط" : "Pull the exact"}
-              </span>{" "}
-              <span className="bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 bg-clip-text font-extrabold text-transparent drop-shadow-[0_0_24px_rgba(245,158,11,0.35)]">
-                {isAr ? "الملخصات والكويزات" : "Study Packs"}
-              </span>{" "}
-              <span className="text-gradient">
-                {isAr ? "التي تحتاجها." : "you need."}
+              {isAr ? "ذاكر من ملخص" : "Study from a summary"}
+              <br />
+              <span className="bf-hero-gradient">
+                {isAr ? "مكتوب من الأول للآخر." : "written from the ground up."}
               </span>
             </motion.h1>
 
             <motion.p
               {...reveal(2)}
-              className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-[#9aa6b4]"
+              className="mt-7 max-w-[560px] text-[20px] leading-[1.9] text-[#9AA0AE]"
             >
               {isAr
-                ? "اختر الباقة أو المقرر، حدّد الكمية والعمق، واستلم ملخصاتك المدققة وكويزاتك خلال دقائق — مخصصة لحسابك وحدك."
-                : "Pick a study pool, choose your credit volume, and generate verified bilingual summaries and FSRS quizzes in minutes."}
+                ? "ارفع المحاضرة وخد ملخص HTML مرتب يشرح كل مصطلح من الأساس، وكل معلومة فيه مربوطة بصفحتها الأصلية. وتكمل من موبايلك على تيليجرام."
+                : "Upload your lecture and get a structured HTML summary that explains every term from scratch, linked to its source page — and continue on Telegram."}
             </motion.p>
 
             <motion.div
               {...reveal(3)}
-              className="mt-9 flex flex-wrap items-center gap-3"
+              className="mt-9 flex flex-wrap items-center gap-3.5"
             >
               <Button asChild size="lg">
                 <Link to={primaryHref}>
-                  <span>
-                    {user
-                      ? isAr
-                        ? "افتح لوحة التحكم"
-                        : "Open Dashboard"
-                      : isAr
-                      ? "تصفح الباقات والرصيد"
-                      : "Browse the store"}
-                  </span>
-                  <ArrowRight className="rtl:rotate-180" />
+                  {isAr ? "ارفع محاضرة" : "Upload Lecture"}
                 </Link>
               </Button>
-
-              <Button asChild variant="secondary" size="lg">
-                <a href="#how">{isAr ? "كيف يعمل" : "How it works"}</a>
+              <Button asChild variant="outline" size="lg">
+                <a href="#how">
+                  {isAr ? "شوف إزاي بيشتغل" : "See How It Works"}
+                </a>
               </Button>
             </motion.div>
 
             <motion.div
               {...reveal(4)}
-              className="mt-12 border-t border-[rgb(255_255_255/0.09)] pt-6"
+              className="mt-12 pt-7 border-t border-[#151922] flex flex-wrap gap-10"
             >
-              <p className="text-sm text-[#9aa6b4]">
-                {isAr
-                  ? "الملخصات والأسئلة الجاهزة في المخزون الآن"
-                  : "Study packs & verified clinical lines in stock right now"}
-              </p>
-              <div
-                className="mt-1 font-mono text-4xl font-medium tabular text-[#eef2f6] sm:text-5xl"
-                aria-live="polite"
-              >
-                <AnimatedNumber value={192} />
+              <div>
+                <div className="text-[14px] text-[#8A91A0]">
+                  {isAr ? "ملخصات جاهزة اليوم" : "Summaries Ready Today"}
+                </div>
+                <div className="mt-1.5 font-mono text-[44px] font-medium text-[#F2F3F5] leading-none">
+                  <AnimatedNumber value={214} />
+                </div>
+              </div>
+              <div>
+                <div className="text-[14px] text-[#8A91A0]">
+                  {isAr ? "أكبر ملف اتلخص" : "Largest Book Summarized"}
+                </div>
+                <div className="mt-1.5 font-mono text-[44px] font-medium text-[#F2F3F5] leading-none">
+                  1000
+                  <span className="text-[18px] text-[#8A91A0] ms-1 font-sans">
+                    {isAr ? "ص" : "p"}
+                  </span>
+                </div>
               </div>
             </motion.div>
           </div>
 
           <motion.div {...reveal(2)}>
-            <LineStream
-              locale={locale}
-              label={
-                isAr
-                  ? "مخزون الباقات والكريدتس المباشر"
-                  : "Live Study & Credits Inventory"
-              }
-            />
+            <LineStream locale={locale} ctaHref={primaryHref} />
           </motion.div>
         </section>
 
-        {/* 2) HOW IT WORKS (1:1 LineVault HowItWorks in landing-sections.tsx) */}
+        {/* ─── SUBJECT MARQUEE STRIP (1:1 نسخة نضيفة داكنة) ─── */}
+        <div className="overflow-hidden border-y border-[#151922] mb-14 bf-marquee-mask">
+          <div className="bf-marquee-track">
+            {[0, 1].map((dup) => (
+              <div
+                key={dup}
+                aria-hidden={dup === 1 ? "true" : undefined}
+                className="flex gap-3.5 py-[18px] px-[7px]"
+              >
+                {SUBJECT_CHIPS.map((chip, idx) => (
+                  <span key={idx} className="bf-chip">
+                    <i className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] inline-block" />
+                    <span>{isAr ? chip.ar : chip.en}</span>
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <main className="pb-24">
+        {/* ─── SECTION 1: SUMMARY + TELEGRAM BOT (1:1 نسخة نضيفة داكنة) ─── */}
+        <Section
+          id="summary"
+          eyebrow="SUMMARY"
+          title={
+            isAr
+              ? "ملخص بيشرح، مش نقط مضغوطة"
+              : "A Summary That Explains, Not Compressed Bullet Points"
+          }
+          subtitle={
+            isAr
+              ? "كل قسم بيبدأ بشرح المفاهيم اللي قبله من الصفر، وبعدين المحتوى نفسه، وتبعته لتيليجرام بضغطة."
+              : "Every section starts by explaining prerequisite concepts from scratch, followed by the core content — and sends to Telegram in one click."
+          }
+          className="pt-6"
+        >
+          <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr] items-start">
+            {/* Summary Reader Card */}
+            <motion.div {...rise(0)} className="bf-card p-6 sm:p-8">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-[13px] text-[#9AA0AE]">
+                  {isAr ? "CARDIOLOGY · الفصل 4" : "CARDIOLOGY · CHAPTER 4"}
+                </span>
+                <span className="bf-pill border-[#262A34] bg-[#11151C] text-[#9AA0AE] py-1.5 px-3.5 text-xs">
+                  {isAr ? "المصدر: ص 14" : "Source: p. 14"}
+                </span>
+              </div>
+
+              <h3
+                dir="ltr"
+                className="mt-4 font-mono text-3xl sm:text-[38px] font-medium text-[#F2F3F5] text-end"
+              >
+                Beta-blockers
+              </h3>
+
+              <div className="mt-5 p-[18px_20px] rounded-[14px] bg-[#0A0D13] border border-[#1E222B]">
+                <div className="bf-k mb-1.5">
+                  {isAr ? "قبل ما تقرا" : "BEFORE YOU READ"}
+                </div>
+                <div className="text-[#B7BCC8] leading-[1.9] text-[17px]">
+                  {isAr
+                    ? "المستقبل (receptor) بروتين على سطح الخلية. لما مادة معينة تلزق فيه بتدّي الخلية أمر تنفذه."
+                    : "A receptor is a protein on the cell surface. When a specific messenger binds to it, it instructs the cell to act."}
+                </div>
+              </div>
+
+              <p className="mt-5 text-[19px] leading-[2] text-[#E4E6EB]">
+                {isAr ? (
+                  <>
+                    حاصرات بيتا (<span className="bf-hl">Beta-blockers</span>) بتمنع
+                    مستقبلات بيتا الأدرينالية، فبتقلل{" "}
+                    <span className="bf-hl">معدل ضربات القلب</span> وقوة انقباضه.
+                  </>
+                ) : (
+                  <>
+                    <span className="bf-hl">Beta-blockers</span> competitively block
+                    beta-adrenergic receptors, reducing{" "}
+                    <span className="bf-hl">heart rate</span> and myocardial contractility.
+                  </>
+                )}
+              </p>
+
+              <div className="mt-5 grid sm:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-[#1E222B] bg-[#0A0D13] p-4">
+                  <div className="font-mono text-[14px] text-[#F2F3F5]">
+                    Propranolol
+                  </div>
+                  <div className="text-[#9AA0AE] text-[14px] mt-1">
+                    {isAr ? "غير انتقائي (β1 و β2)" : "Non-selective (β1 & β2)"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-[#1E222B] bg-[#0A0D13] p-4">
+                  <div className="font-mono text-[14px] text-[#F2F3F5]">
+                    Metoprolol
+                  </div>
+                  <div className="text-[#9AA0AE] text-[14px] mt-1">
+                    {isAr ? "انتقائي لـ β1" : "Selective β1 blocker"}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Telegram Bot Card */}
+            <motion.div {...rise(1)} className="bf-card p-[22px]">
+              <div className="flex items-center gap-3 pb-4 border-b border-[#1E222B]">
+                <span className="w-[42px] h-[42px] rounded-full bg-[#2AABEE] inline-flex items-center justify-center text-white shrink-0">
+                  <Send className="w-5 h-5" />
+                </span>
+                <div>
+                  <div className="font-semibold text-[#F2F3F5]">
+                    Black Fighters Bot
+                  </div>
+                  <div className="text-[13px] text-[#8A91A0]">
+                    {isAr ? "بوت" : "Bot"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-[18px] p-[16px_18px] rounded-2xl bg-[#15181F] text-[17px] leading-[1.8] text-[#F2F3F5]">
+                {isAr ? "ملخصك جاهز" : "Your summary is ready"}
+                <br />
+                <span className="text-[#9AA0AE] text-[15px]">
+                  {isAr ? "Cardiology · الفصل 4" : "Cardiology · Chapter 4"}
+                </span>
+              </div>
+
+              <div className="grid gap-2 mt-2.5">
+                <Link to={primaryHref} className="bf-tb">
+                  {isAr ? "افتح القارئ" : "Open Reader"}
+                </Link>
+                <Link to={primaryHref} className="bf-tb">
+                  {isAr ? "ابعتلي PDF" : "Send me PDF"}
+                </Link>
+                <Link to={primaryHref} className="bf-tb">
+                  {isAr ? "جاوب كويز" : "Take Quiz"}
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </Section>
+
+        {/* ─── SECTION 2: STUDY NOW (FLASHCARD + DECLASSIFY + QUIZ — 1:1 نسخة نضيفة داكنة) ─── */}
+        <Section
+          id="study-now"
+          eyebrow="STUDY NOW"
+          title={
+            isAr
+              ? "ذاكر دلوقتي، من غير ما تسيب الصفحة"
+              : "Study Right Now, Without Leaving the Page"
+          }
+        >
+          {/* 6-Day Streak Row */}
+          <div className="flex items-center gap-4 flex-wrap mb-7">
+            <span className="font-semibold text-[#F2F3F5]">
+              {isAr ? "سلسلة 6 أيام" : "6-Day Streak"}
+            </span>
+            <div className="flex gap-2">
+              {[0, 1, 2, 3, 4, 5].map((d) => (
+                <i key={d} className="bf-day-circle">
+                  <Check className="w-4 h-4 stroke-[3]" />
+                </i>
+              ))}
+              <i className="w-8 h-8 rounded-full border border-dashed border-[#3A4050] inline-block" />
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr_1fr]">
+            {/* 1) Interactive 3D Flip Flashcard */}
+            <motion.div {...rise(0)} className="bf-card bf-card-hover p-6">
+              <div className="flex justify-between items-center">
+                <span className="bf-k">FLASHCARD</span>
+                <span className="font-mono text-[13px] text-[#8A91A0]">
+                  3 / 38
+                </span>
+              </div>
+
+              <div className="bf-flip-scene mt-3.5">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  data-flipped={cardFlipped ? "true" : "false"}
+                  onClick={() => setCardFlipped((f) => !f)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setCardFlipped((f) => !f);
+                    }
+                  }}
+                  className="bf-flip-inner"
+                >
+                  <span className="bf-flip-front">
+                    <span className="text-[19px] leading-[1.8] font-semibold text-[#F2F3F5]">
+                      {isAr
+                        ? "إيه الفرق بين Beta-blockers الانتقائية وغير الانتقائية؟"
+                        : "What is the difference between selective and non-selective Beta-blockers?"}
+                    </span>
+                    <span className="mt-3 text-[#8A91A0] text-[14px]">
+                      {isAr ? "اضغط عشان تقلب البطاقة" : "Click to flip card"}
+                    </span>
+                  </span>
+                  <span className="bf-flip-back">
+                    <span className="text-[17px] leading-[1.9] text-[#C9F5E1]">
+                      {isAr
+                        ? "الانتقائية (زي Metoprolol) بتستهدف β1 في القلب. غير الانتقائية (زي Propranolol) بتحجب β1 وβ2، فممكن تضيّق القصبات."
+                        : "Selective blockers (e.g. Metoprolol) target cardiac β1. Non-selective blockers (e.g. Propranolol) block β1 and β2, which may cause bronchospasm."}
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 mt-3.5">
+                {[
+                  { ar: "صعب", en: "Hard" },
+                  { ar: "تمام", en: "Good" },
+                  { ar: "سهل", en: "Easy" },
+                ].map((btn, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCardFlipped((f) => !f)}
+                    className="h-[46px] rounded-[10px] border border-[#262A34] bg-[#0A0D13] text-[#F2F3F5] font-medium text-[15px] hover:border-[#3DDC97] hover:bg-[#0C2219] transition-colors cursor-pointer"
+                  >
+                    {isAr ? btn.ar : btn.en}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* 2) Interactive Declassify Card */}
+            <motion.div {...rise(1)} className="bf-card bf-card-hover p-6 flex flex-col justify-between">
+              <div>
+                <span className="bf-k">DECLASSIFY</span>
+                <p className="mt-3.5 text-[20px] leading-[2.4] text-[#F2F3F5]">
+                  {isAr ? "حاصرات بيتا بتمنع مستقبلات " : "Beta-blockers inhibit "}
+                  <button
+                    type="button"
+                    onClick={() => toggleDeclassify("d1")}
+                    className={cn(
+                      "inline-block rounded-[7px] px-2.5 mx-0.5 font-medium transition-colors duration-300 cursor-pointer",
+                      declassified.d1
+                        ? "bg-[#3DDC97]/15 text-[#7CF0BC]"
+                        : "bg-[#2A2F3A] text-transparent select-none"
+                    )}
+                  >
+                    {isAr ? "بيتا الأدرينالية" : "beta-adrenergic receptors"}
+                  </button>
+                  {isAr ? "، فبتقلل " : ", reducing "}
+                  <button
+                    type="button"
+                    onClick={() => toggleDeclassify("d2")}
+                    className={cn(
+                      "inline-block rounded-[7px] px-2.5 mx-0.5 font-medium transition-colors duration-300 cursor-pointer",
+                      declassified.d2
+                        ? "bg-[#3DDC97]/15 text-[#7CF0BC]"
+                        : "bg-[#2A2F3A] text-transparent select-none"
+                    )}
+                  >
+                    {isAr ? "معدل ضربات القلب" : "heart rate"}
+                  </button>
+                  {isAr ? " و" : " and "}
+                  <button
+                    type="button"
+                    onClick={() => toggleDeclassify("d3")}
+                    className={cn(
+                      "inline-block rounded-[7px] px-2.5 mx-0.5 font-medium transition-colors duration-300 cursor-pointer",
+                      declassified.d3
+                        ? "bg-[#3DDC97]/15 text-[#7CF0BC]"
+                        : "bg-[#2A2F3A] text-transparent select-none"
+                    )}
+                  >
+                    {isAr ? "قوة الانقباض" : "contractility"}
+                  </button>
+                  .
+                </p>
+              </div>
+              <div className="mt-3.5 text-[#8A91A0] text-[14px]">
+                {isAr
+                  ? "اضغط على الشريط عشان تكشفه."
+                  : "Click any redacted bar to reveal it."}
+              </div>
+            </motion.div>
+
+            {/* 3) Interactive Quiz Card */}
+            <motion.div {...rise(2)} className="bf-card bf-card-hover p-6">
+              <span className="bf-k">
+                {isAr ? "QUIZ · 1 من 15" : "QUIZ · 1 OF 15"}
+              </span>
+              <div className="mt-3 text-[19px] leading-[1.7] font-semibold text-[#F2F3F5]">
+                {isAr
+                  ? "أي دواء من دول انتقائي لمستقبلات β1؟"
+                  : "Which of these drugs is selective for β1 receptors?"}
+              </div>
+
+              <div className="grid gap-2.5 mt-[18px]">
+                {[
+                  { id: "o1", label: "Propranolol", ok: false },
+                  { id: "o2", label: "Carvedilol", ok: false },
+                  { id: "o3", label: "Metoprolol", ok: true },
+                ].map((opt) => {
+                  const chosen = selectedQuizOption === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setSelectedQuizOption(opt.id)}
+                      className={cn(
+                        "flex justify-between items-center min-h-[54px] px-[18px] rounded-xl border transition-colors cursor-pointer text-start",
+                        !chosen &&
+                          "border-[#262A34] bg-[#0A0D13] text-[#F2F3F5] hover:border-[#3A4050]",
+                        chosen &&
+                          opt.ok &&
+                          "border-[#3DDC97] bg-[#0C2219] text-[#7CF0BC]",
+                        chosen &&
+                          !opt.ok &&
+                          "border-[#E5484D] bg-[#2A1214] text-[#FF9A9D]"
+                      )}
+                    >
+                      <span className="font-mono">{opt.label}</span>
+                      {chosen && (
+                        <span className="text-sm font-semibold">
+                          {opt.ok
+                            ? isAr
+                              ? "صح"
+                              : "Correct"
+                            : isAr
+                            ? "غلط"
+                            : "Wrong"}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedQuizOption === "o3" && (
+                <div className="mt-3.5 p-[14px_16px] rounded-xl bg-[#0C2219] text-[#9DF2CE] text-[15px] leading-[1.8]">
+                  {isAr
+                    ? "صح. Metoprolol انتقائي لـ β1، فتأثيره على القصبات أقل من غير الانتقائي."
+                    : "Correct. Metoprolol is β1-selective, making it safer on bronchial smooth muscle."}
+                </div>
+              )}
+
+              {(selectedQuizOption === "o1" || selectedQuizOption === "o2") && (
+                <div className="mt-3.5 p-[14px_16px] rounded-xl bg-[#2A1214] text-[#FFB4B7] text-[15px] leading-[1.8]">
+                  {isAr
+                    ? "غلط. Propranolol وCarvedilol غير انتقائيين، يعني بيحجبوا β1 وβ2."
+                    : "Wrong. Propranolol and Carvedilol are non-selective (blocking both β1 and β2)."}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        </Section>
+
+        {/* ─── SECTION 3: HOW IT WORKS (1:1 نسخة نضيفة داكنة) ─── */}
         <Section
           id="how"
-          title={
-            isAr ? "ثلاث خطوات. بدون تشتيت." : "Three steps. Zero clutter."
-          }
-          subtitle={
-            isAr
-              ? "من ملف الـ 500 صفحة إلى ملخص مشروح من الأساس وجدول مراجعة جاهز في دقائق."
-              : "From a 500-page PDF to a foundational summary and active recall schedule in minutes."
-          }
+          eyebrow="HOW IT WORKS"
+          title={isAr ? "ارفع، لخّص، ذاكر" : "Upload, Summarize, Study"}
         >
-          <ol className="grid gap-5 md:grid-cols-3">
-            {STEPS.map(({ key, Icon, titleAr, titleEn, descAr, descEn }, i) => (
-              <motion.li key={key} {...rise(i)}>
-                <GlassCard className="h-full p-6">
-                  <div className="mb-6 flex items-center justify-between">
-                    <span className="grid size-11 place-items-center rounded-xl border border-[#19f08c]/30 bg-[#19f08c]/10 text-[#19f08c]">
-                      <Icon className="size-5" aria-hidden="true" />
-                    </span>
-                    <span className="font-mono text-sm text-[#6b7785]">
-                      0{i + 1}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-semibold text-[#eef2f6]">
-                    {isAr ? titleAr : titleEn}
-                  </h3>
-                  <p className="mt-2 leading-relaxed text-[#9aa6b4]">
-                    {isAr ? descAr : descEn}
-                  </p>
-                </GlassCard>
-              </motion.li>
+          <div className="grid gap-5 md:grid-cols-3">
+            {HOW_STEPS.map((s, i) => (
+              <motion.div key={s.num} {...rise(i)} className="bf-card p-7">
+                <div className="font-mono text-[14px] text-[#3DDC97]">
+                  {s.num}
+                </div>
+                <div className="mt-3.5 text-[22px] font-semibold text-[#F2F3F5]">
+                  {isAr ? s.titleAr : s.titleEn}
+                </div>
+                <div className="mt-2.5 text-[#9AA0AE] leading-[1.8] text-[16px]">
+                  {isAr ? s.descAr : s.descEn}
+                </div>
+              </motion.div>
             ))}
-          </ol>
+          </div>
         </Section>
 
-        {/* 3) LIVE READER PREVIEW & ARCHITECTURE COMPARISON */}
-        <Section
-          id="reader"
-          title={
-            isAr
-              ? "قارئ تفاعلي مصمم للفهم والاستدعاء النشط"
-              : "Interactive Reader Built for Comprehension & Active Recall"
-          }
-          subtitle={
-            isAr
-              ? "جرب بنفسك إخفاء المصطلحات والجرعات لاختبار ذاكرتك قبل كشفها."
-              : "Test yourself by toggling active recall redaction directly inside the summary."
-          }
-        >
-          <motion.div {...rise(0)}>
-            <LandingAtlasShowcase locale={locale} />
-          </motion.div>
-        </Section>
-
-        {/* 4) INTERACTIVE LINEVAULT CONFIGURATOR SECTION */}
+        {/* ─── SECTION 4: INTERACTIVE CREDIT CONFIGURATOR & TIMER ─── */}
         <Section
           id="configurator"
+          eyebrow="CREDITS CONFIGURATOR"
           title={
             isAr
-              ? "أعدّ كمية الكريدتس التي تحتاجها بالضبط"
+              ? "أعدّ كمية الكريدتس على قد مذاكرتك"
               : "Configure the Exact Credit Volume You Need"
           }
           subtitle={
             isAr
-              ? "ينخفض سعر النقطة تلقائياً كلما زادت الكمية. الرصيد المخصص لا ينتهي أبداً."
+              ? "السعر بيقل تلقائياً كل ما تزود الكمية، والرصيد المخصص مش بينتهي بانتهاء الشهر."
               : "Unit price drops automatically as your volume grows. Custom credits never expire."
           }
         >
@@ -456,9 +686,10 @@ export default function Landing() {
           </motion.div>
         </Section>
 
-        {/* 5) PRICING SECTION (1:1 LineVault PricingSection + PoolGrid in landing-sections.tsx) */}
+        {/* ─── SECTION 5: PRICING PLANS ─── */}
         <Section
           id="pricing"
+          eyebrow="PRICING"
           title={
             isAr
               ? "أو اختر باقة فصلية جاهزة"
@@ -478,11 +709,11 @@ export default function Landing() {
                   className="flex h-full flex-col p-6"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-lg font-semibold text-[#eef2f6]">
+                    <h3 className="text-lg font-semibold text-[#F2F3F5]">
                       {isAr ? plan.nameAr : plan.nameEn}
                     </h3>
                     {(plan.saveAr || plan.saveEn) && (
-                      <span className="rounded-full bg-[#19f08c]/10 border border-[#19f08c]/30 px-2.5 py-0.5 text-xs font-medium text-[#19f08c]">
+                      <span className="bf-pill py-1 px-3 text-xs">
                         {isAr ? plan.saveAr : plan.saveEn}
                       </span>
                     )}
@@ -498,20 +729,20 @@ export default function Landing() {
                     />
                   </div>
 
-                  <ul className="my-5 flex-1 divide-y divide-[rgb(255_255_255/0.09)] text-sm">
+                  <ul className="my-5 flex-1 divide-y divide-[#1E222B] text-sm">
                     {plan.rows.map((row, rIdx) => (
                       <li
                         key={rIdx}
                         className={cn(
                           "flex items-center justify-between gap-3 py-2.5",
                           row.highlight &&
-                            "-mx-3 rounded-lg bg-[#19f08c]/[0.08] px-3"
+                            "-mx-3 rounded-lg bg-[#0C2219] px-3 text-[#7CF0BC]"
                         )}
                       >
-                        <span className="text-[#9aa6b4]">
+                        <span className="text-[#9AA0AE]">
                           {isAr ? row.labelAr : row.labelEn}
                         </span>
-                        <span className="font-mono tabular text-[#eef2f6]">
+                        <span className="font-mono tabular text-[#F2F3F5]">
                           {isAr ? row.valueAr : row.valueEn}
                         </span>
                       </li>
@@ -520,7 +751,7 @@ export default function Landing() {
 
                   <Button
                     asChild
-                    variant={plan.recommended ? "default" : "secondary"}
+                    variant={plan.recommended ? "default" : "outline"}
                   >
                     <Link to={plan.href}>
                       <span>{isAr ? plan.ctaAr : plan.ctaEn}</span>
@@ -533,72 +764,35 @@ export default function Landing() {
           </div>
         </Section>
 
-        {/* 6) TRUST SECTION (1:1 LineVault Trust in landing-sections.tsx) */}
-        <Section
-          id="trust"
-          title={
-            isAr
-              ? "الأمان والخصوصية بالتصميم"
-              : "Precision & Privacy by Design"
-          }
-          subtitle={
-            isAr
-              ? "نحتفظ بأقل قدر ممكن من البيانات ونحمي دقة كل رقم طبي."
-              : "Engineered to guarantee clinical accuracy, credit safety, and strict document privacy."
-          }
-        >
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {TRUST_ITEMS.map(({ key, Icon, titleAr, titleEn, descAr, descEn }, i) => (
-              <motion.div key={key} {...rise(i)}>
-                <GlassCard className="h-full p-6">
-                  <Icon
-                    className="mb-4 size-6 text-[#19f08c]"
-                    aria-hidden="true"
-                  />
-                  <h3 className="font-semibold text-[#eef2f6]">
-                    {isAr ? titleAr : titleEn}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#9aa6b4]">
-                    {isAr ? descAr : descEn}
-                  </p>
-                </GlassCard>
-              </motion.div>
-            ))}
-          </div>
-        </Section>
-
-        {/* 7) FAQ SECTION (1:1 LineVault Faq in landing-sections.tsx) */}
+        {/* ─── SECTION 6: FAQ ─── */}
         <Section
           id="faq"
+          eyebrow="FAQ"
           title={
             isAr ? "أسئلتك، بإجابات واضحة" : "Your Questions, Answered Clearly"
           }
-          className="max-w-3xl"
         >
-          <div className="space-y-3">
+          <div className="space-y-3 max-w-3xl">
             {FAQ_ITEMS.map((item, idx) => {
               const isOpen = openFaq === idx;
               return (
-                <div
-                  key={idx}
-                  className="glass rounded-2xl overflow-hidden"
-                >
+                <div key={idx} className="bf-card overflow-hidden">
                   <button
                     type="button"
                     aria-expanded={isOpen}
                     onClick={() => setOpenFaq(isOpen ? -1 : idx)}
-                    className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-start font-medium text-[#eef2f6] hover:text-[#19f08c] transition-colors"
+                    className="group flex w-full items-center justify-between gap-4 px-6 py-4 text-start font-semibold text-[#F2F3F5] hover:text-[#3DDC97] transition-colors cursor-pointer"
                   >
                     <span>{isAr ? item.qAr : item.qEn}</span>
                     <ChevronDown
                       className={cn(
-                        "size-4 shrink-0 text-[#9aa6b4] transition-transform duration-200",
-                        isOpen && "rotate-180 text-[#19f08c]"
+                        "size-4 shrink-0 text-[#9AA0AE] transition-transform duration-200",
+                        isOpen && "rotate-180 text-[#3DDC97]"
                       )}
                     />
                   </button>
                   {isOpen && (
-                    <div className="px-5 pb-5 text-sm leading-relaxed text-[#9aa6b4]">
+                    <div className="px-6 pb-5 text-[15px] leading-[1.8] text-[#9AA0AE]">
                       {isAr ? item.aAr : item.aEn}
                     </div>
                   )}
@@ -607,82 +801,32 @@ export default function Landing() {
             })}
           </div>
         </Section>
-
-        {/* 8) FINAL CTA (1:1 LineVault FinalCta in landing-sections.tsx) */}
-        <section className="mx-auto max-w-6xl px-4 pt-24 sm:px-6">
-          <div className="glass relative overflow-hidden rounded-[2rem] px-6 py-16 text-center">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(40rem_16rem_at_50%_0%,rgb(25_240_140/0.14),transparent)]"
-            />
-            <h2 className="relative text-gradient text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
-              {isAr
-                ? "جاهزون متى كنت جاهزاً."
-                : "Ready whenever your next lecture is."}
-            </h2>
-            <p className="relative mx-auto mt-4 max-w-md text-[#9aa6b4]">
-              {isAr
-                ? "تغطية شاملة، أسعار صادقة، وتسليم خلال دقائق."
-                : "Complete coverage, honest volume pricing, and delivery in minutes."}
-            </p>
-            <Button asChild size="lg" className="relative mt-8">
-              <Link to={primaryHref}>
-                <span>
-                  {user
-                    ? isAr
-                      ? "افتح لوحة التحكم"
-                      : "Open Dashboard"
-                    : isAr
-                    ? "ابدأ مجاناً الآن"
-                    : "Start Free Now"}
-                </span>
-                <ArrowRight className="rtl:rotate-180" />
-              </Link>
-            </Button>
-          </div>
-        </section>
       </main>
 
-      {/* Footer (1:1 LineVault footer.tsx) */}
-      <footer className="mt-24 border-t border-[rgb(255_255_255/0.09)]">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
-          <div className="space-y-4">
-            <LVLogo to="/" label="BLACK FIGHTERS" />
-            <p className="max-w-xs text-sm text-[#9aa6b4]">
-              {isAr
-                ? "تلخيص المحاضرات والمراجع الضخمة بتدقيق رقمي مزدوج وجدولة FSRS v4.5."
-                : "Hierarchical lecture summaries with cross-family verification and FSRS v4.5."}
-            </p>
+      {/* ─── FOOTER ─── */}
+      <footer className="border-t border-[#151922] bg-[#07080C]">
+        <div className="mx-auto flex flex-col sm:flex-row max-w-[1280px] items-center justify-between gap-4 px-5 sm:px-11 py-8 text-sm text-[#8A91A0]">
+          <LVLogo to="/" label="Black Fighters" />
+          <div className="flex flex-wrap items-center gap-6">
+            <a href="#summary" className="hover:text-[#F2F3F5]">
+              {isAr ? "المكتبة" : "Library"}
+            </a>
+            <a href="#study-now" className="hover:text-[#F2F3F5]">
+              {isAr ? "ذاكر دلوقتي" : "Study Now"}
+            </a>
+            <a href="#pricing" className="hover:text-[#F2F3F5]">
+              {isAr ? "الأسعار" : "Pricing"}
+            </a>
+            <Link to="/subscriptions" className="hover:text-[#F2F3F5]">
+              {isAr ? "الاشتراكات" : "Subscriptions"}
+            </Link>
+            <Link to="/help" className="hover:text-[#F2F3F5]">
+              {isAr ? "المساعدة" : "Help"}
+            </Link>
           </div>
-
           <div>
-            <h2 className="mb-3 text-sm font-medium text-[#eef2f6]">
-              {isAr ? "المنصة" : "Platform"}
-            </h2>
-            <div className="flex flex-col gap-2.5 text-sm text-[#9aa6b4] [&_a:hover]:text-[#eef2f6]">
-              <a href="#how">{isAr ? "كيف يعمل" : "How It Works"}</a>
-              <a href="#reader">{isAr ? "القارئ الذكي" : "Smart Reader"}</a>
-              <a href="#configurator">{isAr ? "حاسبة الرصيد" : "Configurator"}</a>
-              <a href="#pricing">{isAr ? "الأسعار" : "Pricing"}</a>
-              <Link to="/help">{isAr ? "مركز المساعدة" : "Help Center"}</Link>
-            </div>
+            © {new Date().getFullYear()} Black Fighters
           </div>
-
-          <div>
-            <h2 className="mb-3 text-sm font-medium text-[#eef2f6]">
-              {isAr ? "الحساب" : "Account"}
-            </h2>
-            <div className="flex flex-col gap-2.5 text-sm text-[#9aa6b4] [&_a:hover]:text-[#eef2f6]">
-              <Link to="/login">{isAr ? "تسجيل الدخول" : "Sign In"}</Link>
-              <Link to="/register">{isAr ? "إنشاء حساب" : "Create Account"}</Link>
-              <Link to="/subscriptions">{isAr ? "الاشتراكات" : "Subscriptions"}</Link>
-              <Link to="/tg">{isAr ? "تطبيق تيليجرام (/tg)" : "Telegram Mini App"}</Link>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-[rgb(255_255_255/0.09)] py-6 text-center text-xs text-[#6b7785]">
-          © {new Date().getFullYear()} BLACK FIGHTERS.{" "}
-          {isAr ? "جميع الحقوق محفوظة." : "All rights reserved."}
         </div>
       </footer>
     </div>

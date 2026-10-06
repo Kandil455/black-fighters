@@ -10,32 +10,32 @@ const buttonVariants = cva(
   // transition-colors — a blanket transition drags every property (including
   // framer mount transforms on asChild wrappers) into the hover path. Hover
   // feedback = colors + subtle 150ms transition. NO hover:scale.
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#22E58B]/50 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3DDC97]/50 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-[#19f08c] text-[#03150c] font-semibold hover:bg-[#0fd677] shadow-[0_0_0_1px_rgb(25_240_140/0.5),0_8px_40px_-6px_rgb(25_240_140/0.45)] hover:shadow-[0_0_0_1px_rgb(25_240_140/0.7),0_10px_50px_-4px_rgb(25_240_140/0.6)]",
+          "bg-[#3DDC97] text-[#04140D] font-semibold hover:bg-[#34c988] shadow-[0_8px_32px_rgba(61,220,151,0.28)] hover:shadow-[0_10px_36px_rgba(61,220,151,0.36)]",
         destructive:
-          "bg-[#ff5c6c]/15 text-[#ff5c6c] hover:bg-[#ff5c6c]/25 border border-[#ff5c6c]/30",
+          "bg-[#2A1214] text-[#FF9A9D] hover:bg-[#38181b] border border-[#E5484D]/50",
         // NO backdrop-filter on the button itself
         outline:
-          "border border-[rgb(255_255_255/0.09)] bg-white/[0.035] text-[#eef2f6] hover:bg-white/[0.07] hover:border-[rgb(255_255_255/0.16)]",
+          "border border-[#262A34] bg-[#0E1117] text-[#F2F3F5] hover:bg-[#131720] hover:border-[#2C7A55]",
         secondary:
-          "border border-[rgb(255_255_255/0.09)] bg-white/[0.035] text-[#eef2f6] hover:bg-white/[0.07] hover:border-[rgb(255_255_255/0.16)]",
+          "border border-[#262A34] bg-[#0E1117] text-[#F2F3F5] hover:bg-[#131720] hover:border-[#2C7A55]",
         ghost:
-          "text-[#9aa6b4] hover:bg-white/[0.06] hover:text-[#eef2f6]",
+          "text-[#9AA0AE] hover:bg-[#0E1117] hover:text-[#F2F3F5]",
         link:
-          "text-[#19f08c] underline-offset-4 hover:underline",
+          "text-[#3DDC97] underline-offset-4 hover:underline",
         glass:
-          "border border-[rgb(255_255_255/0.09)] bg-white/[0.035] text-[#eef2f6] hover:bg-white/[0.07] hover:border-[rgb(255_255_255/0.16)]",
+          "border border-[#262A34] bg-[#0E1117] text-[#F2F3F5] hover:bg-[#131720] hover:border-[#2C7A55]",
         success:
-          "bg-[#19f08c] text-[#03150c] font-semibold hover:bg-[#0fd677] shadow-[0_0_0_1px_rgb(25_240_140/0.5),0_8px_40px_-6px_rgb(25_240_140/0.45)]",
+          "bg-[#3DDC97] text-[#04140D] font-semibold hover:bg-[#34c988] shadow-[0_8px_32px_rgba(61,220,151,0.28)]",
       },
       size: {
         default: "h-11 px-5 py-2 rounded-xl",
         sm: "h-9 rounded-xl px-3.5 text-sm",
-        lg: "h-14 rounded-xl px-7 text-base",
+        lg: "h-[52px] rounded-xl px-[26px] text-[17px]",
         icon: "h-10 w-10 rounded-xl",
       },
     },
@@ -74,7 +74,7 @@ const Button = React.forwardRef(
       <Comp
         className={cn(
           buttonVariants({ variant: success ? "success" : variant, size, className }),
-          success && "ring-2 ring-[#22E58B]/50 transition-[box-shadow] duration-150",
+          success && "ring-2 ring-[#3DDC97]/50 transition-[box-shadow] duration-150",
           loading && "cursor-wait"
         )}
         ref={ref}
@@ -88,7 +88,7 @@ const Button = React.forwardRef(
             <span className="opacity-80">{children}</span>
           </span>
         ) : success ? (
-          <span className="inline-flex items-center gap-1.5 text-[#07090D] font-bold">
+          <span className="inline-flex items-center gap-1.5 text-[#07080C] font-bold">
             <Check className="w-4 h-4 stroke-[3]" />
             <span>{children}</span>
           </span>

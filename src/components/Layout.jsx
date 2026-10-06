@@ -146,9 +146,9 @@ export default function Layout() {
   ];
 
   const sidebar = (
-    <div className="flex flex-col h-full select-none bg-[#090c11]">
+    <div className="flex flex-col h-full select-none bg-[#0E1117]">
       {/* LineVault Brand Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-[rgb(255_255_255/0.09)]">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[#1E222B]">
         <LVLogo to="/dashboard" label="BLACK FIGHTERS" />
         <NotificationBell />
       </div>
@@ -158,26 +158,26 @@ export default function Layout() {
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="w-full bg-[#05070a] hover:bg-white/[0.04] border border-[rgb(255_255_255/0.09)] hover:border-[rgb(255_255_255/0.16)] rounded-xl px-3 py-2 text-start flex items-center justify-between text-xs text-[#9aa6b4] hover:text-[#eef2f6] transition-colors duration-150"
+          className="w-full bg-[#07080C] hover:bg-white/[0.04] border border-[#1E222B] hover:border-[#262A34] rounded-xl px-3 py-2 text-start flex items-center justify-between text-xs text-[#9AA0AE] hover:text-[#F2F3F5] transition-colors duration-150"
         >
           <span className="flex items-center gap-2 truncate">
-            <Search className="w-3.5 h-3.5 shrink-0 text-[#6b7785]" />
+            <Search className="w-3.5 h-3.5 shrink-0 text-[#8A91A0]" />
             <span className="font-medium truncate">{t("search")}</span>
           </span>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[10px] text-[#9aa6b4] font-mono border border-[rgb(255_255_255/0.09)]">
+          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[10px] text-[#9AA0AE] font-mono border border-[#1E222B]">
             ⌘K
           </kbd>
         </button>
 
-        <div className="bg-[#05070a] p-0.5 rounded-xl border border-[rgb(255_255_255/0.09)] flex items-center text-xs font-medium">
+        <div className="bg-[#07080C] p-0.5 rounded-xl border border-[#1E222B] flex items-center text-xs font-medium">
           <button
             type="button"
             onClick={() => setLocale("ar")}
             className={cn(
               "flex-1 py-1.5 px-2 rounded-[10px] flex items-center justify-center transition-colors duration-150",
               locale === "ar"
-                ? "bg-white/10 text-[#eef2f6] font-semibold"
-                : "text-[#9aa6b4] hover:text-[#eef2f6]"
+                ? "bg-white/10 text-[#F2F3F5] font-semibold"
+                : "text-[#9AA0AE] hover:text-[#F2F3F5]"
             )}
           >
             <span>العربية</span>
@@ -188,8 +188,8 @@ export default function Layout() {
             className={cn(
               "flex-1 py-1.5 px-2 rounded-[10px] font-mono flex items-center justify-center transition-colors duration-150",
               locale === "en"
-                ? "bg-white/10 text-[#eef2f6] font-semibold"
-                : "text-[#9aa6b4] hover:text-[#eef2f6]"
+                ? "bg-white/10 text-[#F2F3F5] font-semibold"
+                : "text-[#9AA0AE] hover:text-[#F2F3F5]"
             )}
           >
             <span>EN</span>
@@ -201,7 +201,7 @@ export default function Layout() {
       <nav className="flex-1 px-3 py-3 space-y-5 overflow-y-auto scrollbar-none overscroll-contain">
         {PRIMARY_HUBS.map((hub) => (
           <div key={hub.title} className="space-y-1">
-            <p className="px-3 text-[11px] font-medium uppercase tracking-wider text-[#6b7785]">
+            <p className="px-3 text-[11px] font-medium uppercase tracking-wider text-[#8A91A0]">
               {hub.title}
             </p>
             <div className="space-y-0.5">
@@ -234,14 +234,14 @@ export default function Layout() {
                     className={cn(
                       "group relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors duration-150",
                       active
-                        ? "bg-[#19f08c]/[0.08] text-[#eef2f6] font-semibold border border-[#19f08c]/30"
-                        : "text-[#9aa6b4] hover:text-[#eef2f6] hover:bg-white/[0.04] border border-transparent"
+                        ? "bg-[#3DDC97]/[0.08] text-[#F2F3F5] font-semibold border border-[#3DDC97]/30"
+                        : "text-[#9AA0AE] hover:text-[#F2F3F5] hover:bg-white/[0.04] border border-transparent"
                     )}
                   >
                     {active && (
                       <span
                         aria-hidden="true"
-                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[#19f08c]"
+                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[#3DDC97]"
                       />
                     )}
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -249,8 +249,8 @@ export default function Layout() {
                         className={cn(
                           "w-6 h-6 rounded-lg flex items-center justify-center transition-colors duration-150",
                           active
-                            ? "text-[#19f08c]"
-                            : "text-[#6b7785] group-hover:text-[#eef2f6]"
+                            ? "text-[#3DDC97]"
+                            : "text-[#8A91A0] group-hover:text-[#F2F3F5]"
                         )}
                       >
                         {/* Keep animated={false} contract for compositor idle budget */}
@@ -267,18 +267,18 @@ export default function Layout() {
       </nav>
 
       {/* LineVault Sidebar Footer */}
-      <div className="p-3 border-t border-[rgb(255_255_255/0.09)] bg-[#090c11] space-y-2">
+      <div className="p-3 border-t border-[#1E222B] bg-[#0E1117] space-y-2">
         {/* Hidden static micro-icon reference to preserve >=2 animated={false} contract */}
         <div className="hidden" aria-hidden="true">
           <AnimatedDocument size={14} animated={false} />
         </div>
 
         {/* Credits & Plan Pill */}
-        <div className="rounded-xl bg-[#05070a] border border-[rgb(255_255_255/0.09)] p-2.5 space-y-2">
+        <div className="rounded-xl bg-[#07080C] border border-[#1E222B] p-2.5 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-3.5 h-3.5 text-[#19f08c] shrink-0" />
-              <span className="text-xs font-semibold text-[#eef2f6] truncate">
+              <Sparkles className="w-3.5 h-3.5 text-[#3DDC97] shrink-0" />
+              <span className="text-xs font-semibold text-[#F2F3F5] truncate">
                 {isPro
                   ? profile?.subscription_plan_name || (locale === "en" ? "Pro Plan" : "باقة برو نشطة")
                   : locale === "en"
@@ -289,7 +289,7 @@ export default function Layout() {
             <Link
               to="/subscriptions"
               onClick={() => setMobileOpen(false)}
-              className="px-2.5 py-1 rounded-lg bg-[#19f08c] text-[#03150c] text-[11px] font-semibold hover:brightness-105 transition-colors shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-[#3DDC97] text-[#03150c] text-[11px] font-semibold hover:brightness-105 transition-colors shrink-0"
             >
               {isPro
                 ? locale === "en"
@@ -301,12 +301,12 @@ export default function Layout() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-1.5 pt-1 border-t border-[rgb(255_255_255/0.09)]">
+          <div className="flex items-center gap-1.5 pt-1 border-t border-[#1E222B]">
             <a
               href="https://wa.me/201009275685"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] text-[#9aa6b4] hover:text-[#eef2f6] hover:bg-white/[0.04] transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] text-[#9AA0AE] hover:text-[#F2F3F5] hover:bg-white/[0.04] transition-colors"
             >
               <Headphones className="w-3 h-3" />
               <span>{locale === "en" ? "Support" : "الدعم الفني"}</span>
@@ -315,7 +315,7 @@ export default function Layout() {
               <Link
                 to="/admin"
                 onClick={() => setMobileOpen(false)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] text-[#19f08c] hover:bg-white/[0.04] transition-colors font-semibold"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] text-[#3DDC97] hover:bg-white/[0.04] transition-colors font-semibold"
               >
                 <span>{locale === "en" ? "Admin" : "الإدارة"}</span>
               </Link>
@@ -341,13 +341,13 @@ export default function Layout() {
                   (profile?.full_name || authUser?.email || "?")[0].toUpperCase()
                 }
               />
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#19f08c] border border-[#090c11]" />
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#3DDC97] border border-[#0E1117]" />
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-[#eef2f6] truncate">
+              <div className="text-xs font-semibold text-[#F2F3F5] truncate">
                 {profile?.displayName || profile?.full_name || t("studentDefault")}
               </div>
-              <div className="text-[11px] font-mono tabular text-[#9aa6b4] truncate" dir="ltr">
+              <div className="text-[11px] font-mono tabular text-[#9AA0AE] truncate" dir="ltr">
                 {Number(profile?.credits ?? 10).toLocaleString()} cr · {profile?.xp || 0} XP
               </div>
             </div>
@@ -355,7 +355,7 @@ export default function Layout() {
           <button
             type="button"
             onClick={logout}
-            className="text-[#9aa6b4] hover:text-[#ff5c6c] p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors shrink-0"
+            className="text-[#9AA0AE] hover:text-[#E5484D] p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors shrink-0"
             title={t("logout")}
           >
             <LogOut className="w-4 h-4" />
@@ -369,7 +369,7 @@ export default function Layout() {
     <MotionConfig reducedMotion="user">
       <div
         dir={dir}
-        className="min-h-screen bg-[#05070a] text-[#eef2f6] relative selection:bg-[#19f08c]/30"
+        className="min-h-screen bg-[#07080C] text-[#F2F3F5] relative selection:bg-[#3DDC97]/30"
       >
         <NeonBackground />
 
@@ -377,27 +377,27 @@ export default function Layout() {
         <aside
           className={`hidden md:flex fixed inset-y-0 start-0 ${
             dir === "rtl" ? "border-e" : "border-s"
-          } w-64 lg:w-64 border-[rgb(255_255_255/0.09)] bg-[#090c11] z-30 flex-col`}
+          } w-64 lg:w-64 border-[#1E222B] bg-[#0E1117] z-30 flex-col`}
         >
           {sidebar}
         </aside>
 
         {/* Mobile header — LineVault sticky ink-950 bar */}
-        <header className="md:hidden sticky top-0 z-40 bg-[#05070a]/90 border-b border-[rgb(255_255_255/0.09)] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
+        <header className="md:hidden sticky top-0 z-40 bg-[#07080C]/90 border-b border-[#1E222B] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
           <LVLogo to="/dashboard" label="BLACK FIGHTERS" />
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
               aria-label="بحث"
-              className="tap-target w-8 h-8 rounded-xl flex items-center justify-center text-[#9aa6b4] hover:text-[#eef2f6] bg-white/[0.04] border border-[rgb(255_255_255/0.09)]"
+              className="tap-target w-8 h-8 rounded-xl flex items-center justify-center text-[#9AA0AE] hover:text-[#F2F3F5] bg-white/[0.04] border border-[#1E222B]"
             >
               <Search className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
-              className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[rgb(255_255_255/0.09)] text-xs font-mono font-semibold text-[#19f08c]"
+              className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[#1E222B] text-xs font-mono font-semibold text-[#3DDC97]"
             >
               {locale === "ar" ? "EN" : "ع"}
             </button>
@@ -406,7 +406,7 @@ export default function Layout() {
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"}
-              className="tap-target w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[rgb(255_255_255/0.09)] text-[#eef2f6]"
+              className="tap-target w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[#1E222B] text-[#F2F3F5]"
             >
               {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -419,19 +419,19 @@ export default function Layout() {
             onClick={() => setMobileOpen(false)}
           >
             <aside
-              className={`absolute inset-y-0 start-0 w-72 bg-[#090c11] ${
+              className={`absolute inset-y-0 start-0 w-72 bg-[#0E1117] ${
                 dir === "rtl" ? "border-s" : "border-e"
-              } border-[rgb(255_255_255/0.09)] flex flex-col`}
+              } border-[#1E222B] flex flex-col`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-3 border-b border-[rgb(255_255_255/0.09)] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#9aa6b4]">
+              <div className="p-3 border-b border-[#1E222B] flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#9AA0AE]">
                   {locale === "ar" ? "القائمة الرئيسية" : "Navigation"}
                 </span>
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[rgb(255_255_255/0.09)] text-[#9aa6b4] hover:text-[#eef2f6]"
+                  className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[#1E222B] text-[#9AA0AE] hover:text-[#F2F3F5]"
                 >
                   <X className="w-4 h-4" />
                 </button>

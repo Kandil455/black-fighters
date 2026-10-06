@@ -7,18 +7,18 @@
 
 :root {
   --paper: #0E1117;
-  --paper-2: #131820;
-  --ink: #F2F4F7;
-  --ink-2: #8B94A3;
-  --stamp: #22E58B;
-  --rule: #1C222B;
+  --paper-2: #131720;
+  --ink: #F2F3F5;
+  --ink-2: #9AA0AE;
+  --stamp: #3DDC97;
+  --rule: #1E222B;
   --hl: rgba(34, 229, 139, 0.14);
 
-  --ink-def: #22E58B;
+  --ink-def: #3DDC97;
   --ink-imp: #F5A524;
   --ink-term: #38BDF8;
   --ink-ex: #A78BFA;
-  --ink-warn: #F0545B;
+  --ink-warn: #E5484D;
 
   --sem-definition-ink: var(--ink-def);
   --sem-important-ink: var(--ink-imp);

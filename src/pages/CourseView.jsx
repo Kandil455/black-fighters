@@ -559,11 +559,11 @@ export default function CourseView() {
         onClick={() => generate(type)}
         disabled={!!generating}
         variant="outline"
-        className="gap-2 border-[#19f08c]/35 hover:border-[#19f08c] hover:bg-[#19f08c]/10"
+        className="gap-2 border-[#3DDC97]/35 hover:border-[#3DDC97] hover:bg-[#3DDC97]/10"
       >
         {isThisGenerating
           ? <Loader2 className="w-4 h-4 animate-spin" />
-          : <Icon className="w-4 h-4 text-[#19f08c]" />}
+          : <Icon className="w-4 h-4 text-[#3DDC97]" />}
         {isThisGenerating
           ? (isEn ? `Generating${chunkLabel}...` : `جاري التوليد${chunkLabel}...`)
           : getContent(type)
@@ -627,7 +627,7 @@ export default function CourseView() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6" dir={dir}>
-      <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-semibold text-white/55 hover:text-[#19f08c] mb-2 transition-colors font-mono uppercase tracking-wider">
+      <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-semibold text-white/55 hover:text-[#3DDC97] mb-2 transition-colors font-mono uppercase tracking-wider">
         <ArrowRight className={isEn ? "w-4 h-4 rotate-180" : "w-4 h-4"} /> {isEn ? "Back to Lectures & Notes" : "رجوع للمحاضرات والمذكرات"}
       </Link>
 
@@ -818,7 +818,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
   ];
   return (
     <div className="glass rounded-2xl p-4 border border-white/10 mb-4 space-y-4">
-      <div className="flex items-start gap-2 rounded-xl bg-[#19f08c]/5 border border-[#19f08c]/20 p-3">
+      <div className="flex items-start gap-2 rounded-xl bg-[#3DDC97]/5 border border-[#3DDC97]/20 p-3">
         <span className="text-base">💡</span>
         <p className="text-xs text-white/65 leading-relaxed">
           {isEn
@@ -830,7 +830,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
         <p className="text-sm font-semibold mb-2">{isEn ? "Number of Questions — up to 100" : "عدد الأسئلة — لحد 100 سؤال"}</p>
         <div className="flex flex-wrap items-center gap-2">
           {counts.map((n) => (
-            <button key={n} onClick={() => setQuizCount(n)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${quizCount === n ? "border-[#19f08c] text-[#19f08c] bg-[#19f08c]/10" : "border-white/10 text-white/60"}`}>{n}</button>
+            <button key={n} onClick={() => setQuizCount(n)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${quizCount === n ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{n}</button>
           ))}
           <input
             type="number"
@@ -838,7 +838,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             max="100"
             value={quizCount}
             onChange={(e) => setQuizCount(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-            className="w-24 bg-[#05070a] border border-white/10 rounded-xl px-3 py-2 text-sm font-bold"
+            className="w-24 bg-[#07080C] border border-white/10 rounded-xl px-3 py-2 text-sm font-bold"
           />
         </div>
       </div>
@@ -850,7 +850,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             ["mixed", isEn ? "Mixed ⚖️" : "متنوع ⚖️"],
             ["hard", isEn ? "Hard 🔥" : "صعب 🔥"]
           ].map(([v, l]) => (
-            <button key={v} onClick={() => setDifficulty(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${difficulty === v ? "border-[#19f08c] text-[#19f08c] bg-[#19f08c]/10" : "border-white/10 text-white/60"}`}>{l}</button>
+            <button key={v} onClick={() => setDifficulty(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${difficulty === v ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{l}</button>
           ))}
         </div>
       </div>
@@ -861,7 +861,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             <button
               key={profile.id}
               onClick={() => setQuizProfile(profile.id)}
-              className={`rounded-xl border px-2 py-2 text-center transition-colors ${quizProfile === profile.id ? "border-[#19f08c] bg-[#19f08c]/10 text-[#19f08c]" : "border-white/10 bg-white/[0.02] text-white/60"}`}
+              className={`rounded-xl border px-2 py-2 text-center transition-colors ${quizProfile === profile.id ? "border-[#3DDC97] bg-[#3DDC97]/10 text-[#3DDC97]" : "border-white/10 bg-white/[0.02] text-white/60"}`}
             >
               <span className="block text-xs font-bold">{profile.label}</span>
               <span className="block text-[10px] opacity-75">{profile.hint}</span>
@@ -876,7 +876,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             [true, isEn ? "Show explanations after answering ✅" : "اعرض الشرح بعد الإجابة ✅"],
             [false, isEn ? "Without explanations ✋" : "بدون شرح ✋"]
           ].map(([v, l]) => (
-            <button key={String(v)} onClick={() => setShowExplanations(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${showExplanations === v ? "border-[#19f08c] text-[#19f08c] bg-[#19f08c]/10" : "border-white/10 text-white/60"}`}>{l}</button>
+            <button key={String(v)} onClick={() => setShowExplanations(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${showExplanations === v ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{l}</button>
           ))}
         </div>
       </div>
@@ -888,7 +888,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
 function EmptyGen({ label, desc, button }) {
   return (
     <div className="glass rounded-3xl p-14 text-center border border-white/10">
-      <Sparkles className="w-12 h-12 text-[#19f08c] mx-auto mb-4 opacity-80" />
+      <Sparkles className="w-12 h-12 text-[#3DDC97] mx-auto mb-4 opacity-80" />
       <h3 className="text-xl font-bold mb-2 text-white">{label}</h3>
       <p className="text-white/60 mb-6">{desc}</p>
       {button}

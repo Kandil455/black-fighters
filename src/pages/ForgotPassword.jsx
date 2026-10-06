@@ -41,7 +41,7 @@ export default function ForgotPassword() {
 
   return (
     <div
-      className="min-h-screen bg-[#07090D] flex items-center justify-center px-4 py-10"
+      className="min-h-screen bg-[#07080C] flex items-center justify-center px-4 py-10"
       dir={dir}
     >
       <div className="w-full max-w-md space-y-6">
@@ -51,10 +51,10 @@ export default function ForgotPassword() {
 
         <LVCard padding="p-6 sm:p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-[#F2F4F7]">
+            <h1 className="text-2xl font-bold text-[#F2F3F5]">
               {isEn ? "Reset Password" : "استعادة كلمة المرور"}
             </h1>
-            <p className="text-xs text-[#8B94A3] mt-1">
+            <p className="text-xs text-[#9AA0AE] mt-1">
               {isEn
                 ? "We will send a password reset link to your email"
                 : "سنرسل رابطاً لإعادة تعيين كلمة المرور إلى بريدك الإلكتروني"}
@@ -63,10 +63,10 @@ export default function ForgotPassword() {
 
           {sent ? (
             <div className="text-center space-y-4">
-              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-[#131820] border border-[#1C222B] text-[#22E58B]">
+              <div className="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center bg-[#131720] border border-[#1E222B] text-[#3DDC97]">
                 <Mail className="w-5 h-5" />
               </div>
-              <p className="text-sm font-semibold text-[#F2F4F7]">
+              <p className="text-sm font-semibold text-[#F2F3F5]">
                 {isEn ? "Reset link sent!" : "تم إرسال الرابط بنجاح!"}
               </p>
               <Button asChild className="w-full h-11">
@@ -78,7 +78,7 @@ export default function ForgotPassword() {
           ) : (
             <form onSubmit={handle} className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-[#8B94A3] mb-1.5 block">
+                <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
                   {isEn ? "Email Address" : "البريد الإلكتروني"}
                 </label>
                 <Input
@@ -87,7 +87,7 @@ export default function ForgotPassword() {
                   placeholder="example@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7]"
+                  className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
                 />
               </div>
               <Button
@@ -100,7 +100,7 @@ export default function ForgotPassword() {
               </Button>
               <Link
                 to="/login"
-                className="block text-center text-xs text-[#8B94A3] hover:text-[#F2F4F7] pt-2"
+                className="block text-center text-xs text-[#9AA0AE] hover:text-[#F2F3F5] pt-2"
               >
                 {isEn ? "Back to Sign In" : "رجوع لتسجيل الدخول"}
               </Link>

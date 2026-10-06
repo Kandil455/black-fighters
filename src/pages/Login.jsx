@@ -71,7 +71,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen bg-[#07090D] flex items-center justify-center px-4 py-10"
+      className="min-h-screen bg-[#07080C] flex items-center justify-center px-4 py-10"
       dir={dir}
     >
       <div className="w-full max-w-md space-y-6">
@@ -81,10 +81,10 @@ export default function Login() {
 
         <LVCard padding="p-6 sm:p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-[#F2F4F7]">
+            <h1 className="text-2xl font-bold text-[#F2F3F5]">
               {isEn ? "Sign In" : "تسجيل الدخول"}
             </h1>
-            <p className="text-xs text-[#8B94A3] mt-1">
+            <p className="text-xs text-[#9AA0AE] mt-1">
               {isEn
                 ? "Sign in to access your courses and summaries"
                 : "سجل دخولك للوصول إلى كورساتك وملخصاتك"}
@@ -102,16 +102,16 @@ export default function Login() {
           </Button>
 
           <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-[#1C222B]" />
-            <span className="text-xs text-[#8B94A3]">
+            <div className="flex-1 h-px bg-[#1E222B]" />
+            <span className="text-xs text-[#9AA0AE]">
               {isEn ? "Or with email" : "أو عبر البريد"}
             </span>
-            <div className="flex-1 h-px bg-[#1C222B]" />
+            <div className="flex-1 h-px bg-[#1E222B]" />
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="text-xs font-medium text-[#8B94A3] mb-1.5 block">
+              <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
                 {isEn ? "Email Address" : "البريد الإلكتروني"}
               </label>
               <Input
@@ -121,18 +121,18 @@ export default function Login() {
                 placeholder="example@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7]"
+                className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-[#8B94A3]">
+                <label className="text-xs font-medium text-[#9AA0AE]">
                   {isEn ? "Password" : "كلمة المرور"}
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-[#22E58B] hover:underline font-medium"
+                  className="text-xs text-[#3DDC97] hover:underline font-medium"
                 >
                   {isEn ? "Forgot password?" : "نسيت كلمة المرور؟"}
                 </Link>
@@ -145,7 +145,7 @@ export default function Login() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`h-11 bg-[#07090D] border-[#1C222B] rounded-xl focus-visible:border-[#22E58B] text-[#F2F4F7] ${
+                  className={`h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5] ${
                     isEn ? "pr-11" : "pl-11"
                   }`}
                 />
@@ -161,7 +161,7 @@ export default function Login() {
                       : "إظهار كلمة المرور"
                   }
                   onClick={() => setShowPass(!showPass)}
-                  className={`absolute top-0 h-11 w-11 flex items-center justify-center text-[#8B94A3] hover:text-[#F2F4F7] transition-colors ${
+                  className={`absolute top-0 h-11 w-11 flex items-center justify-center text-[#9AA0AE] hover:text-[#F2F3F5] transition-colors ${
                     isEn ? "right-0" : "left-0"
                   }`}
                 >
@@ -184,11 +184,11 @@ export default function Login() {
             </Button>
           </form>
 
-          <p className="text-center text-xs text-[#8B94A3] mt-6">
+          <p className="text-center text-xs text-[#9AA0AE] mt-6">
             {isEn ? "Don't have an account? " : "ليس لديك حساب؟ "}
             <Link
               to="/register"
-              className="text-[#22E58B] font-semibold hover:underline"
+              className="text-[#3DDC97] font-semibold hover:underline"
             >
               {isEn ? "Create new account" : "إنشاء حساب جديد"}
             </Link>

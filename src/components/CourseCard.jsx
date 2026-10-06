@@ -12,8 +12,8 @@ function ContentBadge({ icon: Icon, label, available }) {
       className={cn(
         "inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border font-medium tabular transition-colors duration-150",
         available
-          ? "border-[#19f08c]/30 text-[#19f08c] bg-[#19f08c]/10"
-          : "border-[rgb(255_255_255/0.09)] text-[#6b7785] bg-white/[0.02]"
+          ? "border-[#3DDC97]/30 text-[#3DDC97] bg-[#3DDC97]/10"
+          : "border-[#1E222B] text-[#8A91A0] bg-white/[0.02]"
       )}
     >
       {/* animated={false}: repeated grid context — preserves compositor idle budget */}
@@ -48,7 +48,7 @@ export default function CourseCard({ course, contents = [] }) {
   const chapterCount = course.chapters?.length || 0;
 
   return (
-    <div className="glass h-full rounded-[1.25rem] transition-colors duration-200 hover:border-[rgb(255_255_255/0.16)] overflow-hidden flex flex-col group">
+    <div className="glass h-full rounded-[1.25rem] transition-colors duration-200 hover:border-[#262A34] overflow-hidden flex flex-col group">
       <Link
         to={`/course/${course.id}`}
         className="flex flex-col h-full p-6 gap-4 select-none relative z-10"
@@ -56,19 +56,19 @@ export default function CourseCard({ course, contents = [] }) {
         {/* Top row */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border border-[#19f08c]/30 bg-[#19f08c]/10">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border border-[#3DDC97]/30 bg-[#3DDC97]/10">
               <SmartFileIcon filename={course.title || course.doc_type || "pdf"} size={24} />
             </div>
             <div className="min-w-0 flex-1">
               <h3
                 dir="auto"
-                className="text-lg font-semibold tracking-tight leading-snug line-clamp-2 text-[#eef2f6] group-hover:text-[#19f08c] transition-colors duration-150 [unicode-bidi:plaintext]"
+                className="text-lg font-semibold tracking-tight leading-snug line-clamp-2 text-[#F2F3F5] group-hover:text-[#3DDC97] transition-colors duration-150 [unicode-bidi:plaintext]"
               >
                 {course.title}
               </h3>
               <p
                 dir="auto"
-                className="mt-1.5 text-sm leading-relaxed text-[#9aa6b4] line-clamp-2 [unicode-bidi:plaintext]"
+                className="mt-1.5 text-sm leading-relaxed text-[#9AA0AE] line-clamp-2 [unicode-bidi:plaintext]"
               >
                 {course.description || t("defaultCourseDesc")}
               </p>
@@ -109,9 +109,9 @@ export default function CourseCard({ course, contents = [] }) {
         </div>
 
         {/* Footer (1:1 LineVault course-grid.tsx footer) */}
-        <div className="mt-auto pt-3 border-t border-[rgb(255_255_255/0.09)] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-[#9aa6b4] tabular">
-            <Clock className="w-3.5 h-3.5 text-[#6b7785]" />
+        <div className="mt-auto pt-3 border-t border-[#1E222B] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-[#9AA0AE] tabular">
+            <Clock className="w-3.5 h-3.5 text-[#8A91A0]" />
             <span>{dateLabel}</span>
             <span className="inline-flex items-center gap-1 ms-1">
               {[0, 1, 2].map((i) => (
@@ -119,14 +119,14 @@ export default function CourseCard({ course, contents = [] }) {
                   key={i}
                   className={cn(
                     "w-1.5 h-1.5 rounded-full",
-                    i < generatedCount ? "bg-[#19f08c]" : "bg-white/15"
+                    i < generatedCount ? "bg-[#3DDC97]" : "bg-white/15"
                   )}
                 />
               ))}
             </span>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#19f08c] px-3.5 py-2 text-xs font-medium text-[#03150c] shadow-glow transition-colors group-hover:brightness-105">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#3DDC97] px-3.5 py-2 text-xs font-medium text-[#03150c] shadow-glow transition-colors group-hover:brightness-105">
             <span>{isEn ? "Open Course" : "عرض المقرر"}</span>
             <ArrowRight className="size-3.5 rtl:rotate-180" />
           </span>

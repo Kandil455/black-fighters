@@ -30,7 +30,7 @@ export default function Review() {
 
   if (finished !== null) {
     return (
-      <div dir={dir} className="max-w-xl mx-auto glass rounded-3xl p-12 text-center border border-[#19f08c]/30">
+      <div dir={dir} className="max-w-xl mx-auto glass rounded-3xl p-12 text-center border border-[#3DDC97]/30">
         <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
           <LottieSuccess className="w-16 h-16" />
         </div>
@@ -55,7 +55,7 @@ export default function Review() {
     return (
       <div dir={dir} className="max-w-xl mx-auto space-y-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#19f08c] border border-[#19f08c]/30 font-mono mb-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#3DDC97] border border-[#3DDC97]/30 font-mono mb-3">
             <span className="pulse-dot w-1.5 h-1.5" />
             <span>SPACED REPETITION ENGINE · FSRS v4.5</span>
           </div>
@@ -70,7 +70,7 @@ export default function Review() {
         </div>
 
         <div className="glass rounded-3xl p-12 text-center border border-white/10 space-y-5">
-          <CalendarCheck className="w-12 h-12 text-[#19f08c] mx-auto mb-2 opacity-90" />
+          <CalendarCheck className="w-12 h-12 text-[#3DDC97] mx-auto mb-2 opacity-90" />
           <h3 className="text-lg font-bold mb-2 text-white">
             {isEn ? "No cards due for review today" : "لا توجد بطاقات للمراجعة حالياً"}
           </h3>
@@ -119,7 +119,7 @@ export default function Review() {
   return (
     <div dir={dir} className="max-w-2xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#19f08c] border border-[#19f08c]/30 font-mono">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#3DDC97] border border-[#3DDC97]/30 font-mono">
           <LottieFlame className="w-4 h-4 inline" />
           <span>DAILY FLASHCARD SPRINT · FSRS v4.5</span>
         </div>

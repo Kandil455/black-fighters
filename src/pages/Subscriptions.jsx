@@ -355,8 +355,8 @@ export default function Subscriptions() {
               className={cn(
                 "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors",
                 billing === "monthly"
-                  ? "bg-[#19f08c] text-[#03150c]"
-                  : "text-[#9aa6b4] hover:text-[#eef2f6]"
+                  ? "bg-[#3DDC97] text-[#03150c]"
+                  : "text-[#9AA0AE] hover:text-[#F2F3F5]"
               )}
             >
               {isEn ? "Monthly" : "شهري"}
@@ -367,8 +367,8 @@ export default function Subscriptions() {
               className={cn(
                 "px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors",
                 billing === "yearly"
-                  ? "bg-[#19f08c] text-[#03150c]"
-                  : "text-[#9aa6b4] hover:text-[#eef2f6]"
+                  ? "bg-[#3DDC97] text-[#03150c]"
+                  : "text-[#9AA0AE] hover:text-[#F2F3F5]"
               )}
             >
               <span>{isEn ? "Yearly" : "سنوي"}</span>
@@ -377,7 +377,7 @@ export default function Subscriptions() {
                   "text-[10px] px-1.5 py-0.5 rounded font-mono",
                   billing === "yearly"
                     ? "bg-[#03150c]/20 text-[#03150c]"
-                    : "bg-[#19f08c]/15 text-[#19f08c]"
+                    : "bg-[#3DDC97]/15 text-[#3DDC97]"
                 )}
               >
                 {isEn ? "2 mo free" : "شهرين مجاناً"}
@@ -390,12 +390,12 @@ export default function Subscriptions() {
       {/* ─── 1) LineVault Interactive Volume Configurator (configurator.tsx) ─── */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-semibold text-[#eef2f6]">
+          <h2 className="text-xl font-semibold text-[#F2F3F5]">
             {isEn
               ? "Custom Credit Configurator"
               : "حاسبة الكريدتس المخصصة (حسب الكمية)"}
           </h2>
-          <p className="text-sm text-[#9aa6b4]">
+          <p className="text-sm text-[#9AA0AE]">
             {isEn
               ? "Slide or select a quick chip to calculate your volume discount."
               : "اسحب المؤشر أو اختر كمية سريعة للحصول على خصم الشرائح تلقائياً."}
@@ -412,7 +412,7 @@ export default function Subscriptions() {
         <div className="flex-1 w-full space-y-8">
           {/* Uniform Plan Cards Grid */}
           <div className="space-y-3">
-            <h2 className="text-xl font-semibold text-[#eef2f6]">
+            <h2 className="text-xl font-semibold text-[#F2F3F5]">
               {isEn ? "Semester & Monthly Plans" : "الباقات الشهرية والسنوية"}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
@@ -432,12 +432,12 @@ export default function Subscriptions() {
           {/* Quick Top-up Credit Packs */}
           <div className="space-y-3">
             <div>
-              <h2 className="text-lg font-semibold text-[#eef2f6]">
+              <h2 className="text-lg font-semibold text-[#F2F3F5]">
                 {isEn
                   ? "Quick Top-Up Packs (Optional)"
                   : "شرائح شحن سريعة (اختياري)"}
               </h2>
-              <p className="text-xs text-[#9aa6b4]">
+              <p className="text-xs text-[#9AA0AE]">
                 {isEn
                   ? "One-time top-up credits that never expire."
                   : "رصيد إضافي لا ينتهي بانتهاء الشهر ويُضاف مباشرة إلى الفاتورة."}
@@ -455,20 +455,20 @@ export default function Subscriptions() {
                     className={cn(
                       "glass rounded-[1.25rem] p-4 text-start transition-colors duration-150 flex flex-col justify-between gap-2.5",
                       isSelected
-                        ? "border-[#19f08c]/60 bg-[#19f08c]/[0.08]"
-                        : "hover:border-[rgb(255_255_255/0.16)]"
+                        ? "border-[#3DDC97]/60 bg-[#3DDC97]/[0.08]"
+                        : "hover:border-[#262A34]"
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-[#eef2f6] truncate">
+                      <span className="text-xs font-medium text-[#F2F3F5] truncate">
                         {pack.name}
                       </span>
                       <span
                         className={cn(
                           "text-[10px] font-mono px-2 py-0.5 rounded-full",
                           isSelected
-                            ? "bg-[#19f08c] text-[#03150c] font-semibold"
-                            : "bg-white/[0.05] text-[#9aa6b4]"
+                            ? "bg-[#3DDC97] text-[#03150c] font-semibold"
+                            : "bg-white/[0.05] text-[#9AA0AE]"
                         )}
                       >
                         {isSelected
@@ -481,18 +481,18 @@ export default function Subscriptions() {
                       </span>
                     </div>
 
-                    <div className="text-xl font-semibold font-mono tabular text-[#eef2f6]">
+                    <div className="text-xl font-semibold font-mono tabular text-[#F2F3F5]">
                       {pack.credits.toLocaleString()}{" "}
-                      <span className="text-xs font-normal text-[#9aa6b4]">
+                      <span className="text-xs font-normal text-[#9AA0AE]">
                         {isEn ? "Cr" : "نقطة"}
                       </span>
                     </div>
 
-                    <div className="pt-2 border-t border-[rgb(255_255_255/0.09)] flex items-center justify-between text-xs font-mono tabular">
-                      <span className="text-[#19f08c] font-semibold">
+                    <div className="pt-2 border-t border-[#1E222B] flex items-center justify-between text-xs font-mono tabular">
+                      <span className="text-[#3DDC97] font-semibold">
                         {pack.price} {isEn ? "EGP" : "ج.م"}
                       </span>
-                      <span className="text-[#6b7785]">
+                      <span className="text-[#8A91A0]">
                         {isEn ? "No expiry" : "بلا انتهاء"}
                       </span>
                     </div>
@@ -504,45 +504,45 @@ export default function Subscriptions() {
 
           {/* Plan Comparison Table («مقارنة الباقات») */}
           <LVCard className="overflow-x-auto">
-            <h3 className="text-lg font-semibold text-[#eef2f6] mb-4">
+            <h3 className="text-lg font-semibold text-[#F2F3F5] mb-4">
               {isEn ? "Plan Comparison" : "مقارنة الباقات"}
             </h3>
             <table className="w-full text-xs sm:text-sm border-collapse min-w-[520px]">
               <thead>
-                <tr className="border-b border-[rgb(255_255_255/0.09)] text-start">
-                  <th className="py-2.5 px-3 text-start text-[#9aa6b4] font-medium">
+                <tr className="border-b border-[#1E222B] text-start">
+                  <th className="py-2.5 px-3 text-start text-[#9AA0AE] font-medium">
                     {isEn ? "Feature" : "الميزة"}
                   </th>
-                  <th className="py-2.5 px-3 text-center text-[#9aa6b4] font-medium">
+                  <th className="py-2.5 px-3 text-center text-[#9AA0AE] font-medium">
                     Free
                   </th>
-                  <th className="py-2.5 px-3 text-center text-[#eef2f6] font-semibold">
+                  <th className="py-2.5 px-3 text-center text-[#F2F3F5] font-semibold">
                     Starter
                   </th>
-                  <th className="py-2.5 px-3 text-center text-[#19f08c] font-semibold">
+                  <th className="py-2.5 px-3 text-center text-[#3DDC97] font-semibold">
                     Pro
                   </th>
-                  <th className="py-2.5 px-3 text-center text-[#eef2f6] font-semibold">
+                  <th className="py-2.5 px-3 text-center text-[#F2F3F5] font-semibold">
                     Supreme
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgb(255_255_255/0.09)]">
+              <tbody className="divide-y divide-[#1E222B]">
                 {PLAN_COMPARISON_ROWS.map((row, idx) => (
                   <tr key={idx}>
-                    <td className="py-3 px-3 text-[#eef2f6] font-medium">
+                    <td className="py-3 px-3 text-[#F2F3F5] font-medium">
                       {isEn ? row.featureEn : row.featureAr}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono tabular text-[#9aa6b4]">
+                    <td className="py-3 px-3 text-center font-mono tabular text-[#9AA0AE]">
                       {row.free}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono tabular text-[#eef2f6]">
+                    <td className="py-3 px-3 text-center font-mono tabular text-[#F2F3F5]">
                       {row.starter}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono tabular text-[#19f08c] font-semibold">
+                    <td className="py-3 px-3 text-center font-mono tabular text-[#3DDC97] font-semibold">
                       {row.pro}
                     </td>
-                    <td className="py-3 px-3 text-center font-mono tabular text-[#eef2f6]">
+                    <td className="py-3 px-3 text-center font-mono tabular text-[#F2F3F5]">
                       {row.supreme}
                     </td>
                   </tr>
@@ -560,16 +560,16 @@ export default function Subscriptions() {
           <LVCard padding="p-5 sm:p-6">
             {checkoutStep === 1 && !done && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between pb-3.5 border-b border-[rgb(255_255_255/0.09)]">
+                <div className="flex items-center justify-between pb-3.5 border-b border-[#1E222B]">
                   <div className="flex items-center gap-2.5">
-                    <div className="grid size-9 place-items-center rounded-xl border border-[#19f08c]/30 bg-[#19f08c]/10 text-[#19f08c]">
+                    <div className="grid size-9 place-items-center rounded-xl border border-[#3DDC97]/30 bg-[#3DDC97]/10 text-[#3DDC97]">
                       <Receipt className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-sm text-[#eef2f6]">
+                      <h3 className="font-semibold text-sm text-[#F2F3F5]">
                         {isEn ? "Order Summary" : "ملخص الطلبية"}
                       </h3>
-                      <span className="text-xs text-[#9aa6b4] block">
+                      <span className="text-xs text-[#9AA0AE] block">
                         {isEn ? "Live server quote" : "تسعير فوري مؤكد"}
                       </span>
                     </div>
@@ -580,12 +580,12 @@ export default function Subscriptions() {
                 {/* Animated Total Display + CountdownRing (1:1 joyful-heisenberg) */}
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-[#9aa6b4]">
+                    <p className="text-xs font-medium text-[#9AA0AE]">
                       {isEn ? "Total Due" : "الإجمالي المطلوب"}
                     </p>
-                    <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#eef2f6]">
+                    <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#F2F3F5]">
                       <AnimatedNumber value={totalPrice} />
-                      <span className="text-base font-normal text-[#9aa6b4]">
+                      <span className="text-base font-normal text-[#9AA0AE]">
                         {isEn ? "EGP" : "ج.م"}
                       </span>
                     </div>
@@ -598,14 +598,14 @@ export default function Subscriptions() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-[rgb(255_255_255/0.09)] space-y-2">
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-[#1E222B] space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm text-[#eef2f6]">
+                      <span className="font-medium text-sm text-[#F2F3F5]">
                         {selectedPlan?.nameAr && !isEn
                           ? `${selectedPlan.name} (${selectedPlan.nameAr})`
                           : selectedPlan?.name}
                       </span>
-                      <span className="font-mono tabular font-semibold text-sm text-[#eef2f6]">
+                      <span className="font-mono tabular font-semibold text-sm text-[#F2F3F5]">
                         {planCost === 0
                           ? isEn
                             ? "Free"
@@ -613,16 +613,16 @@ export default function Subscriptions() {
                           : `${planCost} ${isEn ? "EGP" : "ج.م"}`}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-[#9aa6b4] pt-1.5 border-t border-[rgb(255_255_255/0.09)]">
+                    <div className="flex items-center justify-between text-xs text-[#9AA0AE] pt-1.5 border-t border-[#1E222B]">
                       <span>
                         {isEn ? "Included Credits" : "رصيد الكريدتس المرفق"}
                       </span>
-                      <span className="font-mono tabular text-[#19f08c] font-semibold">
+                      <span className="font-mono tabular text-[#3DDC97] font-semibold">
                         +{includedCredits.toLocaleString()}
                       </span>
                     </div>
                     {isUpgradingMainPlan && (
-                      <div className="flex items-center justify-between text-xs text-[#19f08c] pt-1.5 border-t border-[rgb(255_255_255/0.09)]">
+                      <div className="flex items-center justify-between text-xs text-[#3DDC97] pt-1.5 border-t border-[#1E222B]">
                         <span>
                           {isEn ? "Upgrade Difference Discount" : "خصم فرق الترقية"}
                         </span>
@@ -634,24 +634,24 @@ export default function Subscriptions() {
                   </div>
 
                   {selectedPack && (
-                    <div className="p-3.5 rounded-2xl bg-[#19f08c]/[0.07] border border-[#19f08c]/35 flex items-center justify-between gap-2">
+                    <div className="p-3.5 rounded-2xl bg-[#3DDC97]/[0.07] border border-[#3DDC97]/35 flex items-center justify-between gap-2">
                       <div>
-                        <span className="text-xs font-semibold text-[#eef2f6] block">
+                        <span className="text-xs font-semibold text-[#F2F3F5] block">
                           {selectedPack.name}
                         </span>
-                        <span className="text-xs font-mono tabular text-[#19f08c]">
+                        <span className="text-xs font-mono tabular text-[#3DDC97]">
                           +{selectedPack.credits.toLocaleString()}{" "}
                           {isEn ? "Credits" : "نقطة"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono tabular font-semibold text-[#eef2f6]">
+                        <span className="text-xs font-mono tabular font-semibold text-[#F2F3F5]">
                           {selectedPack.price} {isEn ? "EGP" : "ج.م"}
                         </span>
                         <button
                           type="button"
                           onClick={() => setSelectedPack(null)}
-                          className="p-1 rounded-lg text-[#9aa6b4] hover:text-[#ff5c6c]"
+                          className="p-1 rounded-lg text-[#9AA0AE] hover:text-[#E5484D]"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -660,9 +660,9 @@ export default function Subscriptions() {
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-[rgb(255_255_255/0.09)] flex items-center justify-between text-xs text-[#9aa6b4]">
+                <div className="pt-3 border-t border-[#1E222B] flex items-center justify-between text-xs text-[#9AA0AE]">
                   <span>{isEn ? "Total Credits Delivered" : "إجمالي الكريدتس المستلمة"}</span>
-                  <span className="font-mono tabular font-semibold text-base text-[#19f08c]">
+                  <span className="font-mono tabular font-semibold text-base text-[#3DDC97]">
                     <AnimatedNumber value={totalCredits} />
                   </span>
                 </div>
@@ -681,22 +681,22 @@ export default function Subscriptions() {
                   )}
                 </Button>
 
-                <div className="grid grid-cols-3 gap-2 pt-2 text-center text-[11px] text-[#9aa6b4]">
-                  <div className="p-2.5 rounded-xl bg-white/[0.025] border border-[rgb(255_255_255/0.09)]">
-                    <ShieldCheck className="w-4 h-4 mx-auto mb-1 text-[#19f08c]" />
+                <div className="grid grid-cols-3 gap-2 pt-2 text-center text-[11px] text-[#9AA0AE]">
+                  <div className="p-2.5 rounded-xl bg-white/[0.025] border border-[#1E222B]">
+                    <ShieldCheck className="w-4 h-4 mx-auto mb-1 text-[#3DDC97]" />
                     <span>{isEn ? "Ledger Safe" : "قيد مزدوج"}</span>
                   </div>
-                  <div className="p-2.5 rounded-xl bg-white/[0.025] border border-[rgb(255_255_255/0.09)]">
-                    <Zap className="w-4 h-4 mx-auto mb-1 text-[#19f08c]" />
+                  <div className="p-2.5 rounded-xl bg-white/[0.025] border border-[#1E222B]">
+                    <Zap className="w-4 h-4 mx-auto mb-1 text-[#3DDC97]" />
                     <span>{isEn ? "Fast Setup" : "تفعيل سريع"}</span>
                   </div>
                   <a
                     href="https://wa.me/201009275685"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2.5 rounded-xl bg-white/[0.025] border border-[rgb(255_255_255/0.09)] hover:border-[rgb(255_255_255/0.16)] text-[#eef2f6]"
+                    className="p-2.5 rounded-xl bg-white/[0.025] border border-[#1E222B] hover:border-[#262A34] text-[#F2F3F5]"
                   >
-                    <Headphones className="w-4 h-4 mx-auto mb-1 text-[#19f08c]" />
+                    <Headphones className="w-4 h-4 mx-auto mb-1 text-[#3DDC97]" />
                     <span>{isEn ? "Support" : "دعم فوري"}</span>
                   </a>
                 </div>
@@ -705,11 +705,11 @@ export default function Subscriptions() {
 
             {checkoutStep === 2 && !done && (
               <div className="space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-[rgb(255_255_255/0.09)]">
+                <div className="flex items-center justify-between pb-3 border-b border-[#1E222B]">
                   <button
                     type="button"
                     onClick={() => setCheckoutStep(1)}
-                    className="text-xs text-[#19f08c] hover:underline font-medium flex items-center gap-1.5"
+                    className="text-xs text-[#3DDC97] hover:underline font-medium flex items-center gap-1.5"
                   >
                     {dir === "rtl" ? (
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -724,12 +724,12 @@ export default function Subscriptions() {
                 </div>
 
                 {/* LineVault CountdownRing Header (1:1 checkout-view.tsx) */}
-                <div className="flex items-center justify-between gap-4 rounded-2xl border border-[rgb(255_255_255/0.09)] bg-white/[0.03] p-3.5">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#1E222B] bg-white/[0.03] p-3.5">
                   <div>
-                    <h3 className="font-semibold text-sm text-[#eef2f6]">
+                    <h3 className="font-semibold text-sm text-[#F2F3F5]">
                       {isEn ? "Complete Your Transfer" : "أكمل الدفع والتحويل"}
                     </h3>
-                    <p className="text-xs text-[#9aa6b4] mt-0.5">
+                    <p className="text-xs text-[#9AA0AE] mt-0.5">
                       {isEn
                         ? "Send the exact amount and attach your receipt before the timer expires."
                         : "أرسل المبلغ المحدد بالضبط وأرفق صورة الإيصال خلال المهلة."}
@@ -752,8 +752,8 @@ export default function Subscriptions() {
                       className={cn(
                         "py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors flex items-center justify-center gap-1.5",
                         method === key
-                          ? "bg-[#19f08c]/10 text-[#19f08c] border-[#19f08c]/60"
-                          : "bg-white/[0.03] text-[#9aa6b4] border-[rgb(255_255_255/0.09)] hover:text-[#eef2f6]"
+                          ? "bg-[#3DDC97]/10 text-[#3DDC97] border-[#3DDC97]/60"
+                          : "bg-white/[0.03] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]"
                       )}
                     >
                       <span>{m.icon}</span>
@@ -784,7 +784,7 @@ export default function Subscriptions() {
                 />
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[#9aa6b4] block">
+                  <label className="text-xs font-medium text-[#9AA0AE] block">
                     {isEn
                       ? "Sender Phone Number (11 digits)"
                       : "رقم الهاتف المحوّل منه (11 رقماً)"}
@@ -800,16 +800,16 @@ export default function Subscriptions() {
                     }
                     placeholder="01xxxxxxxxx"
                     maxLength={11}
-                    className="w-full h-11 px-3.5 rounded-xl bg-white/[0.035] border border-[rgb(255_255_255/0.09)] focus:border-[#19f08c]/60 focus:outline-none font-mono tabular text-sm text-[#eef2f6]"
+                    className="w-full h-11 px-3.5 rounded-xl bg-white/[0.035] border border-[#1E222B] focus:border-[#3DDC97]/60 focus:outline-none font-mono tabular text-sm text-[#F2F3F5]"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-[#9aa6b4] flex items-center justify-between">
+                  <label className="text-xs font-medium text-[#9AA0AE] flex items-center justify-between">
                     <span>
                       {isEn ? "Transfer Receipt Screenshot" : "صورة إيصال التحويل"}
                     </span>
-                    <span className="text-[11px] text-[#ffb547]">
+                    <span className="text-[11px] text-[#F5A524]">
                       {isEn ? "Required" : "مطلوب"}
                     </span>
                   </label>
@@ -818,14 +818,14 @@ export default function Subscriptions() {
                     className={cn(
                       "w-full p-3.5 rounded-xl border border-dashed flex items-center justify-center gap-2 cursor-pointer transition-colors",
                       screenshot
-                        ? "border-[#19f08c]/60 bg-[#19f08c]/10 text-[#19f08c]"
-                        : "border-[rgb(255_255_255/0.16)] bg-white/[0.025] hover:border-[#19f08c]/40 text-[#9aa6b4]"
+                        ? "border-[#3DDC97]/60 bg-[#3DDC97]/10 text-[#3DDC97]"
+                        : "border-[#262A34] bg-white/[0.025] hover:border-[#3DDC97]/40 text-[#9AA0AE]"
                     )}
                   >
                     {uploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-[#19f08c]" />
+                      <Loader2 className="w-4 h-4 animate-spin text-[#3DDC97]" />
                     ) : screenshot ? (
-                      <CheckCircle2 className="w-4 h-4 text-[#19f08c]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#3DDC97]" />
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
@@ -858,12 +858,12 @@ export default function Subscriptions() {
                   placeholder={
                     isEn ? "Optional note" : "ملاحظة اختيارية (مثل يوزر تيليجرام)"
                   }
-                  className="w-full h-10 px-3.5 rounded-xl bg-white/[0.035] border border-[rgb(255_255_255/0.09)] text-xs text-[#eef2f6] placeholder:text-[#6b7785] focus:outline-none focus:border-[#19f08c]/60"
+                  className="w-full h-10 px-3.5 rounded-xl bg-white/[0.035] border border-[#1E222B] text-xs text-[#F2F3F5] placeholder:text-[#8A91A0] focus:outline-none focus:border-[#3DDC97]/60"
                 />
 
                 {/* LineVault Live Stepper (checkout/parts.tsx) */}
-                <div className="pt-3 border-t border-[rgb(255_255_255/0.09)]">
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-[#6b7785]">
+                <div className="pt-3 border-t border-[#1E222B]">
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-[#8A91A0]">
                     {isEn ? "Order Progress" : "حالة الطلبية"}
                   </p>
                   <Stepper steps={checkoutSteps} />
@@ -900,12 +900,12 @@ export default function Subscriptions() {
                 <div className="text-center space-y-3">
                   <AnimatedCheck />
                   <div className="space-y-1">
-                    <h3 className="text-base font-semibold text-[#eef2f6]">
+                    <h3 className="text-base font-semibold text-[#F2F3F5]">
                       {isEn
                         ? "Transfer Request Received"
                         : "رُصدت دفعتك وجارٍ التأكيد"}
                     </h3>
-                    <p className="text-xs text-[#9aa6b4] leading-relaxed">
+                    <p className="text-xs text-[#9AA0AE] leading-relaxed">
                       {isEn
                         ? "Your subscription or credits will activate automatically upon verification."
                         : "نؤكّد إيصالك الآن وسيتم شحن الرصيد وتفعيل الباقة فوراً."}
@@ -913,7 +913,7 @@ export default function Subscriptions() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-[rgb(255_255_255/0.09)] bg-white/[0.025] p-4">
+                <div className="rounded-2xl border border-[#1E222B] bg-white/[0.025] p-4">
                   <Stepper steps={checkoutSteps} />
                 </div>
 
@@ -943,7 +943,7 @@ export default function Subscriptions() {
       {/* ─── Payment Requests & Promo Code Redemption ─── */}
       <div
         id="my-requests"
-        className="pt-8 border-t border-[rgb(255_255_255/0.09)] space-y-6"
+        className="pt-8 border-t border-[#1E222B] space-y-6"
       >
         <MyPaymentRequests />
         <RedeemCodePanel />

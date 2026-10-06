@@ -38,11 +38,11 @@ export default function PlanCard({
       <div>
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
-            <h3 className="text-lg font-semibold text-[#eef2f6]">
+            <h3 className="text-lg font-semibold text-[#F2F3F5]">
               {plan.nameAr && !isEn ? `${plan.name} (${plan.nameAr})` : plan.name}
             </h3>
             {isCurrentPlan && (
-              <span className="text-xs font-medium text-[#19f08c] block mt-0.5">
+              <span className="text-xs font-medium text-[#3DDC97] block mt-0.5">
                 {isEn ? "Current Active Plan" : "باقتك الحالية"}
               </span>
             )}
@@ -55,13 +55,13 @@ export default function PlanCard({
           )}
         </div>
 
-        <div className="my-4 pb-4 border-b border-[rgb(255_255_255/0.09)]">
+        <div className="my-4 pb-4 border-b border-[#1E222B]">
           <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-semibold font-mono tabular text-[#eef2f6]">
+            <span className="text-3xl font-semibold font-mono tabular text-[#F2F3F5]">
               {price === 0 ? (isEn ? "Free" : "مجاناً") : price}
             </span>
             {price > 0 && (
-              <span className="text-xs text-[#9aa6b4]">
+              <span className="text-xs text-[#9AA0AE]">
                 {isEn
                   ? `EGP / ${isYearly ? "year" : "month"}`
                   : `ج.م / ${isYearly ? "سنة" : "شهر"}`}
@@ -70,7 +70,7 @@ export default function PlanCard({
           </div>
 
           {isYearly && price > 0 && (
-            <p className="text-xs text-[#19f08c] font-mono tabular mt-1">
+            <p className="text-xs text-[#3DDC97] font-mono tabular mt-1">
               {isEn
                 ? `≈ ${perMonth} EGP/mo · 2 months free`
                 : `≈ ${perMonth} ج.م شهرياً · شهرين مجاناً`}
@@ -78,7 +78,7 @@ export default function PlanCard({
           )}
 
           {credits > 0 && (
-            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#19f08c]/10 border border-[#19f08c]/30 text-xs font-mono tabular text-[#19f08c]">
+            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#3DDC97]/10 border border-[#3DDC97]/30 text-xs font-mono tabular text-[#3DDC97]">
               <Coins className="w-3.5 h-3.5" />
               <span>
                 {credits.toLocaleString()} {isEn ? "Credits" : "نقطة كريدت"}
@@ -87,13 +87,13 @@ export default function PlanCard({
           )}
         </div>
 
-        <ul className="divide-y divide-[rgb(255_255_255/0.09)] text-sm mb-6 list-none p-0 m-0">
+        <ul className="divide-y divide-[#1E222B] text-sm mb-6 list-none p-0 m-0">
           {features.map((f, i) => (
             <li key={i} className="flex items-center justify-between gap-2.5 py-2.5">
-              <span className="text-[#eef2f6]/90 text-xs sm:text-sm leading-relaxed">
+              <span className="text-[#F2F3F5]/90 text-xs sm:text-sm leading-relaxed">
                 {f}
               </span>
-              <Check className="w-4 h-4 text-[#19f08c] shrink-0" />
+              <Check className="w-4 h-4 text-[#3DDC97] shrink-0" />
             </li>
           ))}
         </ul>
