@@ -1,0 +1,20 @@
+{
+  "name": "UserSettings",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "type": "string"
+    },
+    "api_key": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "additionalProperties": true
+}

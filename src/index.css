@@ -1,0 +1,1379 @@
+@import "./design/atlas-tokens.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════
+   PERFORMANCE SAVER MODE
+   ══════════════════════════════════════════════════ */
+html[data-performance="saver"] *,
+html[data-performance="saver"] *::before,
+html[data-performance="saver"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ت١ — Tiered glass blur: same glass look, ~40–55% fewer blur samples on the
+   saver tier (blur cost scales with radius). Effect kept, GPU work cut. */
+html[data-performance="saver"] {
+  --blur-card:  16px;
+  --blur-dock:  26px;
+  --blur-pill:  12px;
+  --blur-ultra: 14px;
+}
+
+/* §5 scene tier — Landing with the WebGL knight running. The knight shares
+   main-thread + GPU with the 15 glass cards; its ambient 30fps render must
+   never fight a 28px backdrop-filter for the same slice of frame time.
+   Blur radius steps down while the scene exists (the look survives — glass
+   over a dark animated backdrop is visually blur-agnostic); poster mode
+   never sets html[data-scene], so those users keep the full look. */
+html[data-scene="3d"] {
+  --blur-card:  10px;
+  --blur-dock:  14px;
+  --blur-pill:  8px;
+  --blur-ultra: 8px;
+}
+html[data-scene="3d"] .ios-glass-card,
+html[data-scene="3d"] .glass-card {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255,255,255,0.12),
+    0 16px 32px -18px rgba(0,0,0,0.72);
+}
+
+/* ══════════════════════════════════════════════════
+   DESIGN TOKENS
+   ══════════════════════════════════════════════════ */
+@layer base {
+  :root {
+    /* Glass blur radii — tiered via html[data-performance] (report ت١) */
+    --blur-card:  0px;
+    --blur-dock:  0px;
+    --blur-pill:  0px;
+    --blur-ultra: 0px;
+
+    /* LineVault Dark Palette — Single Unified Identity (ink-950 / ink-900 / #19f08c) */
+    --background:         216 33%  3%;   /* #05070a (--color-ink-950) */
+    --foreground:         210 29% 95%;   /* #eef2f6 (--color-fg) */
+    --card:               218 31%  5%;   /* #090c11 (--color-ink-900) */
+    --card-foreground:    210 29% 95%;   /* #eef2f6 */
+    --popover:            218 31%  5%;   /* #090c11 */
+    --popover-foreground: 210 29% 95%;   /* #eef2f6 */
+
+    /* Single Accent — LineVault Emerald (#19f08c) */
+    --primary:            152 88% 52%;   /* #19f08c (--color-accent) */
+    --primary-foreground: 150 75%  5%;   /* #03150c (--color-accent-ink) */
+    --accent:             152 88% 52%;   /* #19f08c */
+    --accent-foreground:  150 75%  5%;   /* #03150c */
+
+    /* Neutral fill system (#0e131b ink-850) */
+    --secondary:          217 32%  8%;   /* #0e131b (--color-ink-850) */
+    --secondary-foreground: 210 29% 95%; /* #eef2f6 */
+    --muted:              217 32%  8%;   /* #0e131b */
+    --muted-foreground:   212 15% 65%;   /* #9aa6b4 (--color-fg-muted) */
+
+    /* State (#ff5c6c danger, hairline border) */
+    --destructive:        354 100% 68%;  /* #ff5c6c (--color-danger) */
+    --destructive-foreground: 210 29% 95%;
+    --border:             215 22% 14%;   /* hairline */
+    --input:              215 22% 14%;
+    --ring:               152 88% 52%;   /* #19f08c */
+    --radius:             1.25rem;       /* 20px (--radius-card) */
+
+    /* Sidebar */
+    --sidebar-background:         218 31%  5%; /* #090c11 */
+    --sidebar-foreground:         212 15% 65%; /* #9aa6b4 */
+    --sidebar-primary:            152 88% 52%; /* #19f08c */
+    --sidebar-primary-foreground: 150 75%  5%; /* #03150c */
+    --sidebar-accent:             217 32%  8%; /* #0e131b */
+    --sidebar-accent-foreground:  210 29% 95%; /* #eef2f6 */
+    --sidebar-border:             215 22% 14%;
+    --sidebar-ring:               152 88% 52%; /* #19f08c */
+
+    /* Typography — IBM Plex Sans Arabic, Geist / Inter, JetBrains Mono */
+    --font-heading:  'IBM Plex Sans Arabic', 'Alexandria', 'Geist Sans', 'Inter', system-ui, sans-serif;
+    --font-body:     'IBM Plex Sans Arabic', 'Alexandria', 'Geist Sans', 'Inter', system-ui, sans-serif;
+    --font-display:  'IBM Plex Sans Arabic', 'Alexandria', 'Geist Sans', 'Inter', system-ui, sans-serif;
+    --font-mono:     'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  .dark {
+    --background:         216 33%  3%;   /* #05070a */
+    --foreground:         210 29% 95%;   /* #eef2f6 */
+    --card:               218 31%  5%;   /* #090c11 */
+    --card-foreground:    210 29% 95%;   /* #eef2f6 */
+    --popover:            218 31%  5%;   /* #090c11 */
+    --popover-foreground: 210 29% 95%;   /* #eef2f6 */
+    --primary:            152 88% 52%;   /* #19f08c */
+    --primary-foreground: 150 75%  5%;   /* #03150c */
+    --secondary:          217 32%  8%;   /* #0e131b */
+    --secondary-foreground: 210 29% 95%; /* #eef2f6 */
+    --muted:              217 32%  8%;   /* #0e131b */
+    --muted-foreground:   212 15% 65%;   /* #9aa6b4 */
+    --accent:             152 88% 52%;   /* #19f08c */
+    --accent-foreground:  150 75%  5%;   /* #03150c */
+    --destructive:        354 100% 68%;  /* #ff5c6c */
+    --destructive-foreground: 210 29% 95%;
+    --border:             215 22% 14%;
+    --input:              215 22% 14%;
+    --ring:               152 88% 52%;   /* #19f08c */
+  }
+
+  .light {
+    --background:           0   0% 100%;
+    --foreground:         220  30%   6%;
+    --card:               210  20%  98%;
+    --card-foreground:    220  30%   6%;
+    --popover:              0   0% 100%;
+    --popover-foreground: 220  30%   6%;
+    --primary:            152  79%  38%;
+    --primary-foreground:   0   0% 100%;
+    --secondary:          210  16%  94%;
+    --secondary-foreground: 220 30%  6%;
+    --muted:              210  16%  95%;
+    --muted-foreground:   218  11%  40%;
+    --border:             214  20%  88%;
+    --input:              214  20%  88%;
+    --ring:               152  79%  38%;
+  }
+}
+
+/* ══════════════════════════════════════════════════
+   BASE RESET & GLOBAL STYLES
+   ══════════════════════════════════════════════════ */
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+    box-sizing: border-box;
+  }
+
+  html {
+    background-color: #05070a;
+    color: #eef2f6;
+    scroll-behavior: auto;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "kern";
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    font-weight: 450;
+    line-height: 1.65;
+    letter-spacing: 0.005em;
+    background-color: #05070a;
+    color: #eef2f6;
+    min-height: 100dvh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Subtle top ambient glow only — zero fixed SVG turbulence filter during scroll */
+  body::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 42rem;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(55rem 32rem at 80% -10%, rgb(25 240 140 / 0.08), transparent 65%),
+      radial-gradient(45rem 28rem at 15% 0%, rgb(25 240 140 / 0.04), transparent 65%);
+  }
+
+  body::after {
+    display: none;
+  }
+
+  ::selection {
+    background: rgb(25 240 140 / 0.3);
+  }
+
+  /* Headings — editorial weight contrast */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+    line-height: 1.22;
+    font-weight: 600;
+    color: #eef2f6;
+  }
+
+  /* Paragraph copy — comfortable reading */
+  p {
+    line-height: 1.72;
+    font-weight: 450;
+    color: #9aa6b4;
+  }
+
+  /* Mono elements */
+  code, kbd, .font-mono {
+    font-family: var(--font-mono);
+    font-feature-settings: "calt" 0;
+    letter-spacing: 0.02em;
+  }
+
+  /* Interactive elements */
+  button, a, [role="button"], [role="tab"], label, summary {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid #19f08c;
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
+
+@keyframes caret {
+  50% { opacity: 0; }
+}
+
+/* ══════════════════════════════════════════════════
+   UTILITIES — LINEVAULT GLASS & TERMINAL SYSTEM
+   ══════════════════════════════════════════════════ */
+@layer utilities {
+  .glass {
+    background: linear-gradient(180deg, rgb(14 19 26 / 0.92), rgb(9 12 17 / 0.96));
+    border: 1px solid rgb(255 255 255 / 0.09);
+  }
+
+  .text-gradient {
+    background: linear-gradient(180deg, #fff 30%, rgb(255 255 255 / 0.55));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .animate-caret {
+    animation: caret 1s steps(2) infinite;
+  }
+
+  .shadow-glow {
+    box-shadow: 0 0 0 1px rgb(25 240 140 / 0.5), 0 8px 40px -6px rgb(25 240 140 / 0.45);
+  }
+
+  /* Internal product surfaces — LineVault crisp dark card (no per-card backdrop-filter) */
+  .app-content .ios-glass-card,
+  .app-content .glass-card {
+    background: linear-gradient(180deg, rgb(14 19 26 / 0.92), rgb(9 12 17 / 0.96));
+    border: 1px solid rgb(255 255 255 / 0.09);
+    box-shadow: none;
+  }
+
+  .app-focus-panel {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.02));
+    border: 1px solid rgb(255 255 255 / 0.09);
+    box-shadow: none;
+  }
+
+  /* Safe area insets (iOS/Android notch) */
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+  .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+  .h-safe-bottom { height: env(safe-area-inset-bottom, 0px); }
+
+  /* 44px minimum tap target (Apple HIG / WCAG) */
+  .tap-target { min-width: 44px; min-height: 44px; }
+
+  /* Hide scrollbar (keep function) */
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  /* ── LINEVAULT GLASS CARD SYSTEM ──────── */
+
+  .ios-glass-card, .glass-card {
+    background: linear-gradient(180deg, rgb(14 19 26 / 0.92), rgb(9 12 17 / 0.96));
+    border: 1px solid rgb(255 255 255 / 0.09);
+    border-radius: 1.25rem;
+    box-shadow: none;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  /* §5 hover contract: border-color only in the primary hover rule */
+  .ios-glass-card:hover, .glass-card:hover {
+    border-color: rgb(255 255 255 / 0.16);
+  }
+
+  .ios-glass-card:hover, .glass-card:hover {
+    background-color: rgb(255 255 255 / 0.03);
+  }
+
+  /* Navigation / dock surface */
+  .ios-glass-dock {
+    background: rgb(5 7 10 / 0.88);
+    border: 1px solid rgb(255 255 255 / 0.09);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Small pill / badge surface */
+  .ios-glass-pill {
+    background: rgb(255 255 255 / 0.04);
+    border: 1px solid rgb(255 255 255 / 0.09);
+    box-shadow: none;
+  }
+
+  .aurora-bg {
+    background: #05070a;
+  }
+
+  .glass-panel {
+    background: linear-gradient(180deg, rgb(14 19 26 / 0.92), rgb(9 12 17 / 0.96));
+    border: 1px solid rgb(255 255 255 / 0.09);
+  }
+
+  .glass-input {
+    background: rgb(9 12 17 / 0.8);
+    border: 1px solid rgb(255 255 255 / 0.09);
+  }
+
+  .shadow-glow-cyan,
+  .shadow-glow-violet,
+  .shadow-glow-amber {
+    box-shadow: none;
+  }
+
+  /* ── CLEAN TYPOGRAPHY (LineVault text-gradient) ─── */
+
+  .studio-headline-gradient {
+    background: linear-gradient(180deg, #fff 30%, rgb(255 255 255 / 0.55));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .neon-text-gradient {
+    color: #19f08c;
+    animation: none;
+  }
+
+  @keyframes neon-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50%       { background-position: 100% 50%; }
+  }
+
+  /* ── INTERACTIVE BORDER EFFECTS ───────────────────── */
+
+  .laser-border {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .glow-card {
+    transition: border-color 0.15s ease;
+  }
+  .glow-card:hover {
+    border-color: rgb(255 255 255 / 0.16);
+  }
+
+  /* ── PRIMARY BUTTON SURFACE (LineVault --shadow-glow) ── */
+  .btn-primary-glow {
+    box-shadow: 0 0 0 1px rgb(25 240 140 / 0.5), 0 8px 40px -6px rgb(25 240 140 / 0.45);
+    transition: transform 0.15s ease;
+  }
+  .btn-primary-glow:active { transform: scale(0.98); }
+
+  /* ── SUBTLE LIFT ─────────────────────────────────── */
+  .btn-lift {
+    transition: transform 0.15s ease;
+  }
+  .btn-lift:hover { transform: translateY(-1px); }
+  .btn-lift:active { transform: translateY(0) scale(0.98); }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-lift, .btn-lift:hover, .btn-lift:active { transform: none; }
+    .btn-primary-glow:active { transform: none; }
+  }
+
+  /* ── CINEMATIC SCANNING LINE ──────────────────────── */
+  /* COMPOSITOR CONTRACT: the old version animated `top` (0%→100%) — a
+     layout+paint invalidation EVERY frame for 3.5s infinite, on the big
+     glass hero card. Button hovers inside that card queued behind those
+     repaints (the Dashboard-vs-Landing smoothness gap). Now the ::after is
+     inset:0 (height = card height) carrying a 1px gradient line drawn via
+     background-size at its top edge; translateY sweeps it -100%→+100% =
+     exactly one full card height, transform+opacity only (compositor). */
+  .scan-line-anim {
+    position: relative;
+    overflow: hidden;
+  }
+  .scan-line-anim::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(0,245,255,0.5) 50%,
+      transparent 100%);
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    animation: scan-vert 3.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes scan-vert {
+    0%   { transform: translateY(-100%); opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { transform: translateY(100%); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scan-line-anim::after { animation: none; opacity: 0; }
+  }
+
+  /* ── HOVER LIFT ───────────────────────────────────── */
+  /* NOTE: never combine .hover-lift with a JS-driven transform on the same
+     element — its `transition: transform` re-interpolates every per-frame
+     write and the motion feels floaty (the tilt-card lag). A child of a
+     tilt card may still use it: the transforms are on different elements. */
+  .hover-lift {
+    transition: transform 0.28s cubic-bezier(0.16,1,0.3,1);
+  }
+  .hover-lift:hover { transform: translateY(-4px); }
+
+  /* ── CURSOR-GLOW ANCHORING (tilt cards) ─────────────── */
+  /* Register --mx/--my as typed percentage properties so the BROWSER
+     interpolates the radial-gradient center — the laser line GLIDES toward
+     the cursor instead of teleporting every frame (the card springs, the
+     anchor eases behind it: no more jagged/jumpy sweep). Browsers without
+     @property simply keep the instant follow (graceful degradation). */
+  @property --mx {
+    syntax: "<percentage>";
+    inherits: true;
+    initial-value: 50%;
+  }
+  @property --my {
+    syntax: "<percentage>";
+    inherits: true;
+    initial-value: 50%;
+  }
+  .tilt-glow {
+    background: radial-gradient(
+      480px circle at var(--mx, 50%) var(--my, 50%),
+      var(--glow-color, rgba(0, 245, 255, 0.18)),
+      transparent 65%
+    );
+    transition:
+      --mx 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      --my 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }  .tilt-gleam {
+    background: radial-gradient(
+      320px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(255,255,255,0.35),
+      transparent 55%
+    );
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    padding: 1px;
+    transition:
+      --mx 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      --my 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* NOTE: no will-change rule here. A will-change applied on hover is never
+     dropped when the rAF loop parks, hoarding a compositor layer forever
+     (WebKit RAM rule). The tilt component manages its own layers. */
+
+  /* ── NAV DOCK COMPOSITOR ISOLATION ───────────────────── */
+  /* The dock's blur(44px) saturate(200%) backdrop must re-sample everything
+     under it every time anything inside it changes — a hover scale on a
+     button forced a full backdrop re-filter each frame (the navbar lag).
+     isolation:fixed + its own compositor layer pins that repaint surface;
+     transforms inside now stay on the child layer and never re-sample the
+     backdrop. */
+  .magnetic-host {
+    isolation: isolate;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* ── FLOATING ASSISTANT ORB ─────────────────────────── */
+  /* Compositor-only CSS keyframes: idle float on the button, gradient spin
+     and sonar pulse on children — zero React/framer involvement while idle,
+     and the press scale lives on an inner wrapper (no transform fights). */
+  @keyframes fabFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-4px); }
+  }
+  @keyframes fabSpin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes fabPulse {
+    0%   { transform: scale(1);    opacity: 0.7; }
+    100% { transform: scale(1.45); opacity: 0; }
+  }
+  .fab-float { animation: fabFloat 2.8s ease-in-out infinite; }
+  .fab-spin  { animation: fabSpin 8s linear infinite; }
+  .fab-pulse { animation: fabPulse 2.2s ease-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .fab-float, .fab-spin, .fab-pulse { animation: none; }
+  }
+
+  /* ── PULSE DOT ────────────────────────────────────── */
+  /* COMPOSITOR CONTRACT: the ring used to animate box-shadow — main-thread
+     repaint every frame, infinite, sitting on the hero chip inside the tilt
+     card (hover work inside the card queued behind it). Now the ring is an
+     ::after pseudo-element that scales+fades (transform+opacity only —
+     compositor). The dot's own glow is a STATIC box-shadow (never animated). */
+  .pulse-dot {
+    position: relative;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: hsl(var(--primary));
+    box-shadow: 0 0 6px rgba(0,245,255,0.55); /* static — paint once */
+  }
+  .pulse-dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(0,245,255,0.6);
+    animation: pulse-ring 2s ease-out infinite;
+    pointer-events: none;
+  }
+  @keyframes pulse-ring {
+    0%   { transform: scale(1);   opacity: 0.7; }
+    70%  { transform: scale(2.2); opacity: 0; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-dot::after { animation: none; opacity: 0; }
+  }
+
+  /* ── CUSTOM SCROLLBAR (where visible) ───────────────── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0,245,255,0.2);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,245,255,0.35); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+  /* ── SELECTION ───────────────────────────────────── */
+  ::selection {
+    background-color: rgba(0,245,255,0.2);
+    color: #fff;
+  }
+
+  /* ── TYPOGRAPHY HELPERS ──────────────────────────── */
+  .heading-display {
+    font-family: var(--font-heading);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  .heading-section {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+  }
+
+  .caption-mono {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: hsl(240 6% 50%);
+  }
+
+  /* ── CARD INNER GLOW VARIANT ─────────────────────── */
+  .card-inner-glow {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.12),
+      inset 0 0 40px rgba(0,245,255,0.02);
+  }
+
+  /* ── GPU HARDWARE ACCELERATION & FAST RENDERING ───── */
+  /* Safari/WebKit hoards RAM for will-change layers — promote only while an
+     animation actually runs (clearWillChangeOnEnd in src/lib/frameScheduler.js),
+     never permanently (review warning #2). */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  .content-visibility-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 160px;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     ✨ CLEAN SAAS SYSTEM — BLACK FIGHTERS REFINED
+     ═══════════════════════════════════════════════════════ */
+
+  /* ── AURORA ORB BACKGROUNDS ──────────────────────────── */
+  /* COMPOSITOR CONTRACT (root-system fix): these orbs used to carry
+     filter: blur(70-90px) WHILE animating transform — a moving blurred
+     element re-rasterizes its blur every frame: 3 orbs × ~300-480px ×
+     dozens of taps ≈ 3M+ texture samples/frame, forever, on every page
+     (the balanced-mode menu lag). The radial-gradient stops ARE the
+     falloff — the blur was re-softening an already-soft gradient. Now:
+     no filter (rasterized once) + will-change (justified: the layer lives
+     for the element's lifetime) = pure compositor transform forever. */
+  .aurora-orb-cyan {
+    position: fixed;
+    width: 480px; height: 480px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(0,245,255,0.13) 0%, rgba(0,245,255,0.09) 32%, transparent 72%);
+    pointer-events: none;
+    z-index: 0;
+    will-change: transform;
+    animation: auroraFloat1 22s ease-in-out infinite;
+    top: -120px; right: -120px;
+  }
+  .aurora-orb-purple {
+    position: fixed;
+    width: 380px; height: 380px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(168,85,247,0.11) 0%, rgba(168,85,247,0.08) 32%, transparent 72%);
+    pointer-events: none;
+    z-index: 0;
+    will-change: transform;
+    animation: auroraFloat2 28s ease-in-out infinite;
+    bottom: -80px; left: -80px;
+  }
+  .aurora-orb-gold {
+    position: fixed;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(255,200,0,0.09) 0%, rgba(255,200,0,0.06) 32%, transparent 72%);
+    pointer-events: none;
+    z-index: 0;
+    will-change: transform;
+    animation: auroraFloat3 18s ease-in-out infinite;
+    top: 40%; left: 40%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aurora-orb-cyan, .aurora-orb-purple, .aurora-orb-gold { animation: none; }
+  }
+  @keyframes auroraFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-60px, 80px) scale(1.15); }
+    66% { transform: translate(40px, -40px) scale(0.9); }
+  }
+  @keyframes auroraFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(70px, -50px) scale(1.1); }
+    66% { transform: translate(-40px, 60px) scale(0.92); }
+  }
+  @keyframes auroraFloat3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-50px, -60px) scale(1.08); }
+    66% { transform: translate(60px, 50px) scale(0.95); }
+  }
+  .saas-card:hover {
+    border-color: #28313E;
+    background: #131820;
+    box-shadow: none;
+  }
+
+  /* ── FLOATING ────────────────────────────────────────── */
+  .float-slow  { animation: none; }
+  .float-med   { animation: none; }
+  .float-fast  { animation: none; }
+  @keyframes floatSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes floatMed  { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px);  } }
+  @keyframes floatFast { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px);  } }
+
+  /* ── SHIMMER SWEEP ───────────────────────────────────── */
+  /* Legacy summary callouts — paper-surface tones declared as one component
+     (bg + border + text live together here, per DESIGN.md's callout rule). */
+  .legacy-summary-html blockquote {
+    border: 1px solid hsl(258 75% 78%);
+    background: hsl(258 90% 96%);
+    color: hsl(262 60% 12%);
+  }
+
+  .shimmer-sweep { position: relative; overflow: hidden; }
+
+  /* ── ANIMATED GRADIENT BG ────────────────────────────── */
+  .gradient-animate {
+    background: #07090D;
+  }
+
+  /* ── CLEAN ACCENT TEXT ───────────────────────────────── */
+  .neon-text-cyan {
+    color: #22E58B;
+  }
+  .neon-text-gold {
+    color: #F5A524;
+  }
+
+  /* ── COUNTER ACCENTS ─────────────────────────────────── */
+  .counter-glow-cyan   { color: #22E58B; text-shadow: none; }
+  .counter-glow-gold   { color: #F5A524; text-shadow: none; }
+  .counter-glow-green  { color: #22E58B; text-shadow: none; }
+
+  /* ── SCANLINES (disabled in LineVault clean mode) ────── */
+  .scanlines::before {
+    display: none;
+  }
+
+  /* ── SLIDE-UP ENTRANCE ───────────────────────────────── */
+  .slide-up-enter { opacity: 1; transform: none; }
+
+  /* ── FLAT CARD ULTRA ─────────────────────────────────── */
+  .glass-ultra {
+    background: #0E1117;
+    border: 1px solid #1C222B;
+    box-shadow: none;
+  }
+
+  /* ── ACCENT TEXT ─────────────────────────────────────── */
+  .gradient-text-cyan {
+    color: #22E58B;
+  }
+  .gradient-text-gold {
+    color: #F5A524;
+  }
+
+  /* ── PING BADGE ──────────────────────────────────────── */
+  .ping-badge { position: relative; }
+  .ping-badge::after {
+    content: '';
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #22E58B;
+  }
+
+  /* ── HIGH-PERFORMANCE ANIMATED CSS FRAMES ───────────── */
+  .frame-cyber-dragon {
+    border-radius: 9999px;
+    animation: rotateFrame 6s linear infinite, cyberDragonGlow 3s ease-in-out infinite alternate;
+  }
+  .frame-cyber-dragon-glow {
+    filter: drop-shadow(0 0 16px rgba(0, 242, 254, 0.6)) drop-shadow(0 0 24px rgba(16, 185, 129, 0.4));
+  }
+
+  .frame-blazing-aura {
+    border-radius: 9999px;
+    animation: rotateFrame 4s linear infinite reverse, blazingPulse 2s ease-in-out infinite alternate;
+  }
+  .frame-blazing-aura-glow {
+    filter: drop-shadow(0 0 18px rgba(255, 77, 0, 0.75)) drop-shadow(0 0 30px rgba(255, 208, 0, 0.4));
+  }
+
+  .frame-neon-quantum {
+    border-radius: 9999px;
+    animation: rotateFrame 3s linear infinite, quantumGlitch 4s ease-in-out infinite;
+  }
+  .frame-neon-quantum-glow {
+    filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.7)) drop-shadow(0 0 28px rgba(255, 0, 128, 0.5));
+  }
+
+  .frame-arcane-runes {
+    border-radius: 9999px;
+    animation: rotateFrame 7s linear infinite, arcaneMystic 3.5s ease-in-out infinite alternate;
+  }
+  .frame-arcane-runes-glow {
+    filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.7)) drop-shadow(0 0 28px rgba(251, 191, 36, 0.45));
+  }
+
+  .frame-spartan-apex {
+    border-radius: 9999px;
+    animation: rotateFrame 5s linear infinite, spartanApexPulse 3s ease-in-out infinite alternate;
+  }
+  .frame-spartan-apex-glow {
+    filter: drop-shadow(0 0 22px rgba(0, 242, 254, 0.75)) drop-shadow(0 0 32px rgba(245, 158, 11, 0.6));
+  }
+
+  @keyframes rotateFrame {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes cyberDragonGlow {
+    0% { filter: brightness(1) drop-shadow(0 0 10px #00f2fe); }
+    50% { filter: brightness(1.3) drop-shadow(0 0 22px #10b981); }
+    100% { filter: brightness(1.1) drop-shadow(0 0 16px #00e5ff); }
+  }
+
+  @keyframes blazingPulse {
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.4) drop-shadow(0 0 22px #ff4d00); }
+    100% { filter: brightness(1); }
+  }
+
+  @keyframes quantumGlitch {
+    0%, 100% { filter: hue-rotate(0deg) brightness(1.1); }
+    50% { filter: hue-rotate(90deg) brightness(1.35); }
+  }
+
+  @keyframes arcaneMystic {
+    0% { filter: brightness(1) drop-shadow(0 0 12px #a855f7); }
+    50% { filter: brightness(1.35) drop-shadow(0 0 24px #fbbf24); }
+    100% { filter: brightness(1) drop-shadow(0 0 12px #7c3aed); }
+  }
+
+  @keyframes spartanApexPulse {
+    0% { filter: brightness(1.1) drop-shadow(0 0 14px #00f2fe); }
+    50% { filter: brightness(1.4) drop-shadow(0 0 26px #f59e0b); }
+    100% { filter: brightness(1.1) drop-shadow(0 0 14px #00f2fe); }
+  }
+}
+
+
+
+/* ══════════════════════════════════════════════════
+   UNIVERSAL BI-DIRECTIONAL (RTL / LTR) ISOLATION
+   ══════════════════════════════════════════════════ */
+[dir="ltr"],
+.bidi-ltr {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate !important;
+}
+
+[dir="ltr"] ul:not([class*="list-none"]):not([class*="p-0"]),
+[dir="ltr"] ol:not([class*="list-none"]):not([class*="p-0"]),
+.bidi-ltr ul:not([class*="list-none"]):not([class*="p-0"]),
+.bidi-ltr ol:not([class*="list-none"]):not([class*="p-0"]) {
+  direction: ltr !important;
+  text-align: left !important;
+  padding-left: 1.5rem !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  list-style-position: outside !important;
+}
+
+[dir="ltr"] li:not([class*="flex"]),
+.bidi-ltr li:not([class*="flex"]) {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: isolate;
+}
+
+[dir="rtl"],
+.bidi-rtl {
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: isolate !important;
+}
+
+[dir="rtl"] ul:not([class*="list-none"]):not([class*="p-0"]),
+[dir="rtl"] ol:not([class*="list-none"]):not([class*="p-0"]),
+.bidi-rtl ul:not([class*="list-none"]):not([class*="p-0"]),
+.bidi-rtl ol:not([class*="list-none"]):not([class*="p-0"]) {
+  direction: rtl !important;
+  text-align: right !important;
+  padding-right: 1.5rem !important;
+  padding-left: 0 !important;
+  margin-right: 0 !important;
+  list-style-position: outside !important;
+}
+
+[dir="rtl"] li:not([class*="flex"]),
+.bidi-rtl li:not([class*="flex"]) {
+  direction: rtl !important;
+  text-align: right !important;
+  unicode-bidi: isolate;
+}
+
+/* Inline isolate for code, medical formulas, and technical tokens */
+.bidi-isolate,
+bdi,
+[dir="auto"] {
+  unicode-bidi: isolate !important;
+}
+
+/* ══════════════════════════════════════════════════
+   HIGH-YIELD MEDICAL HIGHLIGHTING & PILL BADGES
+   ══════════════════════════════════════════════════ */
+mark,
+.hl-yellow {
+  background-color: #fef08a !important;
+  color: #713f12 !important;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #ca8a04 !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  display: inline;
+}
+
+mark.hl-green,
+.hl-green {
+  background-color: #bbf7d0 !important;
+  color: #14532d !important;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #16a34a !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  display: inline;
+}
+
+mark.hl-red,
+.hl-red {
+  background-color: #fecaca !important;
+  color: #7f1d1d !important;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #dc2626 !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  display: inline;
+}
+
+mark.hl-cyan,
+.hl-cyan {
+  background-color: #bae6fd !important;
+  color: #0c4a6e !important;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #0284c7 !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  display: inline;
+}
+
+mark.hl-orange,
+.hl-orange {
+  background-color: #fed7aa !important;
+  color: #7c2d12 !important;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  font-weight: 800 !important;
+  border-bottom: 2px solid #ea580c !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  display: inline;
+}
+
+/* Dark mode specific high-contrast neon tints */
+.medical-doc-dark mark,
+.medical-doc-dark .hl-yellow,
+.dark mark:not(.medical-doc-light mark),
+.dark .hl-yellow:not(.medical-doc-light .hl-yellow) {
+  background-color: rgba(234, 179, 8, 0.28) !important;
+  color: #fef08a !important;
+  border-bottom-color: #eab308 !important;
+}
+
+.medical-doc-dark mark.hl-green,
+.medical-doc-dark .hl-green,
+.dark mark.hl-green:not(.medical-doc-light mark.hl-green),
+.dark .hl-green:not(.medical-doc-light .hl-green) {
+  background-color: rgba(34, 197, 94, 0.28) !important;
+  color: #86efac !important;
+  border-bottom-color: #22c55e !important;
+}
+
+.medical-doc-dark mark.hl-red,
+.medical-doc-dark .hl-red,
+.dark mark.hl-red:not(.medical-doc-light mark.hl-red),
+.dark .hl-red:not(.medical-doc-light .hl-red) {
+  background-color: rgba(239, 68, 68, 0.28) !important;
+  color: #fca5a5 !important;
+  border-bottom-color: #ef4444 !important;
+}
+
+.medical-doc-dark mark.hl-cyan,
+.medical-doc-dark .hl-cyan,
+.dark mark.hl-cyan:not(.medical-doc-light mark.hl-cyan),
+.dark .hl-cyan:not(.medical-doc-light .hl-cyan) {
+  background-color: rgba(14, 165, 233, 0.28) !important;
+  color: #7dd3fc !important;
+  border-bottom-color: #0ea5e9 !important;
+}
+
+.medical-doc-dark mark.hl-orange,
+.medical-doc-dark .hl-orange,
+.dark mark.hl-orange:not(.medical-doc-light mark.hl-orange),
+.dark .hl-orange:not(.medical-doc-light .hl-orange) {
+  background-color: rgba(249, 115, 22, 0.28) !important;
+  color: #fdba74 !important;
+  border-bottom-color: #f97316 !important;
+}
+
+.part-header-pill {
+  display: inline-block;
+  background-color: #000000;
+  color: #ffffff;
+  padding: 0.35rem 0.9rem;
+  border-radius: 0.65rem;
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.arabic-walkthrough-pill {
+  display: inline-block;
+  background-color: #0a0d18;
+  color: #ffffff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 800;
+  font-size: 0.8rem;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+}
+
+/* ══════════════════════════════════════════════════
+   WHITE PAPER MODE & HIGH CONTRAST (DOCUMENT THEMES)
+   ══════════════════════════════════════════════════ */
+.medical-doc-light {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.medical-doc-light .paired-part-card,
+.medical-doc-light .glass-card {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+.medical-doc-light p,
+.medical-doc-light li,
+.medical-doc-light span {
+  color: #0f172a !important;
+}
+
+.medical-doc-light strong {
+  color: #000000 !important;
+  font-weight: 800 !important;
+}
+
+.medical-doc-light table {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.medical-doc-light th {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.medical-doc-light td {
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.medical-doc-light code {
+  background: #f1f5f9 !important;
+  color: #0369a1 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.medical-doc-light blockquote {
+  background: #f8fafc !important;
+  border-color: #6366f1 !important;
+  color: #312e81 !important;
+}
+
+.medical-doc-light .arabic-walkthrough-pill {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+  border: 1px solid #fca5a5 !important;
+}
+
+/* Crisp Dark Mode (no washed-out grey!) */
+.medical-doc-dark p,
+.medical-doc-dark li {
+  color: #f1f5f9 !important;
+}
+.medical-doc-dark strong {
+  color: #ffffff !important;
+}
+
+/* ══════════════════════════════════════════════════
+   FLAWLESS VECTOR PRINT & PDF ISOLATION
+   ══════════════════════════════════════════════════ */
+@media print {
+  @page {
+    margin: 10mm 12mm;
+    size: A4 portrait;
+  }
+
+  /* Reset root containers to 100% width and cancel containing block transforms */
+  html,
+  body,
+  #root,
+  .min-h-screen,
+  main,
+  [role="main"],
+  .app-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    float: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transform: none !important;
+    -webkit-transform: none !important;
+    filter: none !important;
+    perspective: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* 1. Suppress sidebars, headers, navigation, buttons, and app shells */
+  aside,
+  nav,
+  header,
+  footer,
+  .sidebar,
+  .print-hidden,
+  button,
+  [role="navigation"],
+  .app-dock,
+  .floating-ai,
+  [data-sonner-toaster],
+  .youtube-ai-toolbar,
+  .youtube-ai-header,
+  .youtube-ai-input-section,
+  .youtube-ai-tabs,
+  .youtube-ai-copilot {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2. Medical reference document occupies full width */
+  #printable-medical-guide {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* 3. Pure white paper with crisp solid black text */
+  #printable-medical-guide .glass-card,
+  #printable-medical-guide .bidi-ltr,
+  #printable-medical-guide .bidi-rtl,
+  #printable-medical-guide .paired-part-card,
+  #printable-medical-guide div {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
+  #printable-medical-guide p,
+  #printable-medical-guide li,
+  #printable-medical-guide span,
+  #printable-medical-guide td {
+    color: #000000 !important;
+  }
+
+  #printable-medical-guide strong,
+  #printable-medical-guide th,
+  #printable-medical-guide h1,
+  #printable-medical-guide h2,
+  #printable-medical-guide h3 {
+    color: #000000 !important;
+    font-weight: 800 !important;
+  }
+
+  #printable-medical-guide table {
+    border: 1px solid #94a3b8 !important;
+    background: #ffffff !important;
+    width: 100% !important;
+  }
+
+  #printable-medical-guide th {
+    background: #f1f5f9 !important;
+    color: #000000 !important;
+    border: 1px solid #94a3b8 !important;
+    font-weight: 800 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #printable-medical-guide td {
+    border: 1px solid #cbd5e1 !important;
+    color: #000000 !important;
+  }
+
+  mark,
+  .hl-yellow {
+    background-color: #fef08a !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #ca8a04 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-weight: 800 !important;
+    padding: 0.1rem 0.3rem !important;
+  }
+
+  mark.hl-green,
+  .hl-green {
+    background-color: #bbf7d0 !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #16a34a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-weight: 800 !important;
+    padding: 0.1rem 0.3rem !important;
+  }
+
+  mark.hl-red,
+  .hl-red {
+    background-color: #fecaca !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #dc2626 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-weight: 800 !important;
+    padding: 0.1rem 0.3rem !important;
+  }
+
+  mark.hl-cyan,
+  .hl-cyan {
+    background-color: #bae6fd !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #0284c7 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-weight: 800 !important;
+    padding: 0.1rem 0.3rem !important;
+  }
+
+  mark.hl-orange,
+  .hl-orange {
+    background-color: #fed7aa !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #ea580c !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-weight: 800 !important;
+    padding: 0.1rem 0.3rem !important;
+  }
+
+  .part-header-pill {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    border: 1px solid #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .arabic-walkthrough-pill {
+    background-color: #1e293b !important;
+    color: #ffffff !important;
+    border: 1px solid #1e293b !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .paired-part-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 2rem !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5 COMPLETE FRONTEND SKINS (Live Switchable across the entire platform)
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-bf-skin="visor"] {
+  --lv-ink-950: 5 6 10;
+  --lv-ink-900: 9 11 17;
+  --lv-ink-850: 14 17 26;
+  --lv-accent: 92 242 255;       /* #5cf2ff Visor Cyan */
+  --lv-accent-soft: 123 140 255; /* #7b8cff Indigo */
+  --primary: 185 100% 68%;
+  --accent: 185 100% 68%;
+  --ring: 185 100% 68%;
+}
+
+html[data-bf-skin="linevault"] {
+  --lv-ink-950: 5 7 10;
+  --lv-ink-900: 9 12 17;
+  --lv-ink-850: 14 19 26;
+  --lv-accent: 25 240 140;       /* #19f08c LineVault Emerald */
+  --lv-accent-soft: 16 185 129;
+  --primary: 152 88% 52%;
+  --accent: 152 88% 52%;
+  --ring: 152 88% 52%;
+}
+
+html[data-bf-skin="atlas"] {
+  --lv-ink-950: 8 11 18;
+  --lv-ink-900: 13 18 29;
+  --lv-ink-850: 19 26 42;
+  --lv-accent: 229 184 75;       /* #e5b84b Atlas Royal Gold */
+  --lv-accent-soft: 245 158 11;
+  --primary: 42 75% 60%;
+  --accent: 42 75% 60%;
+  --ring: 42 75% 60%;
+}
+
+html[data-bf-skin="linear"] {
+  --lv-ink-950: 0 0 0;           /* #000000 Pure OLED Black */
+  --lv-ink-900: 8 8 11;
+  --lv-ink-850: 14 14 18;
+  --lv-accent: 244 246 251;      /* Crisp White Accent */
+  --lv-accent-soft: 129 140 248;
+  --primary: 220 20% 96%;
+  --accent: 220 20% 96%;
+  --ring: 220 20% 96%;
+}
+
+html[data-bf-skin="crimson"] {
+  --lv-ink-950: 7 4 8;
+  --lv-ink-900: 14 7 17;
+  --lv-ink-850: 22 10 26;
+  --lv-accent: 255 46 84;        /* #ff2e54 Fighter Crimson */
+  --lv-accent-soft: 255 122 69;
+  --primary: 349 100% 59%;
+  --accent: 349 100% 59%;
+  --ring: 349 100% 59%;
+}

@@ -1,0 +1,27 @@
+{
+  "name": "ReviewCard",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string"
+    },
+    "course_title": {
+      "type": "string"
+    },
+    "front": {
+      "type": "string"
+    },
+    "back": {
+      "type": "string"
+    },
+    "box": {
+      "type": "number",
+      "default": 1
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "additionalProperties": true
+}

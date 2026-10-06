@@ -1,0 +1,34 @@
+{
+  "name": "StudyActivity",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "activity_type": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string"
+    },
+    "minutes": {
+      "type": "number",
+      "default": 0
+    },
+    "questions_answered": {
+      "type": "number",
+      "default": 0
+    },
+    "xp_earned": {
+      "type": "number",
+      "default": 0
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

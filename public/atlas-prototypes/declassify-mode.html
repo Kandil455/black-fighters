@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="plate">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BLACK FIGHTERS V5 — وضع فك السرية (Declassify Study Mode)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@600;700&display=swap" />
+  <style>
+    :root[data-theme='plate'] {
+      --paper:#ECE7DC; --paper-2:#E2DCCD; --ink:#141414; --ink-2:#4A463E;
+      --stamp:#B8121F; --rule:rgba(20,20,20,.18); --hl:#F2D24B55;
+    }
+    :root[data-theme='night'] {
+      --paper:#0C0C0D; --paper-2:#151517; --ink:#EDE8DC; --ink-2:#A9A397;
+      --stamp:#FF3B4E; --rule:rgba(237,232,220,.16); --hl:#F2D24B33;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--paper); color: var(--ink);
+      font-family: 'Newsreader', 'Noto Naskh Arabic', Georgia, serif;
+      font-size: 17px; line-height: 1.9;
+      background-image: radial-gradient(var(--rule) 0.55px, transparent 0.55px);
+      background-size: 18px 18px;
+    }
+    .kufi, h1, h2 { font-family: 'Reem Kufi', sans-serif; }
+    .mono { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .topbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 24px; background: var(--paper-2); border-block-end: 1.5px solid var(--ink);
+    }
+    .btn {
+      font-family: 'Reem Kufi', sans-serif; font-size: 13px; padding: 5px 12px;
+      background: var(--paper); color: var(--ink); border: 1px solid var(--ink); cursor: pointer;
+      transition: opacity 160ms ease-out, transform 160ms ease-out;
+    }
+    .wrap { max-width: 880px; margin-inline: auto; padding: 32px 20px; }
+    .dossier {
+      position: relative; background: var(--paper); border: 1.5px solid var(--ink); padding: 32px 28px;
+    }
+    .declassify-bar {
+      appearance: none; display: inline-flex; align-items: center;
+      font: inherit; font-weight: 700; padding: 1px 8px; margin-inline: 2px;
+      background: var(--ink); color: transparent; border: 1px solid var(--ink);
+      border-radius: 2px; cursor: pointer; user-select: none;
+      transition: opacity 160ms ease-out, transform 160ms ease-out;
+    }
+    .declassify-bar:focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
+    .declassify-bar[aria-pressed="true"] {
+      background: var(--hl); color: var(--ink); border-color: var(--stamp);
+    }
+    @keyframes stampPress {
+      from { opacity: 0; transform: scale(1.06) rotate(-5deg); }
+      to { opacity: 1; transform: scale(1) rotate(-5deg); }
+    }
+    .stamp {
+      display: none; border: 3px double var(--stamp); color: var(--stamp);
+      font-family: 'Reem Kufi', sans-serif; font-weight: 700; padding: 8px 18px;
+      letter-spacing: 0.08em; transform: rotate(-5deg);
+    }
+    .stamp.visible { display: inline-flex; animation: stampPress 180ms ease-out forwards; }
+    .quiz-box {
+      margin-block-start: 24px; padding: 18px; background: var(--paper-2); border: 1px solid var(--rule);
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <strong class="kufi">BLACK FIGHTERS V5 · وضع «فك السرية» (Declassify Mode)</strong>
+      <span class="mono" style="font-size:12px; color:var(--ink-2); margin-inline-start:10px;">PROTOTYPE 02 / ACTIVE RECALL</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'night' ? 'plate' : 'night'">Plate ⇄ Night</button>
+      <button class="btn" onclick="revealAll(false)">إخفاء الكل (Redact)</button>
+      <button class="btn" onclick="revealAll(true)">كشف الكل (Declassify)</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="dossier" aria-labelledby="dossier-title">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-block-end:1.5px solid var(--ink); padding-block-end:12px; margin-block-end:20px;">
+        <div>
+          <span class="mono" style="font-size:11px; color:var(--stamp); font-weight:700;">CLASSIFIED MEDICAL DOSSIER · PLATE 04</span>
+          <h1 id="dossier-title" style="margin:4px 0 0; font-size:25px;">الطوارئ الدوائية والترياقات السريرية (Clinical Antidotes)</h1>
+        </div>
+        <div>
+          <span class="mono" id="counter">تم فك سرية: 0 / 5</span>
+          <div class="stamp" id="rank-stamp" role="status">ختم الاسترجاع المكتمل · TOJI CLEARED</div>
+        </div>
+      </div>
+
+      <p>
+        ١. التسمم الحاد بمادة <strong dir="ltr">Acetaminophen (Paracetamol)</strong> يؤدي لتراكم المستقلب السام للكبد
+        <button type="button" class="declassify-bar" aria-pressed="false" data-term="NAPQI" onclick="toggleBar(this)">NAPQI</button>،
+        ويُعالج فوراً بإعطاء الترياق النوعي
+        <button type="button" class="declassify-bar" aria-pressed="false" data-term="N-acetylcysteine (NAC)" onclick="toggleBar(this)">N-acetylcysteine (NAC)</button>
+        الذي يعيد بناء مخزون الجلوتاثيون خلال أول
+        <button type="button" class="declassify-bar mono" aria-pressed="false" data-term="8 ساعات" onclick="toggleBar(this)">8 ساعات</button>.
+      </p>
+
+      <p>
+        ٢. في حالة التسمم بغاز الفوسفور العضوي (<strong dir="ltr">Organophosphates</strong>)، يحدث تثبيط غير عكسي لإنزيم
+        <button type="button" class="declassify-bar" aria-pressed="false" data-term="Acetylcholinesterase" onclick="toggleBar(this)">Acetylcholinesterase</button>،
+        والعلاج الفوري يبدأ بـ <strong dir="ltr">Atropine</strong> متبوعاً بمُعيد تنشيط الإنزيم
+        <button type="button" class="declassify-bar" aria-pressed="false" data-term="Pralidoxime (2-PAM)" onclick="toggleBar(this)">Pralidoxime (2-PAM)</button>.
+      </p>
+
+      <div class="quiz-box" aria-live="polite">
+        <div class="kufi" style="font-size:15px; color:var(--stamp); margin-block-end:8px;">
+          ⚡ كويز الاسترجاع المتولد تلقائياً من الأشرطة التي كشفتها:
+        </div>
+        <ul id="generated-quiz" style="margin:0; padding-inline-start:20px; font-size:15px;">
+          <li>اضغط على أي شريط حبر أسود (أو استخدم زر Tab + Space بالكيبورد) لتسجيل الاسترجاع وتوليد سؤال فوري.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    var stampPressed = false;
+    function toggleBar(btn) {
+      var revealed = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', String(!revealed));
+      updateRecallState();
+    }
+    function revealAll(state) {
+      document.querySelectorAll('.declassify-bar').forEach(function(b) {
+        b.setAttribute('aria-pressed', String(state));
+      });
+      updateRecallState();
+    }
+    function updateRecallState() {
+      var bars = Array.from(document.querySelectorAll('.declassify-bar'));
+      var revealed = bars.filter(function(b) { return b.getAttribute('aria-pressed') === 'true'; });
+      document.getElementById('counter').textContent = 'تم فك سرية: ' + revealed.length + ' / ' + bars.length;
+      var list = document.getElementById('generated-quiz');
+      if (revealed.length === 0) {
+        list.innerHTML = '<li>اضغط على أي شريط حبر أسود لتسجيل الاسترجاع وتوليد سؤال فوري.</li>';
+      } else {
+        list.innerHTML = revealed.map(function(b, idx) {
+          var term = b.getAttribute('data-term');
+          return '<li>س' + (idx + 1) + ': استرجع المصطلح المحجوب في السياق السريري ← <strong>' + term + '</strong> (مسجل في Learner Model ✓)</li>';
+        }).join('');
+      }
+      if (revealed.length === bars.length && !stampPressed) {
+        stampPressed = true;
+        document.getElementById('rank-stamp').classList.add('visible');
+      }
+    }
+  </script>
+</body>
+</html>

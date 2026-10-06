@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.iiiak.study",
+      "sha256_cert_fingerprints": [
+        "01:91:EE:29:7E:19:60:B8:75:D2:CD:32:AD:EC:33:D9:07:EC:D8:06:82:E9:F0:49:F6:72:3B:6F:E0:E0:5E:57"
+      ]
+    }
+  }
+]

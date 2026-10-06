@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Black Fighters</string>
+    <string name="title_activity_main">Black Fighters</string>
+    <string name="package_name">site.blackfighters.app</string>
+    <string name="custom_url_scheme">site.blackfighters.app</string>
+</resources>

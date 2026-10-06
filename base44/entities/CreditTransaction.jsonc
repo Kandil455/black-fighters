@@ -1,0 +1,40 @@
+{
+  "name": "CreditTransaction",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "transaction_type": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "balance_before": {
+      "type": "number"
+    },
+    "balance_after": {
+      "type": "number"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "reference_type": {
+      "type": "string"
+    },
+    "reference_id": {
+      "type": "string"
+    },
+    "idempotency_key": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

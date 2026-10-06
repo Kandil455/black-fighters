@@ -1,0 +1,22 @@
+{
+  "name": "Review",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "rating": {
+      "type": "number"
+    },
+    "comment": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

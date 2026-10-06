@@ -1,0 +1,73 @@
+{
+  "name": "Course",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "instructor_id": {
+      "type": "string"
+    },
+    "instructor_name": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "level": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "doc_type": {
+      "type": "string"
+    },
+    "chapters": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "source_file_url": {
+      "type": "string"
+    },
+    "source_file_name": {
+      "type": "string"
+    },
+    "color": {
+      "type": "string"
+    },
+    "price_credits": {
+      "type": "number",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "default": "draft"
+    },
+    "total_lessons": {
+      "type": "number",
+      "default": 0
+    },
+    "average_rating": {
+      "type": "number",
+      "default": 0
+    },
+    "total_enrollments": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "additionalProperties": true
+}

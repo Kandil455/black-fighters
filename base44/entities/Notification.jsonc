@@ -1,0 +1,33 @@
+{
+  "name": "Notification",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "default": "system"
+    },
+    "title": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "link": {
+      "type": "string"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false
+    },
+    "dedupe_key": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

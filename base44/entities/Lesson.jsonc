@@ -1,0 +1,38 @@
+{
+  "name": "Lesson",
+  "type": "object",
+  "properties": {
+    "course_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "default": "explanation"
+    },
+    "order": {
+      "type": "number",
+      "default": 0
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 10
+    },
+    "is_free": {
+      "type": "boolean",
+      "default": false
+    },
+    "video_url": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

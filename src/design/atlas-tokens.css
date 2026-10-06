@@ -1,0 +1,527 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BLACK FIGHTERS V5 — الهوية الجديدة «الأطلس» (THE ATLAS DESIGN SYSTEM)
+   أطلس طبي مطبوع + ملف عمليات سري (Printed Medical Atlas + Classified Dossier)
+   Zero runtime filter / backdrop-filter / heavy box-shadow / 3D.
+   Animations restricted strictly to transform & opacity.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --paper: #0E1117;
+  --paper-2: #131820;
+  --ink: #F2F4F7;
+  --ink-2: #8B94A3;
+  --stamp: #22E58B;
+  --rule: #1C222B;
+  --hl: rgba(34, 229, 139, 0.14);
+
+  --ink-def: #22E58B;
+  --ink-imp: #F5A524;
+  --ink-term: #38BDF8;
+  --ink-ex: #A78BFA;
+  --ink-warn: #F0545B;
+
+  --sem-definition-ink: var(--ink-def);
+  --sem-important-ink: var(--ink-imp);
+  --sem-term-ink: var(--ink-term);
+  --sem-example-ink: var(--ink-ex);
+  --sem-warning-ink: var(--ink-warn);
+
+  --font-atlas-heading: 'IBM Plex Sans Arabic', 'Alexandria', 'Inter', system-ui, sans-serif;
+  --font-atlas-body: 'IBM Plex Sans Arabic', 'Alexandria', 'Inter', system-ui, sans-serif;
+  --font-atlas-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --atlas-enter-ms: 150ms;
+  --atlas-exit-ms: 120ms;
+  --atlas-stamp-ms: 150ms;
+  --atlas-page-ms: 150ms;
+  --atlas-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root[data-theme='plate'],
+[data-theme='plate'],
+[data-atlas-theme='plate'] {
+  --paper: #ECE7DC;
+  --paper-2: #E2DCCD;
+  --ink: #141414;
+  --ink-2: #4A463E;
+  --stamp: #B8121F;
+  --rule: rgba(20, 20, 20, 0.18);
+  --hl: #F2D24B55;
+
+  /* 5 Semantic Ink Colors (WCAG AA >= 4.5:1 against #ECE7DC) */
+  --ink-def: #0F5934;       /* تعريف — Forest Archival Ink (~6.7:1) */
+  --ink-imp: #6E4200;       /* مهم — Ochre Ledger Ink (~6.3:1) */
+  --ink-term: #0B4A73;      /* مصطلح — Prussian Blueprint Ink (~7.4:1) */
+  --ink-ex: #7D2E06;        /* مثال — Sienna Margin Ink (~6.9:1) */
+  --ink-warn: #B8121F;      /* تحذير — Crimson Stamp Ink (~5.4:1) */
+
+  /* Semantic aliases used across V5 components */
+  --sem-definition-ink: var(--ink-def);
+  --sem-important-ink: var(--ink-imp);
+  --sem-term-ink: var(--ink-term);
+  --sem-example-ink: var(--ink-ex);
+  --sem-warning-ink: var(--ink-warn);
+}
+
+:root[data-theme='night'],
+[data-theme='night'],
+[data-atlas-theme='night'] {
+  --paper: #0C0C0D;
+  --paper-2: #131722;
+  --ink: #EDE8DC;
+  --ink-2: #A9A397;
+  --stamp: #FF3B4E;
+  --rule: rgba(237, 232, 220, 0.14);
+  --hl: #F2D24B33;
+
+  /* 5 Semantic Ink Colors (WCAG AA >= 4.5:1 against #0C0C0D) */
+  --ink-def: #4CE095;       /* تعريف (~10.5:1) */
+  --ink-imp: #F7C95C;       /* مهم (~11.8:1) */
+  --ink-term: #66B8FF;      /* مصطلح (~9.1:1) */
+  --ink-ex: #FF9F59;        /* مثال (~8.9:1) */
+  --ink-warn: #FF3B4E;      /* تحذير (~5.6:1) */
+
+  --sem-definition-ink: var(--ink-def);
+  --sem-important-ink: var(--ink-imp);
+  --sem-term-ink: var(--ink-term);
+  --sem-example-ink: var(--ink-ex);
+  --sem-warning-ink: var(--ink-warn);
+}
+
+:root[data-theme='focus'],
+[data-theme='focus'],
+[data-atlas-theme='focus'] {
+  --paper: #FFFFFF;
+  --paper-2: #F2F2F2;
+  --ink: #000000;
+  --ink-2: #1F1F1F;
+  --stamp: #990000;
+  --rule: rgba(0, 0, 0, 0.42);
+  --hl: #FFEB3B88;
+
+  --ink-def: #004D26;
+  --ink-imp: #5C3600;
+  --ink-term: #003A66;
+  --ink-ex: #662200;
+  --ink-warn: #990000;
+
+  --sem-definition-ink: var(--ink-def);
+  --sem-important-ink: var(--ink-imp);
+  --sem-term-ink: var(--ink-term);
+  --sem-example-ink: var(--ink-ex);
+  --sem-warning-ink: var(--ink-warn);
+}
+
+:root[data-theme='cram'],
+[data-theme='cram'],
+[data-atlas-theme='cram'] {
+  --paper: #ECE7DC;
+  --paper-2: #E2DCCD;
+  --ink: #141414;
+  --ink-2: #4A463E;
+  --stamp: #B8121F;
+  --rule: rgba(20, 20, 20, 0.24);
+  --hl: #F2D24B66;
+
+  --sem-definition-ink: var(--ink-def);
+  --sem-important-ink: var(--ink-imp);
+  --sem-term-ink: var(--ink-term);
+  --sem-example-ink: var(--ink-ex);
+  --sem-warning-ink: var(--ink-warn);
+}
+
+:root[data-theme='print'],
+[data-theme='print'],
+[data-atlas-theme='print'] {
+  --paper: #FFFFFF;
+  --paper-2: #F7F5F0;
+  --ink: #000000;
+  --ink-2: #333333;
+  --stamp: #9E0E1A;
+  --rule: rgba(0, 0, 0, 0.25);
+  --hl: #F2D24B44;
+}
+
+/* ─── Base Surface (Unified LineVault Card Surface) ──────────────────────── */
+.atlas-surface {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-atlas-body);
+  line-height: 1.8;
+  font-size: 15px;
+  border-radius: 1rem;
+}
+
+.atlas-surface h1,
+.atlas-surface h2,
+.atlas-surface h3,
+.atlas-surface h4,
+.atlas-heading,
+.atlas-h1,
+.atlas-h2,
+.atlas-heading-display,
+.atlas-heading-section {
+  font-family: var(--font-atlas-heading);
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.atlas-h1 {
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+}
+
+.atlas-h2 {
+  font-size: clamp(1.05rem, 1.5vw, 1.25rem);
+}
+
+.atlas-mono,
+.atlas-surface code,
+.atlas-surface kbd,
+.atlas-surface .num {
+  font-family: var(--font-atlas-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Clean Card Container (replaces archival plate corner marks) ─────────── */
+.atlas-plate {
+  position: relative;
+  background-color: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 1rem;
+  padding: 20px 22px;
+  margin-block-end: 16px;
+}
+
+.atlas-plate-header,
+.atlas-plate__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-block-end: 1px solid var(--rule);
+  padding-block-end: 12px;
+  margin-block-end: 18px;
+}
+
+.atlas-plate-number,
+.atlas-plate__number {
+  font-family: var(--font-atlas-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--stamp);
+  display: inline-block;
+}
+
+/* ─── 5 Semantic Ink Marks (Underlines & Marker Highlights, NOT Cards) ──── */
+.atlas-ink-def,
+.atlas-ink-definition,
+mark.m-definition {
+  background: transparent;
+  color: var(--ink-def);
+  font-weight: 700;
+  border-block-end: 2px solid var(--ink-def);
+  padding-inline: 2px;
+}
+
+.atlas-ink-imp,
+.atlas-ink-exam,
+mark.m-important {
+  background: var(--hl);
+  color: var(--ink);
+  font-weight: 600;
+  border-block-end: 1.5px solid var(--ink-imp);
+  padding-inline: 3px;
+}
+
+.atlas-ink-term,
+.atlas-ink-clinical,
+mark.m-term {
+  background: transparent;
+  color: var(--ink-term);
+  font-weight: 700;
+  border-block-end: 1.5px dashed var(--ink-term);
+  padding-inline: 2px;
+}
+
+.atlas-ink-ex,
+.atlas-ink-number,
+mark.m-example {
+  background: transparent;
+  color: var(--ink-ex);
+  font-weight: 700;
+  border-block-end: 1.5px dotted var(--ink-ex);
+  padding-inline: 2px;
+}
+
+.atlas-ink-warn,
+.atlas-ink-trap,
+mark.m-warning {
+  background: transparent;
+  color: var(--ink-warn);
+  font-weight: 700;
+  border-block-end: 2px double var(--ink-warn);
+  padding-inline: 2px;
+}
+
+/* ─── 1. Declassify Mode (فك السرية — V5 1.4 #1) ─────────────────────────── */
+.atlas-declassify {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-weight: 600;
+  padding: 1px 8px;
+  margin-inline: 2px;
+  border: 1px solid var(--stamp);
+  border-radius: 6px;
+  background-color: var(--paper-2);
+  color: var(--ink);
+  cursor: pointer;
+  vertical-align: baseline;
+  transition: opacity var(--atlas-enter-ms) var(--atlas-ease),
+              transform var(--atlas-enter-ms) var(--atlas-ease);
+}
+
+.atlas-declassify > .atlas-declassify-text,
+.atlas-declassify > .atlas-declassify-content {
+  opacity: 0;
+  transition: opacity var(--atlas-enter-ms) var(--atlas-ease);
+}
+
+.atlas-declassify[aria-pressed="true"],
+.atlas-declassify.is-revealed {
+  background-color: var(--hl);
+  border-color: var(--stamp);
+  color: var(--ink);
+}
+
+.atlas-declassify[aria-pressed="true"] > .atlas-declassify-text,
+.atlas-declassify.is-revealed > .atlas-declassify-text,
+.atlas-declassify[aria-pressed="true"] > .atlas-declassify-content,
+.atlas-declassify.is-revealed > .atlas-declassify-content {
+  opacity: 1;
+}
+
+.atlas-declassify:focus-visible {
+  outline: 2px solid var(--stamp);
+  outline-offset: 2px;
+}
+
+/* ─── 2. Marginalia Sidenotes (الهوامش — V5 1.4 #2) ──────────────────────── */
+.atlas-plate-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 68ch) 240px;
+  gap: 28px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .atlas-plate-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.atlas-sidenote-ref {
+  font-family: var(--font-atlas-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--stamp);
+  background: transparent;
+  border: 1px solid var(--stamp);
+  border-radius: 4px;
+  padding: 0 5px;
+  margin-inline: 2px;
+  cursor: pointer;
+  vertical-align: super;
+  line-height: 1;
+}
+
+.atlas-marginalia {
+  border-inline-start: 1.5px solid var(--rule);
+  padding-inline-start: 14px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.atlas-marginalia-item {
+  padding-block: 8px;
+  border-block-end: 1px dashed var(--rule);
+  transition: opacity var(--atlas-enter-ms) var(--atlas-ease),
+              transform var(--atlas-enter-ms) var(--atlas-ease);
+}
+
+.atlas-sidenote-mobile {
+  margin-block: 8px;
+  border-inline-start: 2px solid var(--stamp);
+  background-color: var(--paper-2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.atlas-sidenote-mobile > summary {
+  cursor: pointer;
+  font-family: var(--font-atlas-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--stamp);
+}
+
+/* ─── 4. Rank / Verification Stamp (ختم الرتبة — V5 1.4 #4) ──────────────── */
+@keyframes atlas-stamp-press {
+  0% {
+    opacity: 0;
+    transform: scale(1.06) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-2deg);
+  }
+}
+
+.atlas-stamp {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1.5px dashed var(--stamp);
+  border-radius: 8px;
+  color: var(--stamp);
+  font-family: var(--font-atlas-heading);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 4px 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  animation: atlas-stamp-press var(--atlas-stamp-ms) var(--atlas-ease) forwards;
+  user-select: none;
+}
+
+/* ─── 5. Atlas Index Tabs (تابات الفهرس — V5 1.4 #5) ─────────────────────── */
+.atlas-index-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-inline-end: 1px solid var(--rule);
+  padding-inline-end: 10px;
+}
+
+.atlas-index-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+  background-color: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-inline-start: 3px solid transparent;
+  border-radius: 8px;
+  text-align: start;
+  cursor: pointer;
+  transition: opacity var(--atlas-enter-ms) var(--atlas-ease),
+              transform var(--atlas-enter-ms) var(--atlas-ease);
+}
+
+.atlas-index-tab[aria-current="true"],
+.atlas-index-tab.is-active {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+  border-inline-start-color: var(--stamp);
+}
+
+/* ─── 6. Prerequisite «قبل ما تقرا» Block (V5 3.1) ───────────────────────── */
+.atlas-prerequisite-box {
+  background-color: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-inline-start: 3.5px solid var(--ink-imp);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-block-end: 18px;
+}
+
+.atlas-prerequisite-title {
+  font-family: var(--font-atlas-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-imp);
+  margin-block-end: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─── Cram Theme (عمودين لليلة الامتحان — V5 1.7) ───────────────────────── */
+[data-atlas-theme='cram'] .atlas-cram-columns,
+[data-theme='cram'] .atlas-cram-columns,
+:root[data-theme='cram'] .atlas-cram-columns {
+  column-count: 2;
+  column-gap: 24px;
+  column-rule: 1px solid var(--rule);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+@media (max-width: 768px) {
+  [data-atlas-theme='cram'] .atlas-cram-columns,
+  [data-theme='cram'] .atlas-cram-columns,
+  :root[data-theme='cram'] .atlas-cram-columns {
+    column-count: 1;
+  }
+}
+
+/* ─── View Transitions & Reduced Motion (V5 1.5) ─────────────────────────── */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-declassify,
+  .atlas-marginalia-item,
+  .atlas-index-tab,
+  .atlas-stamp {
+    animation: none !important;
+    transition: opacity 120ms linear !important;
+    transform: none !important;
+  }
+}
+
+/* ─── Print Rules (V5 2.4 #6) ────────────────────────────────────────────── */
+@media print {
+  .atlas-surface {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+  }
+  .atlas-no-print {
+    display: none !important;
+  }
+  .atlas-plate,
+  .atlas-prerequisite-box,
+  .atlas-surface table,
+  .atlas-surface aside,
+  .atlas-callout {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+    border-radius: 0 !important;
+  }
+  .atlas-surface h2,
+  .atlas-surface h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}

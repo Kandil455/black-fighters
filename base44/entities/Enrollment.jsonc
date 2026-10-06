@@ -1,0 +1,34 @@
+{
+  "name": "Enrollment",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "default": "active"
+    },
+    "progress_percentage": {
+      "type": "number",
+      "default": 0
+    },
+    "completed_lessons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "started_date": {
+      "type": "string"
+    },
+    "completed_date": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

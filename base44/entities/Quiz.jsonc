@@ -1,0 +1,31 @@
+{
+  "name": "Quiz",
+  "type": "object",
+  "properties": {
+    "lesson_id": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "passing_score": {
+      "type": "number",
+      "default": 60
+    },
+    "time_limit_minutes": {
+      "type": "number",
+      "default": 15
+    },
+    "total_questions": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "additionalProperties": true
+}

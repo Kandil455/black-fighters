@@ -1,0 +1,329 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    // ─── Admin identity: fixed allowlist (no regex, no client-writable doc role) ───
+    function adminEmail() {
+      return 'ibrahimkandil000@gmail.com';
+    }
+    function isEnvAdmin() {
+      return isAuthed()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() == adminEmail();
+    }
+    // Server-granted custom claim (set via Admin SDK only)
+    function isClaimAdmin() {
+      return isAuthed() && request.auth.token.get('role', '') == 'admin';
+    }
+    function isAdmin() {
+      return isEnvAdmin() || isClaimAdmin();
+    }
+
+    function isOwner(userId) {
+      return isAuthed() && request.auth.uid == userId;
+    }
+
+    // ─── Immutable/economic fields: never client-writable ───
+    // NOTE: total_xp / current_streak / last_active_date / last_login_reward_date are allowed
+    // for self-update (see below) because the current awardProgress server function is not
+    // deployed on Vercel; tightening them is tracked as a follow-up task.
+    function protectedUserFields() {
+      return [
+        'role', 'credits', 'token_balance', 'subscription_plan', 'subscription_status',
+        'subscription_plan_key', 'subscription_plan_name', 'subscription_expires_at',
+        'plan_granted_by', 'plan_expires_at', 'is_locked', 'is_pro',
+        'referrals_count', 'referral_code', 'created_at', 'email',
+        'daily_file_limit', 'daily_operations_limit',
+      ];
+    }
+    function touchesAny(keys, blocked) {
+      return keys.hasAny(blocked);
+    }
+
+    // ─── Users ───
+    match /users/{userId} {
+      allow get, list: if isAuthed();
+      allow create: if (isAdmin() || isOwner(userId))
+        && (request.resource.data.role == 'user' || isAdmin())
+        && request.resource.data.credits == 10
+        && request.resource.data.subscription_plan == 'free'
+        && request.resource.data.subscription_status == 'inactive';
+
+      // Self-update: only a safe allowlist of profile/preference fields.
+      // Any write touching protected fields via the client is rejected — those
+      // must go through server functions (redeem-code, charge-ai-job, payment-processor…).
+      allow update: if (isAdmin() || isOwner(userId))
+        && (
+          // Admin may fix anything
+          isAdmin()
+          || (
+            isOwner(userId)
+            // 1) no protected field may appear
+            && !touchesAny(request.resource.data.diff(resource.data).affectedKeys(), protectedUserFields())
+            // 2) the document cannot grow unbounded with new sensitive keys
+            && !touchesAny(request.resource.data.keys(), ['role', 'credits', 'token_balance', 'subscription_plan', 'subscription_status', 'subscription_expires_at', 'is_locked', 'is_pro', 'referrals_count', 'referral_code', 'daily_file_limit', 'daily_operations_limit'])
+            // 3) lock/verify flags and account identity cannot be flipped
+            && request.resource.data.is_locked == resource.data.is_locked
+            && request.resource.data.email == resource.data.email
+          )
+        );
+      allow delete: if isAdmin();
+    }
+
+    match /userSettings/{userId} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    match /adminConfig/{configId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── Emergency Round Content (Admin direct, regular users via /api/emergency-content) ───
+    match /emergencyContent/{contentId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ─── User Data Collections ───
+    // NOTE on /courses create: price_credits is course-owner-set marketplace data.
+    // Non-owner reads are denied, so forging price only affects the forger's own document.
+    match /courses/{courseId} {
+      allow read: if isAdmin() || isOwner(resource.data.user_id);
+      // Title/content mutable, but user_id ownership cannot change hands
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+      allow delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    match /generatedContent/{contentId} {
+      allow read: if isAdmin() || isOwner(resource.data.user_id);
+      allow write: if false; // server-only (save-generated-content function)
+    }
+
+    match /quizResults/{resultId} {
+      allow read, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    match /reviewCards/{cardId} {
+      allow read, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    match /courseNotes/{noteId} {
+      allow read, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    match /studyActivity/{activityId} {
+      allow read, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    match /courseReminders/{reminderId} {
+      allow read, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    // ─── Money & Platform-issued records: read-only for clients ───
+    match /paymentRequests/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow create: if isAuthed()
+        && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.amount < 100000;
+      allow update, delete: if isAdmin();
+    }
+    match /activationCodes/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /creditTransactions/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow write: if false; // server-only ledger
+    }
+    match /referrals/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.referrer_id == request.auth.uid);
+      allow write: if false; // server-only (future server function migration)
+    }
+    match /summaryJobs/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow write: if false;
+    }
+    match /summaryDocuments/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow write: if false;
+    }
+    match /summaryRevisions/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow write: if false;
+    }
+    match /mediaAssets/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /enrollments/{id} {
+      allow read: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if false; // immutable after creation
+      allow delete: if isAdmin();
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    match /notifications/{id} {
+      // Social notifications (messages, quiz shares, group quizzes) are written
+      // by the social-actions server function. Clients may create only
+      // self-addressed notifications (payment alerts to admins keep working),
+      // and may manage their own notifications.
+      allow read: if isAdmin() || isOwner(resource.data.user_id);
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+      allow delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow create: if isAdmin() || isOwner(request.resource.data.user_id);
+    }
+
+    // ─── Server-only abuse counters (AI daily quota) ───
+    match /usageCounters/{id} {
+      allow read, write: if false;
+    }
+
+    match /friendships/{id} {
+      allow read: if isAdmin() || (isAuthed() && request.auth.uid in resource.data.participant_ids);
+      allow create: if isAuthed()
+        && request.resource.data.requester_id == request.auth.uid
+        && request.auth.uid in request.resource.data.participant_ids;
+      allow update, delete: if isAdmin() || (isAuthed() && request.auth.uid in resource.data.participant_ids);
+    }
+    // ─── Messages: server-authoritative writes ───
+    // All sends go through the social-actions server function (friendship and
+    // membership checks, content caps, anti-flood). Clients may read their own
+    // threads; writing from the client is forbidden so spam/impersonation can
+    // never bypass the server's checks.
+    match /directMessages/{id} {
+      allow read: if isAdmin() || (isAuthed()
+        && (resource.data.sender_id == request.auth.uid || resource.data.receiver_id == request.auth.uid));
+      allow write: if false; // server-only (social-actions)
+    }
+    match /studyGroups/{id} {
+      allow read: if isAdmin() || (isAuthed() && request.auth.uid in resource.data.member_ids);
+      allow create: if isAuthed()
+        && request.resource.data.owner_id == request.auth.uid
+        && request.auth.uid in request.resource.data.member_ids;
+      allow update, delete: if isAdmin() || (isAuthed() && request.resource.data.owner_id == request.auth.uid);
+    }
+    match /groupMessages/{id} {
+      allow read: if isAdmin() || (isAuthed()
+        && request.auth.uid in get(/databases/$(database)/documents/studyGroups/$(resource.data.group_id)).data.member_ids);
+      allow write: if false; // server-only (social-actions)
+    }
+    match /groupQuizSessions/{id} {
+      allow read: if isAdmin() || (isAuthed()
+        && request.auth.uid in get(/databases/$(database)/documents/studyGroups/$(resource.data.group_id)).data.member_ids);
+      allow create: if isAuthed()
+        && request.resource.data.host_id == request.auth.uid
+        && request.auth.uid in get(/databases/$(database)/documents/studyGroups/$(request.resource.data.group_id)).data.member_ids;
+      allow update: if isAdmin() || (isAuthed()
+        && request.auth.uid in get(/databases/$(database)/documents/studyGroups/$(resource.data.group_id)).data.member_ids);
+      allow delete: if isAdmin() || (isAuthed() && resource.data.host_id == request.auth.uid);
+    }
+
+    // ─── Challenges: score forgery guarded ───
+    // Host creates with itself as host and a single participant entry.
+    // Updates: the caller may (a) append its own entry when joining, or (b) modify ONLY
+    // its own participant entry — every other entry must remain byte-identical.
+    match /challenges/{id} {
+      allow read: if isAuthed();
+      allow create: if isAuthed()
+        && request.resource.data.host_id == request.auth.uid
+        && request.resource.data.participants.size() == 1
+        && request.resource.data.participants[0].user_id == request.auth.uid
+        && request.resource.data.status == 'waiting';
+      allow update: if isAuthed()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['participants', 'status', 'updated_at', 'winner_id', 'finished_at']
+        )
+        && request.resource.data.participants.size() >= resource.data.participants.size()
+        && request.resource.data.participants.size() <= 2
+        && (
+          // (a) join: append own entry, all existing entries untouched
+          (request.resource.data.participants.size() == resource.data.participants.size() + 1
+            && request.resource.data.participants[0] == resource.data.participants[0]
+            && request.resource.data.participants[resource.data.participants.size() - 1].user_id == request.auth.uid)
+          // (b) same size: each entry either owned by the caller or unchanged
+          || (request.resource.data.participants.size() == resource.data.participants.size()
+            && ((request.auth.uid == request.resource.data.participants[0].user_id)
+                || (request.resource.data.participants[0] == resource.data.participants[0]))
+            && (resource.data.participants.size() == 1
+                || (request.auth.uid == request.resource.data.participants[1].user_id)
+                || (request.resource.data.participants[1] == resource.data.participants[1])))
+        )
+        && request.resource.data.status in ['waiting', 'active', 'finished'];
+      allow delete: if isAdmin() || (isAuthed() && resource.data.host_id == request.auth.uid);
+    }
+
+    match /standaloneQuizzes/{id} {
+      allow read: if isAuthed() && (resource.data.is_public == true || resource.data.owner_id == request.auth.uid);
+      allow create: if isAuthed() && request.resource.data.owner_id == request.auth.uid;
+      allow update, delete: if isAdmin() || (isAuthed() && resource.data.owner_id == request.auth.uid);
+    }
+    match /quizAttempts/{id} {
+      allow read, update, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow create: if isAuthed() && request.resource.data.user_id == request.auth.uid;
+    }
+    match /questions/{id} {
+      allow read: if isAuthed();
+      allow write: if isAdmin();
+    }
+    match /lessons/{id} {
+      allow read: if isAdmin() || isOwner(resource.data.created_by_id);
+      allow update, delete: if isAdmin() || (isOwner(resource.data.created_by_id)
+        && request.resource.data.created_by_id == resource.data.created_by_id);
+      allow create: if isAuthed() && request.resource.data.created_by_id == request.auth.uid;
+    }
+    match /assistantConversations/{id} {
+      allow read, update, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow create: if isAuthed() && request.resource.data.user_id == request.auth.uid;
+    }
+
+    // ─── V5 Atlas: Webhook Idempotency, Double-Entry Ledger & Concept Mastery ───
+    match /telegram_processed_updates/{updateId} {
+      allow read, write: if false; // server-only (Telegram webhook idempotency)
+    }
+    match /creditAccounts/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if false; // server-only (double-entry credit account balance)
+    }
+    match /creditLedger/{entryId} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow write: if false; // server-only (double-entry credit ledger entries)
+    }
+    match /conceptMastery/{masteryId} {
+      allow read, delete: if isAdmin() || isOwner(resource.data.user_id);
+      allow create: if isAdmin() || (isAuthed() && request.resource.data.user_id == request.auth.uid);
+      allow update: if (isAdmin() || isOwner(resource.data.user_id))
+        && request.resource.data.user_id == resource.data.user_id;
+    }
+
+    // Default deny for everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

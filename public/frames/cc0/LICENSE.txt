@@ -1,0 +1,9 @@
+Portrait Frame Pack
+Creator: Screaming Brain Studios
+Source: https://opengameart.org/content/portrait-frame-pack
+Original download: https://screamingbrainstudios.itch.io/portrait-frame-pack
+License: CC0 1.0 Universal (Public Domain Dedication)
+License text: https://creativecommons.org/publicdomain/zero/1.0/
+
+The PNG files in this directory are selected frames from the 128x128 pack.
+The solid magenta portrait area was converted to transparency for use in IIIAK.

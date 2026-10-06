@@ -1,0 +1,122 @@
+[
+  {
+    "name": "01-landing",
+    "route": "/",
+    "path": "/",
+    "text": "فأس الجحيم\nBlack Fighters\nEN\nمساحتي\nابدأ الآن\nمن مذكرتك → لكورس كامل في ثوانٍ معدودة\nسلاحك السري المطلق.\nلحسم أي معركة دراسية.\n\nحوّل أضخم المراجع والملازم المعقدة إلى ملخصات ذكية وكويزات وبطاقات تثبيت في لحظات.\n\nابدأ الآن — مجاناً\n+5,000\nطالب بيذاكر معانا\n98%\nنسبة الفهم الفعلي\nفي ثوانٍ معدودة\nسرعة التلخيص\n⚡ تلخيص فائق السرعة للـ PDF والسلايدز\n🎯 البارسر الخارق لامتحانات الـ EBA و MCQ\n🔬 كويزات عملي واستخراج الصور (أوسكي / أوسبي)\n🧠 تثبيت الذاكرة بنظام Leitner التكراري\n⚔️ حلبة التحديات المباشرة ضد زملاء الدفعة\n🛡️ محاكي الحالات السريرية الافتراضية\n⚡ تلخيص فائق السرعة للـ PDF والسلايدز\n🎯 البارسر الخارق لامتحانات الـ EBA و MCQ\n🔬 كويزات عملي واستخراج الصور (أوسكي / أوسبي)\n🧠 تثبيت الذاكرة بنظام Leitner التكراري\n⚔️ حلبة التحديات المباشرة ضد زملاء الدفعة\n🛡️ محاكي الحالات السريرية الافتراضية\n⚡ تلخيص فائق السرعة للـ PDF والسلايدز\n🎯 البارسر الخارق لامتحانات الـ EBA و MCQ\n🔬 كويزات عملي واستخر",
+    "rootChildren": 6,
+    "elapsedMs": 5005
+  },
+  {
+    "name": "02-login",
+    "route": "/login",
+    "path": "/login",
+    "text": "تسجيل الدخول\n\nأهلاً بيك في المنصة الذكية Black Fighters 👋\n\nدخول سريع بـ Google\nأو عبر البريد\nالبريد الإلكتروني\nكلمة المرور\nنسيت كلمة المرور؟\nدخول\n\nمعندكش حساب؟ إنشاء حساب جديد",
+    "rootChildren": 2,
+    "elapsedMs": 3775
+  },
+  {
+    "name": "03-register",
+    "route": "/register",
+    "path": "/register",
+    "text": "إنشاء حساب\n\nابدأ رحلتك التعليمية الذكية مع Black Fighters 🚀\n\nالاسم الكامل\nالبريد الإلكتروني\nكلمة المرور\nإنشاء الحساب\n\nعندك حساب بالفعل؟ تسجيل الدخول",
+    "rootChildren": 2,
+    "elapsedMs": 3764
+  },
+  {
+    "name": "04-forgot-password",
+    "route": "/forgot-password",
+    "path": "/forgot-password",
+    "text": "نسيت الباسورد؟\n\nهنبعتلك رابط على إيميلك\n\nإرسال\nرجوع",
+    "rootChildren": 2,
+    "elapsedMs": 3669
+  },
+  {
+    "name": "05-summary-a",
+    "route": "/mockup/a",
+    "path": "/mockup/a",
+    "text": "Dark Neon Scholar (Mockup A)\nPharmacology: Autonomic Nervous System\n\nعلم الأدوية: الجهاز العصبي اللاإرادي (ملخص شامل)\n\n1. Cholinergic Agonists (محفزات الكولين)\n\nالتعريف: هي الأدوية التي تحاكي عمل الـ Acetylcholine في الجسم.\n\n💡 نقطة هامة للامتحان:\nيُمنع استخدام الـ Pilocarpine لمرضى الربو لأنه يسبب تضيق القصبات الهوائية (Bronchoconstriction).\n2. Anticholinergic Drugs (مضادات الكولين)\n\nتعمل هذه الأدوية على إغلاق مستقبلات المسكارين. الدواء الأشهر هو Atropine.\n\nيستخدم في علاج بطء ضربات القلب (Bradycardia).\nيسبب جفاف الفم وتوسع حدقة العين (Mydriasis).",
+    "rootChildren": 2,
+    "elapsedMs": 3677
+  },
+  {
+    "name": "06-summary-b",
+    "route": "/mockup/b",
+    "path": "/mockup/b",
+    "text": "PREMIUM PAPER (MOCKUP B)\nعلم الأدوية: الجهاز العصبي\n1. منبهات الكولين (Cholinergic Agonists)\n\nتعتبر هذه الأدوية حجر الزاوية في محاكاة الناقل العصبي Acetylcholine. تنقسم إلى نوعين أساسيين: تعمل مباشرة على المستقبلات، أو تمنع تكسير الناقل العصبي.\n\n\"يُعد دواء البيلوكاربين (Pilocarpine) الدواء المفضل لعلاج الجلوكوما المفتوحة، لكنه يحمل خطر تضيق القصبات الهوائية.\"\n2. مضادات الكولين (Anticholinergics)\n\nعائلة من الأدوية التي ترتبط بمستقبلات المسكارين وتمنع الـ Acetylcholine من الارتباط بها. الأتروبين (Atropine) هو النموذج الأبرز لهذه المجموعة.\n\nيعاكس هبوط القلب.\nيسبب جفاف الإفرازات (Xerostomia).",
+    "rootChildren": 2,
+    "elapsedMs": 3690
+  },
+  {
+    "name": "07-summary-c",
+    "route": "/mockup/c",
+    "path": "/mockup/c",
+    "text": "ADAPTIVE FOCUS (Mockup C)\nالنقاط المحورية: Cholinergic Drugs\n\nالأدوية المحفزة تعمل مباشرة (Direct) أو غير مباشرة (Indirect) بوقف إنزيم الـ AChE.\n\nتطبيق سريري (Clinical Application):\nNeostigmine يستخدم لعلاج الوهن العضلي الوبيل (Myasthenia Gravis) لأنه لا يعبر حاجز الدم في الدماغ (BBB).\nالقسم القادم: Anticholinergics\n\nاضغط للتركيز على هذا القسم...",
+    "rootChildren": 2,
+    "elapsedMs": 3673
+  },
+  {
+    "name": "08-quiz",
+    "route": "/mockup/quiz",
+    "path": "/mockup/quiz",
+    "text": "12\nسؤال 12 من 50\nPharmacology Midterm\n45:12\nأي من الأدوية التالية يعتبر الاختيار الأول لعلاج صدمة الحساسية (Anaphylactic Shock)؟\nأ\nEpinephrine\nب\nNorepinephrine\nج\nDopamine\nد\nDobutamine\nالتفسير العلمي\n\nالإبينفرين (Epinephrine) هو العلاج المنقذ للحياة في حالة صدمة الحساسية لأنه يحفز مستقبلات ألفا وبيتا، مما يؤدي إلى رفع ضغط الدم وتوسيع الشعب الهوائية بشكل فوري.\n\nالسابق\nالتالي",
+    "rootChildren": 2,
+    "elapsedMs": 3664
+  },
+  {
+    "name": "09-shared-quiz",
+    "route": "/q/demo",
+    "path": "/q/demo",
+    "text": "كويز في انتظارك! 🎯\n\nسجّل دخولك عشان تقدر تحل الكويز وتحفظ نتيجتك.\n\nسجّل دخول وابدأ",
+    "rootChildren": 2,
+    "elapsedMs": 3687
+  },
+  {
+    "name": "10-dashboard",
+    "route": "/dashboard",
+    "path": "/login",
+    "text": "تسجيل الدخول\n\nأهلاً بيك في المنصة الذكية Black Fighters 👋\n\nدخول سريع بـ Google\nأو عبر البريد\nالبريد الإلكتروني\nكلمة المرور\nنسيت كلمة المرور؟\nدخول\n\nمعندكش حساب؟ إنشاء حساب جديد",
+    "rootChildren": 2,
+    "elapsedMs": 3755
+  },
+  {
+    "name": "11-create",
+    "route": "/create",
+    "path": "/login",
+    "text": "تسجيل الدخول\n\nأهلاً بيك في المنصة الذكية Black Fighters 👋\n\nدخول سريع بـ Google\nأو عبر البريد\nالبريد الإلكتروني\nكلمة المرور\nنسيت كلمة المرور؟\nدخول\n\nمعندكش حساب؟ إنشاء حساب جديد",
+    "rootChildren": 2,
+    "elapsedMs": 3759
+  },
+  {
+    "name": "12-quizzes",
+    "route": "/quizzes",
+    "path": "/login",
+    "text": "تسجيل الدخول\n\nأهلاً بيك في المنصة الذكية Black Fighters 👋\n\nدخول سريع بـ Google\nأو عبر البريد\nالبريد الإلكتروني\nكلمة المرور\nنسيت كلمة المرور؟\nدخول\n\nمعندكش حساب؟ إنشاء حساب جديد",
+    "rootChildren": 2,
+    "elapsedMs": 3743
+  },
+  {
+    "name": "13-tools",
+    "route": "/tools",
+    "path": "/login",
+    "text": "تسجيل الدخول\n\nأهلاً بيك في المنصة الذكية Black Fighters 👋\n\nدخول سريع بـ Google\nأو عبر البريد\nالبريد الإلكتروني\nكلمة المرور\nنسيت كلمة المرور؟\nدخول\n\nمعندكش حساب؟ إنشاء حساب جديد",
+    "rootChildren": 2,
+    "elapsedMs": 3769
+  },
+  {
+    "name": "14-settings",
+    "route": "/settings",
+    "path": "/login",
+    "text": "تسجيل الدخول\n\nأهلاً بيك في المنصة الذكية Black Fighters 👋\n\nدخول سريع بـ Google\nأو عبر البريد\nالبريد الإلكتروني\nكلمة المرور\nنسيت كلمة المرور؟\nدخول\n\nمعندكش حساب؟ إنشاء حساب جديد",
+    "rootChildren": 2,
+    "elapsedMs": 3745
+  },
+  {
+    "name": "15-admin",
+    "route": "/admin",
+    "path": "/login",
+    "text": "تسجيل الدخول\n\nأهلاً بيك في المنصة الذكية Black Fighters 👋\n\nدخول سريع بـ Google\nأو عبر البريد\nالبريد الإلكتروني\nكلمة المرور\nنسيت كلمة المرور؟\nدخول\n\nمعندكش حساب؟ إنشاء حساب جديد",
+    "rootChildren": 2,
+    "elapsedMs": 3743
+  }
+]

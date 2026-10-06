@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="plate">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BLACK FIGHTERS V5 — خريطة الأراضي وأمر اليوم (Territory Map & Daily Order)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@600;700&display=swap" />
+  <style>
+    :root[data-theme='plate'] {
+      --paper:#ECE7DC; --paper-2:#E2DCCD; --ink:#141414; --ink-2:#4A463E;
+      --stamp:#B8121F; --rule:rgba(20,20,20,.18); --hl:#F2D24B55;
+    }
+    :root[data-theme='night'] {
+      --paper:#0C0C0D; --paper-2:#151517; --ink:#EDE8DC; --ink-2:#A9A397;
+      --stamp:#FF3B4E; --rule:rgba(237,232,220,.16); --hl:#F2D24B33;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--paper); color: var(--ink);
+      font-family: 'Newsreader', 'Noto Naskh Arabic', Georgia, serif;
+      font-size: 16.5px; line-height: 1.75;
+      background-image: radial-gradient(var(--rule) 0.55px, transparent 0.55px);
+      background-size: 18px 18px;
+    }
+    .kufi, h1, h2, h3 { font-family: 'Reem Kufi', sans-serif; margin-block: 0 10px; }
+    .mono { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .topbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 24px; background: var(--paper-2); border-block-end: 1.5px solid var(--ink);
+    }
+    .btn {
+      font-family: 'Reem Kufi', sans-serif; font-size: 13px; padding: 6px 14px;
+      background: var(--paper); color: var(--ink); border: 1px solid var(--ink); cursor: pointer;
+    }
+    .btn-stamp { background: var(--stamp); color: #fff; border-color: var(--stamp); }
+    .container { max-width: 1160px; margin-inline: auto; padding: 28px 20px; display: grid; gap: 24px; }
+    .grid-2 { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; }
+    .sheet { background: var(--paper); border: 1.5px solid var(--ink); padding: 24px; position: relative; }
+    .order-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 0; border-block-end: 1px dashed var(--rule);
+    }
+    .territory-svg { width: 100%; height: auto; border: 1px solid var(--rule); background: var(--paper-2); }
+    @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <strong class="kufi">BLACK FIGHTERS V5 · خريطة الأراضي + أمر اليوم</strong>
+      <span class="mono" style="font-size:12px; color:var(--ink-2); margin-inline-start:10px;">PROTOTYPE 03 / TERRITORY MAP & DAILY ORDER</span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'night' ? 'plate' : 'night'">Plate ⇄ Night</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid-2">
+      <!-- خريطة الأراضي الكنتورية SVG (V5 1.4 #3) -->
+      <section class="sheet" aria-labelledby="map-heading">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-block-end:14px;">
+          <div>
+            <span class="mono" style="font-size:11px; color:var(--stamp); font-weight:700;">TERRITORY CONTOUR MAP · SVG &lt; 12KB</span>
+            <h1 id="map-heading" style="font-size:24px;">خريطة احتلال المنهج (الأراضي الطبية)</h1>
+          </div>
+          <span class="mono" style="font-size:12px;">الإتقان الكلي: <strong>71%</strong></span>
+        </div>
+
+        <svg class="territory-svg" viewBox="0 0 640 340" role="img" aria-label="خريطة كنتورية للمواد الدراسية ونسب الإتقان">
+          <!-- Contour lines -->
+          <path d="M20,60 Q180,10 340,70 T620,50" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="4 4" />
+          <path d="M10,180 Q220,130 410,190 T630,160" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="4 4" />
+          <path d="M30,290 Q240,250 450,300 T610,280" fill="none" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="4 4" />
+
+          <!-- Territory 1: Cardiology (Mastered 88%) -->
+          <g style="cursor:pointer">
+            <polygon points="40,40 280,35 300,155 180,175 45,145" fill="#B8121F" fill-opacity="0.18" stroke="currentColor" stroke-width="1.75" />
+            <text x="165" y="95" text-anchor="middle" font-family="Reem Kufi, sans-serif" font-size="16" fill="currentColor" font-weight="700">أمراض القلب · Cardiology</text>
+            <text x="165" y="122" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="currentColor">MASTERED: 88% · 14 PLATES</text>
+          </g>
+
+          <!-- Territory 2: Pharmacology (Mastered 74%) -->
+          <g style="cursor:pointer">
+            <polygon points="315,40 595,45 585,175 315,160" fill="currentColor" fill-opacity="0.11" stroke="currentColor" stroke-width="1.5" />
+            <text x="455" y="95" text-anchor="middle" font-family="Reem Kufi, sans-serif" font-size="16" fill="currentColor" font-weight="700">علم الأدوية · Pharmacology</text>
+            <text x="455" y="122" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="currentColor">IN PROGRESS: 74% · 22 PLATES</text>
+          </g>
+
+          <!-- Territory 3: Emergency & Toxicology (Mastered 92%) -->
+          <g style="cursor:pointer">
+            <polygon points="50,190 325,180 340,305 65,300" fill="#B8121F" fill-opacity="0.25" stroke="#B8121F" stroke-width="2" />
+            <text x="195" y="240" text-anchor="middle" font-family="Reem Kufi, sans-serif" font-size="16" fill="currentColor" font-weight="700">طوارئ وسموم · Emergency</text>
+            <text x="195" y="266" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="currentColor">CONQUERED: 92% [STAMPED]</text>
+          </g>
+
+          <!-- Territory 4: Pathology (Unexplored 31%) -->
+          <g style="cursor:pointer">
+            <polygon points="355,190 590,195 575,305 360,300" fill="none" stroke="currentColor" stroke-width="1.25" stroke-dasharray="5 3" />
+            <text x="470" y="240" text-anchor="middle" font-family="Reem Kufi, sans-serif" font-size="16" fill="currentColor" font-weight="700">علم الأمراض · Pathology</text>
+            <text x="470" y="266" text-anchor="middle" font-family="ui-monospace, monospace" font-size="13" fill="currentColor">FRONTIER: 31% · NEEDS RECON</text>
+          </g>
+        </svg>
+      </section>
+
+      <!-- أمر اليوم كورقة تعليمات واحدة (V5 1.6 Today) -->
+      <section class="sheet" aria-labelledby="order-heading">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-block-end:2px solid var(--ink); padding-block-end:10px; margin-block-end:14px;">
+          <div>
+            <span class="mono" style="font-size:11px; color:var(--stamp); font-weight:700;">DAILY OPERATIONS ORDER · أمر اليوم</span>
+            <h2 id="order-heading" style="font-size:22px; margin:2px 0 0;">خطة العمليات لليوم (٣ مهام مركزة)</h2>
+          </div>
+          <span class="mono" style="border:1.5px solid var(--stamp); color:var(--stamp); padding:2px 8px; font-size:12px;">🔥 14 DAYS</span>
+        </div>
+
+        <div class="order-item">
+          <div>
+            <div class="kufi" style="font-size:16px;">١. استرجاع البطاقات المستحقة (FSRS)</div>
+            <div class="mono" style="font-size:12px; color:var(--ink-2);">28 بطاقة · زمن مقدر: 9 دقائق · الاحتفاظ المستهدف 90%</div>
+          </div>
+          <button class="btn btn-stamp">ابدأ المراجعة</button>
+        </div>
+
+        <div class="order-item">
+          <div>
+            <div class="kufi" style="font-size:16px;">٢. كويز علاجي على نقاط الضعف</div>
+            <div class="mono" style="font-size:12px; color:var(--ink-2);">10 أسئلة · Antiarrhythmics &amp; Beta Blockers</div>
+          </div>
+          <button class="btn">ابدأ الكويز</button>
+        </div>
+
+        <div class="order-item">
+          <div>
+            <div class="kufi" style="font-size:16px;">٣. استكمال قراءة الفصل السابع (Plate 07)</div>
+            <div class="mono" style="font-size:12px; color:var(--ink-2);">توقفت عند الفقرة 14 (تزامن مع تيليجرام CloudStorage)</div>
+          </div>
+          <button class="btn">أكمل القراءة</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

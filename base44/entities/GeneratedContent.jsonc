@@ -1,0 +1,31 @@
+{
+  "name": "GeneratedContent",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "lesson_id": {
+      "type": "string"
+    },
+    "content_type": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

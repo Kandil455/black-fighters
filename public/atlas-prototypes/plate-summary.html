@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="plate">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BLACK FIGHTERS V5 — لوحة ملخص بملاحظات هامش (Plate 07)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@600;700&display=swap" />
+  <style>
+    :root[data-theme='plate'] {
+      --paper:#ECE7DC; --paper-2:#E2DCCD; --ink:#141414; --ink-2:#4A463E;
+      --stamp:#B8121F; --rule:rgba(20,20,20,.18); --hl:#F2D24B55;
+      --ink-def:#0F5934; --ink-imp:#6E4200; --ink-term:#0B4A73; --ink-ex:#7D2E06; --ink-warn:#B8121F;
+    }
+    :root[data-theme='night'] {
+      --paper:#0C0C0D; --paper-2:#151517; --ink:#EDE8DC; --ink-2:#A9A397;
+      --stamp:#FF3B4E; --rule:rgba(237,232,220,.16); --hl:#F2D24B33;
+      --ink-def:#4CE095; --ink-imp:#F7C95C; --ink-term:#66B8FF; --ink-ex:#FF9F59; --ink-warn:#FF3B4E;
+    }
+    :root[data-theme='focus'] {
+      --paper:#FFFFFF; --paper-2:#F2F2F2; --ink:#000000; --ink-2:#1F1F1F;
+      --stamp:#990000; --rule:rgba(0,0,0,.42); --hl:#FFEB3B88;
+      --ink-def:#004D26; --ink-imp:#5C3600; --ink-term:#003A66; --ink-ex:#662200; --ink-warn:#990000;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Newsreader', 'Noto Naskh Arabic', Georgia, serif;
+      font-size: 17px;
+      line-height: 1.85;
+      background-image: radial-gradient(var(--rule) 0.55px, transparent 0.55px);
+      background-size: 18px 18px;
+    }
+    h1, h2, h3, .kufi { font-family: 'Reem Kufi', sans-serif; line-height: 1.3; margin-block: 0 12px; }
+    .mono, code, .num { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-variant-numeric: tabular-nums; }
+    .topbar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 24px; background: var(--paper-2); border-block-end: 1.5px solid var(--ink);
+    }
+    .btn {
+      font-family: 'Reem Kufi', sans-serif; font-size: 13px; padding: 5px 12px;
+      background: var(--paper); color: var(--ink); border: 1px solid var(--ink); cursor: pointer;
+      transition: opacity 160ms ease-out, transform 160ms ease-out;
+    }
+    .btn[aria-pressed="true"] { background: var(--stamp); color: #fff; border-color: var(--stamp); }
+    .shell {
+      max-width: 1220px; margin-inline: auto; padding: 28px 20px;
+      display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px;
+    }
+    .index-tabs { display: flex; flex-direction: column; gap: 6px; border-inline-end: 1px solid var(--rule); padding-inline-end: 12px; }
+    .index-tab {
+      display: flex; align-items: center; justify-content: space-between; padding: 8px 10px;
+      background: var(--paper-2); border: 1px solid var(--rule); border-inline-start: 3px solid transparent;
+      font-size: 13px; color: var(--ink-2); text-decoration: none;
+    }
+    .index-tab.active { background: var(--paper); color: var(--ink); font-weight: 700; border-inline-start-color: var(--stamp); }
+    .plate {
+      position: relative; background: var(--paper); border: 1px solid var(--rule); padding: 32px 28px;
+      content-visibility: auto; contain-intrinsic-size: 1px 800px;
+    }
+    .plate::before, .plate::after {
+      content: "┼"; position: absolute; font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-2);
+    }
+    .plate::before { inset-block-start: 8px; inset-inline-start: 10px; }
+    .plate::after { inset-block-start: 8px; inset-inline-end: 10px; }
+    .plate-head {
+      display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+      border-block-end: 2px solid var(--ink); padding-block-end: 12px; margin-block-end: 22px;
+    }
+    .plate-badge {
+      font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700;
+      color: var(--stamp); border: 1.5px solid var(--stamp); padding: 2px 8px; letter-spacing: 0.1em;
+    }
+    .prereq {
+      background: var(--paper-2); border: 1px solid var(--rule); border-inline-start: 4px solid var(--ink);
+      padding: 14px 18px; margin-block-end: 22px;
+    }
+    .plate-grid {
+      display: grid; grid-template-columns: minmax(0, 65ch) 240px; gap: 28px; align-items: start;
+    }
+    .m-def { color: var(--ink-def); font-weight: 700; border-block-end: 2px solid var(--ink-def); }
+    .m-imp { background: var(--hl); border-block-end: 1.5px solid var(--ink-imp); padding-inline: 3px; }
+    .m-term { color: var(--ink-term); font-weight: 700; border-block-end: 1.5px dashed var(--ink-term); }
+    .m-ex { color: var(--ink-ex); border-block-end: 1.5px dotted var(--ink-ex); }
+    .m-warn { color: var(--ink-warn); font-weight: 700; border-block-end: 2px double var(--ink-warn); }
+    .fn-ref {
+      font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700;
+      color: var(--stamp); border: 1px solid var(--stamp); padding: 0 4px; margin-inline: 2px;
+      vertical-align: super; background: transparent; cursor: pointer;
+    }
+    .marginalia { border-inline-start: 1.5px solid var(--rule); padding-inline-start: 14px; font-size: 13.5px; color: var(--ink-2); }
+    .marginalia-note { padding-block: 8px; border-block-end: 1px dashed var(--rule); }
+    .mobile-note { display: none; margin-block: 8px; background: var(--paper-2); border-inline-start: 2px solid var(--stamp); padding: 6px 12px; font-size: 14px; }
+    .source-lens {
+      margin-block-start: 18px; padding: 14px; background: var(--paper-2); border: 1px dashed var(--ink-2);
+      font-size: 13.5px; display: none;
+    }
+    .source-lens.open { display: block; animation: enter 160ms ease-out; }
+    @keyframes enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .plate-grid { grid-template-columns: 1fr; }
+      .marginalia { display: none; }
+      .mobile-note { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar" role="banner">
+    <div>
+      <strong class="kufi">BLACK FIGHTERS V5 · «الأطلس»</strong>
+      <span class="mono" style="font-size:12px; color:var(--ink-2); margin-inline-start:10px;">PROTOTYPE 01 / SUMMARY PLATE</span>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn" id="btn-plate" aria-pressed="true" onclick="setTheme('plate')">Plate (ورق عظمي)</button>
+      <button class="btn" id="btn-night" aria-pressed="false" onclick="setTheme('night')">Night (ليلي)</button>
+      <button class="btn" id="btn-focus" aria-pressed="false" onclick="setTheme('focus')">Focus (تباين عالي)</button>
+      <button class="btn" onclick="toggleDir()">RTL ⇄ LTR</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="index-tabs" aria-label="تابات الفهرس (Index Tabs)">
+      <div class="mono" style="font-size:11px; color:var(--ink-2); margin-block-end:4px;">INDEX TABS · 1000p</div>
+      <a href="#p06" class="index-tab"><span>06 · الودي Sympathetic</span><span class="mono">100%</span></a>
+      <a href="#p07" class="index-tab active" aria-current="page"><span>07 · حاصرات بيتا</span><span class="mono" style="color:var(--stamp)">78%</span></a>
+      <a href="#p08" class="index-tab"><span>08 · فشل القلب HF</span><span class="mono">40%</span></a>
+      <a href="#p09" class="index-tab"><span>09 · مدرات البول</span><span class="mono">0%</span></a>
+    </nav>
+
+    <main>
+      <article class="plate" id="p07">
+        <header class="plate-head">
+          <div>
+            <span class="plate-badge">PLATE 07 · CARDIOVASCULAR PHARMACOLOGY</span>
+            <h1 style="font-size:28px; margin-block-start:8px;">حاصرات مستقبلات بيتا <span dir="ltr" lang="en" style="font-weight:400;">(Beta-Adrenoceptor Blockers)</span></h1>
+          </div>
+          <div class="mono" style="font-size:12px; color:var(--ink-2);">
+            المصدر: ص <bdi dir="ltr">142–148</bdi> · التغطية: <strong>98%</strong>
+          </div>
+        </header>
+
+        <section class="prereq" aria-label="قبل ما تقرا — شرح من الأساس">
+          <div class="kufi" style="color:var(--stamp); font-size:14px;">◆ قبل ما تقرا (شرح من الأساس — الفهم من الصفر)</div>
+          <p style="margin:0;">
+            تخيّل القلب كأنه محرك سيارة والـ <span class="m-term" dir="ltr">Norepinephrine</span> هو دواسة البنزين. مستقبلات <code dir="ltr">β1</code> موجودة في القلب وبتزود السرعة وقوة الضخ، بينما مستقبلات <code dir="ltr">β2</code> موجودة في الشعب الهوائية وبتوسّعها للتنفس. لما نقفل <code dir="ltr">β1</code> بنريح القلب، ولما نقفل <code dir="ltr">β2</code> بالغلط بنضيّق النفس!
+          </p>
+        </section>
+
+        <div class="plate-grid">
+          <div>
+            <h2>١. الجيل الأول (غير الانتقائية <span dir="ltr">Non-Selective β1/β2</span>)</h2>
+            <p>
+              يُعد <span class="m-term" dir="ltr">Propranolol</span> النموذج القياسي لهذا الجيل
+              <button class="fn-ref" onclick="focusNote('fn-1')" aria-label="هامش 1">[01]</button>،
+              حيث <span class="m-def">يثبط مستقبلات β1 و β2 معاً بكفاءة متساوية</span>، مما يؤدي إلى خفض نتاج القلب
+              (<code dir="ltr">CO = SV × HR</code>) وتقليل إفراز الرينين من الكلى.
+            </p>
+            <details class="mobile-note">
+              <summary>[هامش 01] ملاحظة إكلينيكية: عبور الحاجز الدموي الدماغي</summary>
+              نظراً لكون Propranolol عالي الذوبان في الدهون (Lipophilic)، فإنه يعبر الـ BBB ويُستخدم في الوقاية من الصداع النصفي ورعشة القلق، لكنه قد يسبب كوابيس ليلية.
+            </details>
+
+            <p>
+              <span class="m-imp">قاعدة امتحانية حاسمة:</span> يُمنع منعاً باتاً إعطاء حاصرات بيتا غير الانتقائية لمرضى
+              <span class="m-warn">الربو الشعبي (Bronchial Asthma) أو COPD</span> لأن غلق مستقبلات
+              <code dir="ltr">β2</code> يسبب تشنجاً قصبياً حاداً (<span class="m-warn" dir="ltr">Severe Bronchospasm</span>)
+              <button class="fn-ref" onclick="focusNote('fn-2')" aria-label="هامش 2">[02]</button>.
+            </p>
+            <details class="mobile-note">
+              <summary>[هامش 02] البديل الآمن في مرضى الصدر</summary>
+              تُفضل الأدوية الانتقائية لـ β1 (تُحفظ بالحروف A–M مثل Bisoprolol, Metoprolol, Atenolol) مع الحذر من الجرعات العالية لأن الانتقائية نسبية وليست مطلقة.
+            </details>
+
+            <p>
+              كمثال تطبيقي: مريض يعاني من <span class="m-ex">فرط نشاط الغدة الدرقية (Thyrotoxicosis) وعاصفة درقية</span>
+              يُعطى <span class="m-term" dir="ltr">Propranolol</span> بجرعة <code dir="ltr">20–40 mg q6h</code> لأنه يثبط التحويل الطرفي من
+              <code dir="ltr">T4 → T3</code> بالإضافة لحماية القلب من الخفقان.
+            </p>
+
+            <div style="margin-block-start:16px;">
+              <button class="btn" onclick="toggleSourceLens()">🔍 عدسة المصدر (Source Lens — ص 144)</button>
+            </div>
+
+            <div class="source-lens" id="source-lens">
+              <div class="mono" style="font-size:11px; color:var(--stamp); margin-block-end:6px;">
+                SOURCE LENS · ORIGINAL PDF PAGE 144 · SHA256: 9f4e...c12a
+              </div>
+              <blockquote style="margin:0; padding-inline-start:12px; border-inline-start:2px solid var(--stamp);" dir="ltr" lang="en">
+                "Non-selective beta-adrenergic antagonists (e.g., <mark style="background:var(--hl)">propranolol</mark>) block both β1 and β2 receptors. Blockade of bronchial β2 receptors leads to unopposed bronchoconstriction and is <mark style="background:var(--hl)">contraindicated in patients with asthma</mark>."
+              </blockquote>
+            </div>
+          </div>
+
+          <aside class="marginalia" aria-label="ملاحظات الهامش (Marginalia)">
+            <div class="mono" style="font-size:11px; color:var(--stamp); margin-block-end:6px;">MARGINALIA · الهوامش</div>
+            <div class="marginalia-note" id="fn-1" tabindex="-1">
+              <strong class="mono" style="color:var(--stamp)">[01] Lipophilicity:</strong><br />
+              الـ Propranolol يذوب في الدهون فيعبر للـ CNS؛ يعالج الرعاش والصداع النصفي، وعند وقفه فجأة يسبب Rebound Tachycardia.
+            </div>
+            <div class="marginalia-note" id="fn-2" tabindex="-1">
+              <strong class="mono" style="color:var(--stamp)">[02] Cardioselectivity:</strong><br />
+              أدوية <code dir="ltr">β1</code> الانتقائية (Atenolol, Bisoprolol, Esmolol, Metoprolol) أكثر أماناً لمرضى الربو والسكري.
+            </div>
+            <div class="marginalia-note">
+              <strong class="mono">[ملاحظة ميدان ✎]:</strong><br />
+              تذكّر متلازمة القناع السكري: حاصرات بيتا تخفي رعشة وخفقان نقص السكر (Hypoglycemia) ما عدا التعرّق!
+            </div>
+          </aside>
+        </div>
+      </article>
+    </main>
+  </div>
+
+  <script>
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      ['plate', 'night', 'focus'].forEach(function(id) {
+        var btn = document.getElementById('btn-' + id);
+        if (btn) btn.setAttribute('aria-pressed', String(id === theme));
+      });
+    }
+    function toggleDir() {
+      var html = document.documentElement;
+      html.dir = html.dir === 'rtl' ? 'ltr' : 'rtl';
+    }
+    function toggleSourceLens() {
+      document.getElementById('source-lens').classList.toggle('open');
+    }
+    function focusNote(id) {
+      var el = document.getElementById(id);
+      if (el) el.focus();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "AssistantConversation",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "course_title": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": true,
+  "required": []
+}

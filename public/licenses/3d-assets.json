@@ -1,0 +1,143 @@
+[
+  {
+    "id": "robot-expressive",
+    "file": "/models/robot-expressive.glb",
+    "title": "RobotExpressive",
+    "creator": "Tomas Laulhe / Quaternius, modifications by Don McCurdy",
+    "license": "CC0 1.0",
+    "source": "https://threejs.org/examples/models/gltf/RobotExpressive/",
+    "notes": "Animated GLB model used as the first real 3D mascot. Downloaded from the official Three.js examples asset page."
+  },
+  {
+    "id": "poly-dragon",
+    "file": "/models/poly-monsters/dragon.glb",
+    "poster": "/mascots/poly-monsters/dragon.webp",
+    "title": "Dragon",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/3rUm1cN3yp",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-dragon-evolved",
+    "file": "/models/poly-monsters/dragon-evolved.glb",
+    "poster": "/mascots/poly-monsters/dragon-evolved.webp",
+    "title": "Dragon Evolved",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/LlwD0QNUPj",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-demon",
+    "file": "/models/poly-monsters/demon.glb",
+    "poster": "/mascots/poly-monsters/demon.webp",
+    "title": "Demon",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/Mo2ky6vkf8",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-blue-demon",
+    "file": "/models/poly-monsters/blue-demon.glb",
+    "poster": "/mascots/poly-monsters/blue-demon.webp",
+    "title": "Blue Demon",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/S7jYW6Amye",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-orc-enemy",
+    "file": "/models/poly-monsters/orc-enemy.glb",
+    "poster": "/mascots/poly-monsters/orc-enemy.webp",
+    "title": "Orc Enemy",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/Q3z8ZX4kUy",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-yeti",
+    "file": "/models/poly-monsters/yeti.glb",
+    "poster": "/mascots/poly-monsters/yeti.webp",
+    "title": "Yeti",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/S1E7idPFhe",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-wizard",
+    "file": "/models/poly-monsters/wizard.glb",
+    "poster": "/mascots/poly-monsters/wizard.webp",
+    "title": "Wizard",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/o87Upt5uHX",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-ninja",
+    "file": "/models/poly-monsters/ninja.glb",
+    "poster": "/mascots/poly-monsters/ninja.webp",
+    "title": "Ninja",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/mCNoqcqpvC",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-alien",
+    "file": "/models/poly-monsters/alien.glb",
+    "poster": "/mascots/poly-monsters/alien.webp",
+    "title": "Alien",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/sUTLXji0aL",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-ghost",
+    "file": "/models/poly-monsters/ghost.glb",
+    "poster": "/mascots/poly-monsters/ghost.webp",
+    "title": "Ghost",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/Iip30bDHmu",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-ghost-skull",
+    "file": "/models/poly-monsters/ghost-skull.glb",
+    "poster": "/mascots/poly-monsters/ghost-skull.webp",
+    "title": "Ghost Skull",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/TX8r9WBXpe",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  },
+  {
+    "id": "poly-dino",
+    "file": "/models/poly-monsters/dino.glb",
+    "poster": "/mascots/poly-monsters/dino.webp",
+    "title": "Dino",
+    "creator": "Quaternius",
+    "license": "CC0 1.0",
+    "source": "https://poly.pizza/m/wuerCFCWNR",
+    "bundle": "https://poly.pizza/bundle/Ultimate-Monsters-Bundle-5oyGWAmOB6",
+    "notes": "Animated GLB from Poly Pizza Ultimate Monsters Bundle."
+  }
+]

@@ -1,0 +1,36 @@
+{
+  "name": "Friendship",
+  "type": "object",
+  "properties": {
+    "requester_id": {
+      "type": "string"
+    },
+    "requester_name": {
+      "type": "string"
+    },
+    "requester_avatar": {
+      "type": "string"
+    },
+    "addressee_id": {
+      "type": "string"
+    },
+    "addressee_name": {
+      "type": "string"
+    },
+    "addressee_avatar": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "default": "pending"
+    },
+    "participant_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": true
+}

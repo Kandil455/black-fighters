@@ -1,0 +1,16 @@
+node_modules
+dist-packages
+android-twa
+android
+.git
+.gradle
+*.apk
+!public/downloads/*.apk
+*.ipa
+*.exe
+artifacts
+dist
+.agent
+.env
+.env.local
+.env.*.local

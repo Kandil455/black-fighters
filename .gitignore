@@ -1,0 +1,62 @@
+#env
+.env
+.env.*
+
+# Logs
+/logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.env
+.vite
+.vercel
+.env*
+
+# Binaries and Installers
+*.apk
+!public/downloads/*.apk
+*.aab
+*.ipa
+*.exe
+*.keystore
+dist-packages/
+android-twa/local-maven/
+android-alpha-master/.gradle/
+android-alpha-master/app/build/
+android-alpha-master/build/
+\$HOME/
+.vercel.old/
+
+# Additional Build Caches & Temp Zips
+.netlify/
+.agent/
+**/build/
+**/.gradle/
+*.zip
+*.dex
+*.traineddata
+videos/
+.firebase-service-account.json
+
+# P7-03: the non-secret production API base must be tracked (no secrets in this file)
+!.env.production

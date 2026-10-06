@@ -1,0 +1,27 @@
+{
+  "appId": "site.blackfighters.app",
+  "appName": "Black Fighters",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#05070f",
+  "server": {
+    "url": "https://blackfighters.site",
+    "cleartext": false,
+    "allowNavigation": [
+      "blackfighters.site",
+      "*.blackfighters.site",
+      "accounts.google.com",
+      "*.google.com",
+      "*.googleapis.com",
+      "legendary-study-app.firebaseapp.com",
+      "*.firebaseapp.com",
+      "t.me"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#05070f"
+  }
+}

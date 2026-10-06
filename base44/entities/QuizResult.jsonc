@@ -1,0 +1,39 @@
+{
+  "name": "QuizResult",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "quiz_id": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "score": {
+      "type": "number",
+      "default": 0
+    },
+    "percentage": {
+      "type": "number",
+      "default": 0
+    },
+    "passed": {
+      "type": "boolean",
+      "default": false
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "default": []
+    },
+    "time_spent_seconds": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "additionalProperties": true
+}

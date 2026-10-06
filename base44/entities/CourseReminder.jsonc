@@ -1,0 +1,42 @@
+{
+  "name": "CourseReminder",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "course_id": {
+      "type": "string"
+    },
+    "course_title": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "reminder_date": {
+      "type": "string"
+    },
+    "reminder_time": {
+      "type": "string"
+    },
+    "reminder_datetime": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "default": "pending"
+    },
+    "notified": {
+      "type": "boolean",
+      "default": false
+    },
+    "notified_at": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

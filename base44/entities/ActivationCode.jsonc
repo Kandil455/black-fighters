@@ -1,0 +1,38 @@
+{
+  "name": "ActivationCode",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string"
+    },
+    "plan_key": {
+      "type": "string"
+    },
+    "plan_name": {
+      "type": "string"
+    },
+    "duration_days": {
+      "type": "number"
+    },
+    "credits": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "default": "active"
+    },
+    "used_by_id": {
+      "type": "string"
+    },
+    "used_by_email": {
+      "type": "string"
+    },
+    "used_at": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

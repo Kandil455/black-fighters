@@ -1,0 +1,30 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "http://localhost:4173/",
+        "http://localhost:4173/dashboard",
+        "http://localhost:4173/atlas",
+        "http://localhost:4173/tg",
+        "http://localhost:4173/help"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "mobile",
+        "throttlingMethod": "simulate"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.92 }],
+        "categories:accessibility": ["error", { "minScore": 0.95 }],
+        "largest-contentful-paint": ["error", { "maxNumericValue": 2000 }],
+        "total-blocking-time": ["error", { "maxNumericValue": 200 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.05 }],
+        "resource-summary:script:size": ["error", { "maxNumericValue": 174080 }],
+        "resource-summary:stylesheet:size": ["error", { "maxNumericValue": 35840 }],
+        "unused-javascript": ["warn", { "maxNumericValue": 40960 }]
+      }
+    }
+  }
+}

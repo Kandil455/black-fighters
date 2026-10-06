@@ -1,0 +1,73 @@
+{
+  "name": "PaymentRequest",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number"
+    },
+    "method": {
+      "type": "string",
+      "default": "vodafone_cash"
+    },
+    "sender_number": {
+      "type": "string"
+    },
+    "screenshot_url": {
+      "type": "string"
+    },
+    "note": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "default": "pending"
+    },
+    "plan_key": {
+      "type": "string"
+    },
+    "plan_name": {
+      "type": "string"
+    },
+    "duration_days": {
+      "type": "number"
+    },
+    "billing_cycle": {
+      "type": "string"
+    },
+    "product_type": {
+      "type": "string",
+      "default": "subscription"
+    },
+    "product_key": {
+      "type": "string"
+    },
+    "credits": {
+      "type": "number"
+    },
+    "idempotency_key": {
+      "type": "string"
+    },
+    "delivery_mode": {
+      "type": "string"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "activation_code": {
+      "type": "string"
+    },
+    "admin_note": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

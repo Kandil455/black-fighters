@@ -1,0 +1,7 @@
+# Robots.txt for Black Fighters (https://blackfighters.site)
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://blackfighters.site/sitemap.xml

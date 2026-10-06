@@ -1,0 +1,38 @@
+{
+  "name": "StandaloneQuiz",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "owner_id": {
+      "type": "string"
+    },
+    "owner_name": {
+      "type": "string"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "is_public": {
+      "type": "boolean",
+      "default": true
+    },
+    "show_explanations": {
+      "type": "boolean",
+      "default": true
+    },
+    "attempts_count": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "additionalProperties": true
+}

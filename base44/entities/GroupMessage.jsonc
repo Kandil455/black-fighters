@@ -1,0 +1,26 @@
+{
+  "name": "GroupMessage",
+  "type": "object",
+  "properties": {
+    "group_id": {
+      "type": "string"
+    },
+    "sender_id": {
+      "type": "string"
+    },
+    "sender_name": {
+      "type": "string"
+    },
+    "sender_avatar": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "is_ai": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": true
+}

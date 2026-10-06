@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="plate">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BLACK FIGHTERS V5 — بوابة النماذج المرئية الثلاثة «الأطلس»</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@600;700&display=swap" />
+  <style>
+    :root { --paper:#ECE7DC; --paper-2:#E2DCCD; --ink:#141414; --ink-2:#4A463E; --stamp:#B8121F; --rule:rgba(20,20,20,.18); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font-family:'Noto Naskh Arabic', serif; }
+    header { padding:16px 24px; background:var(--paper-2); border-block-end:2px solid var(--ink); display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+    .tab { font-family:'Reem Kufi', sans-serif; padding:6px 14px; border:1px solid var(--ink); background:var(--paper); color:var(--ink); text-decoration:none; cursor:pointer; }
+    .tab.active { background:var(--stamp); color:#fff; border-color:var(--stamp); }
+    iframe { width:100%; height:calc(100vh - 68px); border:0; display:block; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <strong style="font-family:'Reem Kufi', sans-serif; font-size:18px;">BLACK FIGHTERS V5 · بوابة النماذج المرئية «الأطلس» (Section 1.8)</strong>
+    </div>
+    <nav class="tabs" aria-label="النماذج الثلاثة">
+      <button class="tab active" onclick="loadProto('plate-summary.html', this)">١. لوحة الملخص والهوامش (Plate 07)</button>
+      <button class="tab" onclick="loadProto('declassify-mode.html', this)">٢. شاشة فك السرية (Declassify)</button>
+      <button class="tab" onclick="loadProto('territory-landing.html', this)">٣. خريطة الأراضي وأمر اليوم (Territory Map)</button>
+    </nav>
+  </header>
+  <iframe id="proto-frame" src="plate-summary.html" title="معاينة نموذج الأطلس"></iframe>
+  <script>
+    function loadProto(src, btn) {
+      document.getElementById('proto-frame').src = src;
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

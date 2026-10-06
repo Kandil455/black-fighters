@@ -1,0 +1,191 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "user"
+      ],
+      "default": "user"
+    },
+    "subscription_plan": {
+      "type": "string",
+      "enum": [
+        "free",
+        "premium"
+      ],
+      "default": "free"
+    },
+    "subscription_status": {
+      "type": "string",
+      "enum": [
+        "inactive",
+        "active",
+        "coming_soon"
+      ],
+      "default": "inactive"
+    },
+    "subscription_plan_key": {
+      "type": "string"
+    },
+    "subscription_plan_name": {
+      "type": "string"
+    },
+    "subscription_expires_at": {
+      "type": "string"
+    },
+    "daily_file_limit": {
+      "type": "number",
+      "default": 3
+    },
+    "total_xp": {
+      "type": "number",
+      "default": 0
+    },
+    "current_streak": {
+      "type": "number",
+      "default": 0
+    },
+    "longest_streak": {
+      "type": "number",
+      "default": 0
+    },
+    "last_active_date": {
+      "type": "string"
+    },
+    "badges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "total_correct": {
+      "type": "number",
+      "default": 0
+    },
+    "total_answered": {
+      "type": "number",
+      "default": 0
+    },
+    "credits": {
+      "type": "number",
+      "default": 8
+    },
+    "credits_earned_today": {
+      "type": "number",
+      "default": 0
+    },
+    "credits_earned_date": {
+      "type": "string"
+    },
+    "avatar_url": {
+      "type": "string"
+    },
+    "avatar_is_video": {
+      "type": "boolean",
+      "default": false
+    },
+    "profile_frame": {
+      "type": "string",
+      "default": "none"
+    },
+    "profile_emoji": {
+      "type": "string"
+    },
+    "owned_frames": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "profile_title": {
+      "type": "string"
+    },
+    "profile_title_key": {
+      "type": "string",
+      "default": "none"
+    },
+    "owned_titles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "last_daily_reward": {
+      "type": "string"
+    },
+    "title_color": {
+      "type": "string",
+      "default": "gradient"
+    },
+    "profile_color": {
+      "type": "string",
+      "default": "cyan"
+    },
+    "active_banner": {
+      "type": "string",
+      "default": "none"
+    },
+    "owned_banners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "enable_3d": {
+      "type": "boolean",
+      "default": true
+    },
+    "avatar_3d_model": {
+      "type": "string",
+      "default": "none"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "is_public": {
+      "type": "boolean",
+      "default": true
+    },
+    "is_wife": {
+      "type": "boolean",
+      "default": false
+    },
+    "wife_name": {
+      "type": "string"
+    },
+    "premium_notified": {
+      "type": "boolean",
+      "default": false
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "profile_image_url": {
+      "type": "string"
+    },
+    "owned_mascot_skins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "default"
+      ]
+    },
+    "active_mascot_skin": {
+      "type": "string",
+      "default": "default"
+    },
+    "last_skin_daily_reward": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

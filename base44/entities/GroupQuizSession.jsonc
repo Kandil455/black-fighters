@@ -1,0 +1,47 @@
+{
+  "name": "GroupQuizSession",
+  "type": "object",
+  "properties": {
+    "group_id": {
+      "type": "string"
+    },
+    "quiz_id": {
+      "type": "string"
+    },
+    "quiz_title": {
+      "type": "string"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "host_id": {
+      "type": "string"
+    },
+    "host_name": {
+      "type": "string"
+    },
+    "time_limit_minutes": {
+      "type": "number",
+      "default": 10
+    },
+    "status": {
+      "type": "string",
+      "default": "waiting"
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": true
+}

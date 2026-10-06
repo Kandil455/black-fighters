@@ -1,0 +1,13 @@
+Black Fighters site audit screenshots
+
+Order:
+01 landing
+02 login
+03 register
+04 forgot-password
+05 summary mockup A
+06 summary mockup B
+07 summary mockup C
+08 quiz mockup
+09 shared quiz
+10-15 protected-route redirect checks (dashboard/create/quizzes/tools/settings/admin)

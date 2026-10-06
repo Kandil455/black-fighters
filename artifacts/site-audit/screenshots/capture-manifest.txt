@@ -1,0 +1,15 @@
+01-landing	/	/	root=6	فأس الجحيم Black Fighters EN مساحتي ابدأ الآن من مذكرتك → لكورس كامل في ثوانٍ معدودة سلاحك السري المطلق. لحسم أي معركة دراسية. حوّل أضخم المراجع والملازم المعقدة إلى ملخصات ذكية وك
+02-login	/login	/login	root=2	تسجيل الدخول أهلاً بيك في المنصة الذكية Black Fighters 👋 دخول سريع بـ Google أو عبر البريد البريد الإلكتروني كلمة المرور نسيت كلمة المرور؟ دخول معندكش حساب؟ إنشاء حساب جديد
+03-register	/register	/register	root=2	إنشاء حساب ابدأ رحلتك التعليمية الذكية مع Black Fighters 🚀 الاسم الكامل البريد الإلكتروني كلمة المرور إنشاء الحساب عندك حساب بالفعل؟ تسجيل الدخول
+04-forgot-password	/forgot-password	/forgot-password	root=2	نسيت الباسورد؟ هنبعتلك رابط على إيميلك إرسال رجوع
+05-summary-a	/mockup/a	/mockup/a	root=2	Dark Neon Scholar (Mockup A) Pharmacology: Autonomic Nervous System علم الأدوية: الجهاز العصبي اللاإرادي (ملخص شامل) 1. Cholinergic Agonists (محفزات الكولين) التعريف: هي الأدوية ال
+06-summary-b	/mockup/b	/mockup/b	root=2	PREMIUM PAPER (MOCKUP B) علم الأدوية: الجهاز العصبي 1. منبهات الكولين (Cholinergic Agonists) تعتبر هذه الأدوية حجر الزاوية في محاكاة الناقل العصبي Acetylcholine. تنقسم إلى نوعين أس
+07-summary-c	/mockup/c	/mockup/c	root=2	ADAPTIVE FOCUS (Mockup C) النقاط المحورية: Cholinergic Drugs الأدوية المحفزة تعمل مباشرة (Direct) أو غير مباشرة (Indirect) بوقف إنزيم الـ AChE. تطبيق سريري (Clinical Application): 
+08-quiz	/mockup/quiz	/mockup/quiz	root=2	12 سؤال 12 من 50 Pharmacology Midterm 45:12 أي من الأدوية التالية يعتبر الاختيار الأول لعلاج صدمة الحساسية (Anaphylactic Shock)؟ أ Epinephrine ب Norepinephrine ج Dopamine د Dobutam
+09-shared-quiz	/q/demo	/q/demo	root=2	كويز في انتظارك! 🎯 سجّل دخولك عشان تقدر تحل الكويز وتحفظ نتيجتك. سجّل دخول وابدأ
+10-dashboard	/dashboard	/login	root=2	تسجيل الدخول أهلاً بيك في المنصة الذكية Black Fighters 👋 دخول سريع بـ Google أو عبر البريد البريد الإلكتروني كلمة المرور نسيت كلمة المرور؟ دخول معندكش حساب؟ إنشاء حساب جديد
+11-create	/create	/login	root=2	تسجيل الدخول أهلاً بيك في المنصة الذكية Black Fighters 👋 دخول سريع بـ Google أو عبر البريد البريد الإلكتروني كلمة المرور نسيت كلمة المرور؟ دخول معندكش حساب؟ إنشاء حساب جديد
+12-quizzes	/quizzes	/login	root=2	تسجيل الدخول أهلاً بيك في المنصة الذكية Black Fighters 👋 دخول سريع بـ Google أو عبر البريد البريد الإلكتروني كلمة المرور نسيت كلمة المرور؟ دخول معندكش حساب؟ إنشاء حساب جديد
+13-tools	/tools	/login	root=2	تسجيل الدخول أهلاً بيك في المنصة الذكية Black Fighters 👋 دخول سريع بـ Google أو عبر البريد البريد الإلكتروني كلمة المرور نسيت كلمة المرور؟ دخول معندكش حساب؟ إنشاء حساب جديد
+14-settings	/settings	/login	root=2	تسجيل الدخول أهلاً بيك في المنصة الذكية Black Fighters 👋 دخول سريع بـ Google أو عبر البريد البريد الإلكتروني كلمة المرور نسيت كلمة المرور؟ دخول معندكش حساب؟ إنشاء حساب جديد
+15-admin	/admin	/login	root=2	تسجيل الدخول أهلاً بيك في المنصة الذكية Black Fighters 👋 دخول سريع بـ Google أو عبر البريد البريد الإلكتروني كلمة المرور نسيت كلمة المرور؟ دخول معندكش حساب؟ إنشاء حساب جديد

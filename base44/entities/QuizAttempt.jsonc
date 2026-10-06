@@ -1,0 +1,28 @@
+{
+  "name": "QuizAttempt",
+  "type": "object",
+  "properties": {
+    "quiz_id": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "score": {
+      "type": "number",
+      "default": 0
+    },
+    "total": {
+      "type": "number",
+      "default": 0
+    },
+    "percentage": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "additionalProperties": true
+}

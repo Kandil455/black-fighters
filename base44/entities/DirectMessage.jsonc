@@ -1,0 +1,33 @@
+{
+  "name": "DirectMessage",
+  "type": "object",
+  "properties": {
+    "thread_key": {
+      "type": "string"
+    },
+    "sender_id": {
+      "type": "string"
+    },
+    "sender_name": {
+      "type": "string"
+    },
+    "sender_avatar": {
+      "type": "string"
+    },
+    "receiver_id": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "is_ai": {
+      "type": "boolean",
+      "default": false
+    },
+    "read": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": true
+}

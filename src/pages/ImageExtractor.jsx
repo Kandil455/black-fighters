@@ -1,0 +1,898 @@
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { 
+  Upload, Layers, Settings2, Download, 
+  BookOpen, RotateCcw, Play, Sparkles 
+} from "lucide-react";
+import { AnimatedPracticalQuiz } from "@/components/ui/AnimatedMicroIcons";
+import { ImageExtractorUpload } from "@/components/imageExtractor/ImageExtractorUpload";
+import { ImageReviewGrid } from "@/components/imageExtractor/ImageReviewGrid";
+import { ImageQuizControls } from "@/components/imageExtractor/ImageQuizControls";
+import { ImageQuizPlayer } from "@/components/imageExtractor/ImageQuizPlayer";
+import { ImageExportPanel } from "@/components/imageExtractor/ImageExportPanel";
+import { ImageLibrary } from "@/components/imageExtractor/ImageLibrary";
+import { extractImagesFromFile } from "@/lib/imageExtractor";
+import { filterImagesHeuristics } from "@/lib/imageFilter";
+import { saveExtractionSession, getExtractionSession, getExtractionHistory } from "@/lib/imageExtractorDb";
+import { exportImagesToZip, exportToPptx, exportToPdf, exportToQuizJson } from "@/lib/imageExport";
+import { practicalQuizJob } from "@/lib/practicalQuizJob";
+import { useAuth } from "@/lib/AuthContext";
+import { playClick, playSuccess } from "@/lib/sounds";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/LocaleContext";
+import { useNavigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
+import { invokeSecureFunction } from "@/lib/secureFunctions";
+import { apiUrl, resolveMediaUrl } from "@/lib/apiBase";
+
+/**
+ * Normalize the AI's answer key into the index the quiz players expect.
+ * Accepts: numeric index | "0"-style string | option text | "A"-"D" letter.
+ * The old `?? 0` fallback silently made every letter/text answer score as
+ * option A — users saw 100% wrong scores on AI-generated image quizzes.
+ */
+function normalizeCorrectIndex(q, options = []) {
+  const raw = q?.correctIndex ?? q?.correct_index ?? q?.correct ?? q?.correctOption;
+  const asNum = Number(raw);
+  if (Number.isInteger(asNum) && asNum >= 0 && asNum < options.length) return asNum;
+  const asText = String(raw ?? "").trim();
+  if (!asText) return 0;
+  const byText = options.findIndex((o) => String(o).trim() === asText);
+  if (byText >= 0) return byText;
+  if (/^[A-Da-d]$/.test(asText)) {
+    const idx = asText.toUpperCase().charCodeAt(0) - 65;
+    if (idx < options.length) return idx;
+  }
+  const lettered = options.findIndex((o) => String(o).trim().startsWith(asText.toUpperCase() + ")"));
+  if (lettered >= 0) return lettered;
+  return 0;
+}
+
+export default function ImageExtractor() {
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const { locale, dir } = useLocale();
+  const isEn = locale === "en";
+  const [activeTab, setActiveTab] = useState("upload"); // upload | review | quiz_controls | quiz_player | export | library
+  const [images, setImages] = useState([]);
+  const [fileName, setFileName] = useState("");
+  const [sourceType, setSourceType] = useState("pdf");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const [quizProgress, setQuizProgress] = useState(null);
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedQuiz, setSavedQuiz] = useState(null);
+
+  // ── Sync with background practical quiz job & Auto-restore last active session ──
+  useEffect(() => {
+    const unsub = practicalQuizJob.subscribe((job) => {
+      if (job.isRunning) {
+        setIsGeneratingQuiz(true);
+        setQuizProgress({
+          current: job.current,
+          total: job.total,
+          percent: job.percent,
+        });
+      } else if (job.isCompleted) {
+        setIsGeneratingQuiz(false);
+        setQuizProgress(null);
+        if (job.images && job.images.length > 0) {
+          setImages(job.images);
+          setActiveTab("quiz_player");
+        }
+      } else {
+        setIsGeneratingQuiz(false);
+        setQuizProgress(null);
+      }
+    });
+
+    const init = practicalQuizJob.getState();
+    if (init.isRunning) {
+      setIsGeneratingQuiz(true);
+      setQuizProgress({
+        current: init.current,
+        total: init.total,
+        percent: init.percent,
+      });
+      if (init.images && init.images.length > 0) {
+        setImages(init.images);
+      }
+    } else if (init.isCompleted && init.images?.length > 0) {
+      setImages(init.images);
+      setActiveTab("quiz_player");
+    } else {
+      // Auto-restore last active extraction session from IndexedDB if in-memory state is empty
+      const isCleared = localStorage.getItem("bf_session_cleared") === "true";
+      if (!isCleared) {
+        const lastSessionId = localStorage.getItem("bf_last_active_extraction_id");
+        const restorePromise = lastSessionId
+          ? getExtractionSession(lastSessionId)
+          : getExtractionHistory().then(h => (h && h.length > 0 ? getExtractionSession(h[0].id) : null));
+
+        restorePromise.then((session) => {
+        if (session && session.images && session.images.length > 0) {
+          setImages(session.images);
+          setFileName(session.fileName || "ملف مستخرج");
+          setSourceType(session.sourceType || "pdf");
+          setIsSaved(true);
+          const hasQuizzes = session.images.some(img => img.quiz && img.quiz.length > 0);
+          if (hasQuizzes) {
+            setActiveTab("quiz_player");
+          } else {
+            setActiveTab("review");
+          }
+        }
+      }).catch((err) => console.warn("[ImageExtractor] auto-restore failed:", err));
+      }
+    }
+
+    return () => unsub();
+  }, []);
+
+  // ── 1. Pipeline: Start Extraction ──────────────────────────────────────────
+  const handleStartExtraction = async ({ file, options }) => {
+    try {
+      localStorage.removeItem("bf_session_cleared");
+      setIsProcessing(true);
+      setFileName(file.name);
+      setSourceType(file.name.split(".").pop()?.toLowerCase() || "pdf");
+      setIsSaved(false);
+
+      // Phase 1: Client-side Document Extraction
+      setProgress({
+        stageLabel: "جاري قراءة واستخراج الصور المدمجة...",
+        percent: 15,
+        detail: `جاري فحص صفحات ${file.name}`,
+      });
+
+      const extracted = await extractImagesFromFile(file, (p) => {
+        setProgress({
+          stageLabel: "جاري استخراج الصور والنصوص...",
+          percent: Math.min(45, Math.round(p.percent * 0.45)),
+          detail: `صفحة ${p.currentPage} من ${p.totalPages}`,
+        });
+      });
+
+      if (!extracted.length) {
+        toast.error("لم يتم العثور على أي صور مدمجة في هذا الملف.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Phase 2: Client-side Heuristic Pixel Analysis (Instant Canvas API)
+      setProgress({
+        stageLabel: "تطبيق فلاتر الجودة الهيوريستيك (Canvas API)...",
+        percent: 55,
+        detail: "استبعاد الأبعاد الصغيرة، الخلفيات الفارغة، واللوجوهات المكررة",
+        foundCount: extracted.length,
+      });
+
+      const heuristicResult = await filterImagesHeuristics(
+        extracted,
+        {
+          minDimension: options.minDimension,
+          allowDuplicates: options.allowDuplicates,
+        },
+        (hp) => {
+          setProgress({
+            stageLabel: "فحص بكسلات الصور وتوزيع الألوان...",
+            percent: 50 + Math.round(hp.percent * 0.45),
+            detail: `فحص الصورة ${hp.current} من ${hp.total}`,
+            foundCount: extracted.length,
+          });
+        }
+      );
+
+      let finalImages = [
+        ...heuristicResult.kept,
+        ...heuristicResult.rejected,
+      ];
+
+      setProgress({ stageLabel: "اكتمل الاستخراج بنجاح!", percent: 100 });
+      setImages(finalImages);
+
+      // Auto-save session immediately to IndexedDB so page reload or update NEVER loses data!
+      const newSessionId = `session_${Date.now()}`;
+      try {
+        await saveExtractionSession({
+          id: newSessionId,
+          fileName: file.name,
+          sourceType: file.name.split(".").pop()?.toLowerCase() || "pdf",
+          images: finalImages,
+        });
+        localStorage.setItem("bf_last_active_extraction_id", newSessionId);
+        setIsSaved(true);
+      } catch (saveErr) {
+        console.warn("[ImageExtractor] initial auto-save error:", saveErr);
+      }
+
+      playSuccess();
+      toast.success(`تم استخراج ${extracted.length} صورة، وقبول ${heuristicResult.kept.filter(i => i.status === "kept").length} صورة علمية!`);
+      setActiveTab("review");
+    } catch (err) {
+      console.error("[ImageExtractor] Extraction failed:", err);
+      toast.error(err?.message || "حدث خطأ أثناء استخراج الصور من الملف.");
+    } finally {
+      setIsProcessing(false);
+      setProgress(null);
+    }
+  };
+
+  // ── 2. Update Image State & Persist to Active Session ───────────────────────
+  const handleUpdateImage = (id, updates) => {
+    setImages((prev) => {
+      const next = prev.map((img) => (img.id === id ? { ...img, ...updates } : img));
+      const activeId = localStorage.getItem("bf_last_active_extraction_id");
+      if (activeId) {
+        saveExtractionSession({
+          id: activeId,
+          fileName,
+          sourceType,
+          images: next,
+        }).catch(() => {});
+      }
+      return next;
+    });
+  };
+
+  const handleStartNewSession = () => {
+    playClick();
+    setImages([]);
+    setFileName("");
+    setIsSaved(false);
+    setSavedQuiz(null);
+    localStorage.removeItem("bf_last_active_extraction_id");
+    localStorage.setItem("bf_session_cleared", "true");
+    practicalQuizJob.clearJob();
+    setActiveTab("upload");
+    toast.info(isEn ? "Started fresh session" : "تم بدء جلسة جديدة جاهزة للرفع ✨");
+  };
+
+  const handleBulkUpdateStatus = (status) => {
+    playClick();
+    setImages((prev) => prev.map((img) => ({ ...img, status })));
+    toast.success(`تم تعيين حالة جميع الصور إلى: ${status === "kept" ? "مقبولة" : "مستبعدة"}`);
+  };
+
+  // ── 3. Pipeline: Generate AI Quizzes ───────────────────────────────────────
+  const handleGenerateQuiz = async ({ totalQuestions = 10, difficulty = "mixed", language = "auto" }) => {
+    const keptList = images.filter((img) => img.status !== "rejected");
+    if (!keptList.length) {
+      toast.error("يرجى قبول صورة واحدة على الأقل لتوليد الكويز.");
+      return;
+    }
+
+    const targetTotal = Math.max(1, Math.min(100, Number(totalQuestions) || 10));
+
+    // Rank images by clinical importance & context density
+    const scoredImages = keptList.map((img) => {
+      const text = (img.contextText || "").toLowerCase();
+      let score = Math.min(text.length, 300);
+      const clinicalKeywords = [
+        "ecg", "ekg", "x-ray", "ct", "mri", "ultrasound", "us", "pathology", "histology",
+        "syndrome", "triad", "diagnosis", "sign", "symptom", "treatment", "management",
+        "emergency", "shock", "fracture", "artery", "nerve", "lesion", "carcinoma", "staging",
+        "تشخيص", "أشعة", "رسم قلب", "علاج", "عرض", "علامة", "متلازمة", "طوارئ", "كسر", "شريان", "وريد"
+      ];
+      clinicalKeywords.forEach((kw) => {
+        if (text.includes(kw)) score += 60;
+      });
+      return { img, score };
+    });
+
+    // Sort descending by clinical relevance score
+    scoredImages.sort((a, b) => b.score - a.score);
+
+    // Plan distribution of questions
+    const allocation = [];
+    if (targetTotal <= scoredImages.length) {
+      // Pick top targetTotal clinically significant images, 1 question each
+      for (let i = 0; i < targetTotal; i++) {
+        allocation.push({ img: scoredImages[i].img, count: 1 });
+      }
+    } else {
+      // More questions than images: distribute across top images
+      const counts = scoredImages.map(() => 1);
+      let remaining = targetTotal - scoredImages.length;
+      let idx = 0;
+      while (remaining > 0) {
+        counts[idx % scoredImages.length] += 1;
+        remaining--;
+        idx++;
+      }
+      for (let i = 0; i < scoredImages.length; i++) {
+        allocation.push({ img: scoredImages[i].img, count: counts[i] });
+      }
+    }
+
+    // Delegate to global background manager (runs concurrently, updates widget, auto-saves to IndexedDB)
+    practicalQuizJob.startJob({
+      images,
+      allocation,
+      targetTotal,
+      difficulty,
+      language,
+      fileName,
+      profile,
+    });
+  };
+
+  // ── 4. Save to Local IndexedDB Library ─────────────────────────────────────
+  const handleSaveToLibrary = async () => {
+    const kept = images.filter((img) => img.status !== "rejected");
+    if (!kept.length) throw new Error("لا توجد صور مقبولة للحفظ");
+
+    await saveExtractionSession({
+      id: `session_${Date.now()}`,
+      fileName,
+      sourceType,
+      images,
+    });
+
+    setIsSaved(true);
+    toast.success("تم حفظ الحزمة في مكتبتك المحلية بنجاح! 📚");
+  };
+
+  // ── High-Speed In-Memory Cache for Session Images ─────────────────────────
+  const optimizedImageCache = React.useRef(new Map()).current;
+
+  // ── Helper: Parallel & Lightweight Image Processor (~20KB WebP/JPEG) ──────
+  const optimizeAndUploadImage = async (dataUrl) => {
+    if (!dataUrl) return "";
+    if (dataUrl.startsWith("http://") || dataUrl.startsWith("https://")) return dataUrl;
+    if (optimizedImageCache.has(dataUrl)) return optimizedImageCache.get(dataUrl);
+
+    // 1. Fast Client-side Canvas Compression (Max 480px, ~20KB) - instantaneous
+    const compressed = await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const MAX = 480;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) {
+            height = Math.round((height * MAX) / width);
+            width = MAX;
+          } else {
+            width = Math.round((width * MAX) / height);
+            height = MAX;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return resolve(dataUrl);
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+
+    // 2. Quick non-blocking attempt to CDN with 2s timeout (auth required)
+    let finalUrl = compressed;
+    try {
+      const { auth } = await import("@/lib/firebase");
+      const token = auth?.currentUser ? await auth.currentUser.getIdToken() : "";
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const res = await fetch(apiUrl("upload-media"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          dataUrl: compressed,
+          filename: `quiz_img_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`,
+          mimeType: "image/jpeg",
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.url) finalUrl = resolveMediaUrl(data.url);
+      }
+    } catch {}
+
+    optimizedImageCache.set(dataUrl, finalUrl);
+    return finalUrl;
+  };
+
+  // ── 4b. Save Quiz to Cloud Account (StandaloneQuizzes) — High Throughput ──
+  const handleSaveToPlatformQuiz = async () => {
+    const keptList = images.filter((img) => img.status !== "rejected" && Array.isArray(img.quiz) && img.quiz.length > 0);
+    if (!keptList.length) {
+      toast.error("لا توجد أسئلة كويز مولدة للحفظ في المنصة");
+      return null;
+    }
+
+    if (savedQuiz?.id) {
+      toast.success("الكويز محفوظ بالفعل في حسابك وبنك الكويزات! 🎯", {
+        action: {
+          label: "فتح الكويز",
+          onClick: () => navigate(`/q/${savedQuiz.id}`),
+        },
+      });
+      return savedQuiz;
+    }
+
+    const user = profile || (await base44.auth.me().catch(() => null));
+    if (!user) {
+      toast.error("سجل دخولك أولاً لحفظ الكويز في حسابك");
+      return null;
+    }
+
+    const toastId = toast.loading("جاري حفظ الكويز في المنصة بسرعة فائقة... ⚡");
+
+    try {
+      // Parallelize image optimization for instant processing
+      const uniqueUrls = new Map();
+      await Promise.all(
+        keptList.map(async (img) => {
+          if (!uniqueUrls.has(img.id)) {
+            const url = await optimizeAndUploadImage(img.cloudImageUrl || img.thumbnailDataUrl);
+            uniqueUrls.set(img.id, url);
+            img.cloudImageUrl = url;
+          }
+        })
+      );
+
+      const allQuestions = [];
+      keptList.forEach((img) => {
+        (img.quiz || []).forEach((q) => {
+          const correctIdx = normalizeCorrectIndex(q, q.options);
+          allQuestions.push({
+            question: q.question,
+            options: q.options,
+            correct_index: correctIdx,
+            correctIndex: correctIdx,
+            correct_answer: correctIdx,
+            explanation: q.explanation || "",
+            image_url: uniqueUrls.get(img.id) || img.thumbnailDataUrl,
+            source_page: img.pageOrSlideNumber,
+            category: img.aiClassification?.category || "صورة سريرية",
+          });
+        });
+      });
+
+      const cleanTitle = `كويز عملي: ${fileName.replace(/\.[^/.]+$/, "") || "صور سريرية"}`;
+      const quiz = await base44.entities.StandaloneQuiz.create({
+        title: cleanTitle,
+        owner_id: user.id,
+        owner_name: user.full_name || user.email || "محارب Zeta",
+        questions: allQuestions,
+        is_public: true,
+        show_explanations: true,
+        quiz_mode: "practical_osce",
+        quiz_profile: "clinical_ospe",
+        source_file: fileName,
+        created_date: new Date().toISOString(),
+      });
+
+      setSavedQuiz(quiz);
+
+      toast.success("تم حفظ الكويز في حسابك وبنك الكويزات بنجاح! 🎯", {
+        id: toastId,
+        action: {
+          label: "فتح الكويز",
+          onClick: () => navigate(`/q/${quiz.id}`),
+        },
+      });
+
+      return quiz;
+    } catch (err) {
+      console.error(err);
+      toast.error("فشل حفظ الكويز. يرجى المحاولة مرة أخرى.", { id: toastId });
+      return null;
+    }
+  };
+
+  // ── 4c. Export Quiz to Telegram Bot (@black_fighters_bot) ────────────────────
+  const handleExportTelegram = async () => {
+    const keptList = images.filter((img) => img.status !== "rejected" && Array.isArray(img.quiz) && img.quiz.length > 0);
+    if (!keptList.length) {
+      toast.error("لا توجد أسئلة كويز مولدة للتصدير إلى التيليجرام");
+      return;
+    }
+
+    const user = profile || (await base44.auth.me().catch(() => null));
+    if (!user) {
+      toast.error("سجل دخولك أولاً للتصدير");
+      return;
+    }
+
+    const toastId = toast.loading("جاري تجهيز وتصدير الكويز للتيليجرام... 🤖");
+
+    try {
+      // Parallelize image preparation
+      const uniqueUrls = new Map();
+      await Promise.all(
+        keptList.map(async (img) => {
+          if (!uniqueUrls.has(img.id)) {
+            const url = await optimizeAndUploadImage(img.cloudImageUrl || img.thumbnailDataUrl);
+            uniqueUrls.set(img.id, url);
+            img.cloudImageUrl = url;
+          }
+        })
+      );
+
+      const allQuestions = [];
+      keptList.forEach((img) => {
+        (img.quiz || []).forEach((q) => {
+          const correctIdx = normalizeCorrectIndex(q, q.options);
+          allQuestions.push({
+            question: q.question,
+            options: q.options,
+            correct_index: correctIdx,
+            correctIndex: correctIdx,
+            correct_answer: correctIdx,
+            explanation: q.explanation || "",
+            image_url: uniqueUrls.get(img.id) || img.thumbnailDataUrl,
+            source_page: img.pageOrSlideNumber,
+            category: img.aiClassification?.category || "صورة سريرية",
+          });
+        });
+      });
+
+      const cleanTitle = `كويز عملي: ${fileName.replace(/\.[^/.]+$/, "") || "صور سريرية"}`;
+
+      // Auto-save to StandaloneQuiz if not already saved
+      let currentQuiz = savedQuiz;
+      if (!currentQuiz?.id) {
+        try {
+          currentQuiz = await base44.entities.StandaloneQuiz.create({
+            title: cleanTitle,
+            owner_id: user.id,
+            owner_name: user.full_name || user.email || "محارب Zeta",
+            questions: allQuestions,
+            is_public: true,
+            show_explanations: true,
+            quiz_mode: "practical_osce",
+            quiz_profile: "clinical_ospe",
+            source_file: fileName,
+            created_date: new Date().toISOString(),
+          });
+          setSavedQuiz(currentQuiz);
+        } catch (saveErr) {
+          console.warn("Auto-save quiz before telegram export failed:", saveErr);
+        }
+      }
+
+      // Server-side export: bot token + chat-id lookup never touch the client
+      const res = await invokeSecureFunction("export-to-telegram", {
+        title: cleanTitle,
+        type: "quiz",
+        questions: allQuestions,
+        quizId: currentQuiz?.id,
+        onProgress: (current, total) => {
+          toast.loading(`جاري تصدير السؤال ${current} من ${total} للبوت... 🤖`, { id: toastId });
+        },
+      });
+
+      if (res.data?.success) {
+        toast.success(res.data.message || "تم تصدير الأسئلة إلى التيليجرام بنجاح! تفقد البوت 🤖", {
+          id: toastId,
+          action: currentQuiz?.id
+            ? {
+                label: "فتح البوت",
+                onClick: () => window.open(`https://t.me/black_fighters_bot?start=quiz_${currentQuiz.id}`, "_blank"),
+              }
+            : undefined,
+        });
+      } else if (res.data?.error === "NO_TELEGRAM_LINKED") {
+        toast.error(res.data.message, {
+          id: toastId,
+          action: {
+            label: "ربط البوت",
+            onClick: () => window.open(`https://t.me/black_fighters_bot?start=link_${user?.id || "me"}`, "_blank"),
+          },
+        });
+      } else {
+        toast.error(res.data?.message || "فشل التصدير للتيليجرام", { id: toastId });
+      }
+    } catch (err) {
+      console.error(err);
+      const msg = err?.message || "";
+      if (msg.includes("غير مربوط") || msg.includes("NO_TELEGRAM_LINKED")) {
+        toast.error(msg, {
+          id: toastId,
+          action: {
+            label: "ربط البوت",
+            onClick: () => window.open(`https://t.me/black_fighters_bot?start=link_${user?.id || "me"}`, "_blank"),
+          },
+        });
+      } else {
+        toast.error(msg || "فشل التصدير للتيليجرام", { id: toastId });
+      }
+    }
+  };
+
+  // ── 5. Restore from Saved Library ──────────────────────────────────────────
+  const handleLoadSession = (session) => {
+    playClick();
+    localStorage.removeItem("bf_session_cleared");
+    setImages(session.images || []);
+    setFileName(session.fileName || "حزمة محفوظة");
+    setSourceType(session.sourceType || "pdf");
+    setIsSaved(true);
+    toast.success(`تم استرجاع حزمة: ${session.fileName}`);
+    setActiveTab("review");
+  };
+
+  // Counts (dynamic and fully reset when session resets)
+  const keptCount = images.filter((img) => img.status !== "rejected").length;
+  const quizzesCount = images.filter((img) => img.quiz?.length > 0).length;
+
+  return (
+    <div className="min-h-screen pb-16 space-y-8" dir={dir}>
+      {/* Top Banner Navigation - Dark Glassmorphism Header */}
+      <div className="flex flex-col gap-5 w-full p-5 sm:p-6 rounded-2xl shadow-2xl bg-slate-950/80 backdrop-blur-md border border-white/10 overflow-hidden max-w-full">
+        
+        {/* Row 1: Identity & Titles (Text Full Width) */}
+        <div className="flex items-center gap-4 w-full">
+          {/* High-fidelity App Icon */}
+          <div className="w-13 h-13 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner p-2.5">
+            <AnimatedPracticalQuiz size={32} />
+          </div>
+
+          <div className="flex flex-col gap-1 text-start min-w-0">
+            {/* Top of Column: Tiny Glowing Badge "OSCE / OSPE" */}
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[10px] font-mono font-bold tracking-wider mb-1 w-fit shadow-sm shadow-purple-500/10 shrink-0">
+              <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
+              <span>OSCE / OSPE • CLINICAL EXAM</span>
+            </div>
+
+            {/* Middle: Main Title - Signature editorial steel-white headline gradient and heading-display */}
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-foreground studio-headline-gradient heading-display tracking-tight break-words">
+              <span>{isEn ? "Practical Quiz Generator (OSCE / OSPE)" : "أنشئ كويز عملي (أوسكي / أوسبي بالصور)"}</span>
+            </h1>
+
+            {/* Bottom: Subtitle */}
+            <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+              {isEn 
+                ? "Extract lecture images and generate practical interactive visual quizzes"
+                : "ارفع المحاضرة أو الصور واستخرج الأشكال التوضيحية لتوليد كويزات عملية تفاعلية"}
+            </p>
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="border-t border-white/10 w-full" />
+
+        {/* Row 2: Action Hub Buttons (Underneath the Text) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+          {/* Grouped Tools: Subtle Inner Dark Pill Container */}
+          <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-sm">
+            {/* 1. رفع ملف */}
+            <button
+              type="button"
+              onClick={() => { playClick(); setActiveTab("upload"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
+                activeTab === "upload"
+                  ? "bg-slate-800 text-white font-semibold shadow-sm"
+                  : "text-gray-300 hover:text-white"
+              )}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>{isEn ? "Upload File" : "رفع ملف"}</span>
+            </button>
+
+            {/* 2. مراجعة الصور */}
+            <button
+              type="button"
+              onClick={() => { playClick(); setActiveTab("review"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
+                activeTab === "review"
+                  ? "bg-slate-800 text-white font-semibold shadow-sm"
+                  : "text-gray-300 hover:text-white"
+              )}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>{isEn ? `Review Images (${keptCount})` : `مراجعة الصور (${keptCount})`}</span>
+            </button>
+
+            {/* 3. إعداد الكويز */}
+            <button
+              type="button"
+              onClick={() => { playClick(); setActiveTab("quiz_controls"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
+                activeTab === "quiz_controls"
+                  ? "bg-slate-800 text-white font-semibold shadow-sm"
+                  : "text-gray-300 hover:text-white"
+              )}
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              <span>{isEn ? "Setup Quiz" : "إعداد الكويز"}</span>
+            </button>
+
+            {/* 4. تصدير وحفظ */}
+            <button
+              type="button"
+              onClick={() => { playClick(); setActiveTab("export"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
+                activeTab === "export"
+                  ? "bg-slate-800 text-white font-semibold shadow-sm"
+                  : "text-gray-300 hover:text-white"
+              )}
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{isEn ? "Export & Save" : "تصدير وحفظ"}</span>
+            </button>
+
+            {/* 5. مكتبتي */}
+            <button
+              type="button"
+              onClick={() => { playClick(); setActiveTab("library"); }}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
+                activeTab === "library"
+                  ? "bg-slate-800 text-white font-semibold shadow-sm"
+                  : "text-gray-300 hover:text-white"
+              )}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>{isEn ? "My Library" : "مكتبتي"}</span>
+            </button>
+          </div>
+
+          {/* Quick Actions (New Session & Take Quiz) */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Button 2 (Secondary Action): جلسة جديدة */}
+            <button
+              type="button"
+              onClick={handleStartNewSession}
+              className="border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-100 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title={isEn ? "Start New Session" : "جلسة جديدة"}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>{isEn ? "New Session" : "جلسة جديدة"}</span>
+            </button>
+
+            {/* Button 1 (Primary): حل الكويز */}
+            <button
+              type="button"
+              onClick={() => {
+                playClick();
+                if (quizzesCount > 0) {
+                  setActiveTab("quiz_player");
+                } else {
+                  toast.info(
+                    isEn
+                      ? "No practical quizzes available yet in this session. Please upload images and generate a quiz first ✨"
+                      : "لا يوجد كويز متاح في هذه الجلسة. يرجى رفع الصور وتوليد الكويز أولاً ✨"
+                  );
+                  if (images.length > 0) {
+                    setActiveTab("quiz_controls");
+                  } else {
+                    setActiveTab("upload");
+                  }
+                }
+              }}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-[0_0_15px_rgba(16,185,129,0.5)] px-4 py-2 rounded-xl text-xs whitespace-nowrap transition duration-200 active:scale-95 flex items-center gap-2 cursor-pointer shrink-0"
+              title={isEn ? "Take Quiz" : "حل الكويز"}
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>{isEn ? `Take Quiz (${quizzesCount})` : `حل الكويز (${quizzesCount})`}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Workspace Body - Direct reliable tab rendering without mode='wait' unmounting deadlock */}
+      <div className="w-full">
+        {activeTab === "upload" && (
+          <motion.div
+            key="upload"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ImageExtractorUpload
+              onStartExtraction={handleStartExtraction}
+              isProcessing={isProcessing}
+              progress={progress}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === "review" && (
+          <motion.div
+            key="review"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ImageReviewGrid
+              images={images}
+              fileName={fileName}
+              onUpdateImage={handleUpdateImage}
+              onProceedToQuiz={() => {
+                playClick();
+                setActiveTab("quiz_controls");
+              }}
+              onBulkUpdateStatus={handleBulkUpdateStatus}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === "quiz_controls" && (
+          <motion.div
+            key="quiz_controls"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ImageQuizControls
+              keptImages={images.filter((img) => img?.status !== "rejected")}
+              onGenerateQuiz={handleGenerateQuiz}
+              isGenerating={isGeneratingQuiz}
+              generationProgress={quizProgress}
+              onBackToReview={() => setActiveTab("review")}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === "quiz_player" && (
+          <motion.div
+            key="quiz_player"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ImageQuizPlayer
+              imagesWithQuizzes={images.filter((img) => img?.status !== "rejected" && img?.quiz?.length > 0)}
+              onExportPdf={(p) => exportToPdf(images, fileName, p)}
+              onExportPptx={(p) => exportToPptx(images, fileName, p)}
+              onExportJson={() => exportToQuizJson(images, fileName)}
+              onSaveToPlatformQuiz={handleSaveToPlatformQuiz}
+              onExportTelegram={handleExportTelegram}
+              onReset={() => setActiveTab("review")}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === "export" && (
+          <motion.div
+            key="export"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ImageExportPanel
+              images={images}
+              fileName={fileName}
+              onExportZip={() => exportImagesToZip(images, fileName)}
+              onExportPptx={(p) => exportToPptx(images, fileName, p)}
+              onExportPdf={(p) => exportToPdf(images, fileName, p)}
+              onExportJson={() => exportToQuizJson(images, fileName)}
+              onSaveToLibrary={handleSaveToLibrary}
+              onSaveToPlatformQuiz={handleSaveToPlatformQuiz}
+              onExportTelegram={handleExportTelegram}
+              isSaved={isSaved}
+            />
+          </motion.div>
+        )}
+
+        {activeTab === "library" && (
+          <motion.div
+            key="library"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ImageLibrary
+              onLoadSession={handleLoadSession}
+              onNewExtraction={() => setActiveTab("upload")}
+            />
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
