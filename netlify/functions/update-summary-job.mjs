@@ -4,6 +4,7 @@ import {
   cleanChunkStatus, cleanJobStatus, getJobArtifacts, getOwnedJob, serializeSnapshot,
   validateChunkOutput, validateJobResult, FieldValue,
 } from "./_shared/summary-documents.mjs";
+import { notifySummaryReady } from "./_shared/telegram-sync.mjs";
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "METHOD_NOT_ALLOWED" });
@@ -13,6 +14,12 @@ export const handler = async (event) => {
     const { ref } = await getOwnedJob(user.uid, body.jobId);
     const chunkOutput = validateChunkOutput(body.chunkOutput);
     const resultOutput = validateJobResult(body.resultOutput);
+
+    // Only the run that MOVED the job into `completed` notifies the student —
+    // otherwise every later poll of the same job would send another message.
+    let justCompleted = false;
+    let jobTitle = "";
+
     await adminDb.runTransaction(async (transaction) => {
       const current = await transaction.get(ref);
       const data = current.data();
@@ -56,8 +63,20 @@ export const handler = async (event) => {
         updated_at: FieldValue.serverTimestamp(),
         ...(status === "completed" ? { completed_at: FieldValue.serverTimestamp(), progress: 100 } : {}),
       });
+      if (status === "completed" && data.status !== "completed") {
+        justCompleted = true;
+        jobTitle = String(data.title || data.course_title || "");
+      }
     });
     const artifacts = await getJobArtifacts(ref);
+
+    if (justCompleted) {
+      // Best-effort, budget-limited by telegram-notify: a Telegram failure must
+      // never fail the save that the student is waiting on.
+      notifySummaryReady({ uid: user.uid, documentId: body.jobId, title: jobTitle })
+        .catch((err) => console.warn("[update-summary-job] notify skipped:", err?.message));
+    }
+
     return json(200, { job: serializeSnapshot(await ref.get()), ...artifacts });
   } catch (error) {
     return handleError(error);

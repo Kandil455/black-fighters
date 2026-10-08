@@ -8,6 +8,14 @@ import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { AVATAR_STYLES, AVATAR_FRAMES, ownsFrame } from "@/lib/avatars";
 import { useLocale } from "@/lib/LocaleContext";
 
+/** Same initials rule the generated avatar uses, so the swatch previews match. */
+function avatarInitials(name = "") {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "؟";
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts[0].slice(0, 2).toUpperCase();
+}
+
 // Premium profile avatar + animated frame selection
 export default function AvatarPicker({ profile, onSaved }) {
   const { locale, dir } = useLocale();
@@ -58,19 +66,44 @@ export default function AvatarPicker({ profile, onSaved }) {
 
       {/* Color picker — no AI images */}
       <p className="text-sm font-bold mb-3 flex items-center gap-1.5"><Palette className="w-3.5 h-3.5" /> {isEn ? "Avatar Color" : "لون الأفاتار"}</p>
-      <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 mb-6">
-        {AVATAR_STYLES.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setAvatar(s.gradient)}
-            className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-colors flex items-center justify-center ${avatar === s.gradient ? "border-accent neon-glow-purple scale-105" : "border-border hover:border-accent/50"}`}
-            style={{ background: s.gradient }}
-            title={s.label}
-          >
-            <span className="text-white font-black text-lg drop-shadow">{(profile?.full_name || "?")[0]?.toUpperCase() || "؟"}</span>
-            {avatar === s.gradient && <span className="absolute inset-0 bg-white/15 flex items-center justify-center"><Check className="w-5 h-5 text-white drop-shadow" /></span>}
-          </button>
-        ))}
+      {/*
+        Each swatch used to render the user's initial on a colour tile, so an
+        "ADMIN" account saw a wall of identical "A" tiles — it read as a broken
+        keyboard, not a chooser. The tile now previews the ACTUAL initials avatar
+        (same component as the header) and carries its colour name, so the choice
+        is legible at a glance.
+      */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-6">
+        {AVATAR_STYLES.map((s) => {
+          const selected = avatar === s.gradient;
+          const initials = avatarInitials(profile?.full_name || profile?.email || "");
+          return (
+            <button
+              key={s.id}
+              onClick={() => setAvatar(s.gradient)}
+              aria-pressed={selected}
+              aria-label={s.label}
+              className={`group relative flex flex-col items-center gap-2 rounded-2xl border p-2.5 transition-colors ${
+                selected ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+              }`}
+            >
+              <span
+                className="flex h-12 w-12 items-center justify-center rounded-full text-base font-black text-white"
+                style={{ background: s.gradient }}
+              >
+                {initials}
+              </span>
+              <span className={`text-[10px] font-bold uppercase tracking-wide ${selected ? "text-primary" : "text-muted-foreground"}`}>
+                {s.label}
+              </span>
+              {selected && (
+                <span className="absolute end-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[#03150c]">
+                  <Check className="h-2.5 w-2.5" />
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Frame selector */}

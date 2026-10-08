@@ -1041,104 +1041,55 @@ export default function YouTubeAIStudio() {
 
   return (
     <div dir={dir || (isEn ? "ltr" : "rtl")} className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 text-slate-100">
-      {/* Top Banner - Structured 12-Col Grid Card with YouTube Identity */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#0c0f1d] via-[#101426] to-[#160b13] border border-red-500/25 shadow-2xl shadow-red-950/20">
-        {/* Subtle Ambient Red Glows */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-red-600/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* YouTube Watermark Logo in Background */}
-        <div className="absolute -left-10 -bottom-10 opacity-5 pointer-events-none select-none text-red-500">
-          <svg width="260" height="260" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-          </svg>
-        </div>
-
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center w-full">
-          {/* 2. Main Title & Features Grid */}
-          <div className="col-span-1 lg:col-span-7 xl:col-span-8 flex flex-col gap-4 text-start min-w-0">
-            {/* Top Badge with Official Red YouTube Icon */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-950/40 border border-red-500/30 text-red-400 font-mono text-xs font-bold w-fit shadow-md shadow-red-950/30">
-              <svg width="18" height="13" viewBox="0 0 28 20" fill="none" className="shrink-0">
-                <rect width="28" height="20" rx="6" fill="#FF0000" />
-                <path d="M11.5 6L18.5 10L11.5 14V6Z" fill="white" />
-              </svg>
-              <span>BLACK FIGHTERS YOUTUBE MASTER AI ▶️</span>
-            </div>
-
-            {/* Main Title with YouTube Vector Badge */}
+      {/* Header — was a red-gradient "MASTER AI" console with three blurred orbs, a
+          giant watermark logo and five coloured feature pills. Students don't need
+          a control room; they need one clear promise and the input. Now: a plain
+          card, the platform accent, and a single line of what they get. */}
+      <header className="relative overflow-hidden rounded-3xl border border-border bg-[#0E1117] p-6 sm:p-7">
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)] shrink-0">
-                <Youtube className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-[#131820] text-primary">
+                <Youtube className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                  {isEn ? "YouTube lecture" : "محاضرة يوتيوب"}
+                </p>
+                <h1 className="text-xl font-black leading-snug text-foreground sm:text-2xl">
+                  {isEn ? "Turn a lecture into notes" : "حوّل المحاضرة لمذكرة"}
+                </h1>
               </div>
-              <h1 className="text-xl sm:text-3xl lg:text-4xl font-black text-foreground studio-headline-gradient heading-display tracking-normal leading-tight break-words">
-                {isEn ? "YouTube Lecture Studio" : "استوديو محاضرات اليوتيوب"}
-              </h1>
             </div>
-
-            {/* Subtitle */}
-            <p className="text-sm sm:text-base text-muted-foreground font-medium leading-relaxed">
+            <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-muted-foreground">
               {isEn
-                ? "Turn any YouTube lecture into complete clinical notes & MCQ question bank — in minutes."
-                : "حوّل أي محاضرة على يوتيوب إلى مذكرة كاملة وبنك أسئلة – في دقائق."}
+                ? "Paste the link: you get structured notes and an MCQ bank you can study from — no setup."
+                : "الصق الرابط وتاخد مذكرة مرتبة + بنك أسئلة تذاكر منه — من غير أي إعداد."}
             </p>
-
-            {/* The Features Grid */}
-            <div className="flex flex-wrap items-center gap-2 mt-2 w-full">
-              <span className="px-3 py-1.5 rounded-xl bg-teal-500/10 hover:bg-teal-500/15 border border-teal-500/30 text-teal-300 text-xs font-bold transition inline-flex items-center gap-1.5 whitespace-nowrap">
-                <span className="shrink-0">📝</span>
-                <span>{isEn ? "Clinical Lecture Notes" : "مذكرة شرح إكلينيكي بالعربي"}</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-bold transition inline-flex items-center gap-1.5 whitespace-nowrap">
-                <span className="shrink-0">📘</span>
-                <span>{isEn ? "High-Yield Core Notes" : "Core Notes بالإنجليزي"}</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition inline-flex items-center gap-1.5 whitespace-nowrap">
-                <span className="shrink-0">🎯</span>
-                <span>{isEn ? "Interactive MCQ Bank" : "بنك أسئلة MCQ تفاعلي"}</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold transition inline-flex items-center gap-1.5 whitespace-nowrap">
-                <span className="shrink-0">💬</span>
-                <span>{isEn ? "Instant AI Refiner Chat" : "شات تعديل فوري"}</span>
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold transition inline-flex items-center gap-1.5 whitespace-nowrap">
-                <span className="shrink-0">⚡</span>
-                <span>{isEn ? "One-Click PDF + PPTX" : "PDF + PPTX بضغطة"}</span>
-              </span>
-            </div>
           </div>
 
-          {/* 3. Actions & Balance */}
-          <div className="col-span-1 lg:col-span-5 xl:col-span-4 flex flex-col justify-center gap-3 w-full min-w-0 lg:ms-auto max-w-md">
-            {/* Balance & Recharge Row */}
-            <div className="flex flex-col sm:flex-row items-stretch gap-2.5 w-full">
-              {/* Balance Box */}
-              <div className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold shadow-sm whitespace-nowrap">
-                <Coins className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>{isEn ? `Balance: ${userCredits ?? 500} Cr` : `رصيدك: ${userCredits ?? 500} كريدت`}</span>
-              </div>
-
-              {/* Recharge Button */}
-              <Link
-                to="/subscriptions"
-                className="shrink-0 whitespace-nowrap px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-600/40 border border-amber-500/40 text-amber-200 text-xs font-extrabold text-center transition shadow-[0_0_15px_rgba(245,158,11,0.2)] active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>{isEn ? "Recharge ⚡" : "شحن كريدتس ⚡"}</span>
-              </Link>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col lg:items-stretch">
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-[#131820] px-3.5 py-2.5 text-xs font-bold text-amber-300">
+              <Coins className="h-4 w-4" />
+              <span>{isEn ? `${userCredits ?? 0} credits` : `رصيدك: ${userCredits ?? 0} كريدت`}</span>
             </div>
-
-            {/* Demo Video Button */}
+            <Link
+              to="/subscriptions"
+              className="rounded-xl border border-border px-3.5 py-2.5 text-center text-xs font-bold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              {isEn ? "Top up" : "شحن الكريدتس"}
+            </Link>
             <button
               type="button"
               onClick={handleQuickPasteDemo}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-red-950/40 hover:bg-red-900/50 border border-red-500/30 hover:border-red-500/50 text-red-300 hover:text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-sm active:scale-95 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border px-3.5 py-2.5 text-xs font-bold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
             >
-              <PlayCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>{isEn ? "Demo Video (Dr. Eslam Saeed) ▶️" : "فيديو تجريبي (د. إسلام سعيد) ▶️"}</span>
+              <PlayCircle className="h-4 w-4" />
+              {isEn ? "Try an example" : "جرّب مثال"}
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Input Form */}
       {!result && (
@@ -1153,7 +1104,7 @@ export default function YouTubeAIStudio() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={isEn ? "https://youtu.be/... or https://www.youtube.com/watch?v=..." : "https://youtu.be/... أو https://www.youtube.com/watch?v=..."}
-                className="bg-white/[0.03] border-white/10 text-white font-mono text-sm py-5 focus-visible:ring-red-500/50"
+                className="bg-white/[0.03] border-white/10 text-white font-mono text-sm py-5 focus-visible:ring-primary/50"
                 dir="ltr"
                 disabled={isProcessing}
               />
@@ -1397,7 +1348,7 @@ export default function YouTubeAIStudio() {
           <Button
             type="submit"
             disabled={isProcessing || !url.trim()}
-            className="w-full h-auto min-h-[56px] py-3.5 px-4 sm:px-6 text-sm sm:text-base font-black whitespace-normal break-words leading-relaxed bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white shadow-xl shadow-red-600/25 rounded-2xl gap-2 cursor-pointer transition duration-200"
+            className="w-full h-auto min-h-[56px] py-3.5 px-4 sm:px-6 text-sm sm:text-base font-black whitespace-normal break-words leading-relaxed bg-primary hover:brightness-105 text-[#03150c] rounded-2xl gap-2 cursor-pointer transition"
           >
             {isProcessing ? (
               <div className="flex items-center justify-center gap-2.5 text-center flex-wrap w-full py-1">
@@ -1750,7 +1701,7 @@ export default function YouTubeAIStudio() {
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
                         placeholder={isEn ? "Enter your prompt for AI (e.g. Add comparison table, calculate dosage...)" : "اكتب طلبك للذكاء الاصطناعي (مثال: أضف جدول مقارنة لكذا، احسب جرعة كذا، عدل كذا...)"}
-                        className="bg-white/[0.04] border-white/15 text-white text-xs py-4 flex-1 focus-visible:ring-red-500/50"
+                        className="bg-white/[0.04] border-white/15 text-white text-xs py-4 flex-1 focus-visible:ring-primary/50"
                         disabled={isModifying}
                       />
                       <Button

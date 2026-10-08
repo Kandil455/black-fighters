@@ -3,12 +3,14 @@ import * as SwitchPrimitives from "@radix-ui/react-switch";
 import { playClick } from "@/lib/sounds";
 import { cn } from "@/lib/utils";
 
-const LazyLottieSwitch = React.lazy(() => import("./LottieSwitch"));
-
 /**
  * Switch Component — Black Fighters Edition
  * Guaranteed 100% RTL & LTR alignment. Never overflows the track bounds.
- * Supports multiple design variants: 'default' (iOS Neon), 'cyberpunk', and 'lottie'.
+ * Variants: 'default' (iOS pill) and 'cyberpunk'.
+ *
+ * The 'lottie' variant was removed with the Lottie icon system: it lazy-loaded a
+ * 2.4 MB animation JSON to draw a toggle knob that a transform transition does
+ * better and 100x cheaper on weak devices.
  */
 const Switch = React.forwardRef(
   (
@@ -25,7 +27,7 @@ const Switch = React.forwardRef(
     },
     ref
   ) => {
-    // Internal state tracking for custom/lottie variants if uncontrolled
+    // Internal state tracking for custom variants if uncontrolled
     const [isChecked, setIsChecked] = React.useState(
       checked !== undefined ? checked : defaultChecked || false
     );
@@ -42,22 +44,6 @@ const Switch = React.forwardRef(
       setIsChecked(nextVal);
       onCheckedChange?.(nextVal);
     };
-
-    // ── Variant: Lottie Animated Switch ──
-    if (variant === "lottie") {
-      return (
-        <React.Suspense fallback={<div className="w-11 h-6 rounded-full bg-secondary/50 animate-pulse inline-block" />}>
-          <LazyLottieSwitch
-            isChecked={isChecked}
-            disabled={disabled}
-            handleToggle={handleToggle}
-            className={className}
-            forwardedRef={ref}
-            {...props}
-          />
-        </React.Suspense>
-      );
-    }
 
     // ── Variant: Cyberpunk Neon Fighter Switch ──
     if (variant === "cyberpunk") {

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getDevice3DCapability } from "@/lib/webglQuality";
+import { getDevice3DCapability, getDeviceTier, resetDeviceTierCache } from "@/lib/webglQuality";
 
 const STORAGE_KEY = "iiiak_performance_mode";
 const HEAVY_3D_KEY = "iiiak_heavy_3d";
@@ -133,20 +133,42 @@ export function PerformanceProvider({ children }) {
   const heavyEnabled =
     heavy3d === "on" ? true : heavy3d === "off" ? false : !heavy3dAuto;
 
+  // One device tier for every heavy feature (blur, animation, 3D, large media).
+  const [tier, setTier] = useState(() => getDeviceTier().tier);
+
   useEffect(() => {
     document.documentElement.dataset.performance = isPowerSaver ? "saver" : "full";
   }, [isPowerSaver]);
+
+  useEffect(() => {
+    document.documentElement.dataset.tier = tier;
+  }, [tier]);
+
+  // A connection change can move a device between tiers (e.g. saveData switched
+  // on mid-session) — re-resolve so the CSS/feature gates follow it.
+  useEffect(() => {
+    const connection = navigator.connection;
+    if (!connection?.addEventListener) return undefined;
+    const onChange = () => {
+      resetDeviceTierCache();
+      setTier(getDeviceTier().tier);
+    };
+    connection.addEventListener("change", onChange);
+    return () => connection.removeEventListener("change", onChange);
+  }, []);
 
   const value = useMemo(() => ({
     mode,
     setMode,
     isPowerSaver,
+    tier,
+    isLite: tier === "lite",
     heavy3d,
     setHeavy3d,
     heavyEnabled,
     heavy3dAuto,
     reason: mode === "auto" ? autoState.reason : mode === "saver" ? "تم اختياره يدويًا" : "الوضع الكامل مختار يدويًا",
-  }), [mode, isPowerSaver, heavy3d, heavyEnabled, heavy3dAuto, autoState.reason]);
+  }), [mode, isPowerSaver, tier, heavy3d, heavyEnabled, heavy3dAuto, autoState.reason]);
 
   return (
     <PerformanceContext.Provider value={value}>

@@ -22,11 +22,16 @@ export const handler = async (event) => {
     const initData = String(body?.initData || "").trim();
     const botToken = getBotToken();
 
-    const verification = verifyTelegramMiniAppInitData(initData, botToken, 86400);
+    // NOTE: the third argument is the verifier's OPTIONS OBJECT, not a TTL.
+    // Passing `86400` here was silently ignored (options.maxAgeSeconds stayed
+    // undefined) so Mini App sessions expired after 5 minutes, not a day.
+    const verification = verifyTelegramMiniAppInitData(initData, botToken, { maxAgeSeconds: 86400 });
     if (!verification.valid || !verification.user?.id) {
+      // The verifier reports `error`; reading `reason` always yielded undefined,
+      // so every distinct failure looked identical in logs and to the client.
       return json(401, {
         ok: false,
-        error: verification.reason || "INVALID_TELEGRAM_INIT_DATA",
+        error: verification.error || "INVALID_TELEGRAM_INIT_DATA",
       });
     }
 

@@ -148,6 +148,10 @@ export async function executePaymentDecision({
       status: "approved",
       code,
       deliveryMode: actualDeliveryMode,
+      // Both approvers (the admin panel and the bot's Alpha buttons) need the
+      // student id so they can tell the student it worked.
+      userId: payment.user_id,
+      planName: product.name,
       userName: payment.user_name || "",
       productName: product.name,
       amount: product.amount,

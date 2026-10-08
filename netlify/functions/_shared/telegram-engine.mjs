@@ -1,48 +1,139 @@
 import { adminDb, FieldValue } from "./firebase-admin.mjs";
 import { executePaymentDecision } from "./payment-processor.mjs";
 import { spendCreditsAtomic } from "./server-ai.mjs";
+import { consumeLinkCode, unlinkTelegram } from "./telegram-link.mjs";
+import {
+  startQuizSession,
+  rememberQuestionPoll,
+  recordPollAnswer,
+  finishQuizSession,
+  formatQuizResult,
+} from "./telegram-quiz.mjs";
+import { optOutOfType } from "./telegram-notify.mjs";
+import { COMMANDS } from "./telegram-commands.mjs";
 
 const TELEGRAM_API_BASE = "https://api.telegram.org/bot";
 
-// SECURITY: bot credentials come ONLY from server env (TELEGRAM_BOT_TOKEN /
-// ALPHA_TELEGRAM_CHAT_ID). The previous hardcoded fallback leaked the token in
-// shipped client bundles — it must be revoked/rotated via @BotFather and set as
-// an environment variable on the hosting provider.
-
-const DEFAULT_BOT_TOKEN = "7601463756:AAFhPfm52g1x2epMhL7W2W35udCEyq8JDHA";
-const DEFAULT_ALPHA_CHAT_ID = "5923929978";
+// SECURITY CONTRACT (do not weaken):
+//  * Bot credentials come ONLY from server env (TELEGRAM_BOT_TOKEN /
+//    ALPHA_TELEGRAM_CHAT_ID). There is deliberately NO hardcoded fallback —
+//    an earlier build shipped the token inside the browser bundle, so any
+//    default here is public the moment it lands in Git.
+//  * Missing/blank credentials FAIL CLOSED: senders return `NO_BOT_TOKEN` and
+//    never talk to api.telegram.org. Rotate the token via @BotFather and set it
+//    as an environment variable before deploying.
+const BOT_TOKEN_RE = /^\d+:[A-Za-z0-9_-]+$/;
 
 export function getBotToken() {
-  const token = process.env.TELEGRAM_BOT_TOKEN || "";
-  return token && /^\d+:[A-Za-z0-9_-]+$/.test(token.trim()) ? token.trim() : DEFAULT_BOT_TOKEN;
+  const token = String(process.env.TELEGRAM_BOT_TOKEN || "").trim();
+  return BOT_TOKEN_RE.test(token) ? token : "";
 }
 
 export function getAlphaChatId() {
-  const id = process.env.ALPHA_TELEGRAM_CHAT_ID || "";
-  return id && /^\d+$/.test(id.trim()) ? id.trim() : DEFAULT_ALPHA_CHAT_ID;
+  const id = String(process.env.ALPHA_TELEGRAM_CHAT_ID || "").trim();
+  return /^\d+$/.test(id) ? id : "";
 }
 
 export function getAppBaseUrl() {
   return process.env.APP_BASE_URL || process.env.VITE_APP_URL || "https://blackfighters.site";
 }
 
+/** Public bot handle used to build deep links (not a secret). */
+export function getBotUsername() {
+  const raw = String(process.env.TELEGRAM_BOT_USERNAME || "black_fighters_bot").trim().replace(/^@/, "");
+  return /^[A-Za-z0-9_]{5,32}$/.test(raw) ? raw : "black_fighters_bot";
+}
+
+/**
+ * Admin identity is resolved from `role === 'admin'` (Admin-SDK granted) or the
+ * server-side ADMIN_EMAILS allowlist. The fallback mirrors requireAdmin() in
+ * _shared/firebase-admin.mjs so an unset env var does not lock the owner out.
+ *
+ * The vulnerability this replaces was NOT the email being known — it was that
+ * anyone typing `/alpha` in the bot was granted the highest privileges.
+ */
+const FALLBACK_ADMIN_EMAILS = "ibrahimkandil000@gmail.com";
+
+function adminEmailAllowlist() {
+  return String(process.env.ADMIN_EMAILS || FALLBACK_ADMIN_EMAILS)
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isAdminUserDoc(userDoc) {
+  if (!userDoc) return false;
+  if (String(userDoc.role || "").toLowerCase() === "admin") return true;
+  const email = String(userDoc.email || "").toLowerCase();
+  return Boolean(email) && adminEmailAllowlist().includes(email);
+}
+
+/** Paid-plan check shared by the bot gate and the Mini App. */
+export function hasActivePlan(userDoc) {
+  if (!userDoc) return false;
+  const plan = String(userDoc.subscription_plan || "").toLowerCase();
+  const planKey = String(userDoc.subscription_plan_key || "").toLowerCase();
+  const status = String(userDoc.subscription_status || "").toLowerCase();
+  const expires = userDoc.subscription_expires_at ? Date.parse(userDoc.subscription_expires_at) : 0;
+  const timeValid = !expires || expires > Date.now();
+  return (
+    ["starter", "pro", "supreme", "premium", "emergency", "emergency_round"].includes(plan) ||
+    planKey === "emergency_round" ||
+    status === "active" ||
+    (timeValid && Boolean(expires))
+  );
+}
+
+const TELEGRAM_TIMEOUT_MS = 15000;
+const TELEGRAM_MAX_ATTEMPTS = 3;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Server-only Telegram Bot API caller.
+ * Adds the reliability the live path was missing: hard timeout, bounded retry
+ * with exponential backoff, and `429 retry_after` respect. Never throws — every
+ * failure resolves to `{ ok: false, description }` so a single bad send can
+ * never take a webhook turn down.
+ */
 export async function callTelegramApi(method, payload, customToken = null) {
   const token = customToken || getBotToken();
   if (!token) {
-    console.warn("[TelegramBot] Missing bot token.");
+    console.warn("[TelegramBot] Missing bot token — call skipped (fail closed).");
     return { ok: false, description: "NO_BOT_TOKEN" };
   }
-  try {
-    const res = await fetch(`${TELEGRAM_API_BASE}${token}/${method}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    return await res.json();
-  } catch (error) {
-    console.error(`[TelegramBot] callTelegramApi(${method}) error:`, error);
-    return { ok: false, description: error.message };
+
+  let lastResult = { ok: false, description: "UNKNOWN_ERROR" };
+  for (let attempt = 1; attempt <= TELEGRAM_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const res = await fetch(`${TELEGRAM_API_BASE}${token}/${method}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
+      });
+      const data = await res.json().catch(() => ({ ok: false, description: "INVALID_JSON_FROM_TELEGRAM" }));
+
+      // 429 is the one error worth retrying: retry_after is authoritative.
+      if (!data.ok && Number(data.error_code) === 429 && attempt < TELEGRAM_MAX_ATTEMPTS) {
+        const retryAfterSec = Math.min(30, Number(data.parameters?.retry_after) || 2);
+        lastResult = data;
+        await sleep(retryAfterSec * 1000);
+        continue;
+      }
+      return data;
+    } catch (error) {
+      lastResult = { ok: false, description: error?.name === "TimeoutError" ? "TELEGRAM_TIMEOUT" : error.message };
+      if (attempt < TELEGRAM_MAX_ATTEMPTS) {
+        await sleep(Math.pow(2, attempt) * 250);
+        continue;
+      }
+    }
   }
+  console.error(`[TelegramBot] callTelegramApi(${method}) failed:`, lastResult.description);
+  return lastResult;
 }
 
 export function resolveCorrectOptionIndex(q, rawOptions = []) {
@@ -289,14 +380,77 @@ export async function sendPaymentAlertToAlpha({
 /**
  * Export Course/Quiz content from Website directly to user's Telegram Chat
  */
-export async function sendExportToTelegram({ chatId, title = "محتوى دراسي", type = "summary", summaryText = "", questions = [], quizId = null }) {
+/**
+ * Sends an in-memory file to a chat via `sendDocument`.
+ *
+ * Uses the multipart transport (not the JSON one) because the Bot API requires
+ * form data for file uploads. Returns `{ ok:false }` instead of throwing so a
+ * failed upload can fall back to a text message.
+ */
+async function sendDocumentBuffer({ chatId, fileName, mimeType = "application/octet-stream", buffer, caption = "" }) {
+  const token = getBotToken();
+  if (!token) return { ok: false, description: "NO_BOT_TOKEN" };
+  try {
+    const form = new FormData();
+    form.append("chat_id", String(chatId));
+    if (caption) {
+      form.append("caption", String(caption).slice(0, 1024));
+      form.append("parse_mode", "HTML");
+    }
+    form.append("document", new Blob([buffer], { type: mimeType }), fileName);
+
+    const res = await fetch(`${TELEGRAM_API_BASE}${token}/sendDocument`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(45000),
+    });
+    return await res.json();
+  } catch (error) {
+    return { ok: false, description: error?.message || "SEND_DOCUMENT_FAILED" };
+  }
+}
+
+export async function sendExportToTelegram({ chatId, title = "محتوى دراسي", type = "summary", summaryText = "", summaryHtml = "", questions = [], quizId = null }) {
   if (!chatId) return { ok: false, error: "NO_CHAT_ID" };
 
   if (type === "summary") {
+    // Deliver the actual study guide.
+    //
+    // Previously this sent a text message truncated to 3800 characters with all
+    // markup stripped, so a real summary arrived as a cut-off wall of plain text —
+    // and when the caller sent nothing (see the `content_type` lookup bug) the
+    // chat received only the course blurb. Now the rendered HTML template travels
+    // as a document, with a short caption, so the student gets "the file".
+    const plain = String(summaryText || "").replace(/[#*_`>]/g, "").replace(/\n{3,}/g, "\n\n").trim();
+    if (summaryHtml) {
+      const fileName = `${String(title || "ملخص").replace(/[\\/:*?"<>|]/g, "-").slice(0, 60)}.html`;
+      const sent = await sendDocumentBuffer({
+        chatId,
+        fileName,
+        mimeType: "text/html",
+        buffer: Buffer.from(String(summaryHtml), "utf8"),
+        caption: `📚 <b>${title}</b>\nملف مذاكرة جاهز — افتحه من الموبايل أو اطبعه.`,
+      });
+      if (sent?.ok) return { ok: true, delivered: "document" };
+      console.warn("[TelegramEngine] document send failed, falling back to text");
+    }
+
     const header = `📚 <b>تصدير ملخص من Black Fighters: ${title}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n`;
-    const cleanText = String(summaryText).replace(/<[^>]*>?/gm, "").slice(0, 3800);
-    const fullMsg = `${header}${cleanText}\n\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>تم التصدير من منصة Black Fighters بنجاح</i>`;
-    return sendStyledMessage(chatId, fullMsg);
+    // Split instead of truncating: a long summary used to lose everything past
+    // the 3800th character with no indication anything was missing.
+    const chunks = [];
+    for (let i = 0; i < plain.length && chunks.length < 6; i += 3800) chunks.push(plain.slice(i, i + 3800));
+    if (!chunks.length) {
+      return sendStyledMessage(chatId, `${header}⚠️ <i>الملخص فاضي — جرّب تولّده من المنصة الأول.</i>`);
+    }
+    for (let index = 0; index < chunks.length; index += 1) {
+      const isLast = index === chunks.length - 1;
+      await sendStyledMessage(
+        chatId,
+        `${index === 0 ? header : ""}${chunks[index]}${isLast ? `\n\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>تم التصدير من منصة Black Fighters</i>` : ""}`,
+      );
+    }
+    return { ok: true, delivered: "text", parts: chunks.length };
   }
 
   if (type === "quiz" && questions.length > 0) {
@@ -1133,27 +1287,15 @@ export async function executeFileSummaryAction(chatId, auth, mode = "concise", c
 export async function checkSubscriberAccess(chatId, userId = null) {
   const alphaChatId = String(getAlphaChatId());
   const isAlphaChat = Boolean(alphaChatId && String(chatId) === alphaChatId);
-  const isAlphaUser = Boolean(
-    userId === "up3y6pub7IgB1PpEMTcMASO2ei33" ||
-    userId === "alpha" ||
-    userId === "admin"
-  );
 
-  if (isAlphaChat || isAlphaUser) {
+  if (isAlphaChat) {
     return {
       isAllowed: true,
       isAlpha: true,
       role: "admin",
       name: "Supreme Commander Alpha",
-      userId: userId || "up3y6pub7IgB1PpEMTcMASO2ei33",
-      user: {
-        id: userId || "up3y6pub7IgB1PpEMTcMASO2ei33",
-        full_name: "Supreme Commander Alpha",
-        role: "admin",
-        email: "ibrahimkandil000@gmail.com",
-        subscription_plan: "supreme",
-        subscription_status: "active",
-      },
+      userId: null,
+      user: { role: "admin", subscription_plan: "supreme", subscription_status: "active" },
     };
   }
 
@@ -1165,13 +1307,8 @@ export async function checkSubscriberAccess(chatId, userId = null) {
       const doc = await adminDb.collection("users").doc(userId).get();
       if (doc.exists) {
         const u = doc.data();
-        const isAdminUser = u.role === "admin" || String(u.email || "").toLowerCase() === "ibrahimkandil000@gmail.com";
-        const isSubscribed =
-          isAdminUser ||
-          ["starter", "pro", "supreme", "premium", "emergency", "emergency_round"].includes(String(u.subscription_plan || "").toLowerCase()) ||
-          String(u.subscription_plan_key || "").toLowerCase() === "emergency_round" ||
-          u.subscription_status === "active" ||
-          (u.subscription_expires_at && Date.parse(u.subscription_expires_at) > Date.now());
+        const isAdminUser = isAdminUserDoc(u);
+        const isSubscribed = isAdminUser || hasActivePlan(u);
         return { isAllowed: isSubscribed, isAlpha: isAdminUser, role: u.role || (isAdminUser ? "admin" : "user"), user: u, userId };
       }
     }
@@ -1185,13 +1322,8 @@ export async function checkSubscriberAccess(chatId, userId = null) {
 
     if (!snap.empty) {
       const u = snap.docs[0].data();
-      const isAdminUser = u.role === "admin" || String(u.email || "").toLowerCase() === "ibrahimkandil000@gmail.com";
-      const isSubscribed =
-        isAdminUser ||
-        ["starter", "pro", "supreme", "premium", "emergency", "emergency_round"].includes(String(u.subscription_plan || "").toLowerCase()) ||
-        String(u.subscription_plan_key || "").toLowerCase() === "emergency_round" ||
-        u.subscription_status === "active" ||
-        (u.subscription_expires_at && Date.parse(u.subscription_expires_at) > Date.now());
+      const isAdminUser = isAdminUserDoc(u);
+      const isSubscribed = isAdminUser || hasActivePlan(u);
       return { isAllowed: isSubscribed, isAlpha: isAdminUser, role: u.role || (isAdminUser ? "admin" : "user"), user: u, userId: snap.docs[0].id };
     }
   } catch (err) {
@@ -1309,10 +1441,114 @@ export async function sendOspeDashboard(chatId, excludedIds = []) {
 }
 
 /**
+ * Shared copy for a successful account link (student vs admin).
+ */
+function buildLinkWelcome(userObj, isAdminUser, chatId) {
+  if (isAdminUser) {
+    return {
+      text: `
+👑 <b>أهلاً بك يا قائدنا ومولانا Alpha في غرفة القيادة السيادية!</b> ⚡
+━━━━━━━━━━━━━━━━━━━━
+تم ربط وتوثيق حساب التيليجرام الخاص بك (ID: <code>${chatId}</code>) بحساب الإدارة الأعلى للمنصة! 🦾
+البوت الأكاديمي <code>@black_fighters_bot</code> تحت سيطرتك الكاملة الآن.
+      `.trim(),
+      keyboard: {
+        inline_keyboard: [
+          [{ text: "🚨 Emergency (جامعة شرق بورسعيد الأهلية)", callback_data: "cmd_emergency" }],
+          [
+            { text: "📚 كويزات النظري (EBE)", callback_data: "cmd_ebe_menu" },
+            { text: "🔬 كويزات العملي (OSPE)", callback_data: "cmd_ospe_menu" },
+          ],
+          [{ text: "📱 تحميل تطبيق الأندرويد (APK)", url: "https://blackfighters.site/downloads/BlackFighters.apk" }],
+          [
+            { text: "🌐 فتح لوحة الأدمن بالموقع", web_app: { url: `${getAppBaseUrl()}/admin` } },
+            { text: "👤 ملفي الأكاديمي", callback_data: "cmd_profile" },
+          ],
+        ],
+      },
+    };
+  }
+
+  return {
+    text: `
+🎉 <b>تم ربط حسابك في Black Fighters بنجاح يا ${userObj.full_name || "بطل"}!</b> 👑
+━━━━━━━━━━━━━━━━━━━━
+أهلاً بك في البوت الأكاديمي الحصري 🤖
+الآن يمكنك خوض جميع كويزاتك (EBE و OSPE) وتوليد كويزات من أي ملف ترفعه مباشرة هنا! ⚡
+
+<i>اختر ما تريد البدء به الآن:</i>
+    `.trim(),
+    keyboard: {
+      inline_keyboard: [
+        [{ text: "🚨 Emergency (جامعة شرق بورسعيد الأهلية)", callback_data: "cmd_emergency" }],
+        [
+          { text: "📚 كويزات النظري (EBE)", callback_data: "cmd_ebe_menu" },
+          { text: "🔬 كويزات العملي (OSPE)", callback_data: "cmd_ospe_menu" },
+        ],
+        [
+          { text: "👤 ملفي ورصيدي", callback_data: "cmd_profile" },
+          { text: "🌐 فتح التطبيق بالكامل", web_app: { url: getAppBaseUrl() } },
+        ],
+      ],
+    },
+  };
+}
+
+/**
+ * Redeems a platform-issued link code for this chat.
+ *
+ * This is the ONLY way an account gets linked from the bot side. Deep links
+ * carry a short-lived single-use code, never a uid or an email, so a leaked or
+ * guessed identifier can no longer attach somebody else's account to an
+ * attacker's Telegram chat.
+ */
+async function handleLinkCommand(chatId, rawCode, tgFrom = {}) {
+  const result = await consumeLinkCode(rawCode, chatId, tgFrom);
+  if (!result.ok) {
+    const hint =
+      result.error === "INVALID_CODE"
+        ? "الكود غير صحيح."
+        : result.error === "CODE_EXPIRED"
+          ? "الكود انتهت صلاحيته (10 دقايق)."
+          : result.error === "CODE_ALREADY_USED"
+            ? "الكود مستخدم من قبل."
+            : "تعذر إتمام الربط حاليًا.";
+    return sendStyledMessage(
+      chatId,
+      `⛔ <b>${hint}</b>\n━━━━━━━━━━━━━━━━━━━━\nروح لصفحة الإعدادات في المنصة، اضغط «ربط تيليجرام» وخد كود جديد:\n${getAppBaseUrl()}/settings`,
+    );
+  }
+
+  const userObj = result.user || {};
+  const isAdminUser = isAdminUserDoc(userObj);
+  const welcome = buildLinkWelcome(userObj, isAdminUser, chatId);
+  return sendStyledMessage(chatId, welcome.text, welcome.keyboard);
+}
+
+/**
  * Main Webhook Dispatcher
  */
 export async function processTelegramWebhookUpdate(update) {
   if (!update) return { ok: true };
+
+  // 0. Poll answers — the ONLY source of a student's real quiz answer.
+  //    Without this branch every bot quiz was graded 100% by construction.
+  if (update.poll_answer) {
+    const pa = update.poll_answer;
+    // Telegram sends the answering USER id and the poll id — never the chat id.
+    // Quiz sessions are keyed by chat id; in a private bot chat that id IS the
+    // user id, which is the only place the quiz flow runs. Group polls are
+    // deliberately not attributed (Telegram gives us no chat context), so they
+    // simply do not affect any session.
+    const sessionKey = pa.user?.id ? String(pa.user.id) : null;
+    const outcome = await recordPollAnswer({
+      chatId: sessionKey,
+      pollId: pa.poll_id,
+      optionIds: pa.option_ids || [],
+      telegramUserId: pa.user?.id,
+    });
+    return { ok: true, poll_answer: outcome };
+  }
 
   // 1. Handle Callback Queries (Button Taps)
   if (update.callback_query) {
@@ -1896,29 +2132,40 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
       }
 
       const questions = quiz.questions;
+
+      // Start a fresh session on question 0 so `poll_answer` updates have
+      // somewhere to land (previously there was no session at all, which is why
+      // every attempt was recorded as a perfect score).
+      if (index === 0) {
+        await startQuizSession({
+          chatId,
+          uid: auth.userId,
+          quizId,
+          total: questions.length,
+          userName: auth.user?.full_name || auth.name || "Student",
+        });
+      }
+
       if (index >= questions.length) {
-        // Award XP and save attempt
-        try {
-          if (adminDb && auth.userId) {
-            await adminDb.collection("quizAttempts").add({
-              quiz_id: quizId,
-              user_id: auth.userId,
-              user_name: auth.user?.full_name || auth.name || "Student",
-              score: questions.length,
-              total: questions.length,
-              percentage: 100,
-              created_at: new Date().toISOString(),
-              via: "telegram",
-            });
-            await adminDb.collection("users").doc(auth.userId).update({
-              xp: FieldValue.increment(questions.length * 20),
-            });
-          }
-        } catch {}
+        // Finish: read the answers Telegram reported and persist the TRUE score.
+        const result = await finishQuizSession({ chatId, quizTitle: quiz.title || "الكويز" });
+        const total = result?.total || questions.length;
+        const correct = result?.correct ?? 0;
+        const percentage = result?.percentage ?? 0;
+        const earnedXp = result?.earnedXp ?? 0;
 
         return sendStyledMessage(
           chatId,
-          `🏆 <b>عاش يا بطل! أنهيت كويز: ${quiz.title || "الكويز"} بنجاح!</b> ⚡\n━━━━━━━━━━━━━━━━━━━━\n🎯 تم تسجيل درجتك بنجاح وإضافة <b>+${questions.length * 20} XP</b> لرصيدك في الموقع!`,
+          result
+            ? formatQuizResult({
+                correct,
+                total,
+                percentage,
+                unanswered: result.unanswered,
+                earnedXp,
+                quizTitle: quiz.title || "الكويز",
+              })
+            : `⚠️ <b>مفيش جلسة كويز نشطة</b> — ابدأ الكويز من الأول.`,
           {
             inline_keyboard: [
               [{ text: "🔄 إعادة الامتحان", callback_data: `run_custom_quiz:${quizId}:0${timerParam}` }],
@@ -1941,7 +2188,7 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
         await new Promise((r) => setTimeout(r, 150));
       }
 
-      return sendNativeQuizPoll(chatId, {
+      const sentPoll = await sendNativeQuizPoll(chatId, {
         question: `Q${index + 1}/${questions.length}: ${stem}`.slice(0, 300),
         options: options.slice(0, 10),
         correctOptionId: correctId >= 0 && correctId < options.length ? correctId : 0,
@@ -1959,6 +2206,38 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
           ],
         },
       });
+
+      // Map Telegram's poll id → this question so the incoming `poll_answer`
+      // update can be attributed to the right question and answer key.
+      await rememberQuestionPoll({
+        chatId,
+        index,
+        pollId: sentPoll?.result?.poll?.id,
+        correctOptionId: correctId >= 0 && correctId < options.length ? correctId : 0,
+        total: questions.length,
+      });
+
+      return sentPoll;
+    }
+
+    // ── Notification opt-out (the button the notification budget emits) ──
+    // `optout:<type>` was produced for months with NO handler, so tapping
+    // "🔕 mute this" silently did nothing.
+    if (data.startsWith("optout:")) {
+      const type = data.slice("optout:".length);
+      await answerCallback(cb.id, "تمام ✅");
+      if (!auth?.userId) {
+        return sendStyledMessage(
+          chatId,
+          `ℹ️ اربط حسابك الأول عشان نحفظ تفضيلاتك:\n${getAppBaseUrl()}/settings`,
+        );
+      }
+      await optOutOfType({ uid: auth.userId, type });
+      return sendStyledMessage(
+        chatId,
+        `🔕 <b>تمام — مش حنبعتلك تنبيهات «${type}» تاني.</b>\nتقدر ترجّعها في أي وقت من إعدادات المنصة 👇`,
+        { inline_keyboard: [[{ text: "⚙️ إعدادات التنبيهات", url: `${getAppBaseUrl()}/settings` }]] },
+      );
     }
 
     // ── Profile and Plans Info ──
@@ -2002,168 +2281,42 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
     const chatId = msg.chat?.id;
     const text = (msg.text || "").trim();
 
-    // ── Handle Account Linking via URL (`/start link_<userId>`) ──
+    // ── Account Linking via deep link (`/start link_<code>`) ──
+    // The payload is a short-lived single-use CODE, never a uid and never an
+    // email. See _shared/telegram-link.mjs for the vulnerability this replaces.
     if (text.startsWith("/start link_")) {
-      const userId = text.replace("/start link_", "").trim();
-      const auth = await checkSubscriberAccess(chatId, userId);
-
-      if (auth.isAllowed) {
-        const userObj = auth.user || { id: userId, full_name: auth.name || "محارب", role: auth.role || "user" };
-        try {
-          if (adminDb && userId) {
-            await adminDb.collection("users").doc(userId).set({
-              telegram_chat_id: String(chatId),
-              telegram_username: msg.from?.username || "",
-              telegram_linked_at: new Date().toISOString(),
-            }, { merge: true });
-          }
-        } catch (linkErr) {
-          console.warn("[TelegramEngine] Link persist error:", linkErr.message);
-        }
-
-        if (auth.isAlpha) {
-          const alphaWelcome = `
-👑 <b>أهلاً بك يا قائدنا ومولانا Alpha في غرفة القيادة السيادية!</b> ⚡
-━━━━━━━━━━━━━━━━━━━━
-تم ربط وتوثيق حساب التيليجرام الخاص بك بحساب الإدارة الأعلى بنجاح! 🦾
-البوت الأكاديمي <code>@black_fighters_bot</code> تحت سيطرتك الكاملة الآن.
-          `.trim();
-
-          return sendStyledMessage(chatId, alphaWelcome, {
-            inline_keyboard: [
-              [
-                { text: "🚨 Emergency (جامعة شرق بورسعيد الأهلية)", callback_data: "cmd_emergency" },
-              ],
-              [
-                { text: "📚 كويزات النظري (EBE)", callback_data: "cmd_ebe_menu" },
-                { text: "🔬 كويزات العملي (OSPE)", callback_data: "cmd_ospe_menu" },
-              ],
-              [
-                { text: "📱 تحميل تطبيق الأندرويد (APK)", url: "https://blackfighters.site/downloads/BlackFighters.apk" },
-              ],
-              [
-                { text: "🌐 فتح لوحة الأدمن بالموقع", web_app: { url: `${getAppBaseUrl()}/admin` } },
-                { text: "👤 ملفي الأكاديمي", callback_data: "cmd_profile" },
-              ],
-            ],
-          });
-        }
-
-        const welcome = `
-🎉 <b>تم ربط حسابك في Black Fighters بنجاح يا ${userObj.full_name || "بطل"}!</b> 👑
-━━━━━━━━━━━━━━━━━━━━
-أهلاً بك في البوت الأكاديمي الحصري 🤖
-الآن يمكنك خوض جميع كويزاتك (EBE و OSPE) وتوليد كويزات من أي ملف ترفعه مباشرة هنا! ⚡
-
-<i>اختر ما تريد البدء به الآن:</i>
-        `.trim();
-
-        return sendStyledMessage(chatId, welcome, {
-          inline_keyboard: [
-            [
-              { text: "🚨 Emergency (جامعة شرق بورسعيد الأهلية)", callback_data: "cmd_emergency" },
-            ],
-            [
-              { text: "📚 كويزات النظري (EBE)", callback_data: "cmd_ebe_menu" },
-              { text: "🔬 كويزات العملي (OSPE)", callback_data: "cmd_ospe_menu" },
-            ],
-            [
-              { text: "👤 ملفي ورصيدي", callback_data: "cmd_profile" },
-              { text: "🌐 فتح التطبيق بالكامل", web_app: { url: getAppBaseUrl() } },
-            ],
-          ],
-        });
-      } else {
-        return sendGatekeeperNotice(chatId);
-      }
+      const code = text.replace("/start link_", "").trim();
+      return handleLinkCommand(chatId, code, msg.from || {});
     }
 
-    // ── Sovereign Alpha Direct Authorization Command ──
-    if (text === "/alpha" || text === "/omega" || text.toLowerCase() === "/link ibrahimkandil000@gmail.com") {
-      try {
-        if (adminDb) {
-          await adminDb.collection("users").doc("up3y6pub7IgB1PpEMTcMASO2ei33").set({
-            telegram_chat_id: String(chatId),
-            telegram_username: msg.from?.username || "",
-            telegram_linked_at: new Date().toISOString(),
-          }, { merge: true });
-        }
-      } catch (e) {
-        console.warn("[TelegramEngine] Alpha direct link error:", e.message);
-      }
-
-      const sovereignWelcome = `
-👑 <b>أهلاً بك يا قائدنا الأعلى ومولانا Alpha في غرفة القيادة السيادية!</b> ⚡
-━━━━━━━━━━━━━━━━━━━━
-تم توثيق وتأكيد معرف التيليجرام الخاص بك (ID: <code>${chatId}</code>) بحساب الإدارة الأعلى للمنصة! 🦾
-البوت الأكاديمي <code>@black_fighters_bot</code> أصبح تحت قيادتك السيادية الكاملة.
-      `.trim();
-
-      return sendStyledMessage(chatId, sovereignWelcome, {
-        inline_keyboard: [
-          [
-            { text: "🚨 Emergency (جامعة شرق بورسعيد الأهلية)", callback_data: "cmd_emergency" },
-          ],
-          [
-            { text: "📚 كويزات النظري (EBE)", callback_data: "cmd_ebe_menu" },
-            { text: "🔬 كويزات العملي (OSPE)", callback_data: "cmd_ospe_menu" },
-          ],
-          [
-            { text: "📱 تحميل تطبيق الأندرويد (APK)", url: "https://blackfighters.site/downloads/BlackFighters.apk" },
-          ],
-          [
-            { text: "🌐 فتح لوحة الأدمن بالموقع", web_app: { url: `${getAppBaseUrl()}/admin` } },
-            { text: "👤 ملفي الأكاديمي", callback_data: "cmd_profile" },
-          ],
-        ],
-      });
-    }
-
-    // ── Handle Direct Link Command (`/link email@example.com`) ──
-    if (text.startsWith("/link") || text.startsWith("/bind")) {
-      const query = text.replace(/^\/(?:link|bind)\s*/i, "").trim().toLowerCase();
-      if (!query) {
+    // ── Unlink (`/unlink`) ──
+    if (text === "/unlink" || text === "/فصل") {
+      const access = await checkSubscriberAccess(chatId);
+      if (access.isAllowed && access.userId) {
+        await unlinkTelegram(access.userId);
         return sendStyledMessage(
           chatId,
-          `💡 <b>طريقة ربط حسابك:</b>\nاكتب إيميلك المسجل في المنصة بعد الأمر، مثلاً:\n<code>/link your_email@example.com</code>`
+          "✅ <b>تم فصل حساب التيليجرام عن المنصة.</b>\nتقدر تعيد الربط في أي وقت من إعدادات المنصة.",
+          { inline_keyboard: [[{ text: "🌐 فتح الإعدادات", url: `${getAppBaseUrl()}/settings` }]] },
         );
       }
-
-      try {
-        if (adminDb) {
-          let snap = await adminDb.collection("users").where("email", "==", query).limit(1).get();
-          if (snap.empty) {
-            snap = await adminDb.collection("users").where("id", "==", query).limit(1).get();
-          }
-          if (!snap.empty) {
-            const docRef = snap.docs[0].ref;
-            const u = snap.docs[0].data();
-            await docRef.update({
-              telegram_chat_id: String(chatId),
-              telegram_username: msg.from?.username || "",
-              telegram_linked_at: new Date().toISOString(),
-            });
-            return sendStyledMessage(
-              chatId,
-              `🎉 <b>تم ربط حسابك بنجاح يا ${u.full_name || "بطل"}!</b> 👑\nالآن حسابك موثق ومميزات البوت متاحة لك بالكامل! ⚡`,
-              {
-                inline_keyboard: [
-                  [{ text: "📚 كويزات النظري (EBE)", callback_data: "cmd_ebe_menu" }],
-                  [{ text: "🔬 كويزات العملي (OSPE)", callback_data: "cmd_ospe_menu" }],
-                  [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
-                ],
-              }
-            );
-          }
-        }
-      } catch (e) {
-        console.warn("[TelegramEngine] Link command error:", e.message);
-      }
-
       return sendStyledMessage(
         chatId,
-        `⛔ لم نعثر على حساب مسجل بهذا الإيميل أو المعرف: <code>${query}</code>\nتأكد من كتابة إيميلك المسجل في المنصة بشكل صحيح.`
+        `ℹ️ حسابك مش مربوط بالمنصة حاليًا.\nاربطه من: ${getAppBaseUrl()}/settings`,
       );
+    }
+
+    // ── Direct link command (`/link <code>` / `/bind <code>`) ──
+    if (text.startsWith("/link") || text.startsWith("/bind")) {
+      const code = text.replace(/^\/(?:link|bind)\s*/i, "").trim();
+      if (!code) {
+        return sendStyledMessage(
+          chatId,
+          `💡 <b>طريقة ربط حسابك:</b>\n━━━━━━━━━━━━━━━━━━━━\nافتح المنصة ← الإعدادات ← «ربط تيليجرام»، وخد كود الربط (8 حروف) وابعته هنا:\n<code>/link ABC123XY</code>`,
+          { inline_keyboard: [[{ text: "🌐 فتح الإعدادات", url: `${getAppBaseUrl()}/settings` }]] },
+        );
+      }
+      return handleLinkCommand(chatId, code, msg.from || {});
     }
 
     // ── Handle Launching Quiz Exported from Web (`/start quiz_<quizId>`) ──
@@ -2704,6 +2857,14 @@ ${topic}
 
     // ── /help / /مساعدة Command ──
     if (text.startsWith("/help") || text.startsWith("/commands") || text === "مساعدة") {
+      // Rendered from COMMANDS (_shared/telegram-commands.mjs) so the help text can
+      // advertise a command the dispatcher doesn't implement — `/profile` and
+      // `/plans` were listed here for months with no text handler behind them.
+      const studentCommands = COMMANDS.filter((c) => c.scope === "student");
+      const commandLines = studentCommands
+        .map((c) => `• <code>${c.command}</code> — ${c.descriptionAr}`)
+        .join("\n");
+
       const helpText = `
 ⚔️ <b>دليل أوامر وقدرات بوت Black Fighters الأكاديمي:</b> ⚔️
 ━━━━━━━━━━━━━━━━━━━━
@@ -2712,23 +2873,10 @@ ${topic}
 • <b>رفع أي ملف (PDF / DOCX / HTML):</b> استخراج المحتوى وعمل كويز أو تلخيص فوري بالعدد اللي تحدده 📂
 • <b>إرسال أي صورة (سلايد، كيس، رسمة، شيت):</b> تحليل بالرؤية الحاسوبية وتوليد أسئلة وتلخيص 📸
 
-⚡ <b>الأوامر الاحترافية المتقدمة:</b>
-• <code>/browser [موضوع]</code> - تصفح أحدث المراجع والإرشادات الطبية 🌐
-• <code>/plan [المادة / المدة]</code> - خطة مذاكرة وجدول تكتيكي مكثف 📅
-• <code>/grill-me [موضوع]</code> - امتحان شفوي حارق وسيناريوهات عيادية تفاعلية 🔥
-• <code>/teamwork-preview [موضوع]</code> - جلسة استشارة فريق متعدد الوكلاء 👥
-• <code>/goal [هدفك]</code> - ميثاق وتتبع الأهداف والمراحل 🎯
-• <code>/boost [مسألة صعبة]</code> - تفكير عميق وحسم الحالات المعقدة 🚀
+⚡ <b>الأوامر:</b>
+${commandLines}
 
-🏛️ <b>الأوامر السريعة:</b>
-• <code>/start</code> - القائمة الرئيسية ولوحة التحكم 🏛️
-• <code>/emergency</code> - مكتبة وكويزات راوند الطوارئ (EPNU) 🚨
-• <code>/ebe</code> - كويزات النظري المقررة 📚
-• <code>/ospe</code> - كويزات العملي والصور التشخيصية 🔬
-• <code>/summary [الموضوع]</code> - توليد تلخيص طبي مكثف 📋
-• <code>/profile</code> - ملفك ورصيدك و الـ XP 👤
-• <code>/plans</code> - باقات الاشتراك والترقية 💎
-• <code>/apk</code> - تحميل تطبيق الأندرويد المباشر 📱
+💡 <b>معلومة:</b> ملفك ورصيدك وباقاتك كلها في زر واحد جوه القائمة الرئيسية، والمحتوى اللي بيتم إنشاؤه هنا بيظهر تلقائيًا على المنصة.
       `.trim();
       return sendStyledMessage(chatId, helpText, {
         inline_keyboard: [

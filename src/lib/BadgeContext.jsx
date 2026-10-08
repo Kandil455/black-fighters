@@ -7,27 +7,12 @@ const BadgeUnlockModal = lazy(() => import("@/components/BadgeUnlockModal"));
 const BadgeContext = createContext({ showBadge: () => {}, showBadges: () => {} });
 
 export function BadgeProvider({ children }) {
-  const [queue, setQueue] = useState([]);
-
-  const showBadges = useCallback((keys = []) => {
-    const list = (Array.isArray(keys) ? keys : [keys]).filter(Boolean);
-    if (list.length) setQueue((q) => [...q, ...list]);
-  }, []);
-
-  const showBadge = useCallback((key) => showBadges([key]), [showBadges]);
-
-  const current = queue[0];
-  const close = () => setQueue((q) => q.slice(1));
+  const showBadges = useCallback(() => {}, []);
+  const showBadge = useCallback(() => {}, []);
 
   return (
     <BadgeContext.Provider value={{ showBadge, showBadges }}>
-      <BadgeSyncWatcher showBadges={showBadges} />
       {children}
-      {current && (
-        <Suspense fallback={null}>
-          <BadgeUnlockModal key={current} badgeKey={current} onClose={close} />
-        </Suspense>
-      )}
     </BadgeContext.Provider>
   );
 }

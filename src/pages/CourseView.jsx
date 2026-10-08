@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from '@/api/base44Client';
 import { invokeSecureFunction } from '@/lib/secureFunctions';
+import { openTelegramLinkWithCode } from '@/lib/telegramClient';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/LocaleContext";
@@ -27,8 +28,10 @@ import PracticeMode from "@/components/course/PracticeMode";
 import StudyMode from "@/components/course/StudyMode";
 import CourseShareCard from "@/components/course/CourseShareCard";
 import { GraduationCap } from "lucide-react";
-import { AnimatedGoogleDrive } from "@/components/ui/AnimatedMicroIcons";
+import { GoogleDriveIcon } from "@/components/ui/icons";
 import { saveIntegrationSettings, requestDriveToken, uploadTextToDrive, courseToMarkdown } from "@/lib/integrations";
+import { getSummaryDocumentV3, getLegacySummaryMarkdown, summaryDocumentToMarkdown } from "@/lib/summaryDocument";
+import { renderStudyGuideHtml } from "@/lib/summaryStudyGuide";
 import { getOfflineSnapshot, setOfflineSnapshot } from "@/lib/offlineDb";
 import { getSummaryTemplate } from "@/lib/summaryTemplates";
 import { generateHierarchicalSummary } from "@/lib/summaryPipeline";
@@ -573,11 +576,55 @@ export default function CourseView() {
     );
   };
 
+/** Parses a stored content row (`content` is a JSON string for our own rows). */
+function safeParseContent(content) {
+  if (content == null) return null;
+  if (typeof content === "object") return content;
+  try { return JSON.parse(content); } catch { return { markdown: String(content) }; }
+}
+
+/** The study-guide template the student selected (shared with the reader). */
+function readGuideTemplate() {
+  try { return localStorage.getItem("bf_guide_template") || "modules_red"; } catch { return "modules_red"; }
+}
+
+/**
+ * The plain text the Telegram bot should deliver for a stored summary row.
+ *
+ * A v3 summary keeps its content inside the structured document, so the row's
+ * `content` string is empty for it. Telegram delivery used to grab
+ * `summaryItem.content || course.description`, which is why the chat received
+ * "ملخص … منظم ومراجع آلياً" — the course blurb — instead of the actual summary.
+ *
+ * Order: an edited markdown copy if one exists, then the rendered v3 document,
+ * then any legacy markdown left on the row.
+ */
+function summaryToTelegramText(summaryRow) {
+  if (!summaryRow) return "";
+  let parsed = null;
+  try {
+    parsed = typeof summaryRow.content === "string" ? JSON.parse(summaryRow.content) : summaryRow.content;
+  } catch {
+    // Plain (non-JSON) content is itself the text.
+    parsed = typeof summaryRow.content === "string" ? { markdown: summaryRow.content } : null;
+  }
+  if (!parsed || typeof parsed !== "object") return "";
+
+  const v3 = getSummaryDocumentV3(parsed);
+  const legacy = getLegacySummaryMarkdown(parsed);
+  const rendered = v3 ? (legacy || summaryDocumentToMarkdown(v3)) : legacy;
+  return String(rendered || "").trim();
+}
+
   const exportToTelegramBot = async (customType = null) => {
     setExportingTelegram(true);
     try {
-      const summaryItem = contents.find((c) => c.type === "summary");
-      const quizItem = contents.find((c) => c.type === "quiz");
+      // The stored rows use `content_type`; this lookup used `c.type`, which is
+      // never set — so `summaryItem` was ALWAYS undefined and the export silently
+      // fell back to `course.description` ("ملخص … منظم ومراجع آلياً"). That is why
+      // Telegram received a placeholder instead of the summary.
+      const summaryItem = contents.find((c) => c.content_type === "summary") || contents.find((c) => c.type === "summary");
+      const quizItem = contents.find((c) => c.content_type === "quiz") || contents.find((c) => c.type === "quiz");
       const activeType = customType || (quizItem ? "quiz" : "summary");
 
       let questions = [];
@@ -588,11 +635,30 @@ export default function CourseView() {
         } catch {}
       }
 
+      // Send the REAL summary: the designed study-guide file AND its text.
+      let summaryText = "";
+      let summaryHtml = "";
+      if (activeType === "summary" && summaryItem) {
+        summaryText = summaryToTelegramText(summaryItem);
+        const parsed = safeParseContent(summaryItem.content);
+        const doc = parsed ? getSummaryDocumentV3(parsed) : null;
+        if (doc) {
+          summaryHtml = renderStudyGuideHtml({
+            document: doc,
+            markdown: summaryText,
+            title: course?.title || "الملخص",
+            templateId: readGuideTemplate(),
+            forExport: true,
+          });
+        }
+      }
+
       // Server-side export: bot token + chat-id lookup never touch the client
       const res = await invokeSecureFunction("export-to-telegram", {
         title: course?.title || "ملخص دراسي",
         type: activeType,
-        summaryText: summaryItem?.content || course?.description || "",
+        summaryText,
+        summaryHtml,
         questions,
       });
 
@@ -602,7 +668,7 @@ export default function CourseView() {
         toast.error(res.data.message, {
           action: {
             label: "ربط البوت",
-            onClick: () => window.open(`https://t.me/black_fighters_bot?start=link_${profile?.id || "me"}`, "_blank"),
+            onClick: () => { openTelegramLinkWithCode().catch((e) => toast.error(e?.message || "تعذر إنشاء كود الربط")); },
           },
         });
       } else {
@@ -614,7 +680,7 @@ export default function CourseView() {
         toast.error(msg, {
           action: {
             label: "ربط البوت",
-            onClick: () => window.open(`https://t.me/black_fighters_bot?start=link_${profile?.id || "me"}`, "_blank"),
+            onClick: () => { openTelegramLinkWithCode().catch((e) => toast.error(e?.message || "تعذر إنشاء كود الربط")); },
           },
         });
       } else {
@@ -655,7 +721,7 @@ export default function CourseView() {
                 className="p-2 rounded-xl text-muted-foreground hover:text-[#4285F4] hover:bg-[#4285F4]/10 transition-colors disabled:opacity-50"
                 title={isEn ? "Save to Google Drive" : "حفظ على Google Drive"}
               >
-                {savingDrive ? <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" /> : <AnimatedGoogleDrive size={18} />}
+                {savingDrive ? <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" /> : <GoogleDriveIcon size={18} />}
               </button>
               <button
                 onClick={() => exportToTelegramBot()}

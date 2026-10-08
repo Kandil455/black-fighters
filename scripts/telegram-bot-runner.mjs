@@ -3,10 +3,14 @@
  * scripts/telegram-bot-runner.mjs
  * Standalone Telegram Long-Polling Runner for Black Fighters
  * Run with: node scripts/telegram-bot-runner.mjs
+ *
+ * Used for local development only (the webhook is the production entry point).
+ * Imports the SERVER engine + server API caller — never src/services/*, which is
+ * a browser-bundled copy and is being removed.
  */
 
-import { callTelegramApi, getBotToken } from "../src/services/telegramBot.js";
-import { processTelegramWebhookUpdate } from "../netlify/functions/_shared/telegram-engine.mjs";
+import { callTelegramApi, getBotToken, processTelegramWebhookUpdate } from "../netlify/functions/_shared/telegram-engine.mjs";
+import { dedupeTelegramUpdateId } from "../netlify/functions/_shared/telegram-v5.mjs";
 import fs from "fs";
 import path from "path";
 
@@ -44,12 +48,19 @@ async function poll() {
     const res = await callTelegramApi("getUpdates", {
       offset,
       timeout: 30,
-      allowed_updates: ["message", "callback_query"],
+      // poll_answer is REQUIRED: without it we never learn which option a student
+      // picked, which is why bot quiz scores used to be hardcoded to 100%.
+      allowed_updates: ["message", "callback_query", "poll_answer"],
     }, token);
 
     if (res.ok && Array.isArray(res.result)) {
       for (const update of res.result) {
         offset = update.update_id + 1;
+        const dedupe = await dedupeTelegramUpdateId(update.update_id);
+        if (dedupe.duplicate) {
+          console.log(`[Bot] Skipping duplicate update ${update.update_id}`);
+          continue;
+        }
         console.log(`[Bot] Processing update ${update.update_id}`);
         await processTelegramWebhookUpdate(update);
       }

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Gift, Copy, Check, Users, Activity } from "lucide-react";
-import { CreditCoin3D } from "@/components/ui/Custom3DIcons";
+import { PaymentIcon } from "@/components/ui/icons";
 import { getReferralLink, shareReferralLink } from "@/lib/referralService";
 import { REFERRAL_REWARDS } from "@/lib/plans";
 import { playClick } from "@/lib/sounds";
@@ -43,7 +43,7 @@ export default function ZetaUsageAndReferralHub({ user, isEn = false }) {
         <div className="relative overflow-hidden rounded-2xl glass-card p-5 border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-background shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-              <CreditCoin3D size={18} />
+              <PaymentIcon size={18} />
               {isEn ? "Available Credits" : "الكريدت المتاح"}
             </span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">

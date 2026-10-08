@@ -1,225 +1,295 @@
-import React, { useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, CheckCircle2, 
-  X, ShieldCheck, ArrowUpRight
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { FolderOpen, LayoutGrid, List, Rows3, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import MagneticButton from "@/components/ui/MagneticButton";
-import { LottieUpload, LottieLightning, LottieBrain, LottieDoc } from "@/components/ui/LottieIcons";
-import { PdfIcon, PptxIcon, DocxIcon, TextFileIcon, SmartFileIcon } from "@/components/ui/FileTypeIcons";
 import { useLocale } from "@/lib/LocaleContext";
+import { usePerformanceMode } from "@/lib/PerformanceContext";
+import { UploadIcon, LightningIcon, BrainIcon, DocumentIcon } from "@/components/ui/icons";
+import { PdfIcon, PptxIcon, DocxIcon, TextFileIcon } from "@/components/ui/FileTypeIcons";
 
-const SUPPORTED_TYPES = [
-  { ext: "PDF", labelAr: "مذكرات وكتب", labelEn: "Notes & Books", icon: PdfIcon, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/25" },
-  { ext: "PPTX", labelAr: "سلايدات المحاضرة", labelEn: "Lecture Slides", icon: PptxIcon, color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/25" },
-  { ext: "DOCX", labelAr: "ملفات Word", labelEn: "Word Documents", icon: DocxIcon, color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/25" },
-  { ext: "TXT / صور", labelAr: "نصوص وملاحظات", labelEn: "Notes & Text", icon: TextFileIcon, color: "text-[hsl(152,100%,50%)]", bg: "bg-emerald-500/10", border: "border-emerald-500/25" },
+/**
+ * The lecture-upload control, in THREE layouts.
+ *
+ * The owner's feedback on the previous version: "الحتة بتاع الرفع دي واخدة مكان
+ * كبير وشكلها مقرف… اعملّي كذا شكل أختار منهم". The *action* is unchanged; the
+ * *presentation* is now a choice:
+ *
+ *   hero    — one big inviting target (calmer than before)
+ *   split   — drop area beside the format/benefit list
+ *   compact — a single slim row, the least vertical space
+ *
+ * The choice is remembered per browser. Every layout keeps the same drag, click,
+ * keyboard and paste-to-upload paths, so switching never removes a capability.
+ */
+
+const LAYOUTS = [
+  { id: "hero", nameAr: "كبير", nameEn: "Hero", Icon: LayoutGrid },
+  { id: "split", nameAr: "جنب بعضه", nameEn: "Split", Icon: Rows3 },
+  { id: "compact", nameAr: "سطر واحد", nameEn: "Compact", Icon: List },
 ];
+
+const ACCEPT = ".pdf,.pptx,.docx,.txt,.csv,.html,.htm,.md,.png,.jpg,.jpeg,.webp";
+const STORAGE_KEY = "bf_upload_layout";
 
 function formatSize(bytes) {
   if (!bytes) return "0 MB";
   const mb = bytes / (1024 * 1024);
-  return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+  return mb >= 1 ? `${Math.round(mb)} MB` : `${Math.round(bytes / 1024)} KB`;
 }
+
+const FORMATS = [
+  { ext: "PDF", labelAr: "مذكرات وكتب", labelEn: "Notes & books", Icon: PdfIcon, tone: "text-rose-300 border-rose-400/30 bg-rose-400/10" },
+  { ext: "PPTX", labelAr: "سلايدات", labelEn: "Slides", Icon: PptxIcon, tone: "text-orange-300 border-orange-400/30 bg-orange-400/10" },
+  { ext: "DOCX", labelAr: "ملفات Word", labelEn: "Word", Icon: DocxIcon, tone: "text-sky-300 border-sky-400/30 bg-sky-400/10" },
+  { ext: "TXT", labelAr: "نصوص وملاحظات", labelEn: "Text & notes", Icon: TextFileIcon, tone: "text-emerald-300 border-emerald-400/30 bg-emerald-400/10" },
+];
+
+const BENEFITS = [
+  { Icon: LightningIcon, ar: "تلخيص فوري مكثف", en: "Instant deep summary" },
+  { Icon: BrainIcon, ar: "كويزات MCQ ذكية", en: "Smart MCQ quizzes" },
+  { Icon: DocumentIcon, ar: "بطاقات مراجعة", en: "Spaced flashcards" },
+];
 
 export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 1024 }) {
   const { locale } = useLocale();
+  const { isLite, isPowerSaver } = usePerformanceMode();
   const isEn = locale === "en";
-  const internalRef = useRef(null);
+  const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [layout, setLayout] = useState(() => {
+    try { return localStorage.getItem(STORAGE_KEY) || "hero"; } catch { return "hero"; }
+  });
 
-  const handleFile = (file) => {
-    if (!file) return;
-    if (file.size > maxSize) {
-      toast.error(isEn ? `File too large — Maximum size ${formatSize(maxSize)}` : `حجم الملف كبير جداً — الحد الأقصى ${formatSize(maxSize)}`);
-      return;
-    }
-    setSelectedFile(file);
-  };
+  const chooseLayout = useCallback((id) => {
+    setLayout(id);
+    try { localStorage.setItem(STORAGE_KEY, id); } catch { /* private mode */ }
+  }, []);
 
-  const dropHandler = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Paste-to-upload works in every layout.
+  useEffect(() => {
+    const onPaste = (event) => {
+      const file = event.clipboardData?.files?.[0];
+      if (file) onFile?.(file);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [onFile]);
+
+  const openPicker = () => inputRef.current?.click();
+
+  const handleDrop = (event) => {
+    event.preventDefault();
     setDragOver(false);
-    if (e.dataTransfer?.files?.[0]) {
-      handleFile(e.dataTransfer.files[0]);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) onFile?.(file);
+  };
+
+  const handleKey = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openPicker();
     }
   };
 
-  const clearFile = () => {
-    setSelectedFile(null);
-    if (internalRef.current) internalRef.current.value = "";
+  const animate = !isLite && !isPowerSaver;
+
+  const dropProps = {
+    role: "button",
+    tabIndex: 0,
+    "aria-label": isEn ? "Upload a lecture file" : "ارفع ملف المحاضرة",
+    onClick: openPicker,
+    onKeyDown: handleKey,
+    onDragOver: (e) => { e.preventDefault(); setDragOver(true); },
+    onDragLeave: () => setDragOver(false),
+    onDrop: handleDrop,
   };
 
-  const handleSubmit = async () => {
-    if (!selectedFile || submitting) return;
-    setSubmitting(true);
-    try {
-      await onFile(selectedFile);
-    } catch (e) {
-      toast.error(e.message || "حدث خطأ أثناء معالجة الملف");
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="w-full select-none">
-      <AnimatePresence mode="wait">
-        {selectedFile ? (
-          /* File ready card with Laser Glow */
-          <motion.div
-            key="selected"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="ios-glass-card rounded-3xl p-6 sm:p-8 border border-primary/40 shadow-[0_20px_50px_rgba(0,245,255,0.2)] relative overflow-hidden"
-          >
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-cyan-400 to-accent" />
-
-            <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 mb-6">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center shrink-0 shadow-lg">
-                  <SmartFileIcon filename={selectedFile.name} size={32} />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-black text-sm text-foreground truncate font-heading">{selectedFile.name}</p>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    <span className="font-mono">{formatSize(selectedFile.size)}</span>
-                    <span>•</span>
-                    <span className="text-[hsl(152,100%,50%)] font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> {isEn ? "Ready for analysis" : "جاهز للتحليل"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <button onClick={clearFile} className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-white/5 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <MagneticButton strength={0.3} className="w-full">
-              <Button
-                onClick={handleSubmit}
-                disabled={submitting}
-                size="lg"
-                className="w-full h-14 font-black text-base gap-2 rounded-2xl shadow-[0_8px_30px_rgba(0,245,255,0.4)]"
-              >
-                <Sparkles className={cn("w-5 h-5", submitting && "animate-spin")} />
-                {submitting 
-                  ? (isEn ? "Summarizing and building course..." : "جاري التلخيص وبناء المحتوى...") 
-                  : (isEn ? "Start Lecture Summary Now" : "بدء تلخيص المحاضرة الآن (Summarize)")}
-                {!submitting && <ArrowUpRight className="w-4 h-4" />}
-              </Button>
-            </MagneticButton>
-
-            <p className="text-xs text-muted-foreground text-center mt-4 flex items-center justify-center gap-1.5 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5 text-primary" /> {isEn ? "Strict Privacy — High-precision rapid analysis" : "خصوصية تامة — التحليل يتم بسرعة ودقة فائقة"}
-            </p>
-          </motion.div>
-
-        ) : (
-          /* Animated Hologram Portal & Laser Scanner */
-          <motion.div
-            key="dropzone"
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            role="button"
-            tabIndex={0}
-            onClick={() => internalRef.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
-            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); }}
-            onDrop={dropHandler}
+  const LayoutSwitcher = (
+    <div className="flex items-center gap-1" role="group" aria-label={isEn ? "Upload box style" : "شكل صندوق الرفع"}>
+      {LAYOUTS.map((item) => {
+        const Icon = item.Icon;
+        const active = layout === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            title={isEn ? item.nameEn : item.nameAr}
+            aria-pressed={active}
+            onClick={(e) => { e.stopPropagation(); chooseLayout(item.id); }}
             className={cn(
-              "group relative ios-glass-card rounded-3xl p-8 sm:p-14 text-center cursor-pointer transition-colors duration-300 overflow-hidden border-2",
-              dragOver
-                ? "border-primary shadow-[0_0_50px_rgba(0,245,255,0.35)] scale-[1.01]"
-                : "border-dashed border-white/20 hover:border-primary/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+              "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10.5px] font-bold transition-colors",
+              active ? "border-primary/45 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
-            {/* Animated Laser Scanning Beam */}
-            <motion.div
-              className="absolute inset-x-0 h-28 bg-gradient-to-b from-primary/0 via-primary/10 to-primary/0 pointer-events-none"
-              animate={{ y: ["-100%", "300%"] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <motion.div
-              className="absolute inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent pointer-events-none opacity-60"
-              animate={{ y: ["-100%", "300%"] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-            />
+            <Icon className="h-3 w-3" />
+            <span className="hidden sm:inline">{isEn ? item.nameEn : item.nameAr}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
-            {/* Glowing Hologram Upload Core */}
-            <div className="relative mb-6 inline-flex items-center justify-center">
-              <motion.div
-                animate={{ scale: [1, 1.25, 1], opacity: [0.3, 0.1, 0.3] }}
-                transition={{ duration: 2.5, repeat: Infinity }}
-                className="absolute inset-0 bg-primary/25 rounded-full blur-2xl pointer-events-none"
-              />
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                className="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-primary/20 via-cyan-400/10 to-accent/20 border border-white/20 backdrop-blur-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300"
-              >
-                <LottieUpload className={cn("w-14 h-14 transition-transform duration-300", dragOver && "scale-110")} />
-              </motion.div>
-            </div>
+  const header = (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <span className="text-[11px] font-bold text-muted-foreground">
+        {isEn ? `Up to ${formatSize(maxSize)} per file` : `لغاية ${formatSize(maxSize)} للملف`}
+      </span>
+      {LayoutSwitcher}
+    </div>
+  );
 
-            <h3 className="text-2xl sm:text-3xl font-black mb-2 font-heading text-foreground tracking-tight">
-              {dragOver 
-                ? (isEn ? "Drop file here immediately! 🎯" : "أفلت الملف هنا فوراً! 🎯") 
-                : (isEn ? "Drag & drop lecture file here, or click to browse" : "اسحب ملف المحاضرة هنا أو اضغط للاختيار")}
-            </h3>
-            
-            <p className="text-xs sm:text-sm text-muted-foreground mb-8 font-medium">
-              {isEn 
-                ? `Supports PDF • PowerPoint • Word • TXT • Notes Images (up to ${formatSize(maxSize)})`
-                : `يدعم ملفات PDF • PowerPoint • Word • TXT • صور المذكرات (لغاية ${formatSize(maxSize)})`}
-            </p>
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept={ACCEPT}
+      className="hidden"
+      onChange={(e) => e.target.files?.[0] && onFile?.(e.target.files[0])}
+    />
+  );
 
-            {/* Supported Badges */}
-            <div className="flex flex-wrap justify-center gap-2 mb-8">
-              {SUPPORTED_TYPES.map(({ ext, labelAr, labelEn, icon: IconComponent, color, bg, border }) => (
-                <span key={ext} className={cn("inline-flex items-center gap-2 text-xs font-bold rounded-xl px-3.5 py-1.5 border backdrop-blur-md shadow-sm", bg, border, color)}>
-                  <IconComponent size={18} />
-                  <span>{ext} — {isEn ? labelEn : labelAr}</span>
+  // ── compact — one slim row ─────────────────────────────────────────────────
+  if (layout === "compact") {
+    return (
+      <div className="space-y-2">
+        {header}
+        <div
+          {...dropProps}
+          className={cn(
+            "flex cursor-pointer items-center gap-4 rounded-2xl border bg-card px-4 py-3.5 transition-colors",
+            dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/45",
+          )}
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-[#0E1117] text-primary">
+            <Upload className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-black text-foreground">
+              {dragOver ? (isEn ? "Drop it now" : "أفلت الملف دلوقتي") : (isEn ? "Upload lecture file" : "ارفع ملف المحاضرة")}
+            </span>
+            <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+              {isEn ? "PDF · PPTX · DOCX · TXT · images" : "PDF · PPTX · DOCX · TXT · صور"}
+            </span>
+          </span>
+          <span className="hidden shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[11px] font-black text-[#03150c] sm:flex">
+            <FolderOpen className="h-3.5 w-3.5" />
+            {isEn ? "Browse" : "اختر ملف"}
+          </span>
+        </div>
+        {fileInput}
+      </div>
+    );
+  }
+
+  // ── split — drop zone beside the details ──────────────────────────────────
+  if (layout === "split") {
+    return (
+      <div className="space-y-2">
+        {header}
+        <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr]">
+          <div
+            {...dropProps}
+            className={cn(
+              "flex min-h-[170px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed bg-card p-5 text-center transition-colors",
+              dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/45",
+            )}
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-[#0E1117] text-primary">
+              <UploadIcon size={24} />
+            </span>
+            <span className="text-sm font-black text-foreground">
+              {dragOver ? (isEn ? "Drop it now" : "أفلت الملف دلوقتي") : (isEn ? "Drag the file here — or click" : "اسحب الملف هنا — أو اضغط")}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {isEn ? "You can also paste with Ctrl/Cmd+V" : "أو الصقه بـ Ctrl/Cmd+V"}
+            </span>
+          </div>
+
+          <div className="space-y-2.5 rounded-2xl border border-border bg-card p-4">
+            <div className="flex flex-wrap gap-1.5">
+              {FORMATS.map(({ ext, labelAr, labelEn, Icon, tone }) => (
+                <span key={ext} className={cn("inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10.5px] font-bold", tone)}>
+                  <Icon size={14} />
+                  {ext}
+                  <span className="hidden text-muted-foreground sm:inline">· {isEn ? labelEn : labelAr}</span>
                 </span>
               ))}
             </div>
+            <ul className="space-y-1.5 border-t border-border pt-2.5">
+              {BENEFITS.map(({ Icon, ar, en }) => (
+                <li key={ar} className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
+                  <Icon size={14} />
+                  {isEn ? en : ar}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        {fileInput}
+      </div>
+    );
+  }
 
-            {/* Micro Highlights */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto text-center">
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5">
-                <LottieLightning className="w-5 h-5 mx-auto mb-1" />
-                <p className="text-xs font-bold text-foreground">{isEn ? "Instant Deep Summary" : "تلخيص فوري مكثف"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{isEn ? "Key concepts extraction" : "استخراج أهم المفاهيم"}</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5">
-                <LottieBrain className="w-5 h-5 mx-auto mb-1" />
-                <p className="text-xs font-bold text-foreground">{isEn ? "Smart MCQ Quizzes" : "كويزات MCQ ذكية"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{isEn ? "Questions with explanations" : "أسئلة مع شروحات"}</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/5">
-                <LottieDoc className="w-5 h-5 mx-auto mb-1" />
-                <p className="text-xs font-bold text-foreground">{isEn ? "Spaced Flashcards" : "بطاقات مراجعة"}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{isEn ? "Fast active recall" : "حفظ وتثبيت سريع"}</p>
-              </div>
-            </div>
-
-            <input
-              ref={internalRef}
-              type="file"
-              accept=".pdf,.pptx,.docx,.txt,.csv,.html,.htm,.md,.png,.jpg,.jpeg,.webp"
-              className="hidden"
-              onChange={(e) => handleFile(e.target.files?.[0])}
-            />
-          </motion.div>
+  // ── hero — one big inviting target ────────────────────────────────────────
+  return (
+    <div className="space-y-2">
+      {header}
+      <div
+        {...dropProps}
+        className={cn(
+          "group relative cursor-pointer overflow-hidden rounded-3xl border-2 border-dashed bg-card px-6 py-10 text-center transition-colors",
+          dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/45",
         )}
-      </AnimatePresence>
+      >
+        {/* A single soft wash. The previous version layered two infinite "laser"
+            beams and three pulsing glows, which is most of why it read as heavy. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/[0.06] to-transparent" />
+
+        <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-[#0E1117] text-primary">
+          {animate && (
+            <motion.span
+              aria-hidden="true"
+              animate={dragOver ? { scale: 1.15 } : { scale: 1 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="absolute inset-0 rounded-2xl bg-primary/10"
+            />
+          )}
+          <UploadIcon size={30} className="relative" />
+        </div>
+
+        <h3 className="relative text-lg font-black text-foreground sm:text-xl">
+          {dragOver
+            ? (isEn ? "Drop it now 🎯" : "أفلت الملف دلوقتي 🎯")
+            : (isEn ? "Drag the lecture file here, or click" : "اسحب ملف المحاضرة هنا أو اضغط للاختيار")}
+        </h3>
+        <p className="relative mt-1.5 text-[12.5px] text-muted-foreground">
+          {isEn
+            ? `PDF · PowerPoint · Word · TXT · images — up to ${formatSize(maxSize)}`
+            : `PDF · PowerPoint · Word · TXT · صور — لغاية ${formatSize(maxSize)}`}
+        </p>
+
+        <div className="relative mt-5 flex flex-wrap justify-center gap-1.5">
+          {FORMATS.map(({ ext, labelAr, labelEn, Icon, tone }) => (
+            <span key={ext} className={cn("inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold", tone)}>
+              <Icon size={15} />
+              {ext}
+              <span className="hidden text-muted-foreground sm:inline">· {isEn ? labelEn : labelAr}</span>
+            </span>
+          ))}
+        </div>
+
+        <div className="relative mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border pt-4 text-[11.5px] text-muted-foreground">
+          {BENEFITS.map(({ Icon, ar, en }) => (
+            <span key={ar} className="inline-flex items-center gap-1.5">
+              <Icon size={14} />
+              {isEn ? en : ar}
+            </span>
+          ))}
+        </div>
+      </div>
+      {fileInput}
     </div>
   );
 }
+
+export { LAYOUTS as UPLOAD_LAYOUTS };

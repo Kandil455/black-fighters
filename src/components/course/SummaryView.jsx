@@ -7,6 +7,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import SummaryDocumentRenderer from "@/components/course/SummaryDocumentRenderer";
+import StudyGuideViewer from "@/components/course/StudyGuideViewer";
 import SummaryDocumentStudio from "@/components/course/SummaryDocumentStudio";
 import {
   detectTextDirection,
@@ -92,6 +93,15 @@ export default function SummaryView({ summary, course }) {
   const [exportError, setExportError] = useState("");
   const [exportEstimates, setExportEstimates] = useState({ status: "idle", pdf: 0, pptx: 0 });
   const [showMoreActions, setShowMoreActions] = useState(false);
+  // The study-guide design the student picked. Shared with the export path so the
+  // file they send to Telegram matches what they were reading.
+  const [guideTemplate, setGuideTemplate] = useState(() => {
+    try { return localStorage.getItem("bf_guide_template") || "modules_red"; } catch { return "emergency_red"; }
+  });
+  const chooseGuideTemplate = useCallback((id) => {
+    setGuideTemplate(id);
+    try { localStorage.setItem("bf_guide_template", id); } catch { /* private mode */ }
+  }, []);
 
   useEffect(() => {
     if (!editing) setCurrentSummary(summary);
@@ -303,6 +313,17 @@ export default function SummaryView({ summary, course }) {
           summary={currentSummary}
           initialValue={editableMarkdown || plainText}
           onSaved={handleSaved}
+        />
+      ) : expanded && documentV3 ? (
+        // A v3 summary is a structured document, so it renders through the
+        // study-guide templates (header, index, module cards, semantic boxes and
+        // تريكة callouts) instead of a generic markdown sheet. Markdown/legacy
+        // summaries keep the article below.
+        <StudyGuideViewer
+          document={documentV3}
+          title={course?.title || "الملخص"}
+          templateId={guideTemplate}
+          onTemplateChange={chooseGuideTemplate}
         />
       ) : expanded && (
         <article className="summary-sheet page relative overflow-hidden rounded-2xl bg-white text-slate-950 shadow-xl">

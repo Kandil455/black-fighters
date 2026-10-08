@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Crown, Medal, Star } from "lucide-react";
 import { getLevelInfo } from "@/lib/xpSystem";
 import { useLocale } from "@/lib/LocaleContext";
+import AnimatedAvatar from "@/components/AnimatedAvatar";
 
 const RANK_STYLE = {
   0: { glow: "neon-glow-cyan",    border: "border-primary/50",                      badge: "bg-primary/15 text-primary",                      icon: Crown, iconColor: "text-primary" },
@@ -11,7 +12,14 @@ const RANK_STYLE = {
   2: { glow: "neon-glow-green",   border: "border-[hsl(152,100%,50%)]/50",          badge: "bg-[hsl(152,100%,50%)]/15 text-[hsl(152,100%,50%)]", icon: Medal, iconColor: "text-[hsl(152,100%,50%)]" },
 };
 
-export default function LeaderboardRow({ rank, name, correct, answered, isMe, xp = 0 }) {
+/**
+ * A ranked row.
+ *
+ * It previously showed NO avatar at all — rank badge → name → score. That is why
+ * students who uploaded a profile photo still appeared as strangers/anonymous
+ * silhouettes on the leaderboard.
+ */
+export default function LeaderboardRow({ rank, name, correct, answered, isMe, xp = 0, avatar = "", isVideo = false, frame = "none" }) {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
   const style = RANK_STYLE[rank];
@@ -23,17 +31,28 @@ export default function LeaderboardRow({ rank, name, correct, answered, isMe, xp
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: rank * 0.05 }}
+      transition={{ delay: Math.min(rank, 8) * 0.04 }}
       dir={dir}
       className={cn(
-        "glass-card rounded-2xl px-5 py-4 flex items-center gap-4 border transition-colors",
+        "glass-card rounded-2xl px-4 py-3.5 flex items-center gap-3 border transition-colors",
         style ? `${style.border} ${style.glow}` : "border-border",
         isMe && !style && "border-primary/40 ring-1 ring-primary/30"
       )}
     >
       {/* Rank badge */}
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center font-black shrink-0 text-lg", style ? style.badge : "bg-secondary text-muted-foreground")}>
-        {Icon ? <Icon className={cn("w-5 h-5", style.iconColor)} /> : rank + 1}
+      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-black shrink-0 text-base", style ? style.badge : "bg-secondary text-muted-foreground")}>
+        {Icon ? <Icon className={cn("w-4.5 h-4.5", style.iconColor)} /> : rank + 1}
+      </div>
+
+      {/* Avatar — the student's own photo when they uploaded one */}
+      <div className="shrink-0">
+        <AnimatedAvatar
+          src={avatar}
+          isVideo={isVideo}
+          frame={frame}
+          size={40}
+          fallback={(name || "?").trim().charAt(0).toUpperCase() || "؟"}
+        />
       </div>
 
       {/* Name & level */}
@@ -60,7 +79,7 @@ export default function LeaderboardRow({ rank, name, correct, answered, isMe, xp
 
       {/* Score */}
       <div className="text-end shrink-0">
-        <p className="text-2xl font-black text-primary">{correct}</p>
+        <p className="text-xl font-black text-primary">{correct}</p>
         <p className="text-[10px] text-muted-foreground">{isEn ? "Correct" : "إجابة صح"}</p>
         {xp > 0 && (
           <p className="text-[10px] text-accent flex items-center justify-end gap-0.5 mt-0.5">

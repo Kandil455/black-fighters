@@ -10,7 +10,7 @@ export default function ThemePicker() {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
   const [saving, setSaving] = useState(null);
-  const current = profile?.app_theme || "dark";
+  const current = profile?.app_theme || "clinical";
 
   const pick = async (key) => {
     if (key === current) return;

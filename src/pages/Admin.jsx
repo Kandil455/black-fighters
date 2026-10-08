@@ -10,7 +10,7 @@ import {
   Shield, Check, Trash2, Loader2, BookOpen, Users,
   Crown, Key, Search, ChevronDown, ChevronUp, Lock, Unlock,
   BarChart3, RefreshCw, Calendar, Zap, Wand2, Coins, Copy, Ticket, Wallet,
-  Filter, Flag, ShieldAlert,
+  Filter, Flag, ShieldAlert, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PROVIDERS } from "@/lib/models";
@@ -34,12 +34,62 @@ const COLORS = {
   red: "border-destructive/40 text-destructive",
 };
 
+/**
+ * Admin navigation, grouped.
+ *
+ * It used to be nine equal buttons in one flat wrapping row, so "delete an
+ * activation code" and "review flagged questions" looked like the same kind of
+ * action as "browse analytics". Grouping them by intent — what happened /
+ * who / content & keys — makes the panel scannable, and the groups scroll
+ * horizontally on narrow screens instead of reflowing into four ragged rows.
+ */
+const ADMIN_GROUPS = [
+  {
+    id: "monitor",
+    labelAr: "المتابعة",
+    labelEn: "Monitor",
+    tabs: [
+      { id: "overview", labelAr: "نظرة عامة", labelEn: "Overview", icon: BarChart3 },
+      { id: "analytics", labelAr: "إحصائيات ورسوم", labelEn: "Analytics", icon: LineChart },
+      { id: "funnel", labelAr: "مسار التحويل", labelEn: "Funnel", icon: Filter },
+    ],
+  },
+  {
+    id: "people",
+    labelAr: "الناس والفلوس",
+    labelEn: "People & money",
+    tabs: [
+      { id: "users", labelAr: "المستخدمين", labelEn: "Users", icon: Users },
+      { id: "payments", labelAr: "طلبات الدفع", labelEn: "Payments", icon: Wallet, badgeKey: "pendingPayments" },
+      { id: "codes", labelAr: "أكواد التفعيل", labelEn: "Codes", icon: Ticket },
+    ],
+  },
+  {
+    id: "content",
+    labelAr: "المحتوى والجودة",
+    labelEn: "Content & quality",
+    tabs: [
+      { id: "flags", labelAr: "بلاغات الأسئلة", labelEn: "Question flags", icon: Flag, badgeKey: "flags" },
+      { id: "emergency", labelAr: "محتوى الطوارئ", labelEn: "Emergency", icon: ShieldAlert },
+      { id: "keys", labelAr: "مفاتيح الـ AI", labelEn: "AI keys", icon: Key },
+    ],
+  },
+];
+
 function Tab({ label, active, onClick, icon: Icon, badge }) {
   return (
-    <button onClick={onClick} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors relative ${active ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"}`}>
-      <Icon className="w-4 h-4" /> {label}
-      {badge !== undefined && (
-        <span className="bg-orange-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full min-w-4 text-center leading-none">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`relative flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-bold transition-colors ${
+        active ? "bg-primary/15 text-primary ring-1 ring-primary/30" : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+      {badge !== undefined && badge > 0 && (
+        <span className="min-w-4 rounded-full bg-orange-500 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white">
           {badge}
         </span>
       )}
@@ -496,25 +546,55 @@ export default function Admin() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
-        <Shield className="w-8 h-8 text-accent" />
-        <div>
-          <h1 className="text-3xl font-black">لوحة الأدمن</h1>
-          <p className="text-muted-foreground text-sm">تحكم كامل في المستخدمين، الكريدتس، الحدود، الاشتراكات، والمميزات — {profile?.email}</p>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-[#0E1117] text-primary">
+            <Shield className="h-6 w-6" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black sm:text-3xl">لوحة الأدمن</h1>
+            <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{profile?.email}</p>
+          </div>
         </div>
-      </div>
 
-      <div className="flex gap-2 mb-8 flex-wrap">
-        <Tab label="نظرة عامة" icon={BarChart3} active={tab === "overview"} onClick={() => setTab("overview")} />
-        <Tab label="مسار التحويل (Funnel)" icon={Filter} active={tab === "funnel"} onClick={() => setTab("funnel")} />
-        <Tab label="بلاغات الأسئلة" icon={Flag} active={tab === "flags"} onClick={() => setTab("flags")} />
-        <Tab label="إحصائيات ورسوم" icon={LineChart} active={tab === "analytics"} onClick={() => setTab("analytics")} />
-        <Tab label="المستخدمين" icon={Users} active={tab === "users"} onClick={() => setTab("users")} />
-        <Tab label="طلبات الدفع" icon={Wallet} active={tab === "payments"} onClick={() => setTab("payments")} badge={pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined} />
-        <Tab label="أكواد التفعيل" icon={Ticket} active={tab === "codes"} onClick={() => setTab("codes")} />
-        <Tab label="محتوى الطوارئ 🚨" icon={ShieldAlert} active={tab === "emergency"} onClick={() => setTab("emergency")} />
-        <Tab label="مفاتيح الـ AI" icon={Key} active={tab === "keys"} onClick={() => setTab("keys")} />
-      </div>
+        {/* Things that need a decision, surfaced instead of buried in a tab. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {pendingPaymentsCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setTab("payments")}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-orange-400/40 bg-orange-400/10 px-3 py-2 text-xs font-bold text-orange-300"
+            >
+              <Wallet className="h-3.5 w-3.5" />
+              {pendingPaymentsCount} طلب دفع محتاج مراجعة
+            </button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => refetchUsers()} className="gap-1.5">
+            <RefreshCw className={`h-3.5 w-3.5 ${usersLoading ? "animate-spin" : ""}`} />
+            تحديث
+          </Button>
+        </div>
+      </header>
+
+      <nav aria-label="أقسام لوحة الأدمن" className="mb-7 space-y-3">
+        {ADMIN_GROUPS.map((group) => (
+          <div key={group.id} className="space-y-1.5">
+            <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">{group.labelAr}</p>
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-none">
+              {group.tabs.map((item) => (
+                <Tab
+                  key={item.id}
+                  label={item.labelAr}
+                  icon={item.icon}
+                  active={tab === item.id}
+                  onClick={() => setTab(item.id)}
+                  badge={item.badgeKey === "pendingPayments" ? pendingPaymentsCount : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
 
       {tab === "overview" && (
         <div className="space-y-6">
@@ -530,9 +610,38 @@ export default function Admin() {
               { label: "دفع ناجح", value: stats?.approvedPayments ?? "—", icon: Check, color: "text-[hsl(152,100%,50%)]", border: "border-[hsl(152,100%,50%)]/20" },
             ].map(s => <div key={s.label} className={`glass-card rounded-2xl p-4 border ${s.border}`}><s.icon className={`w-5 h-5 mb-2 ${s.color}`} /><p className={`text-2xl font-black ${s.color}`}>{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>)}
           </div>
-          <div className="glass-card rounded-3xl p-5 border border-primary/20">
-            <h2 className="font-black mb-2 flex items-center gap-2"><Wand2 className="w-5 h-5 text-primary" />إدارة متكاملة من لوحة واحدة</h2>
-            <p className="text-sm text-muted-foreground">تستطيع إدارة الكريدتس، حدود الملفات والكويزات، تفعيل وإيقاف المميزات، تغيير الاشتراكات، قفل الحسابات، والتحكم بصلاحيات الأدمن — كل ذلك من مكان واحد.</p>
+          {/* Was a marketing paragraph ("full control from one panel") that told an
+              admin nothing they didn't already know. It now points at the things
+              that actually need a human decision. */}
+          <div className="rounded-3xl border border-border bg-[#0E1117] p-5">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-black">
+              <Wand2 className="h-4 w-4 text-primary" />
+              محتاج قرار منك
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                { show: pendingPaymentsCount > 0, label: `${pendingPaymentsCount} طلب دفع مستني المراجعة`, tab: "payments", icon: Wallet, tone: "text-orange-300 border-orange-400/30 bg-orange-400/[0.07]" },
+                { show: (stats?.locked ?? 0) > 0, label: `${stats?.locked} حساب مقفول`, tab: "users", icon: Lock, tone: "text-red-300 border-red-400/30 bg-red-400/[0.07]" },
+                { show: true, label: "راجع بلاغات الأسئلة من الطلبة", tab: "flags", icon: Flag, tone: "text-sky-300 border-sky-400/30 bg-sky-400/[0.07]" },
+                { show: true, label: "أكواد التفعيل والباقات", tab: "codes", icon: Ticket, tone: "text-primary border-primary/30 bg-primary/[0.07]" },
+              ]
+                .filter((item) => item.show)
+                .map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.tab}
+                      type="button"
+                      onClick={() => setTab(item.tab)}
+                      className={`flex items-center gap-2.5 rounded-2xl border px-3.5 py-3 text-start text-[13px] font-bold transition-colors hover:brightness-110 ${item.tone}`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="min-w-0 flex-1">{item.label}</span>
+                      <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    </button>
+                  );
+                })}
+            </div>
           </div>
         </div>
       )}

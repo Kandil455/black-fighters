@@ -7,7 +7,6 @@ import {
   Bot,
   Check,
   CircleDot,
-  Coins,
   Flame,
   ImageIcon,
   Loader2,
@@ -15,12 +14,10 @@ import {
   RotateCcw,
   Sparkles,
   Zap,
-  Send,
-  ExternalLink,
   Gift,
 } from "lucide-react";
 import { getReferralLink, shareReferralLink } from "@/lib/referralService";
-import { CreditCoin3D } from "@/components/ui/Custom3DIcons";
+import { PaymentIcon } from "@/components/ui/icons";
 import { toast } from "sonner";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import FrameStore from "@/components/profile/FrameStore";
@@ -35,6 +32,7 @@ import MascotSkin from "@/components/course/MascotSkin";
 import MascotSkinStore from "@/components/course/MascotSkinStore";
 import { MASCOT_SKINS } from "@/lib/mascotSkins";
 import { useLocale } from "@/lib/LocaleContext";
+import TelegramLinkAction from "@/components/telegram/TelegramLinkAction";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { ownsBanner, ownsFrame, ownsTitle, PROFILE_COLORS } from "@/lib/avatars";
 import { usePerformanceMode } from "@/lib/PerformanceContext";
@@ -192,27 +190,18 @@ export default function Profile() {
 
   return (
     <div className="mx-auto max-w-6xl pb-28" dir={dir}>
-      <header className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-primary">
-            <Sparkles className="h-4 w-4" /> Identity Studio
-          </div>
-          <h1 className="text-3xl font-black sm:text-4xl">
-            {isEn ? "Design Your Black Fighters Identity" : "صمّم هويتك داخل Black Fighters"}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {isEn
-              ? "Build a complete loadout with Frames, Banners, Orbits, and 3D Models and preview live before saving."
-              : "ابنِ Loadout كامل من Frame وBanner وOrbit و3D Model وشاهد النتيجة مباشرة قبل الحفظ."}
-          </p>
+      <header className="mb-7">
+        <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-primary">
+          <Sparkles className="h-4 w-4" /> {isEn ? "Profile" : "الملف الشخصي"}
         </div>
-        <div className="flex items-center gap-3 flex-wrap self-start sm:self-auto">
-          <div className="flex items-center gap-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-2 text-amber-300">
-            <Coins className="h-4 w-4" />
-            <span className="text-lg font-black tabular-nums">{Number(user.credits ?? 10).toLocaleString()}</span>
-            <span className="text-xs font-bold">{isEn ? "Credits" : "كريدت"}</span>
-          </div>
-        </div>
+        <h1 className="text-3xl font-black sm:text-4xl">
+          {isEn ? "Your profile" : "ملفك الشخصي"}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          {isEn
+            ? "Update your photo, name, frame and accent colour — changes appear everywhere in the app."
+            : "عدّل صورتك واسمك وإطارك ولونك — التغييرات بتظهر في كل المنصة فورًا."}
+        </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
@@ -238,9 +227,11 @@ export default function Profile() {
                 {titleKey !== "none" && <div className="mt-2"><AnimatedTitle titleKey={titleKey} size="lg" /></div>}
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-bold">
                   <span className="flex items-center gap-1.5 rounded-full bg-amber-400/10 border border-amber-400/25 px-3 py-1 text-amber-300 font-mono font-bold shadow-sm">
-                    <CreditCoin3D size={16} /> {Number(user.credits ?? 10).toLocaleString()} {isEn ? "Credits" : "كريدت"}
+                    <PaymentIcon size={16} /> {Number(user.credits ?? 10).toLocaleString()} {isEn ? "Credits" : "كريدت"}
                   </span>
-                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1" style={{ color: accentHex, background: `${accentHex}16` }}><Zap className="h-3.5 w-3.5" /> {user.total_xp ?? 0} XP</span>
+                  {/* The accent defaults to neon cyan (#00e5ff): 1.54:1 as text on white. It is
+                      kept as the chip's tint but the number itself is ink. */}
+                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-foreground" style={{ background: `${accentHex}16` }}><Zap className="h-3.5 w-3.5" /> {user.total_xp ?? 0} XP</span>
                   {(user.current_streak ?? 0) > 0 && <span className="flex items-center gap-1 rounded-full bg-orange-400/10 px-2.5 py-1 text-orange-300"><Flame className="h-3.5 w-3.5" /> {user.current_streak}</span>}
                 </div>
               </div>
@@ -344,18 +335,10 @@ export default function Profile() {
                 ? "Connect with @black_fighters_bot to take interactive EBE & OSPE quizzes right inside Telegram!"
                 : "اربط حسابك مع بوت @black_fighters_bot لتمتحن كويزات النظري (EBE) والعملي (OSPE) مباشرة من التيليجرام!"}
             </p>
-            <a
-              href={`https://t.me/black_fighters_bot?start=link_${user?.id || ""}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 px-3 rounded-xl bg-primary text-primary-foreground font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-primary/20 hover:opacity-90 transition"
-            >
-              <Send className="w-3.5 h-3.5" />
-              {user?.telegram_chat_id
-                ? (isEn ? "Open Bot (@black_fighters_bot)" : "فتح البوت (@black_fighters_bot)")
-                : (isEn ? "Link Account via Telegram" : "ربط الحساب عبر التيليجرام")}
-              <ExternalLink className="w-3 h-3 opacity-70" />
-            </a>
+            <TelegramLinkAction
+              linked={Boolean(user?.telegram_chat_id)}
+              onChange={() => refreshProfile?.()}
+            />
           </div>
 
         </aside>

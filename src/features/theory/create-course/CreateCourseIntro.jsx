@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check } from 'lucide-react';
-import { AnimatedSummaryNote } from '@/components/ui/AnimatedMicroIcons';
+import { SummaryNoteIcon } from "@/components/ui/icons";
 import CreditCostBadge from '@/components/CreditCostBadge';
 import { calculateSummaryCost } from '@/lib/economyCatalog';
 
@@ -18,7 +18,7 @@ export default function CreateCourseIntro({ isEn, step, pendingTextLength = 0 })
         </div>
         <div className="mb-2 flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-500/30 bg-cyan-500/10 shadow-lg shadow-cyan-500/10">
-            <AnimatedSummaryNote size={26} />
+            <SummaryNoteIcon size={26} />
           </div>
           <h1 className="studio-headline-gradient heading-display text-3xl font-black text-foreground sm:text-4xl">
             {isEn ? 'Create Summary' : 'أنشئ تلخيص المحاضرات والمذكرات'}

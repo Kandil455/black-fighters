@@ -1,4 +1,4 @@
-import { uploadDirectToTelegram } from "./directUpload.js";
+import { uploadMedia, MAX_DIRECT_UPLOAD_BYTES } from "./mediaUpload.js";
 import { apiUrl, resolveMediaUrl } from "./apiBase.js";
 
 export function fileToDataUrl(file) {
@@ -109,14 +109,15 @@ export async function uploadFile(file, folder = "uploads", { onProgress } = {}) 
     }
   }
 
-  // 1. Direct browser-to-Telegram storage cloud (bypasses Vercel 4.5MB payload limit, up to 50MB)
-  try {
-    const directRes = await uploadDirectToTelegram(processedFile, { onProgress });
-    if (directRes?.url) {
-      return directRes.url;
+  // 1. Authenticated server-mediated upload (the server holds the storage
+  //    credential; nothing sensitive ever reaches the browser).
+  if (processedFile.size <= MAX_DIRECT_UPLOAD_BYTES) {
+    try {
+      const mediaUrl = await uploadMedia(processedFile, { onProgress });
+      if (mediaUrl) return mediaUrl;
+    } catch (mediaErr) {
+      console.warn("Server media upload failed, trying /api/upload-media:", mediaErr.message);
     }
-  } catch (directErr) {
-    console.warn("Direct Telegram upload fallback, attempting /api/upload-media:", directErr.message);
   }
 
   // 2. Try serverless CDN upload endpoint (/api/upload-media) for small payloads

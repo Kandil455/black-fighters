@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { ensureFriendId } from "@/lib/social";
@@ -8,98 +9,100 @@ import FriendIdCard from "@/components/social/FriendIdCard";
 import AddFriend from "@/components/social/AddFriend";
 import FriendRequests from "@/components/social/FriendRequests";
 import FriendsList from "@/components/social/FriendsList";
-import ChatWindow from "@/components/social/ChatWindow";
+
+/**
+ * Friends & social chat.
+ *
+ * PERFORMANCE (this page used to be noticeably slow):
+ *  1. It awaited `auth.me()` (an extra getDoc) AND `ensureFriendId` (a possible
+ *     WRITE) before any data query could start. The profile comes from
+ *     AuthContext now, and the friend-id repair runs alongside the queries instead
+ *     of in front of them.
+ *  2. `refreshProfile()` fired on every mount — a second `me()` read plus an
+ *     IndexedDB write — purely for cosmetics. Removed.
+ *  3. Every navigation re-ran the whole waterfall. react-query caches it now.
+ *  4. ChatWindow was statically imported into this route's chunk although it only
+ *     renders after picking a peer; it is lazy now.
+ */
+const ChatWindow = lazy(() => import("@/components/social/ChatWindow"));
 
 export default function Friends() {
-  const { refreshProfile } = useAuth();
+  const { profile } = useAuth();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
-  const [me, setMe] = useState(null);
-  const [friends, setFriends] = useState([]);
-  const [requests, setRequests] = useState([]);
+
+  const [me, setMe] = useState(profile || null);
   const [peer, setPeer] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [chatParam] = useState(() =>
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("chat") : null,
+  );
 
-  const loadSocial = useCallback(async (user) => {
-    const u = user || me;
-    if (!u?.id) return;
-    try {
-      const links = await base44.entities.Friendship.filter({ participant_ids: u.id });
-      const safeLinks = Array.isArray(links) ? links : [];
-      // طلبات واردة معلقة
-      setRequests(safeLinks.filter((l) => l.status === "pending" && l.addressee_id === u.id));
-      // الأصدقاء المقبولين
-      const accepted = safeLinks.filter((l) => l.status === "accepted");
-      const friendIds = accepted.map((l) => (l.requester_id === u.id ? l.addressee_id : l.requester_id));
-      if (friendIds.length) {
-        const users = await base44.entities.User.filter({ id: { $in: friendIds } });
-        setFriends(users.map((fu) => ({
-          id: fu.id, name: fu.full_name, avatar_url: fu.avatar_url,
-          profile_frame: fu.profile_frame, friend_id: fu.friend_id,
-        })));
-      } else {
-        setFriends([]);
-      }
-    } catch (e) {
-      console.warn("loadSocial error:", e.message);
-      setFriends([]);
-      setRequests([]);
-    }
-  }, [me]);
-
+  // Keep the local copy fresh when AuthContext loads/repairs the profile.
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const u = await base44.auth.me();
-        if (!u) {
-          if (mounted) setLoading(false);
-          return;
-        }
-        const fid = await ensureFriendId(u).catch(() => null);
-        const withId = { ...u, friend_id: fid || u.friend_id || "GUEST" };
-        if (mounted) {
-          setMe(withId);
-          await loadSocial(withId);
+    if (profile?.id) setMe((prev) => ({ ...profile, ...prev, id: profile.id }));
+  }, [profile]);
 
-          // فتح شات مباشر من زر "تواصل" في البروفايل العام (?chat=<id>)
-          const chatId = new URLSearchParams(window.location.search).get("chat");
-          if (chatId && chatId !== u.id) {
-            const list = await base44.entities.User.filter({ id: chatId });
-            const target = list?.[0];
-            if (target && mounted) {
-              setPeer({
-                id: target.id, name: target.full_name,
-                avatar_url: target.avatar_url, profile_frame: target.profile_frame,
-                friend_id: target.friend_id,
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("Friends initialization error:", err.message);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-          refreshProfile?.();
+  // Repair the shareable friend id in the background — it must never gate the list.
+  useEffect(() => {
+    if (!me?.id) return;
+    if (me.friend_id) return;
+    let cancelled = false;
+    ensureFriendId(me)
+      .then((fid) => { if (!cancelled && fid) setMe((prev) => ({ ...prev, friend_id: fid })); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [me?.id, me?.friend_id]);
+
+  const { data: social, isLoading } = useQuery({
+    queryKey: ["friends-social", me?.id],
+    enabled: Boolean(me?.id),
+    queryFn: async () => {
+      const links = await base44.entities.Friendship.filter({ participant_ids: me.id });
+      const safeLinks = Array.isArray(links) ? links : [];
+      const requests = safeLinks.filter((l) => l.status === "pending" && l.addressee_id === me.id);
+      const accepted = safeLinks.filter((l) => l.status === "accepted");
+      const friendIds = accepted.map((l) => (l.requester_id === me.id ? l.addressee_id : l.requester_id));
+      // One bounded batched read for every friend, not one request per friend.
+      const users = friendIds.length ? await base44.entities.User.filter({ id: { $in: friendIds } }) : [];
+      const friends = users.map((fu) => ({
+        id: fu.id,
+        name: fu.full_name,
+        avatar_url: fu.avatar_url,
+        profile_frame: fu.profile_frame,
+        friend_id: fu.friend_id,
+      }));
+      let requestedPeer = null;
+      if (chatParam && chatParam !== me.id) {
+        const target = (await base44.entities.User.filter({ id: chatParam }))?.[0];
+        if (target) {
+          requestedPeer = {
+            id: target.id,
+            name: target.full_name,
+            avatar_url: target.avatar_url,
+            profile_frame: target.profile_frame,
+            friend_id: target.friend_id,
+          };
         }
       }
-    })();
-    return () => { mounted = false; };
-  }, []);
+      return { requests, friends, requestedPeer };
+    },
+  });
 
-  if (loading) {
+  // Deep link (?chat=<id>) opens that conversation once the data is in.
+  useEffect(() => {
+    if (social?.requestedPeer && !peer) setPeer(social.requestedPeer);
+  }, [social?.requestedPeer, peer]);
+
+  const requests = social?.requests || [];
+  const friends = social?.friends || [];
+  const queryClient = useQueryClient();
+  const refreshSocial = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ["friends-social", me?.id] }),
+    [queryClient, me?.id],
+  );
+
+  if (!me?.id || isLoading) {
     return <div className="flex justify-center py-32"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  }
-
-  if (!me) {
-    return (
-      <div className="max-w-5xl mx-auto pb-12 text-center py-20" dir={dir}>
-        <Users className="w-14 h-14 mx-auto mb-4 text-muted-foreground opacity-40" />
-        <h2 className="text-xl font-bold mb-2">{isEn ? "Authentication Required" : "يرجى تسجيل الدخول"}</h2>
-        <p className="text-sm text-muted-foreground">{isEn ? "Please sign in to access friends and messaging." : "سجّل دخولك عشان تقدر تضيف أصدقاء وتبدأ الدردشة."}</p>
-      </div>
-    );
   }
 
   return (
@@ -110,11 +113,10 @@ export default function Friends() {
       </div>
 
       <div className="grid lg:grid-cols-[1fr_1.4fr] gap-5">
-        {/* العمود الأيمن: الإدارة + القائمة */}
         <div className={`space-y-4 ${peer ? "hidden lg:block" : ""}`}>
           <FriendIdCard friendId={me?.friend_id} />
-          <AddFriend me={me} onAdded={() => loadSocial()} />
-          <FriendRequests requests={requests} onChange={() => loadSocial()} />
+          <AddFriend me={me} onAdded={refreshSocial} />
+          <FriendRequests requests={requests} onChange={refreshSocial} />
           <FriendsList
             friends={friends}
             activePeerId={peer?.isAi ? "ai" : peer?.id}
@@ -122,10 +124,11 @@ export default function Friends() {
           />
         </div>
 
-        {/* العمود الأيسر: نافذة الشات */}
         <div className={`${peer ? "" : "hidden lg:block"}`}>
           {peer ? (
-            <ChatWindow me={me} peer={peer} onBack={() => setPeer(null)} />
+            <Suspense fallback={<div className="h-[70vh] glass-card rounded-2xl border border-border/50 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+              <ChatWindow me={me} peer={peer} onBack={() => setPeer(null)} />
+            </Suspense>
           ) : (
             <div className="h-[70vh] glass-card rounded-2xl border border-border/50 flex flex-col items-center justify-center text-muted-foreground">
               <Users className="w-14 h-14 mb-3 opacity-30" />

@@ -38,6 +38,12 @@ service cloud.firestore {
         'plan_granted_by', 'plan_expires_at', 'is_locked', 'is_pro',
         'referrals_count', 'referral_code', 'created_at', 'email',
         'daily_file_limit', 'daily_operations_limit',
+        // Telegram identity is server-owned: the bot resolves an account by
+        // telegram_chat_id, so a client that could write it could hijack (or
+        // detach) another account's bot session. Linking only happens through
+        // /api/telegram-link with a short-lived single-use code.
+        'telegram_chat_id', 'telegram_id', 'telegram_username', 'telegram_linked_at',
+        'telegram_unlinked_at', 'telegram_relinked_at',
       ];
     }
     function touchesAny(keys, blocked) {
@@ -291,6 +297,18 @@ service cloud.firestore {
       allow read: if isAuthed();
       allow write: if isAdmin();
     }
+
+    // ─── Student-reported quiz problems ───
+    // Students may file their OWN report and cannot edit it afterwards; only
+    // admins review/close them. This collection previously had no entity
+    // definition, so every report was dropped and the admin queue stayed empty.
+    match /flaggedQuestions/{id} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
+      allow create: if isAuthed()
+        && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.status == 'pending_review';
+      allow update, delete: if isAdmin();
+    }
     match /lessons/{id} {
       allow read: if isAdmin() || isOwner(resource.data.created_by_id);
       allow update, delete: if isAdmin() || (isOwner(resource.data.created_by_id)
@@ -305,6 +323,31 @@ service cloud.firestore {
     // ─── V5 Atlas: Webhook Idempotency, Double-Entry Ledger & Concept Mastery ───
     match /telegram_processed_updates/{updateId} {
       allow read, write: if false; // server-only (Telegram webhook idempotency)
+    }
+
+    // ─── Telegram ⇄ platform sync (ALL server-only) ───
+    // The bot and the /api/telegram-* functions use the Admin SDK, which bypasses
+    // these rules; clients must never read or write any of them.
+    //  * link codes are credentials — a client read would be an account takeover
+    //  * outbox rows contain outbound message payloads
+    //  * sessions/budgets/rate limits are server state
+    match /telegram_link_codes/{code} {
+      allow read, write: if false; // server-only
+    }
+    match /telegram_outbox/{id} {
+      allow read, write: if false; // server-only
+    }
+    match /telegram_notify_state/{userId} {
+      allow read, write: if false; // server-only
+    }
+    match /telegram_quiz_sessions/{chatId} {
+      allow read, write: if false; // server-only
+    }
+    match /telegram_rate_limits/{id} {
+      allow read, write: if false; // server-only
+    }
+    match /telegram_file_sessions/{chatId} {
+      allow read, write: if false; // server-only (was implicitly denied by the catch-all)
     }
     match /creditAccounts/{userId} {
       allow read: if isAdmin() || isOwner(userId);

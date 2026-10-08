@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { 
-  Upload, Sparkles, Sliders, 
+  Upload, Sliders, 
   CheckCircle2, Loader2, Zap, ShieldCheck 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,21 +53,10 @@ export function ImageExtractorUpload({ onStartExtraction, isProcessing, progress
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6" dir={dir}>
-      {/* Hero Header */}
-      <div className="text-center space-y-2 mb-4">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-400 text-xs font-mono font-bold tracking-wider">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>{isEn ? "PRACTICAL QUIZ GENERATOR • OSCE / OSPE" : "أنشئ كويز عملي • أوسكي / أوسبي بالصور"}</span>
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-black text-white font-heading">
-          {isEn ? "Extract Visuals & Auto-Generate Practical Quizzes 🔬⚡" : "استخراج الصور وتوليد كويزات العملي (أوسكي / أوسبي) 🔬⚡"}
-        </h2>
-        <p className="text-xs sm:text-sm text-white/60 max-w-xl mx-auto leading-relaxed">
-          {isEn
-            ? "Upload lecture slides, PDFs, or images to extract figures, diagrams, and illustrations for all academic disciplines, and generate interactive practical quizzes instantly."
-            : "ارفع ملف المحاضرة (PDF / PPTX) أو الصور مباشرة، والذكاء الاصطناعي هيستخرج الصور ويولّد عليها أسئلة تفاعلية فوراً لجميع التخصصات والمراحل التعليمية."}
-        </p>
-      </div>
+      {/* No second hero here on purpose: the page already renders the title and
+          subtitle, so this panel opened with a near-identical purple badge,
+          headline and paragraph — the "why does this page say the same thing
+          twice" duplication. It now leads with the action itself. */}
 
       {/* Main Dropzone Card */}
       <div

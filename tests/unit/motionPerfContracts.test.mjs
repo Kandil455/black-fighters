@@ -18,18 +18,28 @@ import { FIREBASE_ENV_VARS } from "../../src/lib/firebaseConfig.js";
 
 const read = (p) => readFileSync(p, "utf8");
 
-test("AnimatedMicroIcons never animates filter (static glow only)", () => {
-  const src = read("src/components/ui/AnimatedMicroIcons.jsx");
+test("the unified icon layer animates transform only (no filter/box-shadow keyframes)", () => {
+  // History: the retired AnimatedMicroIcons/LottieIcons drew glow with
+  // `filter: drop-shadow()`, and animating it repaints on the main thread every
+  // frame. src/components/ui/icons.jsx is now the single icon source.
+  const src = read("src/components/ui/icons.jsx");
+  // Comments here explain WHY the old glow was removed; strip them so the
+  // assertion tests code, not prose.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   assert.equal(
-    /filter:\s*\[/.test(src),
+    /filter:\s*\[/.test(code),
     false,
-    "framer `filter: [...]` keyframes found — animating drop-shadow repaints " +
-    "every frame on the main thread and starved the compositor during scroll. " +
-    "Keep the glow static (filter in `style`) and animate transform/opacity only."
+    "framer `filter: [...]` keyframes found in icons.jsx — animate transform/opacity only.",
   );
-  assert.ok(
-    src.includes("drop-shadow"),
-    "static glow was removed too — visual regression; keep drop-shadow in style, not in animate"
+  assert.equal(
+    /drop-shadow/.test(code),
+    false,
+    "a per-icon drop-shadow glow returned; it repaints on the main thread every frame.",
+  );
+  assert.equal(
+    /repeat:\s*Infinity/.test(code),
+    false,
+    "an infinite framer keyframe per icon instance is back — that is what made the app never idle.",
   );
 });
 
@@ -56,15 +66,6 @@ test("MagneticButton: JS transform on its own layer, CSS scale on a nested eleme
   assert.ok(
     src.includes("hover:scale-[1.02]"),
     "scale layer separated from the JS-transform layer was removed — CSS transition would re-interpolate the JS writes again"
-  );
-});
-
-test("SaturnCosmos3D: no layout reads in the pointermove hot path", () => {
-  const src = read("src/components/dashboard/SaturnCosmos3D.jsx");
-  assert.equal(
-    /handlePointerMove[\s\S]{0,400}?getBoundingClientRect/.test(src),
-    false,
-    "getBoundingClientRect inside pointermove forces reflow on every mouse move (scroll jank) — cache viewport dims on resize instead"
   );
 });
 
@@ -206,21 +207,24 @@ test("repeated-list icon contexts pass animated={false} (compositor budget)", ()
   );
 });
 
-test("AnimatedMicroIcons exposes the animated prop on motion icons (loaders excluded)", () => {
-  const src = read("src/components/ui/AnimatedMicroIcons.jsx");
-  const count = (src.match(/animated = true/g) || []).length;
-  // Lightning, Brain, Document, Trophy, Flame, Rocket, BotCore, Upload, Success
+test("icons.jsx defaults to NO animation and keeps spinners opt-out", () => {
+  const src = read("src/components/ui/icons.jsx");
   assert.ok(
-    count >= 9,
-    `expected the animated prop on all 9 motion icons, found ${count} — a new icon may be missing the density escape hatch`
+    /animated = false/.test(src),
+    "the unified Icon must default `animated` to false — repeated list/nav contexts mount dozens of instances.",
   );
-  // Loaders/spinners intentionally keep animating: they exist to show activity.
-  const loader = src.match(/export const AnimatedLoader[\s\S]*$/);
-  assert.ok(loader, "AnimatedLoader not found");
-  assert.equal(
-    loader[0].includes("animated = true"),
-    false,
-    "AnimatedLoader must stay always-on (a paused spinner is meaningless)"
+  assert.ok(
+    !/animated = true/.test(src),
+    "an icon exporting `animated = true` by default is back; that is the infinite-keyframe-per-instance regression.",
+  );
+  // Spinners are the one thing that must keep moving.
+  assert.ok(
+    /animate-spin/.test(src) && /motion-reduce:animate-none/.test(src),
+    "the loader must spin (and stop under prefers-reduced-motion).",
+  );
+  assert.ok(
+    !/lottie/i.test(src.replace(/\/\*[\s\S]*?\*\//g, "")),
+    "a Lottie reference returned to the icon layer.",
   );
 });
 
@@ -370,38 +374,6 @@ test("useSmoothScroll: ref-driven wheel glide with native-scroll gates", () => {
   assert.ok(code.includes("passive: false"), "wheel listener must be non-passive or preventDefault throws");
 });
 
-test("canvas 2D scenes glow via pre-rendered sprites, never per-frame shadowBlur", () => {
-  // 180 shadow-filled arcs/frame = a multi-pass blur rasterization per
-  // particle per frame (the 3D-gallery heavy path). Sprites + globalAlpha
-  // drawImage give the same glow for a fraction of the cost.
-  for (const file of [
-    "src/components/ui/CinematicHoloVisualizer.jsx",
-    "src/components/ui/NeuralCore3D.jsx",
-  ]) {
-    const code = read(file).replace(/^\s*\/\/.*$/gm, "");
-    assert.equal(
-      code.includes("shadowBlur"),
-      false,
-      `${file} sets ctx.shadowBlur per particle again — per-frame multi-pass blur rasterization; pre-render glow sprites and drawImage with globalAlpha`
-    );
-    assert.ok(
-      code.includes("drawImage") && code.includes("globalAlpha"),
-      `${file} lost the sprite draw path (drawImage + globalAlpha)`
-    );
-  }
-});
-
-test("NeuralCore3D animates with delta-time (frame-rate independent)", () => {
-  const code = read("src/components/ui/NeuralCore3D.jsx").replace(/^\s*\/\/.*$/gm, "");
-  assert.ok(
-    /angle \+= [\d.]+ \* step/.test(code),
-    "angle advances per-frame again — on 120Hz displays the core spins 2× fast; integrate with the clamped dt step like every other scene"
-  );
-  const resumeBlock = code.match(/const resume = \(\) => \{[\s\S]*?\n    \};/);
-  assert.ok(resumeBlock && resumeBlock[0].includes("lastTime = performance.now()"),
-    "resume() must reset lastTime or the first frame after tab-return/scroll-in lurches");
-});
-
 test("soundSynthesizer: no AudioContext escapes until the autoplay policy allows it", () => {
   // Chrome warns 'The AudioContext was not allowed to start' 16x when
   // playSwoosh (route changes) created/resumed the context before any user
@@ -435,20 +407,6 @@ test("firebaseDb: db is null when unconfigured — never a truthy {} that defeat
     "db falls back to {} again — the truthy empty object defeats every !db guard and turns config issues into collection() TypeErrors"
   );
   assert.ok(/export const db = database;/.test(code), "db must export the real handle or null");
-});
-
-test("AnimatedMicroIcons static tier sets opacity via style, never animate-without-initial", () => {
-  // animate={{ opacity: 0.7 }} with no initial fired framer's 'animating
-  // opacity from undefined' warning 32x (the sidebar's 10 static icons).
-  const code = read("src/components/ui/AnimatedMicroIcons.jsx").replace(/^\s*\/\/.*$/gm, "");
-  const badAnimate = code
-    .split("\n")
-    .some((l) => l.includes("animate=") && /:\s*\{\s*opacity:\s*[\d.]+\s*\}\s*\}/.test(l));
-  assert.equal(
-    badAnimate,
-    false,
-    "a static animate={{ opacity: N }} branch is back — framer warns 'animating opacity from undefined' (no initial); set opacity via style instead"
-  );
 });
 
 test("aurora orbs: no filter blur on animated fixed layers", () => {
@@ -556,15 +514,6 @@ test("no transition-all on hover-bearing lines outside mockups", async () => {
   );
 });
 
-test("LottieIcons glow is static (no animated filter arrays)", () => {
-  const src = read("src/components/ui/LottieIcons.jsx");
-  assert.equal(
-    /filter:\s*\[/.test(src),
-    false,
-    "per-frame drop-shadow keyframes reintroduced in LottieIcons — main-thread repaint per frame (§4)"
-  );
-});
-
 test("Focus-Room overlay never combines backdrop-blur with its scroll container", () => {
   const src = read("src/components/dashboard/SmartDailyPlanBanner.jsx");
   assert.equal(
@@ -574,27 +523,18 @@ test("Focus-Room overlay never combines backdrop-blur with its scroll container"
   );
 });
 
-test("Landing page uses clean static LineVault sections without mounting heavy 3D WebGL or tilt-card hover-lift", () => {
+test("Landing stays free of heavy 3D WebGL and tilt-card hover-lift", () => {
   const src = read("src/pages/Landing.jsx");
   assert.equal(
-    /<HellKnight3DBackground/.test(src),
+    /HellKnight3DBackground|Spline3DHero|NeuralCore3D|CinematicHoloVisualizer/.test(src),
     false,
-    "Landing page must stay clean and free of the heavy 3D WebGL background in the unified LineVault design"
+    "a heavy WebGL scene was re-mounted on Landing — the unified design keeps it static",
   );
-  const comp = read("src/components/ui/HellKnight3DBackground.jsx");
-  assert.ok(
-    comp.includes("use3DQuality") && comp.includes("prefersReducedMotion"),
-    "HellKnight3DBackground component must keep its saver/knob/reduced-motion gates"
+  assert.equal(
+    /hover-lift/.test(src),
+    false,
+    "hover-lift re-added to a CinematicTiltCard — its transition: transform re-interpolates every per-frame JS tilt write (the floaty lag, index.css NOTE)",
   );
-});
-
-test("HellKnight scene honors power/reduced-motion/memory contracts (§4/§5/§9)", () => {
-  const src = read("src/components/ui/HellKnight3DBackground.jsx");
-  assert.ok(src.includes("use3DQuality"), "scene must consult use3DQuality — Battery Saver + heavy-3D knob decide whether WebGL runs at all");
-  assert.ok(src.includes("prefersReducedMotion"), "scene must honor prefers-reduced-motion (§8)");
-  assert.ok(src.includes("createResolutionGovernor"), "scene must auto-step resolution on sustained slow frames (§5)");
-  assert.ok(/geometry\??\.dispose/.test(src), "scene must dispose geometries/materials/textures on unmount — the GLTF RAM leak (§9)");
-  assert.ok(src.includes("visibilityGate") || /sceneOnScreen/.test(src), "loop must park when the scene is offscreen (§5 render-on-demand)");
 });
 
 test("progress bars animate compositor properties, never width (§1)", async () => {
@@ -649,83 +589,6 @@ test("CardSpotlight scroll invalidation is rAF-throttled, never a per-event clos
   );
 });
 
-test("knight resolution governor only samples full-budget frames (§5A)", () => {
-  const src = read("src/components/ui/HellKnight3DBackground.jsx");
-  const at = src.indexOf("createResolutionGovernor(renderer");
-  const call = src.slice(at, at + 240);
-  assert.ok(
-    /slowMs:\s*33/.test(call) && /fastMs:\s*20/.test(call),
-    "governor thresholds reverted — default slowMs=22 reads the 33ms ambient budget as 'sustained slow' and permanently degraded the knight to 0.55× DPR (recovery needs <13ms = 144Hz)"
-  );
-  assert.ok(
-    /frameBudget === FRAME_BUDGET\.full\) governance\(\)/.test(src),
-    "governor must sample ONLY full-budget frames — ambient frames are budget-paced (33ms by design), not performance-paced"
-  );
-});
-
-test("knight visibilityGate does one layout read per scroll frame, not per event", () => {
-  const src = read("src/components/ui/HellKnight3DBackground.jsx");
-  const gate = src.slice(
-    src.indexOf("const visibilityGate"),
-    src.indexOf('window.addEventListener("scroll", visibilityGate')
-  );
-  assert.ok(gate.length > 0, "visibilityGate moved or renamed");
-  assert.ok(
-    /visibilityQueued/.test(gate) && /requestAnimationFrame/.test(gate),
-    "visibilityGate must rAF-throttle its getBoundingClientRect — it is a fixed full-viewport layer and ran a forced layout per scroll event"
-  );
-});
-
-test("running knight scene steps the glass tier down; poster mode keeps it sharp", () => {
-  const src = read("src/components/ui/HellKnight3DBackground.jsx");
-  assert.ok(
-    src.includes('dataset.scene = "3d"'),
-    "scene tier must be published on <html> so card glass steps down while the knight owns frames"
-  );
-  assert.ok(
-    /delete document\.documentElement\.dataset\.scene/.test(src),
-    "cleanup must remove the scene tier — every other route keeps the sharp glass"
-  );
-  const css = read("src/index.css");
-  assert.ok(
-    /html\[data-scene="3d"\]\s*{[\s\S]{0,200}--blur-card:\s*10px/.test(css),
-    "scene glass tier missing — the knight's ambient frames must not fight 28px backdrop-filters on 15 cards"
-  );
-  const hoverBlock = css.match(/\.ios-glass-card:hover, \.glass-card:hover\s*{[\s\S]*?\n  }/);
-  assert.ok(hoverBlock, "glass-card hover rule moved or renamed");
-  assert.ok(
-    !/box-shadow/.test(hoverBlock[0]),
-    "card hover re-interpolates box-shadow again (§4 static glow) — queued paint behind the tilt-glow gradients while the knight rendered"
-  );
-});
-
-test("Landing never combines hover-lift with the JS-driven tilt transform", () => {
-  const src = read("src/pages/Landing.jsx");
-  assert.ok(
-    !src.includes("hover-lift"),
-    "hover-lift re-added to a CinematicTiltCard — its transition: transform re-interpolates every per-frame JS tilt write (the floaty lag, index.css NOTE)"
-  );
-});
-
-test("every Lottie wrapper forwards loop", () => {
-  const src = read("src/components/ui/LottieIcons.jsx");
-  const exports = [...src.matchAll(/export const (Lottie[A-Z]\w*)\s*=/g)].map((m) => m[1]);
-  assert.ok(exports.length >= 10, "expected exported Lottie icon wrappers");
-  for (const name of exports) {
-    const fnBlockMatch = src.match(new RegExp(`export const ${name} = memo\\(function ${name}\\(([^)]*)\\)[\\s\\S]*?return \\([\\s\\S]*?<LottieIcon([\\s\\S]*?)\\/>\\s*\\);`));
-    assert.ok(fnBlockMatch, `${name} definition or JSX block not found`);
-    const [_, params, props] = fnBlockMatch;
-    assert.ok(
-      params.includes("loop"),
-      `${name} does not accept loop prop`
-    );
-    assert.ok(
-      /loop=\{loop\}/.test(props),
-      `${name} accepts loop but does not forward loop={loop} to <LottieIcon>`
-    );
-  }
-});
-
 test("ShimmerButton pauses animations until hover and contains no blur-[2px]", () => {
   const src = read("src/components/ui/ShimmerButton.jsx");
   assert.equal(
@@ -750,36 +613,6 @@ test("Landing contains no backdrop-blur-md marquee pills or inline style objects
     src.includes("style={{"),
     false,
     "inline style={{}} found in Landing.jsx — use LineVault tokens and Tailwind classes only"
-  );
-});
-
-test("HellKnight custom-event listeners use { signal: inputAC.signal } and activeTheme is not in the main scene deps array", () => {
-  const src = read("src/components/ui/HellKnight3DBackground.jsx");
-  const stanceMatches = [...src.matchAll(/addEventListener\(\s*["']hellknight-battle-stance["'][^)]*\)/g)].map(m => m[0]);
-  const slashMatches = [...src.matchAll(/addEventListener\(\s*["']hellknight-heavy-slash["'][^)]*\)/g)].map(m => m[0]);
-  assert.ok(stanceMatches.length > 0 && slashMatches.length > 0, "HellKnight battle stance/heavy slash listeners not found");
-  for (const m of [...stanceMatches, ...slashMatches]) {
-    assert.ok(
-      m.includes("signal: inputAC.signal"),
-      `listener "${m}" missing signal: inputAC.signal — leaks on unmount`
-    );
-  }
-  assert.equal(
-    /removeEventListener\(\s*["']hellknight-battle-stance["']/.test(src),
-    false,
-    "stale removeEventListener for hellknight-battle-stance found — rely on inputAC abort signal instead of mismatched function refs"
-  );
-  assert.equal(
-    /removeEventListener\(\s*["']hellknight-heavy-slash["']/.test(src),
-    false,
-    "stale removeEventListener for hellknight-heavy-slash found — rely on inputAC abort signal instead of mismatched function refs"
-  );
-  const mainEffectDepsMatch = src.match(/init3D\(\);[\s\S]*?return\s*\(\)\s*=>[\s\S]*?\}, \[(.*?)\]\);/);
-  assert.ok(mainEffectDepsMatch, "main scene useEffect dependency array not found");
-  assert.equal(
-    mainEffectDepsMatch[1].includes("activeTheme"),
-    false,
-    "activeTheme in main scene useEffect deps array triggers full Three.js scene teardown and re-init on theme click"
   );
 });
 

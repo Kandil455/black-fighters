@@ -25,6 +25,11 @@ import {
 } from "../src/lib/summaryV3/index.js";
 
 const expectedTemplateIds = [
+  // Atlas V5 defaults first: the Create Course dialog offers them, so they MUST
+  // exist here — while they were missing, the default create flow threw
+  // UNKNOWN_SUMMARY_TEMPLATE and no summary could be generated at all.
+  "foundational_bilingual",
+  "atlas_cram",
   "bilingual_lecture",
   "complete_study_guide",
   "exam_revision_sheet",
@@ -33,7 +38,7 @@ const expectedTemplateIds = [
   "visual_concepts_formulas",
 ];
 assert.deepEqual(Object.keys(SUMMARY_TEMPLATE_REGISTRY), expectedTemplateIds);
-assert.equal(new Set(Object.values(SUMMARY_TEMPLATE_REGISTRY).map((contract) => JSON.stringify(contract.structure))).size, 6);
+assert.equal(new Set(Object.values(SUMMARY_TEMPLATE_REGISTRY).map((contract) => JSON.stringify(contract.structure))).size, 8);
 const requiredTemplateAliases = {
   lecture_exact: "complete_study_guide",
   complete: "complete_study_guide",

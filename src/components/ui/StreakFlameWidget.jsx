@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import { motionTokens, useReducedMotionPreference } from "@/lib/motionTokens";
 import { cn } from "@/lib/utils";
-import { AnimatedFlame } from "@/components/ui/AnimatedMicroIcons";
+import { FlameIcon } from "@/components/ui/icons";
 
 export function StreakFlameWidget({
   streak = 0,
@@ -55,7 +55,7 @@ export function StreakFlameWidget({
         className
       )}
     >
-      <AnimatedFlame
+      <FlameIcon
           size={size === "lg" ? 24 : size === "sm" ? 16 : 20}
           className="shrink-0"
         />

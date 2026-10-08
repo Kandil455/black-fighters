@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Loader2, Trash2, Send, ExternalLink, Slack } from "lucide-react";
 import { toast } from "sonner";
-import { AnimatedGoogleDrive } from "@/components/ui/AnimatedMicroIcons";
+import { GoogleDriveIcon } from "@/components/ui/icons";
 import {
   getIntegrationSettings,
   saveIntegrationSettings,
@@ -165,7 +165,7 @@ export default function IntegrationsPanel() {
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#4285F4]/10 border border-[#4285F4]/20 flex items-center justify-center">
-              <AnimatedGoogleDrive size={24} />
+              <GoogleDriveIcon size={24} />
             </div>
             <div>
               <p className="font-bold flex items-center gap-2">
@@ -201,7 +201,7 @@ export default function IntegrationsPanel() {
                   : "اربط حساب Google Drive الخاص بك لحفظ الملخصات والأسئلة بضغطة زر واحدة وبدون أي تعقيد."}
               </p>
               <Button onClick={connectDrive} disabled={connectingDrive} className="font-bold gap-2 bg-[#4285F4] hover:bg-[#3367d6] text-white shadow-lg shadow-blue-500/20">
-                {connectingDrive ? <Loader2 className="w-4 h-4 animate-spin" /> : <AnimatedGoogleDrive size={16} />}
+                {connectingDrive ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleDriveIcon size={16} />}
                 {isEn ? "Connect Google Drive Now" : "اربط Google Drive الآن 🚀"}
               </Button>
             </div>

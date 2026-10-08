@@ -58,6 +58,47 @@ export function getDevice3DCapability() {
   return capabilityCache;
 }
 
+let tierCache = null;
+
+/**
+ * Capability tier — ONE classification every heavy feature reads.
+ *
+ *   lite      ≤4 GB RAM AND ≤4 cores, or a software GPU, or saveData / 2G–3G.
+ *             No backdrop-filter, no WebGL, no infinite animation.
+ *   balanced  mid-range (≤8 cores or ≤8 GB) — animations on, DPR capped.
+ *   full      everything on.
+ *
+ * Deliberately a DEVICE signal only. `prefers-reduced-motion` is an
+ * accessibility preference that often belongs to perfectly capable machines;
+ * folding it in here silently degraded them (see tests/unit/perfModes.test.mjs).
+ */
+export function getDeviceTier() {
+  if (tierCache) return tierCache;
+  if (typeof navigator === "undefined") {
+    tierCache = { tier: "balanced", cores: 8, memory: 8, saveData: false, slowNetwork: false, softwareGpu: false, weak: false };
+    return tierCache;
+  }
+
+  const cores = Number(navigator.hardwareConcurrency || 8);
+  const memory = Number(navigator.deviceMemory || 8);
+  const saveData = Boolean(navigator.connection?.saveData);
+  const effectiveType = String(navigator.connection?.effectiveType || "");
+  const slowNetwork = /(^|-)2g$|(^|-)3g$/.test(effectiveType);
+  const { weak, softwareGpu } = getDevice3DCapability();
+
+  let tier = "full";
+  if (saveData || slowNetwork || softwareGpu || (cores <= 4 && memory <= 4)) tier = "lite";
+  else if (cores <= 8 || memory <= 8) tier = "balanced";
+
+  tierCache = { tier, cores, memory, saveData, slowNetwork, softwareGpu, weak };
+  return tierCache;
+}
+
+/** Test seam / live re-evaluation when the connection type changes. */
+export function resetDeviceTierCache() {
+  tierCache = null;
+}
+
 export function resolve3DQuality({ isPowerSaver = false } = {}) {
   if (isPowerSaver) return QUALITY_PRESETS.saver;
   const { weak } = getDevice3DCapability();

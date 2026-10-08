@@ -78,6 +78,10 @@ export default function devApiPlugin() {
             const alphaUid = "up3y6pub7IgB1PpEMTcMASO2ei33";
             const token = await adminAuth.createCustomToken(alphaUid, {
               email: "ibrahimkandil000@gmail.com",
+              // `role: 'admin'` is the claim firestore.rules actually checks
+              // (isClaimAdmin). The old `admin: true` claim was inert, so admin
+              // access in dev rested entirely on the email claim.
+              role: "admin",
               admin: true,
             });
             res.statusCode = 200;

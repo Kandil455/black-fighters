@@ -4,7 +4,7 @@ import {
   CheckCircle2, Circle, AlertTriangle, Trash2, RotateCcw, Plus, 
   Sparkles, ArrowLeft, ShieldAlert, Layers, Loader2
 } from "lucide-react";
-import { FileSave3D } from "@/components/ui/Custom3DIcons";
+import { FileSaveIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -325,7 +325,7 @@ ${(sourceText || "").slice(0, 4000) || targetQ.question}`;
             disabled={isSaving || !questions.length}
             className="h-11 px-7 rounded-xl font-black text-xs bg-gradient-to-r from-cyan-400 to-primary text-black hover:opacity-95 shadow-xl gap-2"
           >
-            <FileSave3D size={18} />
+            <FileSaveIcon size={18} />
             <span>{isSaving ? (isEn ? "Starting..." : "جاري البدء...") : (isEn ? "🚀 Complete Review & Start Quiz" : "🚀 إكمال المراجعة وبدء الكويز فوراً")}</span>
           </Button>
         </div>
@@ -569,7 +569,7 @@ ${(sourceText || "").slice(0, 4000) || targetQ.question}`;
             disabled={isSaving || !questions.length}
             className="h-11 px-8 rounded-xl font-black text-xs bg-gradient-to-r from-cyan-400 to-primary text-black hover:opacity-95 shadow-xl gap-2"
           >
-            <FileSave3D size={18} />
+            <FileSaveIcon size={18} />
             <span>{isSaving ? (isEn ? "Starting Quiz..." : "جاري بدء الكويز...") : (isEn ? "🚀 Complete Review & Start Quiz" : "🚀 إكمال المراجعة وبدء الكويز فوراً")}</span>
           </Button>
         </div>

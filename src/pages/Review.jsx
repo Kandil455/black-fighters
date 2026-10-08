@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CalendarCheck } from "lucide-react";
 import ReviewSession from "@/components/review/ReviewSession";
-import { LottieFlame, LottieSuccess } from "@/components/ui/LottieIcons";
+import { FlameIcon, SuccessIcon } from "@/components/ui/icons";
 import { useLocale } from "@/lib/LocaleContext";
 
 export default function Review() {
@@ -32,7 +32,7 @@ export default function Review() {
     return (
       <div dir={dir} className="max-w-xl mx-auto glass rounded-3xl p-12 text-center border border-[#3DDC97]/30">
         <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-          <LottieSuccess className="w-16 h-16" />
+          <SuccessIcon className="w-16 h-16" />
         </div>
         <h2 className="text-2xl font-bold mb-2 text-gradient">
           {isEn ? `You reviewed ${finished} cards successfully!` : `راجعت ${finished} بطاقة بنجاح!`}
@@ -120,7 +120,7 @@ export default function Review() {
     <div dir={dir} className="max-w-2xl mx-auto space-y-6">
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#3DDC97] border border-[#3DDC97]/30 font-mono">
-          <LottieFlame className="w-4 h-4 inline" />
+          <FlameIcon className="w-4 h-4 inline" />
           <span>DAILY FLASHCARD SPRINT · FSRS v4.5</span>
         </div>
         <h1 className="text-3xl font-bold text-gradient">

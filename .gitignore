@@ -60,3 +60,13 @@ videos/
 
 # P7-03: the non-secret production API base must be tracked (no secrets in this file)
 !.env.production
+
+# Scratch Presentations and Temporary Exports
+*.pptx
+fresh_breath_halitosis_presentation.pdf
+slide*.png
+orig_tuned_*.png
+create_presentation.py
+update_user_pptx.py
+presentation_preview.html
+getlayers-alternatives-ar.md

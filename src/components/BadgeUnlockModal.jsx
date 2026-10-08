@@ -1,28 +1,99 @@
-import React, { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import confetti from "canvas-confetti";
-import { Button } from "@/components/ui/button";
-import { Sparkles, X } from "lucide-react";
+import React, { useEffect, useMemo } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import {
+  Award,
+  Bot,
+  BookOpenCheck,
+  Clock,
+  Flame,
+  Layers,
+  NotebookText,
+  PenLine,
+  Sparkles,
+  Star,
+  StickyNote,
+  Target,
+  Trophy,
+  X,
+} from "lucide-react";
 import { BADGES } from "@/lib/gamification";
-import { playClick } from "@/lib/sounds";
+import { usePerformanceMode } from "@/lib/PerformanceContext";
 
-// مودال احتفالي بانيميشن خرافي يظهر عند فتح وسام جديد.
+/**
+ * BadgeUnlockModal — the achievement celebration.
+ *
+ * Rebuilt because the previous version read as noise: the badge emoji appeared
+ * TWICE (inside the title string AND as the medallion glyph), a 480px rotating
+ * conic-gradient blob sat behind the card as an unintended purple circle, the
+ * whole screen used `backdrop-blur-xl`, and 4 infinite animations ran at once.
+ *
+ * Now: one icon per family (lucide, same vocabulary as the rest of the app), a
+ * single crisp medallion, clear hierarchy, and celebration that is skipped on the
+ * lite tier / reduced-motion instead of fighting the compositor.
+ */
+
+// Family → icon + accent. The ladder titles already carry a trailing emoji, so the
+// emoji is stripped from the title and replaced by a real icon here.
+const FAMILY_STYLE = {
+  courses_created: { Icon: BookOpenCheck, tone: "text-primary", ring: "border-primary/40", wash: "bg-primary/10" },
+  quizzes_completed: { Icon: Trophy, tone: "text-amber-300", ring: "border-amber-400/40", wash: "bg-amber-400/10" },
+  summaries_created: { Icon: NotebookText, tone: "text-sky-300", ring: "border-sky-400/40", wash: "bg-sky-400/10" },
+  flashcards_reviewed: { Icon: Layers, tone: "text-violet-300", ring: "border-violet-400/40", wash: "bg-violet-400/10" },
+  notes_written: { Icon: StickyNote, tone: "text-lime-300", ring: "border-lime-400/40", wash: "bg-lime-400/10" },
+  perfect_scores: { Icon: Star, tone: "text-yellow-300", ring: "border-yellow-400/40", wash: "bg-yellow-400/10" },
+  current_streak: { Icon: Flame, tone: "text-orange-400", ring: "border-orange-400/40", wash: "bg-orange-400/10" },
+  total_minutes_studied: { Icon: Clock, tone: "text-teal-300", ring: "border-teal-400/40", wash: "bg-teal-400/10" },
+  ai_messages: { Icon: Bot, tone: "text-cyan-300", ring: "border-cyan-400/40", wash: "bg-cyan-400/10" },
+  ai_quizzes: { Icon: Target, tone: "text-rose-300", ring: "border-rose-400/40", wash: "bg-rose-400/10" },
+  summary_edits: { Icon: PenLine, tone: "text-indigo-300", ring: "border-indigo-400/40", wash: "bg-indigo-400/10" },
+};
+
+const FALLBACK_STYLE = { Icon: Award, tone: "text-primary", ring: "border-primary/40", wash: "bg-primary/10" };
+
+// Ladder titles look like "مثابرة III 🔥" — drop the trailing emoji so it renders once.
+function cleanTitle(title = "") {
+  return title.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, "").trim();
+}
+
 export default function BadgeUnlockModal({ badgeKey, onClose }) {
   const badge = BADGES[badgeKey];
+  const { isLite, isPowerSaver } = usePerformanceMode();
+  const reduceMotion = useReducedMotion();
 
+  const celebrate = !isLite && !isPowerSaver && !reduceMotion;
+
+  const style = useMemo(() => FAMILY_STYLE[badge?.family] || FALLBACK_STYLE, [badge?.family]);
+  const title = useMemo(() => cleanTitle(badge?.title), [badge?.title]);
+
+  // Confetti is loaded on demand: it is a ~10KB canvas library that only ever
+  // matters for this one moment, and only on capable devices.
   useEffect(() => {
-    if (!badge) return;
-    try { playClick(); } catch {}
-    const fire = (ratio, opts) =>
-      confetti({ ...opts, particleCount: Math.floor(220 * ratio), origin: { y: 0.45 }, zIndex: 9999 });
-    fire(0.25, { spread: 26, startVelocity: 55, colors: ["#00e5ff", "#a855f7", "#00ff9d"] });
-    fire(0.2, { spread: 60, colors: ["#00e5ff", "#fbbf24"] });
-    fire(0.35, { spread: 100, decay: 0.91, scalar: 0.9, colors: ["#a855f7", "#00ff9d", "#fbbf24"] });
-    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
-    fire(0.1, { spread: 120, startVelocity: 45 });
-  }, [badge]);
+    if (!badge || !celebrate) return;
+    let cancelled = false;
+    import("canvas-confetti")
+      .then(({ default: confetti }) => {
+        if (cancelled) return;
+        const colors = ["#3DDC97", "#7dd3fc", "#fbbf24"];
+        confetti({ particleCount: 90, spread: 70, startVelocity: 45, origin: { y: 0.5 }, colors, disableForReducedMotion: true });
+        setTimeout(() => {
+          if (!cancelled) confetti({ particleCount: 45, spread: 100, decay: 0.92, scalar: 0.85, origin: { y: 0.55 }, colors, disableForReducedMotion: true });
+        }, 180);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [badge, celebrate]);
+
+  // Esc closes — a full-screen modal without a keyboard escape is a trap.
+  useEffect(() => {
+    if (!badge) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [badge, onClose]);
 
   if (!badge) return null;
+
+  const { Icon } = style;
 
   return (
     <AnimatePresence>
@@ -30,84 +101,63 @@ export default function BadgeUnlockModal({ badgeKey, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9998] bg-background/85 backdrop-blur-xl flex items-center justify-center p-4"
+        transition={{ duration: 0.18 }}
+        className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80 p-4"
         onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-label="إنجاز جديد"
       >
-        {/* Glow rays */}
         <motion.div
-          initial={{ rotate: 0, opacity: 0 }}
-          animate={{ rotate: 360, opacity: 1 }}
-          transition={{ rotate: { duration: 18, repeat: Infinity, ease: "linear" }, opacity: { duration: 0.6 } }}
-          className="absolute w-[480px] h-[480px] pointer-events-none"
-          style={{
-            background: "conic-gradient(from 0deg, transparent, hsl(184 100% 50% / 0.18), transparent, hsl(270 100% 68% / 0.18), transparent)",
-            borderRadius: "9999px",
-          }}
-        />
-
-        <motion.div
-          initial={{ scale: 0.6, y: 40, opacity: 0 }}
+          initial={{ scale: 0.94, y: 16, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
-          exit={{ scale: 0.7, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 260, damping: 18 }}
-          className="relative glass-card neon-glow-cyan rounded-[2rem] p-8 border border-primary/40 text-center max-w-sm w-full"
+          exit={{ scale: 0.96, opacity: 0 }}
+          transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+          className="relative w-full max-w-[22rem] overflow-hidden rounded-3xl border border-[#1E222B] bg-[#0E1117] p-6 text-center shadow-2xl shadow-black/60"
           onClick={(e) => e.stopPropagation()}
         >
-          <button onClick={onClose} className="absolute top-4 left-4 text-muted-foreground hover:text-foreground transition-colors">
-            <X className="w-5 h-5" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="إغلاق"
+            className="absolute end-4 top-4 rounded-lg p-1.5 text-[#8A91A0] transition-colors hover:bg-white/5 hover:text-[#F2F3F5]"
+          >
+            <X className="h-4 w-4" />
           </button>
 
-          <motion.div
-            initial={{ y: -10 }}
-            animate={{ y: 0 }}
-            className="inline-flex items-center gap-1.5 text-xs font-black text-accent border border-accent/40 bg-accent/10 rounded-full px-4 py-1.5 mb-5"
-          >
-            <Sparkles className="w-3.5 h-3.5" /> وسام جديد اتفتح!
-          </motion.div>
-
-          {/* Badge icon with floating + glow */}
-          <div className="relative mx-auto w-32 h-32 mb-5">
-            <motion.div
-              animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute inset-0 rounded-full bg-primary/30 blur-2xl"
-            />
-            <motion.div
-              initial={{ rotate: -180, scale: 0 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ type: "spring", stiffness: 200, damping: 14, delay: 0.15 }}
-              className="relative w-full h-full rounded-full glass-card border-2 border-primary/50 flex items-center justify-center"
-            >
-              <motion.span
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="text-6xl"
-              >
-                {badge.icon}
-              </motion.span>
-            </motion.div>
+          {/* Label */}
+          <div className="mb-6 flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#8A91A0]">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            إنجاز جديد
           </div>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-2xl font-black neon-text-gradient mb-2"
-          >
-            {badge.title}
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.55 }}
-            className="text-muted-foreground mb-6"
-          >
-            {badge.desc}
-          </motion.p>
+          {/* Medallion */}
+          <div className="relative mx-auto mb-5 h-24 w-24">
+            <div className={`absolute inset-0 rounded-full ${style.wash} blur-xl`} aria-hidden="true" />
+            <div
+              className={`relative flex h-24 w-24 items-center justify-center rounded-full border ${style.ring} bg-[#131820]`}
+            >
+              <Icon className={`h-11 w-11 ${style.tone}`} strokeWidth={1.6} />
+            </div>
+          </div>
 
-          <Button onClick={onClose} className="w-full h-11 font-bold gap-2 neon-glow-cyan">
-            <Sparkles className="w-4 h-4" /> تمام، يلا نكمّل!
-          </Button>
+          <h2 className="text-xl font-black leading-snug text-[#F2F3F5]">{title}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[#8A91A0]">{badge.desc}</p>
+
+          {Number.isFinite(badge.threshold) && (
+            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-[#1E222B] bg-[#07080C] px-3 py-1 text-[11px] font-semibold text-[#8A91A0]">
+              <Trophy className="h-3 w-3 text-amber-300" />
+              المرحلة عند {badge.threshold}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-6 w-full rounded-xl bg-[#3DDC97] px-4 py-3 text-sm font-black text-[#03150c] transition-transform active:scale-[0.98]"
+          >
+            تمام، يلا نكمّل
+          </button>
         </motion.div>
       </motion.div>
     </AnimatePresence>

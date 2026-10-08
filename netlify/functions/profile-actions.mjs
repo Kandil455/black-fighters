@@ -54,6 +54,19 @@ function cleanAvatar(value) {
   if (raw.startsWith("linear-gradient")) {
     return { url: raw.slice(0, 600), isVideo: false };
   }
+  // Media we produced ourselves. /api/telegram-upload returns a RELATIVE
+  // "/api/stream-media?p=…&t=…" URL, and this validator only accepted absolute
+  // https URLs — so EVERY uploaded avatar was rejected here and then persisted as
+  // `null` (see `update.avatar_url = cleaned.url || null` below). The uploader
+  // never noticed because the client substitutes its own localStorage copy, which
+  // is exactly why "my photo shows for me but nobody else sees it".
+  if (raw.startsWith("/api/stream-media?")) {
+    return {
+      url: raw.slice(0, MAX_AVATAR_CHARS),
+      // The content type travels in the `t` query param: t=video%2Fmp4.
+      isVideo: /[?&]t=(video|.*%2Fvideo)/i.test(raw) || /\.(mp4|webm)(\?|$)/i.test(raw),
+    };
+  }
   if (/^https:\/\/[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b/.test(raw)) {
     return { url: raw.slice(0, MAX_AVATAR_CHARS), isVideo: raw.endsWith(".mp4") || raw.endsWith(".webm") };
   }

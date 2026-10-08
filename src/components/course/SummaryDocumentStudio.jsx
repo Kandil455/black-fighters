@@ -3,7 +3,7 @@ import {
   Bold, Check, Code2, Eye, Heading2, Highlighter, History,
   ImagePlus, List, Loader2, Redo2, RotateCcw, Undo2,
 } from "lucide-react";
-import { FileSave3D } from "@/components/ui/Custom3DIcons";
+import { FileSaveIcon } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { MarkdownDocumentRenderer } from "@/components/course/SummaryDocumentRenderer";
@@ -450,7 +450,7 @@ export default function SummaryDocumentStudio({
         <Button type="button" size="sm" variant={showRevisions ? "secondary" : "ghost"} onClick={() => setShowRevisions((current) => !current)} className="gap-1.5"><History className="h-4 w-4" /> النسخ <span className="rounded-full bg-background px-1.5 text-[10px]">{revisions.length}</span></Button>
         <Button type="button" size="sm" variant="ghost" onClick={resetToSaved} disabled={!dirty} className="gap-1.5"><RotateCcw className="h-4 w-4" /> تجاهل</Button>
         <Button type="button" size="sm" onClick={save} disabled={(!dirty && !pendingSync) || saving} className="ms-auto min-w-24 gap-1.5 font-bold">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : dirty || pendingSync ? <FileSave3D size={18} /> : <Check className="h-4 w-4 text-emerald-400" />}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : dirty || pendingSync ? <FileSaveIcon size={18} /> : <Check className="h-4 w-4 text-emerald-400" />}
           {saving ? "يحفظ..." : pendingSync ? "مزامنة" : dirty ? "حفظ التعديلات" : "تم الحفظ"}
         </Button>
       </div>

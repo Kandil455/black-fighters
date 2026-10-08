@@ -6,19 +6,20 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --paper: #0E1117;
-  --paper-2: #131720;
-  --ink: #F2F3F5;
-  --ink-2: #9AA0AE;
-  --stamp: #3DDC97;
-  --rule: #1E222B;
-  --hl: rgba(34, 229, 139, 0.14);
+  /* Default aligns with Clinical Light product chrome */
+  --paper: #F6F8FA;
+  --paper-2: #FFFFFF;
+  --ink: #0B1F33;
+  --ink-2: #5A6B7D;
+  --stamp: #2B8A9E;
+  --rule: #D5DEE7;
+  --hl: rgba(43, 138, 158, 0.12);
 
-  --ink-def: #3DDC97;
-  --ink-imp: #F5A524;
-  --ink-term: #38BDF8;
-  --ink-ex: #A78BFA;
-  --ink-warn: #E5484D;
+  --ink-def: #0F5934;
+  --ink-imp: #6E4200;
+  --ink-term: #0B4A73;
+  --ink-ex: #7D2E06;
+  --ink-warn: #B8121F;
 
   --sem-definition-ink: var(--ink-def);
   --sem-important-ink: var(--ink-imp);
@@ -26,8 +27,8 @@
   --sem-example-ink: var(--ink-ex);
   --sem-warning-ink: var(--ink-warn);
 
-  --font-atlas-heading: 'IBM Plex Sans Arabic', 'Alexandria', 'Inter', system-ui, sans-serif;
-  --font-atlas-body: 'IBM Plex Sans Arabic', 'Alexandria', 'Inter', system-ui, sans-serif;
+  --font-atlas-heading: 'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
+  --font-atlas-body: 'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
   --font-atlas-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
   --atlas-enter-ms: 150ms;

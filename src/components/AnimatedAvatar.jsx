@@ -217,9 +217,14 @@ export default function AnimatedAvatar({
 
       {(() => {
         const isGradient = typeof src === "string" && src.startsWith("linear-gradient");
-        const resolvedSrc = !src && typeof window !== "undefined"
-          ? localStorage.getItem("local_avatar_fallback")
-          : src;
+        // No localStorage substitution here.
+        //
+        // This used to fall back to `local_avatar_fallback` (the VIEWER's own
+        // cached upload) whenever `src` was empty, so every other user rendered
+        // with YOUR photo — and it masked a real bug: the server validator was
+        // rejecting our relative media URLs and persisting `avatar_url: null`, so
+        // a student's upload never actually left their own device.
+        const resolvedSrc = src;
         const hasValidSrc = Boolean(resolvedSrc && !imgError);
 
         return (
@@ -264,14 +269,7 @@ export default function AnimatedAvatar({
                   src={resolvedSrc}
                   alt=""
                   className="w-full h-full max-w-full max-h-full object-cover"
-                  onError={() => {
-                    const local = typeof window !== "undefined" ? localStorage.getItem("local_avatar_fallback") : null;
-                    if (local && local !== resolvedSrc) {
-                      setImgError(false);
-                    } else {
-                      setImgError(true);
-                    }
-                  }}
+                  onError={() => setImgError(true)}
                   animate={animate && !isPowerSaver ? { scale: [1.02, 1.07, 1.02], y: [0, -size * 0.012, 0] } : {}}
                   transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}
                 />

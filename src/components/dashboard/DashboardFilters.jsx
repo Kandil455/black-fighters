@@ -23,7 +23,7 @@ export default function DashboardFilters({
           value={search}
           onChange={(e) => onSearch(e.target.value)}
           placeholder={isEn ? "Search your courses and lectures..." : "ابحث في كورساتك..."}
-          className="ps-11 h-12 bg-white/[0.04] border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-primary/40 focus-visible:border-primary/50 transition-colors"
+          className="ps-11 h-12 bg-[#EEF2F5] border-white/10 rounded-2xl text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-primary/40 focus-visible:border-primary/50 transition-colors"
         />
         {search && (
           <button onClick={() => onSearch("")} className="absolute top-1/2 -translate-y-1/2 end-4 text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-white/10 transition-colors">

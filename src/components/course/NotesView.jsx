@@ -4,7 +4,7 @@ import { entities } from '@/api/index';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, StickyNote, Trash2, Eye, Edit3 } from "lucide-react";
-import { FileSave3D } from "@/components/ui/Custom3DIcons";
+import { FileSaveIcon } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -185,7 +185,7 @@ export default function NotesView({ courseId, course }) {
                         size="sm"
                         className={cn("gap-2 font-bold", dirty ? "neon-glow-cyan" : "")}
                       >
-                        {savingKey === block.index ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSave3D size={16} />}
+                        {savingKey === block.index ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSaveIcon size={16} />}
                         حفظ
                       </Button>
                       {content.trim() && (

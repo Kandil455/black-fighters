@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ClipboardType } from "lucide-react";
+import { YoutubeIcon } from "@/components/ui/icons";
 import PremiumUploadDropzone from "@/components/course/PremiumUploadDropzone";
 import TextPastePanel from "@/components/course/TextPastePanel";
 import YouTubeImportPanel from "@/components/course/YouTubeImportPanel";
@@ -37,6 +38,8 @@ export default function CreateCourse() {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
   const [step, setStep] = useState(0);
+  // Which secondary input (if any) is expanded on the upload step.
+  const [altMode, setAltMode] = useState(null);
   const [fileName, setFileName] = useState("");
   const [statusText, setStatusText] = useState("");
   const [progress, setProgress] = useState(0);
@@ -434,9 +437,12 @@ export default function CreateCourse() {
       <CreateCourseIntro isEn={isEn} step={step} pendingTextLength={pendingInput?.text?.length} />
 
       <AnimatePresence mode="wait">
-        {/* Step 0: Upload */}
+        {/* Step 0: Upload — ONE obvious action, alternatives tucked away.
+            Previously the dropzone, the paste-text panel and the YouTube importer
+            all rendered at once, which made the primary path (upload a lecture →
+            get a summary) look like a form to fill in. */}
         {step === 0 && (
-          <motion.div key="upload" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <motion.div key="upload" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
             {errorMsg && (
               <div className="mb-4 flex items-start gap-3 glass-card rounded-2xl p-4 border border-destructive/30 bg-destructive/5">
                 <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
@@ -445,8 +451,42 @@ export default function CreateCourse() {
             )}
 
             <PremiumUploadDropzone onFile={handleFile} maxSize={MAX_FILE_SIZE} />
-            <TextPastePanel onSubmit={handleText} />
-            <YouTubeImportPanel onImportTranscript={handleYouTubeTranscript} />
+
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                {isEn ? "or" : "أو"}
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                aria-expanded={altMode === "text"}
+                onClick={() => setAltMode(altMode === "text" ? null : "text")}
+                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
+                  altMode === "text" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
+                }`}
+              >
+                <ClipboardType className="h-4 w-4" />
+                {isEn ? "Paste lecture text" : "الصق نص المحاضرة"}
+              </button>
+              <button
+                type="button"
+                aria-expanded={altMode === "youtube"}
+                onClick={() => setAltMode(altMode === "youtube" ? null : "youtube")}
+                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
+                  altMode === "youtube" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
+                }`}
+              >
+                <YoutubeIcon size={16} />
+                {isEn ? "Summarise a YouTube lecture" : "لخّص محاضرة من يوتيوب"}
+              </button>
+            </div>
+
+            {altMode === "text" && <TextPastePanel onSubmit={handleText} />}
+            {altMode === "youtube" && <YouTubeImportPanel onImportTranscript={handleYouTubeTranscript} />}
           </motion.div>
         )}
 

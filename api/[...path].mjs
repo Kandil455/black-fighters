@@ -20,6 +20,11 @@ import { handler as startSummaryJob } from "../netlify/functions/start-summary-j
 import { handler as submitPayment } from "../netlify/functions/submit-payment.mjs";
 import { handler as updateSummaryJob } from "../netlify/functions/update-summary-job.mjs";
 import { handler as telegramWebhook } from "../netlify/functions/telegram-webhook.mjs";
+import { handler as telegramLink } from "../netlify/functions/telegram-link.mjs";
+import { handler as telegramMiniAppAuth } from "../netlify/functions/telegram-miniapp-auth.mjs";
+import { handler as telegramUpload } from "../netlify/functions/telegram-upload.mjs";
+import { handler as telegramManifest } from "../netlify/functions/telegram-manifest.mjs";
+import { handler as telegramOutboxWorker } from "../netlify/functions/telegram-outbox-worker.mjs";
 import { handler as exportToTelegram } from "../netlify/functions/export-to-telegram.mjs";
 import { handler as youtubeTranscript } from "../netlify/functions/youtube-transcript.mjs";
 import { handler as youtubeAiJob } from "../netlify/functions/youtube-ai-job.mjs";
@@ -61,6 +66,11 @@ const ROUTES = new Map(
     "submit-payment": submitPayment,
     "update-summary-job": updateSummaryJob,
     "telegram-webhook": telegramWebhook,
+    "telegram-link": telegramLink,
+    "telegram-miniapp-auth": telegramMiniAppAuth,
+    "telegram-upload": telegramUpload,
+    "telegram-manifest": telegramManifest,
+    "telegram-outbox-worker": telegramOutboxWorker,
     "export-to-telegram": exportToTelegram,
     "youtube-transcript": youtubeTranscript,
     "youtube-ai-job": youtubeAiJob,

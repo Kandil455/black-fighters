@@ -28,16 +28,16 @@ import FloatingAssistant from "@/components/assistant/FloatingAssistant";
 import PracticalQuizBackgroundWidget from "@/components/PracticalQuizBackgroundWidget";
 import NeonBackground from "@/components/NeonBackground";
 import {
-  AnimatedDocument,
-  AnimatedTrophy,
-  AnimatedFlame,
-  AnimatedYoutube,
-  AnimatedSummaryNote,
-  AnimatedTheoryQuiz,
-  AnimatedPracticalQuiz,
-  AnimatedFriends,
-  AnimatedStudyGroup,
-} from "@/components/ui/AnimatedMicroIcons";
+  DocumentIcon,
+  TrophyIcon,
+  FlameIcon,
+  YoutubeIcon,
+  SummaryNoteIcon,
+  TheoryQuizIcon,
+  PracticalQuizIcon,
+  FriendsIcon,
+  StudyGroupIcon,
+} from "@/components/ui/icons";
 import { LVLogo } from "@/components/ui/linevault";
 import { useLocale } from "@/lib/LocaleContext";
 import { useSmoothScroll } from "@/lib/useSmoothScroll";
@@ -76,7 +76,6 @@ export default function Layout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  // Native 120Hz OS scrolling — never hijack wheel events with preventDefault()
   useSmoothScroll(false);
 
   useEffect(() => {
@@ -103,15 +102,14 @@ export default function Layout() {
   const hasCourseAssistant = /^\/course\/[^/]+\/?$/.test(location.pathname);
   const isEmergencyAllowed = hasEmergencyAccess(profile);
 
-  // V4 Rebirth Section 5.1 Information Architecture + LineVault Aesthetic
   const PRIMARY_HUBS = [
     {
       title: locale === "ar" ? "اليوم والمكتبة" : "Today & Library",
       items: [
-        { to: "/dashboard", label: locale === "ar" ? "اليوم والمقررات" : "Today & Courses", icon: AnimatedDocument },
-        { to: "/create", label: locale === "ar" ? "رفع محاضرة جديدة" : "Upload Lecture", icon: AnimatedSummaryNote },
-        { to: "/review", label: locale === "ar" ? "المراجعة الذكية (FSRS)" : "FSRS Review", icon: AnimatedFlame },
-        { to: "/stats", label: locale === "ar" ? "خريطة الإتقان" : "Mastery Map", icon: AnimatedTrophy },
+        { to: "/dashboard", label: locale === "ar" ? "اليوم والمقررات" : "Today & Courses", icon: DocumentIcon },
+        { to: "/create", label: locale === "ar" ? "رفع محاضرة جديدة" : "Upload Lecture", icon: SummaryNoteIcon },
+        { to: "/review", label: locale === "ar" ? "المراجعة الذكية (FSRS)" : "FSRS Review", icon: FlameIcon },
+        { to: "/stats", label: locale === "ar" ? "خريطة الإتقان" : "Mastery Map", icon: TrophyIcon },
         ...(isEmergencyAllowed
           ? [{ to: "/emergency", label: locale === "ar" ? "راوند الطوارئ" : "Emergency Round", icon: ShieldAlert }]
           : []),
@@ -120,18 +118,18 @@ export default function Layout() {
     {
       title: locale === "ar" ? "الاستوديو والأدوات" : "Studio & Tools",
       items: [
-        { to: "/quizzes", label: locale === "ar" ? "كويز نظري" : "Theory Quizzes", icon: AnimatedTheoryQuiz },
-        { to: "/practical", label: locale === "ar" ? "كويز عملي وصور" : "Practical Lab", icon: AnimatedPracticalQuiz },
-        { to: "/youtube-ai", label: locale === "ar" ? "تلخيص يوتيوب" : "YouTube Studio", icon: AnimatedYoutube },
+        { to: "/quizzes", label: locale === "ar" ? "كويز نظري" : "Theory Quizzes", icon: TheoryQuizIcon },
+        { to: "/practical", label: locale === "ar" ? "كويز عملي وصور" : "Practical Lab", icon: PracticalQuizIcon },
+        { to: "/youtube-ai", label: locale === "ar" ? "تلخيص يوتيوب" : "YouTube Studio", icon: YoutubeIcon },
         { to: "/tools", label: locale === "ar" ? "أدوات PDF" : "PDF Tools", icon: FileCog },
       ],
     },
     {
       title: locale === "ar" ? "الساحة والمجتمع" : "Arena & Community",
       items: [
-        { to: "/leaderboard", label: locale === "ar" ? "الترتيب والدوريات" : "Leaderboard", icon: AnimatedTrophy },
-        { to: "/friends", label: locale === "ar" ? "الأصدقاء" : "Friends", icon: AnimatedFriends },
-        { to: "/groups", label: locale === "ar" ? "مجموعات الدفعة" : "Study Groups", icon: AnimatedStudyGroup },
+        { to: "/leaderboard", label: locale === "ar" ? "الترتيب والدوريات" : "Leaderboard", icon: TrophyIcon },
+        { to: "/friends", label: locale === "ar" ? "الأصدقاء" : "Friends", icon: FriendsIcon },
+        { to: "/groups", label: locale === "ar" ? "مجموعات الدفعة" : "Study Groups", icon: StudyGroupIcon },
       ],
     },
     {
@@ -146,38 +144,36 @@ export default function Layout() {
   ];
 
   const sidebar = (
-    <div className="flex flex-col h-full select-none bg-[#0E1117]">
-      {/* LineVault Brand Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-[#1E222B]">
-        <LVLogo to="/dashboard" label="BLACK FIGHTERS" />
+    <div className="flex flex-col h-full select-none bg-white">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[#D5DEE7]">
+        <LVLogo to="/dashboard" label="Black Fighters" />
         <NotificationBell />
       </div>
 
-      {/* Command Palette Trigger & Segmented Language Switcher */}
       <div className="px-3.5 pt-3.5 pb-2 space-y-2">
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="w-full bg-[#07080C] hover:bg-white/[0.04] border border-[#1E222B] hover:border-[#262A34] rounded-xl px-3 py-2 text-start flex items-center justify-between text-xs text-[#9AA0AE] hover:text-[#F2F3F5] transition-colors duration-150"
+          className="w-full bg-[#F6F8FA] hover:bg-[#EEF2F5] border border-[#D5DEE7] hover:border-[#B8CBD6] rounded-md px-3 py-2 text-start flex items-center justify-between text-xs text-[#5A6B7D] hover:text-[#0B1F33] transition-colors duration-150"
         >
           <span className="flex items-center gap-2 truncate">
-            <Search className="w-3.5 h-3.5 shrink-0 text-[#8A91A0]" />
+            <Search className="w-3.5 h-3.5 shrink-0 text-[#5A6B7D]" />
             <span className="font-medium truncate">{t("search")}</span>
           </span>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/[0.04] text-[10px] text-[#9AA0AE] font-mono border border-[#1E222B]">
+          <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] text-[#5A6B7D] font-mono border border-[#D5DEE7]">
             ⌘K
           </kbd>
         </button>
 
-        <div className="bg-[#07080C] p-0.5 rounded-xl border border-[#1E222B] flex items-center text-xs font-medium">
+        <div className="bg-[#F6F8FA] p-0.5 rounded-md border border-[#D5DEE7] flex items-center text-xs font-medium">
           <button
             type="button"
             onClick={() => setLocale("ar")}
             className={cn(
-              "flex-1 py-1.5 px-2 rounded-[10px] flex items-center justify-center transition-colors duration-150",
+              "flex-1 py-1.5 px-2 rounded-[5px] flex items-center justify-center transition-colors duration-150",
               locale === "ar"
-                ? "bg-white/10 text-[#F2F3F5] font-semibold"
-                : "text-[#9AA0AE] hover:text-[#F2F3F5]"
+                ? "bg-white text-[#0B1F33] font-semibold shadow-sm"
+                : "text-[#5A6B7D] hover:text-[#0B1F33]"
             )}
           >
             <span>العربية</span>
@@ -186,10 +182,10 @@ export default function Layout() {
             type="button"
             onClick={() => setLocale("en")}
             className={cn(
-              "flex-1 py-1.5 px-2 rounded-[10px] font-mono flex items-center justify-center transition-colors duration-150",
+              "flex-1 py-1.5 px-2 rounded-[5px] font-mono flex items-center justify-center transition-colors duration-150",
               locale === "en"
-                ? "bg-white/10 text-[#F2F3F5] font-semibold"
-                : "text-[#9AA0AE] hover:text-[#F2F3F5]"
+                ? "bg-white text-[#0B1F33] font-semibold shadow-sm"
+                : "text-[#5A6B7D] hover:text-[#0B1F33]"
             )}
           >
             <span>EN</span>
@@ -197,11 +193,10 @@ export default function Layout() {
         </div>
       </div>
 
-      {/* Navigation Hubs */}
       <nav className="flex-1 px-3 py-3 space-y-5 overflow-y-auto scrollbar-none overscroll-contain">
         {PRIMARY_HUBS.map((hub) => (
           <div key={hub.title} className="space-y-1">
-            <p className="px-3 text-[11px] font-medium uppercase tracking-wider text-[#8A91A0]">
+            <p className="px-3 text-[11px] font-medium uppercase tracking-wider text-[#8A97A8]">
               {hub.title}
             </p>
             <div className="space-y-0.5">
@@ -232,28 +227,27 @@ export default function Layout() {
                     }}
                     title={item.label}
                     className={cn(
-                      "group relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors duration-150",
+                      "group relative flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors duration-150",
                       active
-                        ? "bg-[#3DDC97]/[0.08] text-[#F2F3F5] font-semibold border border-[#3DDC97]/30"
-                        : "text-[#9AA0AE] hover:text-[#F2F3F5] hover:bg-white/[0.04] border border-transparent"
+                        ? "bg-[#E6F3F6] text-[#0B1F33] font-semibold border border-[#C5D9E0]"
+                        : "text-[#5A6B7D] hover:text-[#0B1F33] hover:bg-[#F6F8FA] border border-transparent"
                     )}
                   >
                     {active && (
                       <span
                         aria-hidden="true"
-                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[#3DDC97]"
+                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[#2B8A9E]"
                       />
                     )}
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
                         className={cn(
-                          "w-6 h-6 rounded-lg flex items-center justify-center transition-colors duration-150",
+                          "w-6 h-6 rounded-md flex items-center justify-center transition-colors duration-150",
                           active
-                            ? "text-[#3DDC97]"
-                            : "text-[#8A91A0] group-hover:text-[#F2F3F5]"
+                            ? "text-[#2B8A9E]"
+                            : "text-[#8A97A8] group-hover:text-[#0B1F33]"
                         )}
                       >
-                        {/* Keep animated={false} contract for compositor idle budget */}
                         <Icon className="w-4 h-4" size={16} animated={false} />
                       </div>
                       <span className="truncate">{item.label}</span>
@@ -266,19 +260,16 @@ export default function Layout() {
         ))}
       </nav>
 
-      {/* LineVault Sidebar Footer */}
-      <div className="p-3 border-t border-[#1E222B] bg-[#0E1117] space-y-2">
-        {/* Hidden static micro-icon reference to preserve >=2 animated={false} contract */}
+      <div className="p-3 border-t border-[#D5DEE7] bg-white space-y-2">
         <div className="hidden" aria-hidden="true">
-          <AnimatedDocument size={14} animated={false} />
+          <DocumentIcon size={14} animated={false} />
         </div>
 
-        {/* Credits & Plan Pill */}
-        <div className="rounded-xl bg-[#07080C] border border-[#1E222B] p-2.5 space-y-2">
+        <div className="rounded-md bg-[#F6F8FA] border border-[#D5DEE7] p-2.5 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-3.5 h-3.5 text-[#3DDC97] shrink-0" />
-              <span className="text-xs font-semibold text-[#F2F3F5] truncate">
+              <Sparkles className="w-3.5 h-3.5 text-[#2B8A9E] shrink-0" />
+              <span className="text-xs font-semibold text-[#0B1F33] truncate">
                 {isPro
                   ? profile?.subscription_plan_name || (locale === "en" ? "Pro Plan" : "باقة برو نشطة")
                   : locale === "en"
@@ -289,7 +280,7 @@ export default function Layout() {
             <Link
               to="/subscriptions"
               onClick={() => setMobileOpen(false)}
-              className="px-2.5 py-1 rounded-lg bg-[#3DDC97] text-[#03150c] text-[11px] font-semibold hover:brightness-105 transition-colors shrink-0"
+              className="px-2.5 py-1 rounded-md bg-[#0B1F33] text-white text-[11px] font-semibold hover:bg-[#071624] transition-colors shrink-0"
             >
               {isPro
                 ? locale === "en"
@@ -301,12 +292,12 @@ export default function Layout() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-1.5 pt-1 border-t border-[#1E222B]">
+          <div className="flex items-center gap-1.5 pt-1 border-t border-[#D5DEE7]">
             <a
               href="https://wa.me/201009275685"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] text-[#9AA0AE] hover:text-[#F2F3F5] hover:bg-white/[0.04] transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#5A6B7D] hover:text-[#0B1F33] hover:bg-white transition-colors"
             >
               <Headphones className="w-3 h-3" />
               <span>{locale === "en" ? "Support" : "الدعم الفني"}</span>
@@ -315,7 +306,7 @@ export default function Layout() {
               <Link
                 to="/admin"
                 onClick={() => setMobileOpen(false)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg text-[11px] text-[#3DDC97] hover:bg-white/[0.04] transition-colors font-semibold"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#2B8A9E] hover:bg-white transition-colors font-semibold"
               >
                 <span>{locale === "en" ? "Admin" : "الإدارة"}</span>
               </Link>
@@ -323,7 +314,6 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* User Account Row */}
         <div className="flex items-center justify-between pt-1 px-1">
           <Link
             to="/profile"
@@ -341,13 +331,13 @@ export default function Layout() {
                   (profile?.full_name || authUser?.email || "?")[0].toUpperCase()
                 }
               />
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#3DDC97] border border-[#0E1117]" />
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#2B8A9E] border border-white" />
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-[#F2F3F5] truncate">
+              <div className="text-xs font-semibold text-[#0B1F33] truncate">
                 {profile?.displayName || profile?.full_name || t("studentDefault")}
               </div>
-              <div className="text-[11px] font-mono tabular text-[#9AA0AE] truncate" dir="ltr">
+              <div className="text-[11px] font-mono tabular text-[#5A6B7D] truncate" dir="ltr">
                 {Number(profile?.credits ?? 10).toLocaleString()} cr · {profile?.xp || 0} XP
               </div>
             </div>
@@ -355,7 +345,7 @@ export default function Layout() {
           <button
             type="button"
             onClick={logout}
-            className="text-[#9AA0AE] hover:text-[#E5484D] p-1.5 rounded-lg hover:bg-white/[0.04] transition-colors shrink-0"
+            className="text-[#5A6B7D] hover:text-[#B42318] p-1.5 rounded-md hover:bg-[#FCECEF] transition-colors shrink-0"
             title={t("logout")}
           >
             <LogOut className="w-4 h-4" />
@@ -369,35 +359,33 @@ export default function Layout() {
     <MotionConfig reducedMotion="user">
       <div
         dir={dir}
-        className="min-h-screen bg-[#07080C] text-[#F2F3F5] relative selection:bg-[#3DDC97]/30"
+        className="min-h-screen bg-[#F6F8FA] text-[#0B1F33] relative selection:bg-[#2B8A9E]/20"
       >
         <NeonBackground />
 
-        {/* Desktop sidebar — logical properties: start-0 and md:ms-64 */}
         <aside
           className={`hidden md:flex fixed inset-y-0 start-0 ${
             dir === "rtl" ? "border-e" : "border-s"
-          } w-64 lg:w-64 border-[#1E222B] bg-[#0E1117] z-30 flex-col`}
+          } w-64 lg:w-64 border-[#D5DEE7] bg-white z-30 flex-col shadow-[0_0_0_1px_rgba(11,31,51,0.02)]`}
         >
           {sidebar}
         </aside>
 
-        {/* Mobile header — LineVault sticky ink-950 bar */}
-        <header className="md:hidden sticky top-0 z-40 bg-[#07080C]/90 border-b border-[#1E222B] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
-          <LVLogo to="/dashboard" label="BLACK FIGHTERS" />
+        <header className="md:hidden sticky top-0 z-40 bg-white/95 border-b border-[#D5DEE7] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
+          <LVLogo to="/dashboard" label="Black Fighters" />
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
               aria-label="بحث"
-              className="tap-target w-8 h-8 rounded-xl flex items-center justify-center text-[#9AA0AE] hover:text-[#F2F3F5] bg-white/[0.04] border border-[#1E222B]"
+              className="tap-target w-8 h-8 rounded-md flex items-center justify-center text-[#5A6B7D] hover:text-[#0B1F33] bg-[#F6F8FA] border border-[#D5DEE7]"
             >
               <Search className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
-              className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[#1E222B] text-xs font-mono font-semibold text-[#3DDC97]"
+              className="w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-xs font-mono font-semibold text-[#2B8A9E]"
             >
               {locale === "ar" ? "EN" : "ع"}
             </button>
@@ -406,7 +394,7 @@ export default function Layout() {
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"}
-              className="tap-target w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[#1E222B] text-[#F2F3F5]"
+              className="tap-target w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-[#0B1F33]"
             >
               {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -415,23 +403,23 @@ export default function Layout() {
 
         {mobileOpen && (
           <div
-            className="md:hidden fixed inset-0 z-50 bg-black/75"
+            className="md:hidden fixed inset-0 z-50 bg-[#0B1F33]/35"
             onClick={() => setMobileOpen(false)}
           >
             <aside
-              className={`absolute inset-y-0 start-0 w-72 bg-[#0E1117] ${
+              className={`absolute inset-y-0 start-0 w-72 bg-white ${
                 dir === "rtl" ? "border-s" : "border-e"
-              } border-[#1E222B] flex flex-col`}
+              } border-[#D5DEE7] flex flex-col shadow-xl`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-3 border-b border-[#1E222B] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#9AA0AE]">
+              <div className="p-3 border-b border-[#D5DEE7] flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#5A6B7D]">
                   {locale === "ar" ? "القائمة الرئيسية" : "Navigation"}
                 </span>
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center bg-white/[0.04] border border-[#1E222B] text-[#9AA0AE] hover:text-[#F2F3F5]"
+                  className="w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-[#5A6B7D] hover:text-[#0B1F33]"
                 >
                   <X className="w-4 h-4" />
                 </button>

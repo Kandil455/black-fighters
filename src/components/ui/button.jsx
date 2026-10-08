@@ -10,33 +10,33 @@ const buttonVariants = cva(
   // transition-colors — a blanket transition drags every property (including
   // framer mount transforms on asChild wrappers) into the hover path. Hover
   // feedback = colors + subtle 150ms transition. NO hover:scale.
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3DDC97]/50 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2B8A9E]/40 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-[#3DDC97] text-[#04140D] font-semibold hover:bg-[#34c988] shadow-[0_8px_32px_rgba(61,220,151,0.28)] hover:shadow-[0_10px_36px_rgba(61,220,151,0.36)]",
+          "bg-[#0B1F33] text-white font-semibold hover:bg-[#071624] shadow-[0_1px_2px_rgba(11,31,51,0.12)]",
         destructive:
-          "bg-[#2A1214] text-[#FF9A9D] hover:bg-[#38181b] border border-[#E5484D]/50",
+          "bg-[#FCECEF] text-[#B42318] hover:bg-[#F9D7DC] border border-[#F3B4BC]",
         // NO backdrop-filter on the button itself
         outline:
-          "border border-[#262A34] bg-[#0E1117] text-[#F2F3F5] hover:bg-[#131720] hover:border-[#2C7A55]",
+          "border border-[#D5DEE7] bg-white text-[#0B1F33] hover:bg-[#EEF2F5] hover:border-[#B8CBD6]",
         secondary:
-          "border border-[#262A34] bg-[#0E1117] text-[#F2F3F5] hover:bg-[#131720] hover:border-[#2C7A55]",
+          "border border-[#D5DEE7] bg-[#EEF2F5] text-[#0B1F33] hover:bg-[#E3EAF0]",
         ghost:
-          "text-[#9AA0AE] hover:bg-[#0E1117] hover:text-[#F2F3F5]",
+          "text-[#5A6B7D] hover:bg-[#EEF2F5] hover:text-[#0B1F33]",
         link:
-          "text-[#3DDC97] underline-offset-4 hover:underline",
+          "text-[#2B8A9E] underline-offset-4 hover:underline",
         glass:
-          "border border-[#262A34] bg-[#0E1117] text-[#F2F3F5] hover:bg-[#131720] hover:border-[#2C7A55]",
+          "border border-[#D5DEE7] bg-white text-[#0B1F33] hover:bg-[#EEF2F5] hover:border-[#B8CBD6]",
         success:
-          "bg-[#3DDC97] text-[#04140D] font-semibold hover:bg-[#34c988] shadow-[0_8px_32px_rgba(61,220,151,0.28)]",
+          "bg-[#0B1F33] text-white font-semibold hover:bg-[#071624]",
       },
       size: {
-        default: "h-11 px-5 py-2 rounded-xl",
-        sm: "h-9 rounded-xl px-3.5 text-sm",
-        lg: "h-[52px] rounded-xl px-[26px] text-[17px]",
-        icon: "h-10 w-10 rounded-xl",
+        default: "h-11 px-5 py-2 rounded-md",
+        sm: "h-9 rounded-md px-3.5 text-sm",
+        lg: "h-[52px] rounded-md px-[26px] text-[17px]",
+        icon: "h-10 w-10 rounded-md",
       },
     },
     defaultVariants: {

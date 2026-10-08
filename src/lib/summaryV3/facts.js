@@ -229,14 +229,38 @@ function bilingualBlocks(facts) {
   ];
 }
 
+/**
+ * "Complete study guide" — bullets + a definition table.
+ *
+ * It used to emit the SAME section content twice: a bullet list of every
+ * statement followed by a paragraph joining every explanation. That tripped the
+ * validator's own DUPLICATE_CONTENT_RATIO gate (repeated block content > 18%), so
+ * documents assembled with this template were flagged invalid. Splitting the
+ * content into "points" + "term → explanation" removes the duplication and reads
+ * better anyway.
+ */
 function completeBlocks(facts, language) {
   const refs = factRefs(facts);
   const items = facts.map((fact) => factText(fact, language)).filter(Boolean);
-  const explanations = facts.map((fact) => factText(fact, language, true)).filter(Boolean);
-  return [
-    { type: "bullet_list", role: "body", items, ...refs },
-    { type: "paragraph", role: "body", content: explanations.join(" ") || items.join(" "), ...refs },
-  ];
+  const withTerms = facts.filter((fact) => fact.keyTerm && factText(fact, language, true));
+  const blocks = [];
+  if (items.length) blocks.push({ type: "bullet_list", role: "body", items, ...refs });
+  if (withTerms.length) {
+    blocks.push({
+      type: "table",
+      role: "definition",
+      table: {
+        headers: language === "ar" ? ["المصطلح", "الشرح"] : ["Term", "Explanation"],
+        rows: withTerms.map((fact) => [fact.keyTerm, factText(fact, language, true)]),
+      },
+      ...factRefs(withTerms),
+    });
+  }
+  if (!blocks.length) {
+    const explanations = facts.map((fact) => factText(fact, language, true)).filter(Boolean);
+    if (explanations.length) blocks.push({ type: "paragraph", role: "body", content: explanations.join(" "), ...refs });
+  }
+  return blocks;
 }
 
 function revisionBlocks(facts, language) {
@@ -276,9 +300,125 @@ function visualBlocks(facts, language) {
   return [{ type: "concept_map", role: "body", content: facts.map((fact) => `${fact.keyTerm || (language === "ar" ? "مفهوم" : "Concept")} → ${factText(fact, language)}`).join("\n"), ...refs }];
 }
 
+/**
+ * "Foundational bilingual" (شرح من الأساس) — the Atlas V5 default.
+ *
+ * Each section opens with a prerequisite bridge for a student who has never seen
+ * the topic, then the English study points, then a structured Arabic explanation.
+ * The prerequisite line matters: it is the difference between a summary that
+ * explains and one that just lists conclusions.
+ */
+/**
+ * "Foundational bilingual" (شرح من الأساس) — the Atlas V5 default.
+ *
+ * LANGUAGE SAFETY: every string here must be produced in the document's own
+ * language mode. The first version hardcoded an Arabic prerequisite bridge and
+ * always pulled `explanationAr`, so choosing English produced an Arabic document
+ * and validation rejected the whole run with
+ * `SUMMARY_V3_VALIDATION_FAILED:DOCUMENT_LANGUAGE_MISMATCH` — the summary simply
+ * refused to generate.
+ */
+function foundationalBilingualBlocks(facts, language) {
+  const refs = factRefs(facts);
+  const isArabic = language === "ar";
+  const english = facts.map((fact) => factText(fact, "en")).filter(Boolean);
+  // The "explanation" rail follows the document language, not a fixed field.
+  const explanations = facts
+    .map((fact) => (isArabic
+      ? (fact.explanationAr || fact.arabicExplanation || factText(fact, "ar", true))
+      : (fact.explanationEn || factText(fact, "en", true))))
+    .filter(Boolean);
+  const terms = facts
+    .filter((fact) => fact.keyTerm)
+    .map((fact) => ({
+      term: fact.keyTerm,
+      meaning: (isArabic ? (fact.statementAr || fact.statementEn) : (fact.statementEn || fact.statementAr)) || "",
+    }))
+    .filter((entry) => entry.meaning);
+
+  const anchor = facts[0]?.keyTerm || facts[0]?.sourceHeading || "";
+  const bridge = facts[0]
+    ? (isArabic
+      ? `قبل ما تقرا: القسم ده مبني على ${anchor || "المفهوم الأساسي"} — لو مش متأكد منه ارجع له الأول.`
+      : `Before you read: this section builds on ${anchor || "the core concept"} — go back to it first if you are not sure.`)
+    : "";
+
+  const blocks = [];
+  if (bridge) blocks.push({ type: "quote", role: "example", content: bridge, ...refs });
+  if (english.length) blocks.push({ type: "bullet_list", role: "english_points", items: english, ...refs });
+  if (explanations.length) {
+    blocks.push({ type: "bullet_list", role: "arabic_explanation", items: explanations, ...refs });
+  } else if (english.length) {
+    blocks.push({ type: "paragraph", role: "arabic_explanation", content: english.join(" "), ...refs });
+  }
+  if (terms.length) {
+    blocks.push({
+      type: "table",
+      role: "definition",
+      table: {
+        headers: isArabic ? ["المصطلح", "المعنى"] : ["Term", "Meaning"],
+        rows: terms.map((entry) => [entry.term, entry.meaning]),
+      },
+      ...refs,
+    });
+  }
+  return blocks.length ? blocks : completeBlocks(facts, language);
+}
+
+/**
+ * "Atlas cram" (برشامة ليلة الامتحان) — maximum exam density.
+ * Definitions, hard numbers/dosages and comparisons only: the content a student
+ * actually needs the night before, with nothing narrative in the way.
+ */
+function cramBlocks(facts, language) {
+  const refs = factRefs(facts);
+  const scored = [...facts].sort((a, b) => (b.importance || 0) - (a.importance || 0));
+  // "Critical" means the content a student cannot reconstruct under time pressure:
+  // top-importance facts, formulas, and hard numbers (dosages/units/percentages) —
+  // NOT every statement that merely contains a digit.
+  const isCritical = (fact) =>
+    (fact.importance || 0) >= 4 ||
+    Boolean(fact.formula) ||
+    /\d+(\.\d+)?\s*(mg|mcg|µg|g|kg|ml|l|mmhg|%|iu|mmol|meq|bpm|hours?|hrs?|days?)\b/i.test(
+      `${fact.statementEn || ""} ${fact.statementAr || ""} ${fact.explanationEn || ""}`,
+    );
+  const critical = scored.filter(isCritical);
+  const rest = scored.filter((fact) => !isCritical(fact));
+  const blocks = [];
+
+  if (critical.length) {
+    blocks.push({
+      type: "bullet_list",
+      role: "warning",
+      items: critical.map((fact) => factText(fact, language)).filter(Boolean),
+      ...refs,
+    });
+  }
+  if (rest.length) {
+    blocks.push({
+      type: "table",
+      role: "body",
+      table: {
+        headers: language === "ar" ? ["النقطة", "التفصيل"] : ["Point", "Detail"],
+        rows: rest.map((fact) => [
+          fact.keyTerm || fact.sourceHeading || (language === "ar" ? "نقطة" : "Point"),
+          factText(fact, language, true) || factText(fact, language),
+        ]),
+      },
+      ...refs,
+    });
+  }
+  const formula = facts.find((fact) => fact.formula);
+  if (formula) blocks.push({ type: "equation", role: "formula", content: formula.formula, ...factRefs([formula]) });
+  if (!blocks.length) return revisionBlocks(facts, language);
+  return blocks;
+}
+
 function blockFactory(templateId, facts, languageMode) {
   const language = languageMode === "ar" ? "ar" : "en";
   if (templateId === "bilingual_lecture") return bilingualBlocks(facts);
+  if (templateId === "foundational_bilingual") return foundationalBilingualBlocks(facts, language);
+  if (templateId === "atlas_cram") return cramBlocks(facts, language);
   if (templateId === "exam_revision_sheet") return revisionBlocks(facts, language);
   if (templateId === "comparison_classification") return comparisonBlocks(facts, language);
   if (templateId === "qa_tutor") return qaBlocks(facts, language);

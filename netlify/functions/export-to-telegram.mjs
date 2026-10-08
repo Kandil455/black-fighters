@@ -8,7 +8,7 @@ export const handler = async (event) => {
   try {
     const user = await requireUser(event);
     const body = parseBody(event);
-    const { title, type = "summary", summaryText = "", questions = [], quizId = null } = body;
+    const { title, type = "summary", summaryText = "", summaryHtml = "", questions = [], quizId = null } = body;
 
     // Get user's linked Telegram Chat ID from Firestore
     let chatId = null;
@@ -31,6 +31,9 @@ export const handler = async (event) => {
       title: title || "محتوى من Black Fighters",
       type,
       summaryText,
+      // The rendered study-guide file. Sending it as a document is what makes the
+      // export deliver an actual file instead of a truncated text message.
+      summaryHtml: typeof summaryHtml === "string" ? summaryHtml.slice(0, 900000) : "",
       questions,
       quizId,
     });

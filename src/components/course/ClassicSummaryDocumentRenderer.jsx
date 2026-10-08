@@ -387,6 +387,35 @@ function DocumentBlock({ block, index = 0, depth = 0 }) {
     ) : null;
   }
   if (type === "divider") return <hr key={key} className="my-6 border-dashed border-slate-300" />;
+  // concept_map had NO branch: the visual_concepts_formulas template emits it
+  // (see visualBlocks in summaryV3/facts.js) and it silently degraded into a plain
+  // paragraph with embedded newlines — the "this template looks broken" report.
+  if (type === "concept_map") {
+    const routes = String(text || "")
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (!routes.length) return null;
+    return (
+      <div key={key} className="my-5 grid gap-2 sm:grid-cols-2">
+        {routes.map((route, routeIndex) => {
+          const [head, ...tail] = route.split(/\s*(?:→|->|:)\s*/);
+          const body = tail.join(" → ");
+          const routeDir = detectTextDirection(route, dir);
+          return (
+            <div
+              key={`${key}-${routeIndex}`}
+              dir={routeDir}
+              className="rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-3 text-start [unicode-bidi:plaintext]"
+            >
+              <p className="text-[13px] font-black text-slate-900">{inlineText(head)}</p>
+              {body && <p className="mt-1 text-[12.5px] leading-7 text-slate-700">{inlineText(body)}</p>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   if (type === "section") {
     const children = Array.isArray(block.blocks) ? block.blocks : (Array.isArray(block.children) ? block.children : []);
     return <section key={key} className="my-5">{text && <h2 {...direction} className="mb-3 mt-7 text-xl text-start font-black leading-relaxed"><span className="inline rounded-md bg-slate-950 px-2.5 py-1 text-white"><BlockInline block={block} /></span></h2>}{children.map((child, childIndex) => <DocumentBlock key={child?.id || childIndex} block={child} index={childIndex} depth={depth + 1} />)}</section>;

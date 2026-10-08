@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Upload, Layers, Settings2, Download, 
-  BookOpen, RotateCcw, Play, Sparkles 
+  BookOpen, RotateCcw, Play 
 } from "lucide-react";
-import { AnimatedPracticalQuiz } from "@/components/ui/AnimatedMicroIcons";
+import { PracticalQuizIcon } from "@/components/ui/icons";
 import { ImageExtractorUpload } from "@/components/imageExtractor/ImageExtractorUpload";
 import { ImageReviewGrid } from "@/components/imageExtractor/ImageReviewGrid";
 import { ImageQuizControls } from "@/components/imageExtractor/ImageQuizControls";
@@ -24,6 +24,7 @@ import { useLocale } from "@/lib/LocaleContext";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
+import { openTelegramLinkWithCode } from "@/lib/telegramClient";
 import { apiUrl, resolveMediaUrl } from "@/lib/apiBase";
 
 /**
@@ -586,7 +587,7 @@ export default function ImageExtractor() {
           id: toastId,
           action: {
             label: "ربط البوت",
-            onClick: () => window.open(`https://t.me/black_fighters_bot?start=link_${user?.id || "me"}`, "_blank"),
+            onClick: () => { openTelegramLinkWithCode().catch((e) => toast.error(e?.message || "تعذر إنشاء كود الربط")); },
           },
         });
       } else {
@@ -600,7 +601,7 @@ export default function ImageExtractor() {
           id: toastId,
           action: {
             label: "ربط البوت",
-            onClick: () => window.open(`https://t.me/black_fighters_bot?start=link_${user?.id || "me"}`, "_blank"),
+            onClick: () => { openTelegramLinkWithCode().catch((e) => toast.error(e?.message || "تعذر إنشاء كود الربط")); },
           },
         });
       } else {
@@ -627,162 +628,137 @@ export default function ImageExtractor() {
 
   return (
     <div className="min-h-screen pb-16 space-y-8" dir={dir}>
-      {/* Top Banner Navigation - Dark Glassmorphism Header */}
-      <div className="flex flex-col gap-5 w-full p-5 sm:p-6 rounded-2xl shadow-2xl bg-slate-950/80 backdrop-blur-md border border-white/10 overflow-hidden max-w-full">
-        
-        {/* Row 1: Identity & Titles (Text Full Width) */}
-        <div className="flex items-center gap-4 w-full">
-          {/* High-fidelity App Icon */}
-          <div className="w-13 h-13 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner p-2.5">
-            <AnimatedPracticalQuiz size={32} />
+      {/* Header + flow steps.
+          Was: a glass panel with a badge, a title, a subtitle, a divider and
+          SEVEN flat buttons in two groups (plus `backdrop-blur-md` on the whole
+          bar), which read as a control room rather than a task. Now: one title,
+          and a numbered 3-step flow where later steps stay dimmed until they can
+          actually do something. */}
+      <header className="space-y-5">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-[#0E1117] text-primary">
+            <PracticalQuizIcon size={26} />
           </div>
-
-          <div className="flex flex-col gap-1 text-start min-w-0">
-            {/* Top of Column: Tiny Glowing Badge "OSCE / OSPE" */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 text-[10px] font-mono font-bold tracking-wider mb-1 w-fit shadow-sm shadow-purple-500/10 shrink-0">
-              <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
-              <span>OSCE / OSPE • CLINICAL EXAM</span>
-            </div>
-
-            {/* Middle: Main Title - Signature editorial steel-white headline gradient and heading-display */}
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-foreground studio-headline-gradient heading-display tracking-tight break-words">
-              <span>{isEn ? "Practical Quiz Generator (OSCE / OSPE)" : "أنشئ كويز عملي (أوسكي / أوسبي بالصور)"}</span>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">
+              {isEn ? "Practical quiz (OSCE / OSPE)" : "كويز العملي (أوسكي / أوسبي)"}
             </h1>
-
-            {/* Bottom: Subtitle */}
-            <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-              {isEn 
-                ? "Extract lecture images and generate practical interactive visual quizzes"
-                : "ارفع المحاضرة أو الصور واستخرج الأشكال التوضيحية لتوليد كويزات عملية تفاعلية"}
+            <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
+              {isEn
+                ? "Upload the lecture, review the extracted figures, then take the quiz."
+                : "ارفع المحاضرة، راجع الصور المستخرجة، وبعدين ابدأ الكويز."}
             </p>
           </div>
-        </div>
-
-        {/* Separator */}
-        <div className="border-t border-white/10 w-full" />
-
-        {/* Row 2: Action Hub Buttons (Underneath the Text) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-          {/* Grouped Tools: Subtle Inner Dark Pill Container */}
-          <div className="flex flex-wrap items-center gap-1 p-1.5 rounded-xl bg-white/[0.03] border border-white/10 backdrop-blur-sm">
-            {/* 1. رفع ملف */}
-            <button
-              type="button"
-              onClick={() => { playClick(); setActiveTab("upload"); }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
-                activeTab === "upload"
-                  ? "bg-slate-800 text-white font-semibold shadow-sm"
-                  : "text-gray-300 hover:text-white"
-              )}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>{isEn ? "Upload File" : "رفع ملف"}</span>
-            </button>
-
-            {/* 2. مراجعة الصور */}
-            <button
-              type="button"
-              onClick={() => { playClick(); setActiveTab("review"); }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
-                activeTab === "review"
-                  ? "bg-slate-800 text-white font-semibold shadow-sm"
-                  : "text-gray-300 hover:text-white"
-              )}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>{isEn ? `Review Images (${keptCount})` : `مراجعة الصور (${keptCount})`}</span>
-            </button>
-
-            {/* 3. إعداد الكويز */}
-            <button
-              type="button"
-              onClick={() => { playClick(); setActiveTab("quiz_controls"); }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
-                activeTab === "quiz_controls"
-                  ? "bg-slate-800 text-white font-semibold shadow-sm"
-                  : "text-gray-300 hover:text-white"
-              )}
-            >
-              <Settings2 className="w-3.5 h-3.5" />
-              <span>{isEn ? "Setup Quiz" : "إعداد الكويز"}</span>
-            </button>
-
-            {/* 4. تصدير وحفظ */}
-            <button
-              type="button"
-              onClick={() => { playClick(); setActiveTab("export"); }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
-                activeTab === "export"
-                  ? "bg-slate-800 text-white font-semibold shadow-sm"
-                  : "text-gray-300 hover:text-white"
-              )}
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{isEn ? "Export & Save" : "تصدير وحفظ"}</span>
-            </button>
-
-            {/* 5. مكتبتي */}
-            <button
-              type="button"
-              onClick={() => { playClick(); setActiveTab("library"); }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap cursor-pointer hover:bg-white/10",
-                activeTab === "library"
-                  ? "bg-slate-800 text-white font-semibold shadow-sm"
-                  : "text-gray-300 hover:text-white"
-              )}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{isEn ? "My Library" : "مكتبتي"}</span>
-            </button>
-          </div>
-
-          {/* Quick Actions (New Session & Take Quiz) */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Button 2 (Secondary Action): جلسة جديدة */}
+          <div className="hidden shrink-0 items-center gap-2 sm:flex">
             <button
               type="button"
               onClick={handleStartNewSession}
-              className="border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-100 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
-              title={isEn ? "Start New Session" : "جلسة جديدة"}
+              title={isEn ? "Start a new session" : "جلسة جديدة"}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-bold text-muted-foreground transition-colors hover:border-rose-400/40 hover:text-rose-300"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>{isEn ? "New Session" : "جلسة جديدة"}</span>
-            </button>
-
-            {/* Button 1 (Primary): حل الكويز */}
-            <button
-              type="button"
-              onClick={() => {
-                playClick();
-                if (quizzesCount > 0) {
-                  setActiveTab("quiz_player");
-                } else {
-                  toast.info(
-                    isEn
-                      ? "No practical quizzes available yet in this session. Please upload images and generate a quiz first ✨"
-                      : "لا يوجد كويز متاح في هذه الجلسة. يرجى رفع الصور وتوليد الكويز أولاً ✨"
-                  );
-                  if (images.length > 0) {
-                    setActiveTab("quiz_controls");
-                  } else {
-                    setActiveTab("upload");
-                  }
-                }
-              }}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-[0_0_15px_rgba(16,185,129,0.5)] px-4 py-2 rounded-xl text-xs whitespace-nowrap transition duration-200 active:scale-95 flex items-center gap-2 cursor-pointer shrink-0"
-              title={isEn ? "Take Quiz" : "حل الكويز"}
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>{isEn ? `Take Quiz (${quizzesCount})` : `حل الكويز (${quizzesCount})`}</span>
+              <RotateCcw className="h-3.5 w-3.5" />
+              {isEn ? "New session" : "جلسة جديدة"}
             </button>
           </div>
         </div>
-      </div>
+
+        {/* The flow: 1 upload → 2 review → 3 quiz, with live counts. */}
+        <nav aria-label={isEn ? "Quiz steps" : "خطوات الكويز"} className="grid gap-2 sm:grid-cols-3">
+          {[
+            {
+              key: "upload",
+              step: "1",
+              icon: Upload,
+              label: isEn ? "Upload" : "ارفع المحاضرة",
+              hint: images.length ? `${images.length} ${isEn ? "images" : "صورة"}` : (isEn ? "PDF, PPTX or images" : "PDF أو PPTX أو صور"),
+              enabled: true,
+            },
+            {
+              key: "review",
+              step: "2",
+              icon: Layers,
+              label: isEn ? "Review figures" : "راجع الصور",
+              hint: keptCount ? `${keptCount} ${isEn ? "kept" : "مختارة"}` : (isEn ? "nothing extracted yet" : "لسه مفيش صور"),
+              enabled: images.length > 0,
+            },
+            {
+              key: "quiz_player",
+              step: "3",
+              icon: Play,
+              label: isEn ? "Take the quiz" : "ابدأ الكويز",
+              hint: quizzesCount ? `${quizzesCount} ${isEn ? "questions" : "سؤال"}` : (isEn ? "generate first" : "ولّد الكويز الأول"),
+              enabled: quizzesCount > 0,
+            },
+          ].map((item) => {
+            const Icon = item.icon;
+            const selected = activeTab === item.key || (item.key === "review" && activeTab === "review");
+            return (
+              <button
+                key={item.key}
+                type="button"
+                disabled={!item.enabled}
+                onClick={() => {
+                  playClick();
+                  if (item.enabled) setActiveTab(item.key);
+                  else if (item.key !== "upload") setActiveTab(images.length ? "quiz_controls" : "upload");
+                }}
+                className={cn(
+                  "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-start transition-colors",
+                  selected
+                    ? "border-primary/45 bg-primary/[0.08]"
+                    : "border-border bg-[#0E1117] hover:border-primary/30",
+                  !item.enabled && "opacity-60",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-mono text-[12px] font-black",
+                    selected ? "bg-primary text-[#03150c]" : "bg-white/[0.06] text-muted-foreground",
+                  )}
+                >
+                  {item.step}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 text-[13px] font-bold text-foreground">
+                    <Icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{item.hint}</span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Secondary tools — only relevant once there is something to work with. */}
+        {images.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { key: "quiz_controls", icon: Settings2, label: isEn ? "Quiz setup" : "إعداد الكويز" },
+              { key: "export", icon: Download, label: isEn ? "Export & save" : "تصدير وحفظ" },
+              { key: "library", icon: BookOpen, label: isEn ? "My library" : "مكتبتي" },
+            ].map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <button
+                  key={tool.key}
+                  type="button"
+                  onClick={() => { playClick(); setActiveTab(tool.key); }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-colors",
+                    activeTab === tool.key
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {tool.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </header>
 
       {/* Main Workspace Body - Direct reliable tab rendering without mode='wait' unmounting deadlock */}
       <div className="w-full">

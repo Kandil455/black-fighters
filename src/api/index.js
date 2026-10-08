@@ -8,7 +8,7 @@ import {
   QuizResults, ReviewCards, CourseNotes, StudyActivity, CourseReminders,
   PaymentRequests, ActivationCodes, CreditTransactions, Enrollments, Notifications,
   Friendships, DirectMessages, GroupMessages, GroupQuizSessions, StudyGroups,
-  Challenges, StandaloneQuizzes, QuizAttempts, Questions, Lessons, AssistantConversations
+  Challenges, StandaloneQuizzes, QuizAttempts, Questions, Lessons, AssistantConversations, FlaggedQuestions
 } from '@/lib/firestore';
 import { applyOwnerPrivileges } from '@/lib/permissions';
 import { uploadFile } from '@/lib/storage';
@@ -138,6 +138,23 @@ function makeSimpleEntity(module) {
   };
 }
 
+/**
+ * True only when the server was unreachable or returned a 5xx — i.e. cases where
+ * retrying the work in the browser can legitimately succeed.
+ *
+ * A 4xx (401/403/400) or a business error means the server *did* answer, so the
+ * client must surface that answer instead of re-running the mutation locally.
+ * The previous "fall back on any error" behaviour hid real failures behind
+ * unrelated permission errors.
+ */
+function isTransportFailure(error) {
+  if (error?.isTransport) return true;
+  const status = Number(error?.status);
+  if (Number.isFinite(status) && status >= 500) return true;
+  const message = String(error?.message || "");
+  return /Failed to fetch|NetworkError|Load failed|ERR_NETWORK|تعذر الوصول للسيرفر/i.test(message);
+}
+
 const mapEntity = (store) => ({
   list: (sortOrder, max) => store.filter({}, sortOrder, max),
   filter: (filters, sortOrder, max) => store.filter(filters, sortOrder, max),
@@ -226,10 +243,14 @@ export const entities = {
 
   User: {
     list: () => Users.getAll(),
-    filter: async (filters = {}) => {
+    // Accepts (filters, sortOrder, maxResults) like every other entity store.
+    // It previously took `filters` ONLY, so `entities.User.filter({}, "-total_xp", 100)`
+    // silently dropped the sort and the limit and fell through to `Users.getAll()`
+    // — an unbounded scan of every user document, sorted in memory.
+    filter: async (filters = {}, sortOrder = null, maxResults = null) => {
       if (filters?.id?.$in && Array.isArray(filters.id.$in)) {
-        const results = await Promise.all(filters.id.$in.map((id) => Users.get(id)));
-        return results.filter(Boolean);
+        // One bounded `documentId() in` query instead of N sequential getDoc calls.
+        return Users.getMany(filters.id.$in);
       }
       if (filters?.id && typeof filters.id === 'string') {
         const single = await Users.get(filters.id);
@@ -256,7 +277,9 @@ export const entities = {
           console.warn("Direct email query error:", e);
         }
       }
-      const all = await Users.getAll();
+      // Delegate to the store, which honours sortOrder + maxResults (bounded,
+      // server-ordered) instead of reading the whole collection and sorting here.
+      const all = await Users.filter(filters, sortOrder, maxResults);
       if (!filters || Object.keys(filters).length === 0) return all;
       return all.filter((u) => {
         for (const [key, val] of Object.entries(filters)) {
@@ -303,6 +326,9 @@ export const entities = {
   QuizAttempt: mapEntity(QuizAttempts),
   Question: mapEntity(Questions),
   Lesson: mapEntity(Lessons),
+  // Was referenced by FlagQuestionModal + the admin review tab but never defined,
+  // so student reports vanished silently.
+  FlaggedQuestion: mapEntity(FlaggedQuestions),
   AssistantConversation: mapEntity(AssistantConversations),
 };
 
@@ -387,6 +413,11 @@ export const functions = {
       submitPayment: ["submit-payment", payload],
       purchaseCosmetic: ["purchase-cosmetic", payload],
       redeemActivationCode: ["redeem-code", payload],
+      // Admin-only, and `activationCodes` is `allow write: if false` in the rules
+      // (correctly — codes are value-bearing). Without this entry the call fell
+      // through to a client-side addDoc and the admin saw "Missing or
+      // insufficient permissions." while the Admin-SDK function sat unused.
+      generateActivationCodes: ["generate-activation-codes", payload],
       chargeAiJob: ["charge-ai-job", {
         ...payload,
         jobKey: payload.jobKey || `job_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
@@ -405,10 +436,16 @@ export const functions = {
     // same functions via the dev-api middleware, so credits are always atomic server-side.
     if (secureCalls[name]) {
       const [endpoint, body] = secureCalls[name];
+      // A *rejected* server call (401/403/400, a business rule like
+      // "تمت مراجعة الطلب من قبل", or a permissions problem) must surface as-is:
+      // silently retrying it client-side wrote straight into server-only
+      // collections and replaced the real reason with "Missing or insufficient
+      // permissions." Only genuine transport/5xx failures may fall back.
       try {
         return await invokeSecureFunction(endpoint, body);
       } catch (secErr) {
-        console.warn(`[API] Serverless call "${endpoint}" failed, falling back to client logic:`, secErr.message);
+        if (!isTransportFailure(secErr)) throw secErr;
+        console.warn(`[API] Serverless call "${endpoint}" unreachable, falling back to client logic:`, secErr.message);
       }
     }
     // Heavy AI runs on the server (credit metering + provider keys never reach the client).
@@ -435,86 +472,23 @@ export const functions = {
     try {
       switch (name) {
         case "exportToTelegram": {
+          // Server-only (telegram-webhook / export-to-telegram).
+          // This client fallback used to import @/services/telegramBot, which both
+          // shipped the server module into the browser bundle and could never work
+          // there (no token → NO_BOT_TOKEN). Telegram delivery is a server concern:
+          // report the actionable state instead of pretending to send.
           const u = await Users.me();
           if (!u) throw new Error("سجل دخولك أولاً لتصدير المحتوى");
-          const {
-            courseId,
-            quizId,
-            content_type,
-            type = content_type || "quiz",
-            title = "محتوى دراسي",
-            summaryText = "",
-            questions = [],
-            onProgress = null,
-          } = payload;
-
-          try {
-            const { sendExportToTelegram, sendStyledMessage, getAlphaChatId } = await import("@/services/telegramBot");
-            const appUrl = (typeof process !== "undefined" && process.env?.APP_BASE_URL) ||
-                           (typeof import.meta !== "undefined" && import.meta.env?.VITE_BASE44_APP_BASE_URL) ||
-                           "https://blackfighters.site";
-
-            const alphaChatId = getAlphaChatId();
-            const targetChatId = u.telegram_chat_id || (u.is_admin || u.role === "admin" ? alphaChatId : null);
-
-            // If user's Telegram is linked (or is admin with Alpha chat), deliver directly to their chat!
-            if (targetChatId) {
-              const exportResult = await sendExportToTelegram({
-                chatId: targetChatId,
-                title,
-                type,
-                summaryText,
-                questions,
-                quizId: quizId || courseId,
-                onProgress,
-              });
-
-              if (!exportResult.ok) {
-                throw new Error(exportResult.error || "فشل إرسال المحتوى للتيليجرام");
-              }
-
-              return {
-                data: {
-                  success: true,
-                  message: type === "quiz"
-                    ? `تم تصدير ${exportResult.sent || questions.length} سؤال إلى التيليجرام بنجاح وبإجابات مدققة 100%! 🎯`
-                    : "تم تصدير الملخص إلى التيليجرام بنجاح! 📚",
-                },
-              };
-            }
-
-            // Fallback: Notify Alpha / Bot if not linked
-            const link = quizId ? `${appUrl}/q/${quizId}` : courseId ? `${appUrl}/course/${courseId}` : appUrl;
-            if (alphaChatId) {
-              const msg = `
-🚀 <b>تم تصدير محتوى جديد إلى التيليجرام!</b> 🚀
-━━━━━━━━━━━━━━━━━━━━
-📚 <b>العنوان:</b> ${title || "بدون عنوان"}
-نوع المحتوى: <b>${type === "quiz" ? "كويز تفاعلي 🎯" : "تلخيص ذكي 📝"}</b>
-تم الإنشاء بواسطة: <b>${u.full_name || u.email || "محارب Zeta"}</b>
-عدد الأسئلة: <b>${questions.length}</b>
-
-🔗 <a href="${link}">فتح المحتوى الآن</a>
-              `.trim();
-
-              await sendStyledMessage(alphaChatId, msg, {
-                inline_keyboard: [
-                  [{ text: "🔥 فتح الكويز فوراً", url: link }]
-                ]
-              }).catch(() => {});
-            }
-
+          if (!u.telegram_chat_id) {
             return {
               data: {
                 success: false,
                 error: "NO_TELEGRAM_LINKED",
-                message: "حسابك غير مربوط بالتيليجرام! اضغط على زرار ربط الحساب لربطه مع @black_fighters_bot 🤖",
+                message: "حسابك غير مربوط بالتيليجرام! اربطه من الإعدادات ← ربط تيليجرام 🤖",
               },
             };
-          } catch (e) {
-            console.error("Telegram export failed:", e);
-            throw new Error(e.message || "فشل تصدير المحتوى للتيليجرام، تأكد من ربط حسابك أو إعداد البوت");
           }
+          throw new Error("تعذر الوصول للسيرفر — حاول تاني بعد لحظات");
         }
 
         case "submitPayment": {
@@ -536,23 +510,9 @@ export const functions = {
             idempotency_key: payload.idempotencyKey,
           });
 
-          // 1) Send Telegram notification to Alpha Bot
-          try {
-            const { sendPaymentAlertToAlpha } = await import("@/services/telegramBot");
-            await sendPaymentAlertToAlpha({
-              requestId: created.id,
-              userName: u.full_name || "مستخدم",
-              userEmail: u.email || "",
-              method: payload.method,
-              amount: product.amount,
-              productType: product.productType,
-              planName: product.name,
-              senderNumber: payload.senderNumber,
-              screenshotUrl: payload.screenshotUrl,
-            });
-          } catch (teleErr) {
-            console.warn("[TelegramBot] Alert failed:", teleErr);
-          }
+          // 1) Telegram alert to Alpha is sent server-side by /api/submit-payment.
+          //    (The client copy that lived here imported @/services/telegramBot —
+          //    server code in the browser bundle with no reachable token.)
 
           // 2) Send In-App Notification directly to Alpha / Admin
           try {

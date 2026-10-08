@@ -4,6 +4,18 @@ import { toast } from "sonner";
 
 export const DEFAULT_THEMES = [
   {
+    id: "clinical_light",
+    name: "Clinical Light",
+    tag: "Medical Paper",
+    desc: "خلفية سريرية فاتحة هادئة — أبيض بارد وكحلي بترولي بدون تشتيت",
+    image: null,
+    isVideo: false,
+    primaryColor: "#0B1F33",
+    accentColor: "#2B8A9E",
+    bgBase: "#F6F8FA",
+    previewGradient: "from-slate-100 via-white to-cyan-50",
+  },
+  {
     id: "pure_black",
     name: "Pure Black",
     tag: "Black Fighters Solid",
@@ -20,7 +32,7 @@ export const DEFAULT_THEMES = [
     name: "Deep Space",
     tag: "Cosmic Nebula",
     desc: "Space observatory overlooking deep sapphire blue and violet nebula for deep focus",
-    image: "/backgrounds/deep_space.jpg",
+    image: "/backgrounds/deep_space.webp",
     isVideo: false,
     primaryColor: "#00f5ff",
     accentColor: "#7c3aed",
@@ -32,7 +44,7 @@ export const DEFAULT_THEMES = [
     name: "Black Fighters Elite",
     tag: "Warrior Battlestation",
     desc: "Dark warrior room with glowing sword and shield crest, crimson and purple neon",
-    image: "/backgrounds/black_fighters.jpg",
+    image: "/backgrounds/black_fighters.webp",
     isVideo: false,
     primaryColor: "#ff3366",
     accentColor: "#a855f7",
@@ -44,7 +56,7 @@ export const DEFAULT_THEMES = [
     name: "Tokyo Lo-Fi",
     tag: "Sunset Lo-Fi Study",
     desc: "Cozy lo-fi anime sunset with warm fairy lights and peaceful study vibes",
-    image: "/backgrounds/tokyo_synthwave.jpg",
+    image: "/backgrounds/tokyo_synthwave.webp",
     isVideo: false,
     primaryColor: "#ff4b91",
     accentColor: "#ff76ce",
@@ -56,7 +68,7 @@ export const DEFAULT_THEMES = [
     name: "Emerald Matrix",
     tag: "Quantum Cyber Lab",
     desc: "Futuristic digital green lab with floating algorithms and clean mint ambient lighting",
-    image: "/backgrounds/emerald_matrix.jpg",
+    image: "/backgrounds/emerald_matrix.webp",
     isVideo: false,
     primaryColor: "#00ff88",
     accentColor: "#00f5ff",
@@ -118,9 +130,9 @@ export function StudyThemeProvider({ children }) {
 
   const [themeId, setThemeId] = useState(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY) || "nano_banana";
+      return localStorage.getItem(STORAGE_KEY) || "clinical_light";
     } catch {
-      return "nano_banana";
+      return "clinical_light";
     }
   });
 
@@ -190,7 +202,7 @@ export function StudyThemeProvider({ children }) {
   const removeCustomTheme = (id) => {
     setCustomThemes((prev) => prev.filter((t) => t.id !== id));
     if (themeId === id) {
-      setThemeId("nano_banana");
+      setThemeId("clinical_light");
     }
     toast.info("تم حذف الخلفية المخصصة");
   };

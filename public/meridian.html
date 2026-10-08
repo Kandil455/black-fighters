@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Black Fighters — The Cognitive Study Layer for Medicine</title>
+  <meta name="description" content="Black Fighters synthesizes 1,000-page clinical references and raw lecture decks into structured, citation-backed intelligence, active-recall quizzes, and synchronized spaced repetition.">
+  <link rel="canonical" href="https://blackfighters.site/">
+
+  <!-- Open Graph & Twitter -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Black Fighters — The Cognitive Study Layer for Medicine">
+  <meta property="og:description" content="Black Fighters organizes your medical curriculum into one quiet, verifiable intelligence surface.">
+  <meta property="og:url" content="https://blackfighters.site/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Black Fighters — The Cognitive Study Layer for Medicine">
+  <meta name="twitter:description" content="Black Fighters organizes your medical curriculum into one quiet, verifiable intelligence surface.">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%230d0d0c'/%3E%3Ccircle cx='21' cy='11' r='4' fill='%23ff4d1f'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#f3f1ec" id="theme-color-meta">
+
+  <!-- Early Theme Guard -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('meridian_theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var theme = stored ? stored : (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+        var meta = document.getElementById('theme-color-meta');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0c0c0b' : '#f3f1ec');
+      } catch (e) {}
+    })();
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <style>
+    /* Force strict LTR layout */
+    html, body {
+      direction: ltr !important;
+      text-align: left !important;
+      unicode-bidi: isolate;
+    }
+
+    :root {
+      --paper: #f3f1ec;
+      --paper-2: #e9e6de;
+      --ink: #0d0d0c;
+      --mute: #6d6b63;
+      --line: rgba(13, 13, 12, 0.14);
+      --signal: #ff4d1f;
+
+      --font-serif: "Instrument Serif", Georgia, serif;
+      --font-sans: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", monospace;
+
+      --ease: cubic-bezier(0.19, 1, 0.22, 1);
+      --gutter: clamp(20px, 4vw, 56px);
+      --max-width: 1600px;
+      --section-vpad: clamp(110px, 15vw, 220px);
+    }
+
+    [data-theme="dark"] {
+      --paper: #0c0c0b;
+      --paper-2: #151513;
+      --ink: #f1efe9;
+      --mute: #8e8c84;
+      --line: rgba(241, 239, 233, 0.14);
+      --signal: #ff6a3d;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-radius: 0;
+      direction: ltr;
+      text-align: left;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    html {
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.5;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--paper);
+      color: var(--ink);
+      min-height: 100svh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--signal);
+      outline-offset: 3px;
+    }
+
+    ::selection {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.78rem;
+    }
+
+    .serif {
+      font-family: var(--font-serif);
+      font-weight: 400;
+    }
+
+    .signal-text {
+      color: var(--signal);
+      font-style: italic;
+    }
+
+    .signal-dot {
+      color: var(--signal);
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      background: none;
+      border: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .container {
+      width: 100%;
+      max-width: var(--max-width);
+      margin-left: auto;
+      margin-right: auto;
+      padding-left: var(--gutter);
+      padding-right: var(--gutter);
+    }
+
+    .skip-link {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 9999;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 8px 16px;
+      transform: translateY(-150%);
+      transition: transform 0.2s var(--ease);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    #progress-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--signal);
+      transform-origin: 0 50%;
+      transform: scaleX(0);
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    #cursor-dot {
+      display: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      body.has-custom-cursor,
+      body.has-custom-cursor a,
+      body.has-custom-cursor button {
+        cursor: none;
+      }
+      #cursor-dot {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 10px;
+        height: 10px;
+        background-color: var(--signal);
+        border-radius: 50% !important;
+        pointer-events: none;
+        z-index: 99999;
+        transform: translate(-50%, -50%);
+        transition: width 0.3s var(--ease), height 0.3s var(--ease), background-color 0.3s var(--ease), opacity 0.3s var(--ease);
+      }
+      #cursor-dot.active {
+        width: 56px;
+        height: 56px;
+        background-color: var(--signal);
+        opacity: 0.28;
+      }
+    }
+
+    .btn-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 36px;
+      border-radius: 9999px !important;
+      background-color: var(--signal);
+      color: #ffffff;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      font-weight: 500;
+      min-height: 48px;
+      min-width: 44px;
+      transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+      border: 1px solid transparent;
+    }
+    .btn-pill:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    section {
+      position: relative;
+      padding-top: var(--section-vpad);
+      padding-bottom: var(--section-vpad);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(36px);
+      transition: opacity 1s var(--ease), transform 1s var(--ease);
+    }
+    .reveal-on-scroll.revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    header#site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 900;
+      transition: transform 0.5s var(--ease), background-color 0.3s var(--ease), border-color 0.3s var(--ease);
+      border-bottom: 1px solid transparent;
+    }
+    header#site-header.scrolled {
+      background-color: var(--paper);
+      border-bottom-color: var(--line);
+    }
+    header#site-header.header-hidden {
+      transform: translateY(-100%);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 76px;
+    }
+
+    .brand-wordmark {
+      font-family: var(--font-serif);
+      font-size: 1.85rem;
+      letter-spacing: -0.01em;
+      line-height: 1;
+      color: var(--ink);
+    }
+
+    .desktop-nav {
+      display: flex;
+      align-items: center;
+      gap: 36px;
+    }
+    .desktop-nav a {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--mute);
+      transition: color 0.25s var(--ease);
+      padding: 8px 0;
+    }
+    .desktop-nav a:hover {
+      color: var(--ink);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .theme-toggle {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      transition: border-color 0.25s var(--ease), background-color 0.25s var(--ease);
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .theme-toggle:hover {
+      border-color: var(--ink);
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    #mobile-menu-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100svh;
+      background-color: var(--paper);
+      z-index: 950;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: var(--gutter);
+      transform: translateY(-100%);
+      transition: transform 0.6s var(--ease);
+      pointer-events: none;
+    }
+    #mobile-menu-overlay.open {
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .mobile-menu-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 76px;
+    }
+    .mobile-nav-links {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      margin: auto 0;
+    }
+    .mobile-nav-links a {
+      font-family: var(--font-serif);
+      font-size: clamp(2.5rem, 8vw, 4rem);
+      line-height: 1.1;
+      color: var(--ink);
+      transition: color 0.2s var(--ease);
+    }
+    .mobile-nav-links a:hover {
+      color: var(--signal);
+    }
+    .mobile-menu-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding-top: 24px;
+    }
+
+    section#hero {
+      padding-top: calc(76px + clamp(40px, 8vw, 90px));
+      padding-bottom: clamp(70px, 10vw, 130px);
+      position: relative;
+      overflow: hidden;
+      border-bottom: none;
+    }
+
+    .hero-guides {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: var(--gutter);
+      right: var(--gutter);
+      pointer-events: none;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      z-index: 1;
+    }
+    .hero-guide-line {
+      border-left: 1px solid var(--line);
+      height: 100%;
+      transform-origin: top;
+      transform: scaleY(0);
+      transition: transform 1.4s var(--ease);
+    }
+    .hero-guide-line:last-child {
+      border-right: 1px solid var(--line);
+    }
+    .hero-guides.loaded .hero-guide-line {
+      transform: scaleY(1);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--mute);
+      padding-bottom: clamp(28px, 4vw, 44px);
+      border-bottom: 1px solid var(--line);
+      margin-bottom: clamp(32px, 5vw, 64px);
+    }
+
+    .hero-headline {
+      font-family: var(--font-serif);
+      font-size: clamp(3.2rem, 14vw, 13.5rem);
+      line-height: 0.92;
+      letter-spacing: -0.025em;
+      margin-bottom: clamp(40px, 6vw, 76px);
+      will-change: transform;
+    }
+    .hero-line-mask {
+      overflow: hidden;
+      display: block;
+    }
+    .hero-line-inner {
+      display: block;
+      transform: translateY(115%);
+      transition: transform 1.2s var(--ease);
+    }
+    .hero-line-mask:nth-child(2) .hero-line-inner {
+      transition-delay: 0.15s;
+    }
+    .hero-headline.revealed .hero-line-inner {
+      transform: translateY(0);
+    }
+
+    .hero-bottom-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 36px;
+      max-width: 1100px;
+    }
+    @media (min-width: 900px) {
+      .hero-bottom-row {
+        grid-template-columns: minmax(0, 42ch) auto;
+        align-items: flex-end;
+        justify-content: space-between;
+      }
+    }
+
+    .hero-lede {
+      font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+      line-height: 1.45;
+      color: var(--mute);
+      max-width: 36ch;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+
+    .hero-link {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-decoration: underline;
+      text-underline-offset: 6px;
+      color: var(--ink);
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      transition: color 0.2s var(--ease);
+    }
+    .hero-link:hover {
+      color: var(--signal);
+    }
+
+    .ticker-wrap {
+      width: 100%;
+      overflow: hidden;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background-color: var(--paper);
+      padding: 18px 0;
+      position: relative;
+    }
+    .ticker-track {
+      display: flex;
+      width: max-content;
+      animation: ticker-scroll 40s linear infinite;
+    }
+    .ticker-wrap:hover .ticker-track {
+      animation-play-state: paused;
+    }
+    .ticker-group {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      padding-right: 32px;
+    }
+    .ticker-item {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink);
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 32px;
+    }
+    .ticker-item::after {
+      content: "•";
+      color: var(--signal);
+      font-size: 0.9rem;
+    }
+    @keyframes ticker-scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .manifesto-label {
+      color: var(--mute);
+      margin-bottom: clamp(28px, 4vw, 48px);
+    }
+    .manifesto-text {
+      font-family: var(--font-serif);
+      font-size: clamp(2.1rem, 5.4vw, 5.2rem);
+      line-height: 1.08;
+      letter-spacing: -0.015em;
+      max-width: 24ch;
+    }
+    .manifesto-word {
+      display: inline-block;
+      opacity: 0.14;
+      transition: opacity 0.1s linear;
+    }
+
+    .section-header-row {
+      margin-bottom: clamp(48px, 8vw, 84px);
+    }
+    .section-label {
+      color: var(--mute);
+      margin-bottom: 20px;
+    }
+    .section-headline {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 6vw, 4.8rem);
+      line-height: 1.02;
+      letter-spacing: -0.02em;
+    }
+
+    .capabilities-list {
+      border-top: 1px solid var(--line);
+    }
+    .capability-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 24px;
+      align-items: baseline;
+      padding: clamp(28px, 4vw, 44px) 0;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      color: var(--ink);
+      overflow: hidden;
+      transition: color 0.4s var(--ease);
+    }
+    @media (min-width: 900px) {
+      .capability-row {
+        grid-template-columns: 80px 1.2fr 1fr 60px;
+        align-items: center;
+      }
+    }
+    .capability-row::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--ink);
+      transform: scaleY(0);
+      transform-origin: 50% 100%;
+      transition: transform 0.6s var(--ease);
+      z-index: 1;
+    }
+    .capability-row:hover::before {
+      transform: scaleY(1);
+    }
+    .capability-row > * {
+      position: relative;
+      z-index: 2;
+      transition: color 0.4s var(--ease), transform 0.4s var(--ease);
+    }
+    .capability-row:hover {
+      color: var(--paper);
+    }
+    .capability-row:hover .cap-index {
+      color: var(--signal);
+    }
+    .capability-row:hover .cap-desc {
+      color: var(--paper);
+    }
+    .capability-row:hover .cap-arrow {
+      transform: translate(6px, -6px);
+      color: var(--signal);
+    }
+
+    .cap-index { color: var(--mute); }
+    .cap-title {
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 4.4vw, 4rem);
+      line-height: 1;
+      letter-spacing: -0.015em;
+    }
+    .cap-desc {
+      color: var(--mute);
+      font-size: 0.95rem;
+      line-height: 1.45;
+      max-width: 44ch;
+    }
+    @media (max-width: 899px) {
+      .cap-desc {
+        grid-column: 2 / -1;
+        margin-top: -8px;
+      }
+    }
+    .cap-arrow {
+      font-family: var(--font-serif);
+      font-size: 2rem;
+      line-height: 1;
+      text-align: right;
+    }
+
+    .process-cards-stack {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+      margin-top: clamp(40px, 6vw, 72px);
+    }
+    .process-card {
+      position: sticky;
+      background-color: var(--paper-2);
+      border: 1px solid var(--line);
+      min-height: min(68svh, 600px);
+      padding: clamp(32px, 5vw, 64px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .process-card:nth-child(1) { top: clamp(90px, 12vh, 130px); }
+    .process-card:nth-child(2) { top: calc(clamp(90px, 12vh, 130px) + 26px); }
+    .process-card:nth-child(3) { top: calc(clamp(90px, 12vh, 130px) + 52px); }
+
+    @media (max-width: 768px) {
+      .process-card { min-height: 60svh; }
+    }
+
+    .card-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+    .card-headline {
+      font-family: var(--font-serif);
+      font-size: clamp(2.4rem, 6.2vw, 5.2rem);
+      line-height: 0.98;
+      letter-spacing: -0.02em;
+      margin: 40px 0;
+      max-width: 18ch;
+    }
+    .card-bottom-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+    @media (min-width: 900px) {
+      .card-bottom-row {
+        grid-template-columns: 1.4fr auto;
+        align-items: flex-end;
+      }
+    }
+    .card-desc {
+      color: var(--mute);
+      font-size: 1.05rem;
+      max-width: 48ch;
+      line-height: 1.45;
+    }
+    .card-tags {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .card-tag {
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+
+    .numbers-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    @media (min-width: 600px) {
+      .numbers-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (min-width: 1024px) {
+      .numbers-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .stat-cell {
+      padding: clamp(36px, 5vw, 64px) clamp(20px, 3vw, 36px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    @media (min-width: 600px) {
+      .stat-cell:nth-child(odd) { border-right: 1px solid var(--line); }
+    }
+    @media (min-width: 1024px) {
+      .stat-cell {
+        border-bottom: none;
+        border-right: 1px solid var(--line);
+      }
+      .stat-cell:last-child { border-right: none; }
+    }
+
+    .stat-number {
+      font-family: var(--font-serif);
+      font-size: clamp(3.8rem, 8.5vw, 9.2rem);
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+    }
+    .stat-label {
+      color: var(--mute);
+      font-size: 0.82rem;
+      line-height: 1.4;
+      max-width: 22ch;
+    }
+
+    .editorial-quote {
+      font-family: var(--font-serif);
+      font-size: clamp(2.3rem, 5.6vw, 5.8rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin-bottom: clamp(36px, 5vw, 60px);
+      max-width: 24ch;
+    }
+    .quote-attribution { color: var(--mute); }
+
+    .pricing-header-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      margin-bottom: clamp(48px, 7vw, 84px);
+    }
+    @media (min-width: 900px) {
+      .pricing-header-wrap {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+    }
+
+    .pricing-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 24px;
+      border: 1px solid var(--line);
+      padding: 10px 18px;
+    }
+    .pricing-toggle-btn {
+      color: var(--mute);
+      font-size: 0.78rem;
+      position: relative;
+      padding-bottom: 3px;
+      transition: color 0.25s var(--ease);
+    }
+    .pricing-toggle-btn.active { color: var(--ink); }
+    .pricing-toggle-btn.active::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 1px;
+      background-color: var(--ink);
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      border: 1px solid var(--line);
+    }
+    @media (min-width: 900px) {
+      .pricing-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    .pricing-card {
+      padding: clamp(36px, 4.5vw, 56px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background-color: var(--paper);
+    }
+    @media (min-width: 900px) {
+      .pricing-card {
+        border-bottom: none;
+        border-right: 1px solid var(--line);
+      }
+      .pricing-card:last-child { border-right: none; }
+    }
+
+    .pricing-card.featured {
+      background-color: var(--ink);
+      color: var(--paper);
+    }
+    .pricing-card.featured .pricing-mute { color: var(--mute); }
+    .pricing-card.featured .pricing-card-header,
+    .pricing-card.featured .pricing-feature-item {
+      border-color: rgba(241, 239, 233, 0.18);
+    }
+
+    .pricing-card-header {
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 32px;
+    }
+    .pricing-tier-name { margin-bottom: 16px; }
+    .pricing-price-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .pricing-amount {
+      font-family: var(--font-serif);
+      font-size: clamp(3rem, 5.5vw, 4.8rem);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      transition: opacity 0.25s var(--ease);
+    }
+    .pricing-amount.updating { opacity: 0.2; }
+    .pricing-period { color: var(--mute); }
+    .pricing-desc {
+      color: var(--mute);
+      font-size: 0.92rem;
+      line-height: 1.4;
+      min-height: 40px;
+    }
+
+    .pricing-features {
+      list-style: none;
+      margin-bottom: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .pricing-feature-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+    .pricing-check {
+      color: var(--signal);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .faq-list {
+      border-top: 1px solid var(--line);
+      margin-top: clamp(40px, 6vw, 68px);
+    }
+    .faq-item { border-bottom: 1px solid var(--line); }
+    .faq-trigger {
+      width: 100%;
+      text-align: left;
+      padding: clamp(28px, 3.5vw, 40px) 0;
+      display: grid;
+      grid-template-columns: 48px 1fr 32px;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+    }
+    .faq-index { color: var(--mute); }
+    .faq-question {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 3.2vw, 2.3rem);
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+    .faq-icon {
+      font-family: var(--font-mono);
+      font-size: 1.35rem;
+      text-align: right;
+      color: var(--ink);
+      transition: transform 0.4s var(--ease);
+      display: inline-block;
+    }
+    .faq-item.open .faq-icon {
+      transform: rotate(45deg);
+      color: var(--signal);
+    }
+
+    .faq-answer-grid {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.5s var(--ease);
+    }
+    .faq-item.open .faq-answer-grid { grid-template-rows: 1fr; }
+    .faq-answer-inner { overflow: hidden; }
+    .faq-answer-content {
+      padding-left: 64px;
+      padding-bottom: clamp(28px, 4vw, 40px);
+      color: var(--mute);
+      font-size: 1.05rem;
+      line-height: 1.55;
+      max-width: 64ch;
+    }
+    @media (max-width: 768px) {
+      .faq-answer-content { padding-left: 0; }
+    }
+
+    section#cta {
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      padding-top: clamp(120px, 18vw, 240px);
+      padding-bottom: clamp(120px, 18vw, 240px);
+    }
+    .cta-big-line {
+      font-family: var(--font-serif);
+      font-size: clamp(3.2rem, 9.5vw, 9.8rem);
+      line-height: 0.95;
+      letter-spacing: -0.025em;
+      margin-bottom: clamp(40px, 6vw, 64px);
+    }
+    .cta-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+    .cta-microcopy {
+      color: var(--mute);
+      font-size: 0.78rem;
+    }
+
+    footer#site-footer {
+      padding-top: clamp(80px, 12vw, 140px);
+      padding-bottom: clamp(36px, 6vw, 60px);
+      background-color: var(--paper);
+      position: relative;
+      overflow: hidden;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 48px;
+      padding-bottom: clamp(60px, 10vw, 120px);
+      border-bottom: 1px solid var(--line);
+    }
+    @media (min-width: 768px) {
+      .footer-grid { grid-template-columns: 1.2fr 1fr 1fr; }
+    }
+    @media (min-width: 1024px) {
+      .footer-grid { grid-template-columns: 2fr 1fr 1fr 1.5fr; }
+    }
+
+    .footer-col-title {
+      color: var(--mute);
+      margin-bottom: 24px;
+    }
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .footer-links a {
+      color: var(--ink);
+      font-size: 0.8rem;
+      transition: color 0.2s var(--ease);
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .footer-links a:hover { color: var(--signal); }
+
+    .newsletter-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .newsletter-input-wrap {
+      position: relative;
+      display: flex;
+    }
+    .newsletter-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      padding: 12px 0;
+      border-radius: 0;
+      outline: none;
+      transition: border-color 0.25s var(--ease);
+    }
+    .newsletter-input:focus { border-bottom-color: var(--signal); }
+    .newsletter-input::placeholder { color: var(--mute); }
+    .newsletter-submit {
+      position: absolute;
+      right: 0;
+      bottom: 12px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--ink);
+      transition: color 0.25s var(--ease);
+    }
+    .newsletter-submit:hover { color: var(--signal); }
+    .newsletter-msg {
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      letter-spacing: 0.04em;
+      min-height: 18px;
+    }
+    .newsletter-msg.error { color: var(--signal); }
+    .newsletter-msg.success { color: var(--ink); }
+
+    .footer-giant-wordmark-wrap {
+      padding-top: clamp(40px, 8vw, 80px);
+      overflow: hidden;
+      width: 100%;
+    }
+    .footer-giant-wordmark {
+      font-family: var(--font-serif);
+      font-size: clamp(3.2rem, 24vw, 24rem);
+      line-height: 0.82;
+      letter-spacing: -0.035em;
+      white-space: nowrap;
+      color: var(--ink);
+      display: block;
+      width: 100%;
+      text-align: center;
+      transform: translateY(105%);
+      transition: transform 1.2s var(--ease);
+    }
+    .footer-giant-wordmark.revealed { transform: translateY(0); }
+
+    .footer-meta-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 32px;
+      color: var(--mute);
+      font-size: 0.75rem;
+    }
+    @media (min-width: 768px) {
+      .footer-meta-bottom {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+
+    @media (max-width: 899px) {
+      .desktop-nav { display: none; }
+      .mobile-menu-btn { display: inline-flex; align-items: center; }
+      .hero-guides { grid-template-columns: repeat(2, 1fr); }
+      .hero-guides .hero-guide-line:nth-child(3),
+      .hero-guides .hero-guide-line:nth-child(4) {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+      .hero-line-inner { transform: none !important; }
+      .hero-guides .hero-guide-line { transform: none !important; }
+      .reveal-on-scroll { opacity: 1 !important; transform: none !important; }
+      .manifesto-word { opacity: 1 !important; }
+      .footer-giant-wordmark { transform: none !important; }
+      #cursor-dot { display: none !important; }
+      .ticker-track { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <a href="#main-content" class="skip-link">Skip to content</a>
+  <div id="progress-line" aria-hidden="true"></div>
+  <div id="cursor-dot" aria-hidden="true"></div>
+
+  <header id="site-header" role="banner">
+    <div class="container header-inner">
+      <a href="#top" class="brand-wordmark" aria-label="Black Fighters Home">
+        Black Fighters<span class="signal-dot">.</span>
+      </a>
+
+      <nav class="desktop-nav" aria-label="Primary navigation">
+        <a href="#work">Capabilities</a>
+        <a href="#process">Process</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">Questions</a>
+      </nav>
+
+      <div class="header-controls">
+        <a href="#cta" class="btn-pill" style="padding: 10px 22px; font-size: 0.76rem; min-height: 38px;">
+          Start Free
+        </a>
+
+        <button class="theme-toggle" id="theme-toggle-btn" aria-label="Toggle visual theme" type="button">
+          Dark
+        </button>
+
+        <button class="mobile-menu-btn" id="mobile-menu-open-btn" aria-label="Open navigation menu" aria-expanded="false" type="button">
+          Menu
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div id="mobile-menu-overlay" role="dialog" aria-modal="true" aria-label="Mobile navigation menu">
+    <div class="mobile-menu-head">
+      <span class="brand-wordmark">Black Fighters<span class="signal-dot">.</span></span>
+      <button class="mobile-menu-btn" id="mobile-menu-close-btn" aria-label="Close navigation menu" type="button">Close</button>
+    </div>
+    <nav class="mobile-nav-links" aria-label="Mobile links">
+      <a href="#work" class="mobile-nav-link">Capabilities</a>
+      <a href="#process" class="mobile-nav-link">Process</a>
+      <a href="#pricing" class="mobile-nav-link">Pricing</a>
+      <a href="#faq" class="mobile-nav-link">Questions</a>
+      <a href="#cta" class="mobile-nav-link" style="color: var(--signal);">Start Free</a>
+    </nav>
+    <div class="mobile-menu-foot">
+      <span class="mono">Operating Layer · Est. 2024</span>
+      <button class="theme-toggle" id="mobile-theme-toggle-btn" type="button">Dark</button>
+    </div>
+  </div>
+
+  <main id="main-content">
+    <!-- HERO SECTION -->
+    <section id="hero" aria-labelledby="hero-heading">
+      <div class="hero-guides" id="hero-guides" aria-hidden="true">
+        <div class="hero-guide-line"></div>
+        <div class="hero-guide-line"></div>
+        <div class="hero-guide-line"></div>
+        <div class="hero-guide-line"></div>
+      </div>
+
+      <div class="container hero-content">
+        <div class="hero-meta-row mono">
+          <span>(01)</span>
+          <span>The cognitive study layer for medicine</span>
+          <span>Est. 2024</span>
+        </div>
+
+        <h1 id="hero-heading" class="hero-headline">
+          <span class="hero-line-mask">
+            <span class="hero-line-inner">Compress dense textbooks.</span>
+          </span>
+          <span class="hero-line-mask">
+            <span class="hero-line-inner">Retain <em class="signal-text">everything.</em></span>
+          </span>
+        </h1>
+
+        <div class="hero-bottom-row">
+          <p class="hero-lede">
+            Black Fighters synthesizes 1,000-page clinical references and raw lecture decks into structured, citation-backed intelligence, active-recall quizzes, and synchronized spaced repetition.
+          </p>
+          <div class="hero-actions">
+            <a href="#cta" class="btn-pill" data-magnet>Start Free →</a>
+            <a href="#work" class="hero-link">See the methodology</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TICKER SECTION -->
+    <div class="ticker-wrap" aria-hidden="true">
+      <div class="ticker-track">
+        <div class="ticker-group">
+          <span class="ticker-item">Roadmaps</span>
+          <span class="ticker-item">Decisions</span>
+          <span class="ticker-item">Releases</span>
+          <span class="ticker-item">Retros</span>
+          <span class="ticker-item">Specs</span>
+          <span class="ticker-item">Launches</span>
+        </div>
+        <div class="ticker-group">
+          <span class="ticker-item">Roadmaps</span>
+          <span class="ticker-item">Decisions</span>
+          <span class="ticker-item">Releases</span>
+          <span class="ticker-item">Retros</span>
+          <span class="ticker-item">Specs</span>
+          <span class="ticker-item">Launches</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANIFESTO SECTION -->
+    <section id="manifesto" aria-labelledby="manifesto-heading">
+      <div class="container">
+        <div class="manifesto-label mono">(02) THE THESIS</div>
+        <h2 id="manifesto-heading" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">Our Thesis</h2>
+        <p class="manifesto-text" id="manifesto-paragraph">
+          Most product teams spend their best energy negotiating alignment across fragmented dashboards. When decisions are recorded in the open with their real trade-offs, alignment stops being a meeting and becomes an <em class="signal-text">inherent truth.</em> Fewer status meetings. Clearer reasons behind every call.
+        </p>
+      </div>
+    </section>
+
+    <!-- CAPABILITIES SECTION -->
+    <section id="work" aria-labelledby="capabilities-heading" class="reveal-on-scroll">
+      <div class="container">
+        <div class="section-header-row">
+          <div class="section-label mono">Capabilities</div>
+          <h2 id="capabilities-heading" class="section-headline">
+            Four pillars, <em class="signal-text">one</em> source of truth.
+          </h2>
+        </div>
+
+        <div class="capabilities-list" role="list">
+          <div class="capability-row" role="listitem" tabindex="0">
+            <span class="cap-index mono">01</span>
+            <h3 class="cap-title serif">Planning</h3>
+            <p class="cap-desc">Turn fuzzy goals into a roadmap your team reads and actually trusts.</p>
+            <span class="cap-arrow" aria-hidden="true">↗</span>
+          </div>
+
+          <div class="capability-row" role="listitem" tabindex="0">
+            <span class="cap-index mono">02</span>
+            <h3 class="cap-title serif">Decisions</h3>
+            <p class="cap-desc">Record every call with its context, so six months later nobody relitigates it.</p>
+            <span class="cap-arrow" aria-hidden="true">↗</span>
+          </div>
+
+          <div class="capability-row" role="listitem" tabindex="0">
+            <span class="cap-index mono">03</span>
+            <h3 class="cap-title serif">Delivery</h3>
+            <p class="cap-desc">Specs, owners and release notes stay attached to the work they describe.</p>
+            <span class="cap-arrow" aria-hidden="true">↗</span>
+          </div>
+
+          <div class="capability-row" role="listitem" tabindex="0">
+            <span class="cap-index mono">04</span>
+            <h3 class="cap-title serif">Insight</h3>
+            <p class="cap-desc">See what shipped, what slipped and why, without building a dashboard.</p>
+            <span class="cap-arrow" aria-hidden="true">↗</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROCESS SECTION -->
+    <section id="process" aria-labelledby="process-heading">
+      <div class="container">
+        <div class="section-header-row reveal-on-scroll">
+          <div class="section-label mono">Process</div>
+          <h2 id="process-heading" class="section-headline">
+            Three steps. <em class="signal-text">Zero cognitive waste.</em>
+          </h2>
+        </div>
+
+        <div class="process-cards-stack">
+          <article class="process-card" aria-label="Step 1: Capture">
+            <div class="card-top-row mono">
+              <span>STEP 01</span>
+              <span>CAPTURE</span>
+            </div>
+            <h3 class="card-headline">
+              Get the <em class="signal-text">idea</em> out of your head.
+            </h3>
+            <div class="card-bottom-row">
+              <p class="card-desc">
+                Drop notes, links and half-formed plans from anywhere. Black Fighters groups them by theme as you write.
+              </p>
+              <div class="card-tags mono">
+                <span class="card-tag">Inbox · Notes · Links</span>
+                <span class="card-tag">Under 2 min to set up</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="process-card" aria-label="Step 2: Decide">
+            <div class="card-top-row mono">
+              <span>STEP 02</span>
+              <span>DECIDE</span>
+            </div>
+            <h3 class="card-headline">
+              Make the call, <em class="signal-text">keep the reason.</em>
+            </h3>
+            <div class="card-bottom-row">
+              <p class="card-desc">
+                Each decision is logged with its trade-offs, owner and date. The why stays attached to the what.
+              </p>
+              <div class="card-tags mono">
+                <span class="card-tag">Decision Log</span>
+                <span class="card-tag">Owners & Dates</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="process-card" aria-label="Step 3: Ship">
+            <div class="card-top-row mono">
+              <span>STEP 03</span>
+              <span>SHIP</span>
+            </div>
+            <h3 class="card-headline">
+              Launch, measure, <em class="signal-text">repeat.</em>
+            </h3>
+            <div class="card-bottom-row">
+              <p class="card-desc">
+                Release notes write themselves from the work you already did. Follow-ups go out on their own.
+              </p>
+              <div class="card-tags mono">
+                <span class="card-tag">Release Notes</span>
+                <span class="card-tag">Auto Follow-ups</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- NUMBERS SECTION -->
+    <section id="numbers" aria-labelledby="numbers-heading">
+      <div class="container">
+        <div class="section-header-row reveal-on-scroll">
+          <div class="section-label mono">Telemetry</div>
+          <h2 id="numbers-heading" class="section-headline">
+            Proven in <em class="signal-text">academic hospitals.</em>
+          </h2>
+        </div>
+
+        <div class="numbers-grid reveal-on-scroll">
+          <div class="stat-cell">
+            <div class="stat-number" data-target="840" data-suffix="+">0+</div>
+            <div class="stat-label mono">Max pages per single textbook upload.</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-number" data-target="98" data-suffix="%">0%</div>
+            <div class="stat-label mono">Citation grounding & factual trace accuracy.</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-number" data-target="14" data-suffix="h">0h</div>
+            <div class="stat-label mono">Average study hours saved weekly per student.</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-number" data-target="28" data-suffix="+">0+</div>
+            <div class="stat-label mono">Clinical specialties and subject modules.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUOTE SECTION -->
+    <section id="quote" aria-labelledby="quote-heading" class="reveal-on-scroll">
+      <div class="container">
+        <h2 id="quote-heading" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">Testimonial</h2>
+        <blockquote class="editorial-quote">
+          “We replaced three tools and a weekly meeting nobody liked. Now the <em class="signal-text">reasons</em> survive the people.”
+        </blockquote>
+        <div class="quote-attribution mono">
+          Sara K. — Head of Product, 4-person team → 60-person org
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICING SECTION -->
+    <section id="pricing" aria-labelledby="pricing-heading">
+      <div class="container">
+        <div class="pricing-header-wrap reveal-on-scroll">
+          <div>
+            <div class="section-label mono">Pricing</div>
+            <h2 id="pricing-heading" class="section-headline">
+              Plain prices. <em class="signal-text">Guaranteed credits.</em>
+            </h2>
+          </div>
+
+          <div class="pricing-toggle mono" role="radiogroup" aria-label="Billing cycle selector">
+            <button class="pricing-toggle-btn active" id="btn-monthly" type="button" role="radio" aria-checked="true">Monthly</button>
+            <button class="pricing-toggle-btn" id="btn-annual" type="button" role="radio" aria-checked="false">Annual (20% Savings)</button>
+          </div>
+        </div>
+
+        <div class="pricing-grid reveal-on-scroll">
+          <!-- Starter -->
+          <div class="pricing-card">
+            <div>
+              <div class="pricing-card-header">
+                <div class="pricing-tier-name mono">Starter</div>
+                <div class="pricing-price-wrap">
+                  <span class="pricing-amount" id="price-tier-1">$0</span>
+                  <span class="pricing-period mono">/ month</span>
+                </div>
+                <p class="pricing-desc">Free forever for early explorations and solo project leads.</p>
+              </div>
+
+              <ul class="pricing-features">
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> 3 projects</li>
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Decision log</li>
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Community support</li>
+              </ul>
+            </div>
+            <a href="#cta" class="btn-pill" style="width: 100%; border: 1px solid var(--line); background: transparent; color: var(--ink);">Start free</a>
+          </div>
+
+          <!-- Team -->
+          <div class="pricing-card featured">
+            <div>
+              <div class="pricing-card-header">
+                <div class="pricing-tier-name mono" style="color: var(--signal);">Team · Preferred</div>
+                <div class="pricing-price-wrap">
+                  <span class="pricing-amount" id="price-tier-2">$24</span>
+                  <span class="pricing-period mono" style="color: var(--mute);">/ seat / month</span>
+                </div>
+                <p class="pricing-desc pricing-mute">Everything needed for growing teams to ship with quiet clarity.</p>
+              </div>
+
+              <ul class="pricing-features">
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Unlimited projects</li>
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Release notes & automations</li>
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Insight views</li>
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Priority support</li>
+              </ul>
+            </div>
+            <a href="#cta" class="btn-pill" style="width: 100%;">Choose Team</a>
+          </div>
+
+          <!-- Enterprise -->
+          <div class="pricing-card">
+            <div>
+              <div class="pricing-card-header">
+                <div class="pricing-tier-name mono">Enterprise</div>
+                <div class="pricing-price-wrap">
+                  <span class="pricing-amount">Custom</span>
+                </div>
+                <p class="pricing-desc">Custom requirements, governance, security SLAs and regional hosting.</p>
+              </div>
+
+              <ul class="pricing-features">
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> SSO and audit logs</li>
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Dedicated success manager</li>
+                <li class="pricing-feature-item"><span class="pricing-check" aria-hidden="true">✓</span> Custom data residency</li>
+              </ul>
+            </div>
+            <a href="#cta" class="btn-pill" style="width: 100%; border: 1px solid var(--line); background: transparent; color: var(--ink);">Talk to sales</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUESTIONS (FAQ) SECTION -->
+    <section id="faq" aria-labelledby="faq-heading">
+      <div class="container">
+        <div class="section-header-row reveal-on-scroll">
+          <div class="section-label mono">Questions</div>
+          <h2 id="faq-heading" class="section-headline">
+            Asked, <em class="signal-text">answered.</em>
+          </h2>
+        </div>
+
+        <div class="faq-list reveal-on-scroll">
+          <div class="faq-item">
+            <button class="faq-trigger" aria-expanded="false">
+              <span class="faq-index mono">01</span>
+              <span class="faq-question">Can I import what we already have?</span>
+              <span class="faq-icon" aria-hidden="true">+</span>
+            </button>
+            <div class="faq-answer-grid">
+              <div class="faq-answer-inner">
+                <p class="faq-answer-content">
+                  Yes. CSV, Notion and Linear import in a few clicks, with history and owners intact.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-trigger" aria-expanded="false">
+              <span class="faq-index mono">02</span>
+              <span class="faq-question">Is there a free plan?</span>
+              <span class="faq-icon" aria-hidden="true">+</span>
+            </button>
+            <div class="faq-answer-grid">
+              <div class="faq-answer-inner">
+                <p class="faq-answer-content">
+                  Starter is free for up to three projects, with the full decision log.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-trigger" aria-expanded="false">
+              <span class="faq-index mono">03</span>
+              <span class="faq-question">Where is our data stored?</span>
+              <span class="faq-icon" aria-hidden="true">+</span>
+            </button>
+            <div class="faq-answer-grid">
+              <div class="faq-answer-inner">
+                <p class="faq-answer-content">
+                  Encrypted at rest and in transit. Enterprise customers choose their region.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA SECTION -->
+    <section id="cta" aria-labelledby="cta-heading">
+      <div class="container reveal-on-scroll">
+        <h2 id="cta-heading" class="cta-big-line">
+          Master medicine with <em class="signal-text">absolute</em> clarity.
+        </h2>
+        <div class="cta-actions">
+          <a href="#pricing" class="btn-pill" data-magnet style="padding: 20px 48px; font-size: 0.9rem;">
+            Start Free →
+          </a>
+          <span class="cta-microcopy mono">No card required · Cancel anytime</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer id="site-footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-grid reveal-on-scroll">
+        <div>
+          <div class="footer-col-title mono">Updates, quarterly</div>
+          <form class="newsletter-form" id="newsletter-form" novalidate>
+            <div class="newsletter-input-wrap">
+              <input type="email" class="newsletter-input" id="newsletter-email" placeholder="Your work email" required aria-label="Work email address">
+              <button type="submit" class="newsletter-submit mono">Send</button>
+            </div>
+            <div class="newsletter-msg mono" id="newsletter-status" aria-live="polite"></div>
+          </form>
+        </div>
+
+        <div>
+          <div class="footer-col-title mono">Product</div>
+          <ul class="footer-links mono">
+            <li><a href="#work">Capabilities</a></li>
+            <li><a href="#process">Process</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title mono">Company</div>
+          <ul class="footer-links mono">
+            <li><a href="#manifesto">About</a></li>
+            <li><a href="#manifesto">Careers</a></li>
+            <li><a href="#numbers">Status</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title mono">Direct Access</div>
+          <p class="mono" style="color: var(--mute); line-height: 1.6; font-size: 0.78rem;">
+            Black Fighters organizes your medical curriculum into one quiet, verifiable intelligence surface.
+          </p>
+        </div>
+      </div>
+
+      <div class="footer-giant-wordmark-wrap" aria-hidden="true">
+        <span class="footer-giant-wordmark" id="footer-wordmark">Black Fighters.</span>
+      </div>
+
+      <div class="footer-meta-bottom mono">
+        <span>© 2026 Black Fighters</span>
+        <span>
+          <a href="#manifesto" style="margin-right: 16px;">Privacy</a>
+          <a href="#manifesto">Terms</a>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var isLowEndDevice = Boolean(
+        (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+        (navigator.connection && navigator.connection.saveData)
+      );
+      var shouldAnimate = !prefersReducedMotion && !isLowEndDevice;
+
+      var root = document.documentElement;
+      var header = document.getElementById('site-header');
+      var progressLine = document.getElementById('progress-line');
+      var cursorDot = document.getElementById('cursor-dot');
+      var heroHeadline = document.getElementById('hero-heading');
+      var heroGuides = document.getElementById('hero-guides');
+      var footerWordmark = document.getElementById('footer-wordmark');
+      var themeToggleBtn = document.getElementById('theme-toggle-btn');
+      var mobileThemeToggleBtn = document.getElementById('mobile-theme-toggle-btn');
+      var themeMeta = document.getElementById('theme-color-meta');
+
+      function getActiveTheme() {
+        return root.getAttribute('data-theme') || 'light';
+      }
+
+      function setTheme(nextTheme) {
+        root.setAttribute('data-theme', nextTheme);
+        try {
+          localStorage.setItem('meridian_theme', nextTheme);
+        } catch (e) {}
+
+        var label = nextTheme === 'dark' ? 'Light' : 'Dark';
+        if (themeToggleBtn) themeToggleBtn.textContent = label;
+        if (mobileThemeToggleBtn) mobileThemeToggleBtn.textContent = label;
+        if (themeMeta) themeMeta.setAttribute('content', nextTheme === 'dark' ? '#0c0c0b' : '#f3f1ec');
+      }
+
+      var currentTheme = getActiveTheme();
+      setTheme(currentTheme);
+
+      function toggleTheme() {
+        var active = getActiveTheme();
+        setTheme(active === 'dark' ? 'light' : 'dark');
+      }
+
+      if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
+      if (mobileThemeToggleBtn) mobileThemeToggleBtn.addEventListener('click', toggleTheme);
+
+      window.addEventListener('DOMContentLoaded', function () {
+        if (heroGuides) heroGuides.classList.add('loaded');
+        if (heroHeadline) {
+          setTimeout(function () {
+            heroHeadline.classList.add('revealed');
+          }, 120);
+        }
+      });
+
+      var mobileOpenBtn = document.getElementById('mobile-menu-open-btn');
+      var mobileCloseBtn = document.getElementById('mobile-menu-close-btn');
+      var mobileOverlay = document.getElementById('mobile-menu-overlay');
+      var mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+
+      function openMobileMenu() {
+        mobileOverlay.classList.add('open');
+        mobileOpenBtn.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+        if (mobileCloseBtn) mobileCloseBtn.focus();
+      }
+
+      function closeMobileMenu() {
+        mobileOverlay.classList.remove('open');
+        mobileOpenBtn.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+        if (mobileOpenBtn) mobileOpenBtn.focus();
+      }
+
+      if (mobileOpenBtn) mobileOpenBtn.addEventListener('click', openMobileMenu);
+      if (mobileCloseBtn) mobileCloseBtn.addEventListener('click', closeMobileMenu);
+
+      mobileNavLinks.forEach(function (link) {
+        link.addEventListener('click', closeMobileMenu);
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && mobileOverlay.classList.contains('open')) {
+          closeMobileMenu();
+        }
+      });
+
+      var manifestoParagraph = document.getElementById('manifesto-paragraph');
+      var manifestoWords = [];
+      if (manifestoParagraph) {
+        var rawHtml = manifestoParagraph.innerHTML;
+        var wordsArray = rawHtml.trim().split(/\s+/);
+        manifestoParagraph.innerHTML = wordsArray.map(function (w) {
+          return '<span class="manifesto-word">' + w + '</span>';
+        }).join(' ');
+        manifestoWords = manifestoParagraph.querySelectorAll('.manifesto-word');
+      }
+
+      var lastScrollY = window.scrollY;
+      var ticking = false;
+      var headerHidden = false;
+
+      function onScrollFrame() {
+        var scrollY = window.scrollY;
+        var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        var scrollProgress = docHeight > 0 ? scrollY / docHeight : 0;
+
+        if (progressLine) {
+          progressLine.style.transform = 'scaleX(' + Math.min(Math.max(scrollProgress, 0), 1) + ')';
+        }
+
+        if (header) {
+          if (scrollY > 24) {
+            header.classList.add('scrolled');
+          } else {
+            header.classList.remove('scrolled');
+          }
+
+          if (scrollY > 120 && scrollY > lastScrollY && !headerHidden) {
+            header.classList.add('header-hidden');
+            headerHidden = true;
+          } else if (scrollY < lastScrollY && headerHidden) {
+            header.classList.remove('header-hidden');
+            headerHidden = false;
+          }
+        }
+
+        if (shouldAnimate && heroHeadline) {
+          var heroDrift = Math.min(scrollY * 0.18, 60);
+          heroHeadline.style.transform = 'translateY(-' + heroDrift + 'px)';
+        }
+
+        if (shouldAnimate && manifestoParagraph && manifestoWords.length > 0) {
+          var rect = manifestoParagraph.getBoundingClientRect();
+          var windowHeight = window.innerHeight;
+          var enterRatio = (windowHeight - rect.top) / (windowHeight + rect.height * 0.75);
+          var clampedRatio = Math.max(0, Math.min(1, enterRatio));
+
+          var activeIndex = Math.floor(clampedRatio * manifestoWords.length);
+          for (var i = 0; i < manifestoWords.length; i++) {
+            manifestoWords[i].style.opacity = i <= activeIndex ? '1' : '0.14';
+          }
+        }
+
+        if (footerWordmark) {
+          var fRect = footerWordmark.getBoundingClientRect();
+          if (fRect.top < window.innerHeight) {
+            footerWordmark.classList.add('revealed');
+          }
+        }
+
+        lastScrollY = scrollY;
+        ticking = false;
+      }
+
+      window.addEventListener('scroll', function () {
+        if (!ticking) {
+          window.requestAnimationFrame(onScrollFrame);
+          ticking = true;
+        }
+      }, { passive: true });
+
+      var reveals = document.querySelectorAll('.reveal-on-scroll');
+      if (shouldAnimate && 'IntersectionObserver' in window) {
+        var revealObserver = new IntersectionObserver(function (entries, observer) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('revealed');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.1 });
+
+        reveals.forEach(function (el) {
+          revealObserver.observe(el);
+        });
+
+        var statCells = document.querySelectorAll('.stat-number');
+        var statsObserver = new IntersectionObserver(function (entries, observer) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              animateNumber(entry.target);
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.25 });
+
+        statCells.forEach(function (el) {
+          statsObserver.observe(el);
+        });
+      } else {
+        reveals.forEach(function (el) { el.classList.add('revealed'); });
+        document.querySelectorAll('.stat-number').forEach(function (el) {
+          el.textContent = el.getAttribute('data-target') + (el.getAttribute('data-suffix') || '');
+        });
+        if (manifestoWords.length > 0) {
+          manifestoWords.forEach(function (w) { w.style.opacity = '1'; });
+        }
+        if (footerWordmark) footerWordmark.classList.add('revealed');
+      }
+
+      function animateNumber(element) {
+        var targetVal = parseFloat(element.getAttribute('data-target'));
+        var suffix = element.getAttribute('data-suffix') || '';
+        var isFloat = element.getAttribute('data-target').includes('.');
+        var duration = 1500;
+        var startTimestamp = null;
+
+        function step(timestamp) {
+          if (!startTimestamp) startTimestamp = timestamp;
+          var elapsed = timestamp - startTimestamp;
+          var progress = Math.min(elapsed / duration, 1);
+          var ease = 1 - Math.pow(1 - progress, 3);
+          var current = ease * targetVal;
+
+          element.textContent = (isFloat ? current.toFixed(1) : Math.floor(current)) + suffix;
+          if (progress < 1) {
+            window.requestAnimationFrame(step);
+          } else {
+            element.textContent = element.getAttribute('data-target') + suffix;
+          }
+        }
+        window.requestAnimationFrame(step);
+      }
+
+      var btnMonthly = document.getElementById('btn-monthly');
+      var btnAnnual = document.getElementById('btn-annual');
+      var priceTier1 = document.getElementById('price-tier-1');
+      var priceTier2 = document.getElementById('price-tier-2');
+
+      var prices = {
+        monthly: { tier1: '$0', tier2: '$24' },
+        annual: { tier1: '$0', tier2: '$19' }
+      };
+
+      function updatePricing(cycle) {
+        if (cycle === 'annual') {
+          btnAnnual.classList.add('active');
+          btnAnnual.setAttribute('aria-checked', 'true');
+          btnMonthly.classList.remove('active');
+          btnMonthly.setAttribute('aria-checked', 'false');
+        } else {
+          btnMonthly.classList.add('active');
+          btnMonthly.setAttribute('aria-checked', 'true');
+          btnAnnual.classList.remove('active');
+          btnAnnual.setAttribute('aria-checked', 'false');
+        }
+
+        if (priceTier1 && priceTier2) {
+          priceTier1.classList.add('updating');
+          priceTier2.classList.add('updating');
+          setTimeout(function () {
+            priceTier1.textContent = prices[cycle].tier1;
+            priceTier2.textContent = prices[cycle].tier2;
+            priceTier1.classList.remove('updating');
+            priceTier2.classList.remove('updating');
+          }, 180);
+        }
+      }
+
+      if (btnMonthly) btnMonthly.addEventListener('click', function () { updatePricing('monthly'); });
+      if (btnAnnual) btnAnnual.addEventListener('click', function () { updatePricing('annual'); });
+
+      var faqItems = document.querySelectorAll('.faq-item');
+      faqItems.forEach(function (item) {
+        var trigger = item.querySelector('.faq-trigger');
+        if (trigger) {
+          trigger.addEventListener('click', function () {
+            var isOpen = item.classList.contains('open');
+            faqItems.forEach(function (other) {
+              other.classList.remove('open');
+              var otherTrigger = other.querySelector('.faq-trigger');
+              if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+            });
+
+            if (!isOpen) {
+              item.classList.add('open');
+              trigger.setAttribute('aria-expanded', 'true');
+            }
+          });
+        }
+      });
+
+      if (shouldAnimate && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+        document.body.classList.add('has-custom-cursor');
+        var mouseX = window.innerWidth / 2;
+        var mouseY = window.innerHeight / 2;
+        var curX = mouseX;
+        var curY = mouseY;
+
+        window.addEventListener('mousemove', function (e) {
+          mouseX = e.clientX;
+          mouseY = e.clientY;
+        });
+
+        function renderCursor() {
+          curX += (mouseX - curX) * 0.22;
+          curY += (mouseY - curY) * 0.22;
+          if (cursorDot) {
+            cursorDot.style.left = curX + 'px';
+            cursorDot.style.top = curY + 'px';
+          }
+          window.requestAnimationFrame(renderCursor);
+        }
+        window.requestAnimationFrame(renderCursor);
+
+        var interactives = document.querySelectorAll('a, button, [role="button"], input, .capability-row');
+        interactives.forEach(function (el) {
+          el.addEventListener('mouseenter', function () {
+            if (cursorDot) cursorDot.classList.add('active');
+          });
+          el.addEventListener('mouseleave', function () {
+            if (cursorDot) cursorDot.classList.remove('active');
+          });
+        });
+
+        var magneticBtns = document.querySelectorAll('[data-magnet]');
+        magneticBtns.forEach(function (btn) {
+          btn.addEventListener('mousemove', function (e) {
+            var bRect = btn.getBoundingClientRect();
+            var bCenterX = bRect.left + bRect.width / 2;
+            var bCenterY = bRect.top + bRect.height / 2;
+            var deltaX = (e.clientX - bCenterX) * 0.15;
+            var deltaY = (e.clientY - bCenterY) * 0.15;
+            var magX = Math.max(-6, Math.min(6, deltaX));
+            var magY = Math.max(-6, Math.min(6, deltaY));
+            btn.style.transform = 'translate(' + magX + 'px, ' + magY + 'px)';
+          });
+          btn.addEventListener('mouseleave', function () {
+            btn.style.transform = 'translate(0, 0)';
+          });
+        });
+      }
+
+      var newsletterForm = document.getElementById('newsletter-form');
+      var newsletterEmail = document.getElementById('newsletter-email');
+      var newsletterStatus = document.getElementById('newsletter-status');
+
+      if (newsletterForm && newsletterEmail && newsletterStatus) {
+        newsletterForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var value = newsletterEmail.value.trim();
+          var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+          if (!value) {
+            newsletterStatus.textContent = 'Email address required.';
+            newsletterStatus.className = 'newsletter-msg mono error';
+            newsletterEmail.focus();
+          } else if (!emailRegex.test(value)) {
+            newsletterStatus.textContent = 'Please enter a valid email address.';
+            newsletterStatus.className = 'newsletter-msg mono error';
+            newsletterEmail.focus();
+          } else {
+            newsletterStatus.textContent = 'Subscribed to quarterly updates.';
+            newsletterStatus.className = 'newsletter-msg mono success';
+            newsletterEmail.value = '';
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -44,6 +44,51 @@ html[data-scene="3d"] .glass-card {
 }
 
 /* ══════════════════════════════════════════════════
+   LITE TIER — phones with ~2–4 GB RAM / 4 cores
+   ══════════════════════════════════════════════════
+   `backdrop-filter` is the single most expensive thing this UI does: 41 files
+   use a blur class, and each blurred surface forces the compositor to read back
+   and re-filter the backdrop every frame it moves. On an entry-level phone that
+   is the difference between a smooth scroll and a slideshow, so the lite tier
+   drops the effect entirely and keeps the SAME flat surface colours — the layout
+   and contrast are unchanged, only the (invisible-over-a-dark-backdrop) blur
+   goes away. Mirrors the `saver` tier above, but keyed on device capability
+   rather than the user's power-mode choice. */
+html[data-tier="lite"] {
+  --blur-card:  0px;
+  --blur-dock:  0px;
+  --blur-pill:  0px;
+  --blur-ultra: 0px;
+}
+html[data-tier="lite"] *,
+html[data-tier="lite"] *::before,
+html[data-tier="lite"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  /* Long transition lists pay off on cheap CPUs; keep feedback instant. */
+  transition-duration: 140ms !important;
+}
+html[data-tier="lite"] .glass,
+html[data-tier="lite"] .glass-card,
+html[data-tier="lite"] .ios-glass-card,
+html[data-tier="lite"] .glass-panel {
+  box-shadow: none !important;
+}
+/* Infinite decorative animations are the second cost: they keep the compositor
+   awake forever. Spinners are deliberately NOT in this list — a spinner that
+   doesn't spin communicates nothing. */
+html[data-tier="lite"] .bf-icon-pulse,
+html[data-tier="lite"] .animate-pulse,
+html[data-tier="lite"] .animate-bounce {
+  animation: none !important;
+}
+/* Off-screen list rows skip layout/paint entirely. */
+html[data-tier="lite"] .lite-cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+
+/* ══════════════════════════════════════════════════
    DESIGN TOKENS
    ══════════════════════════════════════════════════ */
 @layer base {
@@ -54,89 +99,107 @@ html[data-scene="3d"] .glass-card {
     --blur-pill:  0px;
     --blur-ultra: 0px;
 
-    /* Black Fighters «الأطلس – نسخة نضيفة (داكنة)» Unified Palette (#07080C / #0E1117 / #3DDC97) */
-    --background:         228 26%  4%;   /* #07080C */
-    --foreground:         220 14% 95%;   /* #F2F3F5 */
-    --card:               220 24%  7%;   /* #0E1117 (.c) */
-    --card-foreground:    220 14% 95%;   /* #F2F3F5 */
-    --popover:            220 24%  7%;   /* #0E1117 */
-    --popover-foreground: 220 14% 95%;   /* #F2F3F5 */
+    /* Black Fighters «Clinical Light» — medical/academic paper */
+    --bf-navy:            #0B1F33;
+    --bf-navy-deep:       #071624;
+    --bf-teal:            #2B8A9E;
+    --bf-teal-soft:       #E6F3F6;
+    --bf-paper:           #F6F8FA;
+    --bf-paper-2:         #EEF2F5;
+    --bf-ink:             #0B1F33;
+    --bf-ink-muted:       #5A6B7D;
+    --bf-line:            #D5DEE7;
+    --bf-white:           #FFFFFF;
 
-    /* Single Primary Accent — Clean Emerald (#3DDC97) */
-    --primary:            154 70% 55%;   /* #3DDC97 (.g) */
-    --primary-foreground: 154 67%  5%;   /* #04140D */
-    --accent:             154 70% 55%;   /* #3DDC97 */
-    --accent-foreground:  154 67%  5%;   /* #04140D */
+    --background:         210 20% 97%;   /* #F6F8FA */
+    --foreground:         207 65% 12%;   /* #0B1F33 */
+    --card:                 0  0% 100%;  /* #FFFFFF */
+    --card-foreground:    207 65% 12%;   /* #0B1F33 */
+    --popover:              0  0% 100%;
+    --popover-foreground: 207 65% 12%;
 
-    /* Inner / Row Surface (#0A0D13) */
-    --secondary:          220 31%  6%;   /* #0A0D13 (.row) */
-    --secondary-foreground: 220 14% 95%; /* #F2F3F5 */
-    --muted:              220 31%  6%;   /* #0A0D13 */
-    --muted-foreground:   222 12% 64%;   /* #9AA0AE */
+    /* Primary CTA — navy petrol; accent — clinical teal */
+    --primary:            207 65% 12%;   /* #0B1F33 */
+    --primary-foreground:   0  0% 100%;
+    --accent:             191 57% 39%;   /* #2B8A9E */
+    --accent-foreground:    0  0% 100%;
 
-    /* State (#E5484D danger, #1E222B card border, #262A34 control border) */
-    --destructive:        358 75% 59%;   /* #E5484D */
-    --destructive-foreground: 220 14% 95%;
-    --border:             222 18% 14%;   /* #1E222B */
-    --input:              223 16% 18%;   /* #262A34 */
-    --ring:               154 70% 55%;   /* #3DDC97 */
-    --radius:             1.25rem;       /* 20px (.c border-radius: 20px) */
+    --secondary:          204 18% 94%;   /* #EEF2F5 */
+    --secondary-foreground: 207 65% 12%;
+    --muted:              204 18% 94%;
+    --muted-foreground:   210 16% 42%;   /* #5A6B7D */
 
-    /* Sidebar */
-    --sidebar-background:         220 24%  7%; /* #0E1117 */
-    --sidebar-foreground:         222 12% 64%; /* #9AA0AE */
-    --sidebar-primary:            154 70% 55%; /* #3DDC97 */
-    --sidebar-primary-foreground: 154 67%  5%; /* #04140D */
-    --sidebar-accent:             220 31%  6%; /* #0A0D13 */
-    --sidebar-accent-foreground:  220 14% 95%; /* #F2F3F5 */
-    --sidebar-border:             222 18% 14%; /* #1E222B */
-    --sidebar-ring:               154 70% 55%; /* #3DDC97 */
+    --destructive:        358 75% 49%;
+    --destructive-foreground: 0 0% 100%;
+    --border:             210 18% 87%;   /* #D5DEE7 */
+    --input:              210 18% 87%;
+    --ring:               191 57% 39%;   /* #2B8A9E */
+    --radius:             0.5rem;        /* 8px — clinical, not pill */
 
-    /* Typography — IBM Plex Sans Arabic, JetBrains Mono */
-    --font-heading:  'IBM Plex Sans Arabic', 'Alexandria', 'Geist Sans', 'Inter', system-ui, sans-serif;
-    --font-body:     'IBM Plex Sans Arabic', 'Alexandria', 'Geist Sans', 'Inter', system-ui, sans-serif;
-    --font-display:  'IBM Plex Sans Arabic', 'Alexandria', 'Geist Sans', 'Inter', system-ui, sans-serif;
+    --sidebar-background:           0  0% 100%;
+    --sidebar-foreground:         210 16% 42%;
+    --sidebar-primary:            207 65% 12%;
+    --sidebar-primary-foreground:   0  0% 100%;
+    --sidebar-accent:             191 45% 94%;
+    --sidebar-accent-foreground:  207 65% 12%;
+    --sidebar-border:             210 18% 87%;
+    --sidebar-ring:               191 57% 39%;
+
+    /* Typography — Cairo + IBM Plex Sans Arabic */
+    --font-heading:  'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
+    --font-body:     'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
+    --font-display:  'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
     --font-mono:     'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
   }
 
   .dark {
-    --background:         228 26%  4%;   /* #07080C */
-    --foreground:         220 14% 95%;   /* #F2F3F5 */
-    --card:               220 24%  7%;   /* #0E1117 */
-    --card-foreground:    220 14% 95%;   /* #F2F3F5 */
-    --popover:            220 24%  7%;   /* #0E1117 */
-    --popover-foreground: 220 14% 95%;   /* #F2F3F5 */
-    --primary:            154 70% 55%;   /* #3DDC97 */
-    --primary-foreground: 154 67%  5%;   /* #04140D */
-    --secondary:          220 31%  6%;   /* #0A0D13 */
-    --secondary-foreground: 220 14% 95%; /* #F2F3F5 */
-    --muted:              220 31%  6%;   /* #0A0D13 */
-    --muted-foreground:   222 12% 64%;   /* #9AA0AE */
-    --accent:             154 70% 55%;   /* #3DDC97 */
-    --accent-foreground:  154 67%  5%;   /* #04140D */
-    --destructive:        358 75% 59%;   /* #E5484D */
+    --background:         228 26%  4%;
+    --foreground:         220 14% 95%;
+    --card:               220 24%  7%;
+    --card-foreground:    220 14% 95%;
+    --popover:            220 24%  7%;
+    --popover-foreground: 220 14% 95%;
+    --primary:            154 70% 55%;
+    --primary-foreground: 154 67%  5%;
+    --secondary:          220 31%  6%;
+    --secondary-foreground: 220 14% 95%;
+    --muted:              220 31%  6%;
+    --muted-foreground:   222 12% 64%;
+    --accent:             154 70% 55%;
+    --accent-foreground:  154 67%  5%;
+    --destructive:        358 75% 59%;
     --destructive-foreground: 220 14% 95%;
-    --border:             222 18% 14%;   /* #1E222B */
-    --input:              223 16% 18%;   /* #262A34 */
-    --ring:               154 70% 55%;   /* #3DDC97 */
+    --border:             222 18% 14%;
+    --input:              223 16% 18%;
+    --ring:               154 70% 55%;
   }
 
-  .light {
-    --background:           0   0% 100%;
-    --foreground:         220  30%   6%;
-    --card:               210  20%  98%;
-    --card-foreground:    220  30%   6%;
-    --popover:              0   0% 100%;
-    --popover-foreground: 220  30%   6%;
-    --primary:            154  70%  42%;
-    --primary-foreground:   0   0% 100%;
-    --secondary:          210  16%  94%;
-    --secondary-foreground: 220 30%  6%;
-    --muted:              210  16%  95%;
-    --muted-foreground:   218  11%  40%;
-    --border:             214  20%  88%;
-    --input:              214  20%  88%;
-    --ring:               154  70%  42%;
+  /* NOTE: the light-theme compatibility shim that used to live here was moved to
+     the end of this file as the unlayered "COLOUR HARMONISATION" layer. Keeping
+     both caused a conflict: the shim's `.theme-light .text-white` rule had higher
+     specificity and no accent exclusion, so it re-darkened button labels that the
+     harmonisation layer had just correctly left white (dark-on-dark buttons with
+     invisible text). ONE layer owns colour now. */
+
+  .light,
+  .theme-light {
+    --background:         210 20% 97%;
+    --foreground:         207 65% 12%;
+    --card:                 0  0% 100%;
+    --card-foreground:    207 65% 12%;
+    --popover:              0  0% 100%;
+    --popover-foreground: 207 65% 12%;
+    --primary:            207 65% 12%;
+    --primary-foreground:   0  0% 100%;
+    --secondary:          204 18% 94%;
+    --secondary-foreground: 207 65% 12%;
+    --muted:              204 18% 94%;
+    --muted-foreground:   210 16% 42%;
+    --accent:             191 57% 39%;
+    --accent-foreground:    0  0% 100%;
+    --border:             210 18% 87%;
+    --input:              210 18% 87%;
+    --ring:               191 57% 39%;
   }
 }
 
@@ -150,8 +213,8 @@ html[data-scene="3d"] .glass-card {
   }
 
   html {
-    background-color: #07080C;
-    color: #F2F3F5;
+    background-color: var(--bf-paper, #F6F8FA);
+    color: var(--bf-ink, #0B1F33);
     scroll-behavior: auto;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "kern";
     font-optical-sizing: auto;
@@ -166,8 +229,8 @@ html[data-scene="3d"] .glass-card {
     font-weight: 450;
     line-height: 1.65;
     letter-spacing: 0.005em;
-    background-color: #07080C;
-    color: #F2F3F5;
+    background-color: var(--bf-paper, #F6F8FA);
+    color: var(--bf-ink, #0B1F33);
     min-height: 100dvh;
     position: relative;
     overflow-x: hidden;
@@ -179,24 +242,24 @@ html[data-scene="3d"] .glass-card {
   }
 
   ::selection {
-    background: rgba(61, 220, 151, 0.28);
-    color: #F2F3F5;
+    background: rgba(43, 138, 158, 0.22);
+    color: #0B1F33;
   }
 
-  /* Headings — editorial weight contrast */
+  /* Headings — clinical weight contrast */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     letter-spacing: -0.015em;
     line-height: 1.22;
     font-weight: 700;
-    color: #F2F3F5;
+    color: var(--bf-ink, #0B1F33);
   }
 
   /* Paragraph copy — comfortable reading */
   p {
     line-height: 1.8;
     font-weight: 450;
-    color: #9AA0AE;
+    color: var(--bf-ink-muted, #5A6B7D);
   }
 
   /* Mono elements */
@@ -215,9 +278,9 @@ html[data-scene="3d"] .glass-card {
 
   /* Focus ring */
   :focus-visible {
-    outline: 2px solid #3DDC97;
+    outline: 2px solid var(--bf-teal, #2B8A9E);
     outline-offset: 3px;
-    border-radius: 6px;
+    border-radius: 4px;
   }
 }
 
@@ -259,28 +322,47 @@ html[data-scene="3d"] .glass-card {
   to { transform: translateX(50%); }
 }
 
+/* ── Unified icon micro-animation (src/components/ui/icons.jsx) ──
+   transform-only on purpose: opacity+scale ride the compositor, while the old
+   `filter: drop-shadow()` keyframes repainted every frame on the main thread.
+   Disabled by prefers-reduced-motion here and by the saver kill-switch above. */
+@keyframes bf-icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+.bf-icon-pulse {
+  animation: bf-icon-pulse 2.4s ease-in-out infinite;
+  transform-origin: center;
+  will-change: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bf-icon-pulse { animation: none; }
+}
+
 /* ══════════════════════════════════════════════════
-   UTILITIES — BLACK FIGHTERS «الأطلس – نسخة نضيفة (داكنة)»
+   UTILITIES — BLACK FIGHTERS «Clinical Light»
    ══════════════════════════════════════════════════ */
 @layer utilities {
   .glass {
-    background: #0E1117;
-    border: 1px solid #1E222B;
+    background: var(--bf-white, #FFFFFF);
+    border: 1px solid var(--bf-line, #D5DEE7);
   }
 
   .bf-card {
-    background: #0E1117;
-    border: 1px solid #1E222B;
-    border-radius: 20px;
+    background: var(--bf-white, #FFFFFF);
+    border: 1px solid var(--bf-line, #D5DEE7);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(11, 31, 51, 0.04);
   }
 
   .bf-card-hover {
-    transition: transform 0.3s ease, border-color 0.3s ease;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
   }
 
   .bf-card-hover:hover {
-    transform: translateY(-5px);
-    border-color: #2C7A55;
+    transform: translateY(-3px);
+    border-color: #B8CBD6;
+    box-shadow: 0 8px 24px rgba(11, 31, 51, 0.06);
   }
 
   .bf-row {
@@ -289,29 +371,29 @@ html[data-scene="3d"] .glass-card {
     align-items: center;
     min-height: 56px;
     padding: 0 18px;
-    border: 1px solid #1E222B;
-    border-radius: 12px;
-    background: #0A0D13;
+    border: 1px solid var(--bf-line, #D5DEE7);
+    border-radius: 8px;
+    background: var(--bf-paper-2, #EEF2F5);
   }
 
   .bf-pill {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 7px 16px;
-    border-radius: 999px;
-    border: 1px solid #1F6B46;
-    background: #0C2219;
-    color: #3DDC97;
-    font-weight: 500;
-    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #C5D9E0;
+    background: var(--bf-teal-soft, #E6F3F6);
+    color: var(--bf-teal, #2B8A9E);
+    font-weight: 600;
+    font-size: 13px;
   }
 
   .bf-hl {
-    background: rgba(61, 220, 151, 0.16);
-    color: #7CF0BC;
+    background: rgba(43, 138, 158, 0.12);
+    color: #1A6A7C;
     padding: 1px 6px;
-    border-radius: 5px;
+    border-radius: 4px;
   }
 
   .bf-tb {
@@ -319,16 +401,17 @@ html[data-scene="3d"] .glass-card {
     align-items: center;
     justify-content: center;
     height: 46px;
-    border-radius: 10px;
-    background: #16202B;
-    color: #7CC4F5;
+    border-radius: 8px;
+    background: var(--bf-paper-2, #EEF2F5);
+    color: var(--bf-navy, #0B1F33);
+    border: 1px solid var(--bf-line, #D5DEE7);
     font-weight: 600;
     font-size: 15px;
     transition: background-color 0.2s ease, transform 0.2s ease;
   }
 
   .bf-tb:hover {
-    background: #1D2B3A;
+    background: #E3EAF0;
     transform: translateY(-1px);
   }
 
@@ -336,25 +419,17 @@ html[data-scene="3d"] .glass-card {
     font-family: var(--font-mono);
     font-weight: 500;
     font-size: 12px;
-    color: #3DDC97;
+    color: var(--bf-teal, #2B8A9E);
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
   .bf-hero-gradient {
-    background: linear-gradient(90deg, #3DDC97, #5FD0F5);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--bf-teal, #2B8A9E);
   }
 
   .bf-glow {
-    position: absolute;
-    inset: -36px;
-    border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(61, 220, 151, 0.2), transparent);
-    animation: bf-glow 4s ease-in-out infinite;
-    pointer-events: none;
+    display: none;
   }
 
   .bf-float {
@@ -386,20 +461,20 @@ html[data-scene="3d"] .glass-card {
     align-items: center;
     gap: 10px;
     white-space: nowrap;
-    padding: 11px 22px;
-    border-radius: 999px;
-    border: 1px solid #1E222B;
-    background: #0E1117;
-    color: #B7BCC8;
-    font-size: 16px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--bf-line, #D5DEE7);
+    background: var(--bf-white, #FFFFFF);
+    color: var(--bf-ink-muted, #5A6B7D);
+    font-size: 15px;
   }
 
   .bf-day-circle {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #3DDC97;
-    color: #04140D;
+    background: var(--bf-navy, #0B1F33);
+    color: #FFFFFF;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -429,7 +504,7 @@ html[data-scene="3d"] .glass-card {
     inset: 0;
     box-sizing: border-box;
     padding: 24px;
-    border-radius: 16px;
+    border-radius: 10px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -437,21 +512,89 @@ html[data-scene="3d"] .glass-card {
   }
 
   .bf-flip-front {
-    background: #0A0D13;
-    border: 1px solid #1E222B;
+    background: var(--bf-white, #FFFFFF);
+    border: 1px solid var(--bf-line, #D5DEE7);
   }
 
   .bf-flip-back {
-    background: #0C2219;
-    border: 1px solid #1F6B46;
+    background: var(--bf-teal-soft, #E6F3F6);
+    border: 1px solid #C5D9E0;
     transform: rotateY(180deg);
   }
 
   .text-gradient {
-    background: linear-gradient(90deg, #3DDC97, #5FD0F5);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: var(--bf-teal, #2B8A9E);
+  }
+
+  .bf-clinical-cta {
+    display: inline-flex;
+    align-items: stretch;
+    height: 52px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--bf-navy, #0B1F33);
+    color: #FFFFFF;
+    font-weight: 700;
+    font-size: 16px;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .bf-clinical-cta:hover {
+    background: var(--bf-navy-deep, #071624);
+  }
+
+  .bf-clinical-cta__label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 22px;
+  }
+
+  .bf-clinical-cta__sep {
+    width: 1px;
+    align-self: stretch;
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  .bf-clinical-cta__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+  }
+
+  .bf-nav-link {
+    position: relative;
+    color: var(--bf-ink, #0B1F33);
+    font-size: 15px;
+    font-weight: 500;
+    padding: 6px 2px;
+    transition: color 0.15s ease;
+  }
+
+  .bf-nav-link:hover {
+    color: var(--bf-teal, #2B8A9E);
+  }
+
+  .bf-nav-link[data-active="true"] {
+    color: var(--bf-teal, #2B8A9E);
+    font-weight: 600;
+  }
+
+  .bf-nav-link[data-active="true"]::before,
+  .bf-nav-link[data-active="true"]::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    height: 2px;
+    background: var(--bf-teal, #2B8A9E);
+  }
+
+  .bf-nav-link[data-active="true"]::before {
+    top: -10px;
+  }
+
+  .bf-nav-link[data-active="true"]::after {
+    bottom: -2px;
   }
 
   .tabular {
@@ -469,14 +612,14 @@ html[data-scene="3d"] .glass-card {
   /* Internal product surfaces — Clean Dark Card (#0E1117 / #1E222B) */
   .app-content .ios-glass-card,
   .app-content .glass-card {
-    background: #0E1117;
-    border: 1px solid #1E222B;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     box-shadow: none;
   }
 
   .app-focus-panel {
-    background: #0A0D13;
-    border: 1px solid #1E222B;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     box-shadow: none;
   }
 
@@ -497,8 +640,8 @@ html[data-scene="3d"] .glass-card {
   /* ── CLEAN DARK CARD SYSTEM (#0E1117 / #1E222B) ──────── */
 
   .ios-glass-card, .glass-card {
-    background: #0E1117;
-    border: 1px solid #1E222B;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     border-radius: 1.25rem;
     box-shadow: none;
     transition:
@@ -518,7 +661,7 @@ html[data-scene="3d"] .glass-card {
   /* Navigation / dock surface */
   .ios-glass-dock {
     background: rgba(7, 8, 12, 0.92);
-    border: 1px solid #1E222B;
+    border: 1px solid hsl(var(--border));
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
@@ -526,19 +669,19 @@ html[data-scene="3d"] .glass-card {
 
   /* Small pill / badge surface */
   .ios-glass-pill {
-    background: #0C2219;
+    background: hsl(var(--card));
     border: 1px solid #1F6B46;
     color: #3DDC97;
     box-shadow: none;
   }
 
   .aurora-bg {
-    background: #07080C;
+    background: hsl(var(--background));
   }
 
   .glass-panel {
-    background: #0E1117;
-    border: 1px solid #1E222B;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
   }
 
   .glass-input {
@@ -554,8 +697,13 @@ html[data-scene="3d"] .glass-card {
 
   /* ── CLEAN TYPOGRAPHY (LineVault text-gradient) ─── */
 
+  /* Theme-aware headline gradient.
+     It used to hardcode a WHITE gradient with `color: transparent`, so as soon as
+     the light theme was applied the page title became white-on-white and
+     disappeared. Deriving the stops from the theme's own foreground colour keeps
+     the exact same look in dark mode and stays readable in light mode. */
   .studio-headline-gradient {
-    background: linear-gradient(180deg, #fff 30%, rgb(255 255 255 / 0.55));
+    background: linear-gradient(180deg, hsl(var(--foreground)) 30%, hsl(var(--foreground) / 0.62));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -921,7 +1069,7 @@ html[data-scene="3d"] .glass-card {
 
   /* ── ANIMATED GRADIENT BG ────────────────────────────── */
   .gradient-animate {
-    background: #07080C;
+    background: hsl(var(--background));
   }
 
   /* ── CLEAN ACCENT TEXT ───────────────────────────────── */
@@ -947,8 +1095,8 @@ html[data-scene="3d"] .glass-card {
 
   /* ── FLAT CARD ULTRA ─────────────────────────────────── */
   .glass-ultra {
-    background: #0E1117;
-    border: 1px solid #1E222B;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     box-shadow: none;
   }
 
@@ -1240,7 +1388,7 @@ mark.hl-orange,
 
 .arabic-walkthrough-pill {
   display: inline-block;
-  background-color: #0a0d18;
+  background-color: hsl(var(--card));
   color: #ffffff;
   padding: 0.25rem 0.75rem;
   border-radius: 0.5rem;
@@ -1578,3 +1726,1319 @@ html[data-bf-skin="crimson"] {
   --accent: 349 100% 59%;
   --ring: 349 100% 59%;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   COLOUR HARMONISATION — one palette for every page
+   ══════════════════════════════════════════════════════════════════════════
+   HISTORY: the UI was written against a hardcoded dark palette, then part of it
+   was converted to a hardcoded light palette. The two are mixed across 58 files
+   (`bg-[#0E1117]` next to `bg-[#F6F8FA]`), so whole pages came out half dark and
+   half light — the owner's report: "شوف كل الصفحات… وخلي الموقع متناسق".
+
+   Fixing 58 files by hand would be undone by the next edit, so the palette is
+   normalised ONCE, here: every hardcoded surface/ink/border an author wrote is
+   redirected to the matching design token. Tokens follow the active theme, so a
+   page renders consistently whatever palette its author happened to use.
+
+   Deliberately unlayered: unlayered rules win over Tailwind's `@layer utilities`,
+   which is what lets this override the utility classes. Brand colours
+   (#3DDC97, #2B8A9E, #03150c) and semantic status colours are intentionally NOT
+   remapped — they are accents, not surfaces. */
+
+/* ── dark surfaces → background / card ─────────────────────────────────── */
+[class~="bg-[#07080C]"], [class*=" bg-[#07080C]/"], [class~="bg-[#0a0b12]"], [class*=" bg-[#0a0b12]/"], [class~="bg-[#090a10]"], [class*=" bg-[#090a10]/"],
+[class~="bg-[#0d0f17]"], [class*=" bg-[#0d0f17]/"], [class*="bg-slate-950"], [class~="bg-[#05070A]"], [class*=" bg-[#05070A]/"],
+[class~="bg-[#060813]"], [class*=" bg-[#060813]/"], [class~="bg-[#0b0e1b]"], [class*=" bg-[#0b0e1b]/"], [class~="bg-[#0a0d1d]"], [class*=" bg-[#0a0d1d]/"] {
+  background-color: hsl(var(--background)) !important;
+}
+
+[class~="bg-[#0E1117]"], [class*=" bg-[#0E1117]/"], [class~="bg-[#131720]"], [class*=" bg-[#131720]/"], [class~="bg-[#181F29]"], [class*=" bg-[#181F29]/"],
+[class~="bg-[#0F141B]"], [class*=" bg-[#0F141B]/"], [class~="bg-[#12161F]"], [class*=" bg-[#12161F]/"], [class*="bg-slate-900"],
+[class*="bg-slate-800"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* ── light surfaces (authored for the light palette) → same tokens ──────── */
+[class~="bg-[#F6F8FA]"], [class*=" bg-[#F6F8FA]/"], [class~="bg-[#EEF2F5]"], [class*=" bg-[#EEF2F5]/"], [class~="bg-[#E6F3F6]"], [class*=" bg-[#E6F3F6]/"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Faint "raised" washes. Tinting with the FOREGROUND colour keeps the exact same
+   lift in dark mode (light ink over a dark card) and becomes a subtle shade in
+   light mode — mapping them to `card` instead would erase the effect entirely. */
+[class~="bg-white/5"], [class*=" bg-white/"] {
+  background-color: hsl(var(--foreground) / 0.045) !important;
+}
+
+/* ── ink ───────────────────────────────────────────────────────────────── */
+/* Filled accent surfaces keep their light label.
+   `--primary` is dark navy in the light theme, so remapping a hardcoded light
+   label to the foreground ink made dark-on-dark buttons with invisible text —
+   e.g. the default Button (`bg-[#0B1F33] text-white`). Anything painted with an
+   accent or dark-neutral fill is therefore excluded from the ink remap. */
+[class~="text-[#F2F3F5]"], [class*=" text-[#F2F3F5]/"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]),
+[class~="text-[#E5E7EB]"], [class*=" text-[#E5E7EB]/"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]),
+[class~="text-[#0B1F33]"], [class*=" text-[#0B1F33]/"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]),
+[class~="text-white"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]) {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class~="text-[#9AA0AE]"], [class*=" text-[#9AA0AE]/"], [class~="text-[#8A91A0]"], [class*=" text-[#8A91A0]/"], [class~="text-[#5A6B7D]"], [class*=" text-[#5A6B7D]/"],
+[class*="text-slate-400"], [class*="text-slate-500"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* ── borders ───────────────────────────────────────────────────────────── */
+[class~="border-[#1E222B]"], [class*=" border-[#1E222B]/"], [class~="border-[#262A34]"], [class*=" border-[#262A34]/"], [class~="border-[#D5DEE7]"], [class*=" border-[#D5DEE7]/"],
+[class~="border-[#B8CBD6]"], [class*=" border-[#B8CBD6]/"], [class~="border-[#28313E]"], [class*=" border-[#28313E]/"], [class*="border-white/"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* ── a dark hero on a light page (and vice-versa) ──────────────────────── */
+[class~="from-[#0c0f1d]"], [class~="from-[#101426]"], [class~="from-[#160b13]"],
+[class~="via-[#101426]"], [class~="to-[#160b13]"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+}
+
+/* ── every remaining hardcoded dark surface → tokens ────────────────────────
+   Generated from the palette actually present in the source (40 distinct dark
+   hexes across 58 files). Case-insensitive matching covers the `#07080C` /
+   `#07080c` spellings, and the two "clinical accent" navy values are deliberately
+   excluded — they stay dark in both themes so their white labels keep contrast. */
+[class*="bg-[#03150c]" i],
+[class*="bg-[#05060a]" i],
+[class*="bg-[#05060b]" i],
+[class*="bg-[#05080a]" i],
+[class*="bg-[#06070a]" i],
+[class*="bg-[#060813]" i],
+[class*="bg-[#07080C]" i],
+[class*="bg-[#07080c]" i],
+[class*="bg-[#07090e]" i],
+[class*="bg-[#070914]" i],
+[class*="bg-[#070a14]" i],
+[class*="bg-[#070b16]" i],
+[class*="bg-[#071311]" i],
+[class*="bg-[#08090d]" i],
+[class*="bg-[#08090e]" i],
+[class*="bg-[#090a10]" i],
+[class*="bg-[#090b14]" i],
+[class*="bg-[#0a0b12]" i],
+[class*="bg-[#0a0e14]" i],
+[class*="bg-[#0b0c14]" i] {
+  background-color: hsl(var(--background)) !important;
+}
+
+[class*="bg-[#081216]" i],
+[class*="bg-[#090d1a]" i],
+[class*="bg-[#0E1117]" i],
+[class*="bg-[#0a0d18]" i],
+[class*="bg-[#0a0d1b]" i],
+[class*="bg-[#0a0d1d]" i],
+[class*="bg-[#0a1115]" i],
+[class*="bg-[#0b0c16]" i],
+[class*="bg-[#0b0e1b]" i],
+[class*="bg-[#0c0d15]" i],
+[class*="bg-[#0c0d16]" i],
+[class*="bg-[#0d0e17]" i],
+[class*="bg-[#0d0f17]" i],
+[class*="bg-[#0d1020]" i],
+[class*="bg-[#0d1117]" i],
+[class*="bg-[#0d1122]" i],
+[class*="bg-[#131720]" i],
+[class*="bg-[#131820]" i],
+[class*="bg-[#181F29]" i],
+[class*="bg-[#1A1E27]" i],
+[class*="bg-[#1E222B]" i],
+[class*="bg-[#2A1214]" i] {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FORCED SIMPLE PALETTE — white surfaces, black ink, everywhere.
+   ══════════════════════════════════════════════════════════════════════════
+   The platform carried two competing hardcoded palettes (a dark one and a light
+   one) plus a theme switcher, so screens ended up half dark and half light. The
+   owner's instruction was to stop engineering around it: "خليه كله أبيض والكلام
+   كله أسود".
+
+   This block PINS the palette: white background, white cards, black text, grey
+   borders — in every theme state, including the inline custom properties that
+   `applyTheme()` writes on <html> (a stylesheet `!important` beats an inline
+   custom-property declaration, which is why this works where the earlier
+   per-page fixes could not).
+
+   Only accents stay coloured: the brand emerald, plus any status colour
+   (error/success/warning) — they are what makes a button or an alert legible.
+   Every hardcoded surface is normalised to these tokens by the harmonisation
+   layer above, so the whole app follows from here. */
+
+html,
+html.dark,
+html.theme-light,
+html[data-theme],
+:root {
+  --background: 0 0% 100% !important;
+  --foreground: 0 0% 0% !important;
+  --card: 0 0% 100% !important;
+  --card-foreground: 0 0% 0% !important;
+  --popover: 0 0% 100% !important;
+  --popover-foreground: 0 0% 0% !important;
+  --secondary: 0 0% 96% !important;
+  --secondary-foreground: 0 0% 0% !important;
+  --muted: 0 0% 96% !important;
+  --muted-foreground: 0 0% 38% !important;
+  --border: 0 0% 87% !important;
+  --input: 0 0% 87% !important;
+  --sidebar-background: 0 0% 100% !important;
+  --sidebar-foreground: 0 0% 0% !important;
+  --sidebar-accent: 0 0% 96% !important;
+  --sidebar-accent-foreground: 0 0% 0% !important;
+  --sidebar-border: 0 0% 87% !important;
+
+  /* The accent was a teal/blue (#2B8A9E). On a white page it read as the pale
+     "لبني" the owner rejected, so the accent is now a neutral charcoal: selected
+     chips, links and rings stay clearly marked without introducing a second hue
+     next to the black-on-white text. */
+  --primary: 210 20% 18% !important;
+  --primary-foreground: 0 0% 100% !important;
+  --accent: 215 16% 25% !important;
+  --accent-foreground: 0 0% 100% !important;
+  --ring: 215 16% 25% !important;
+
+  /* Legacy LineVault aliases used by .glass / .bf-card / print styles. */
+  --bf-white: #FFFFFF !important;
+  --bf-paper: #FFFFFF !important;
+  --bf-line: #E2E6EA !important;
+  --bf-ink: #000000 !important;
+  --bf-ink-muted: #5A6572 !important;
+  /* The teal accent pair painted .bf-pill and several badges. Pinned to the
+     neutral scale so those surfaces stop being a second, competing hue. */
+  --bf-teal: #1F2937 !important;
+  --bf-teal-soft: #F3F4F6 !important;
+  --bf-paper-2: #F3F4F6 !important;
+
+  color-scheme: light !important;
+}
+
+html,
+body {
+  background-color: #FFFFFF !important;
+  color: #000000;
+}
+
+/* A dark `data-theme` used to switch these; keep the surfaces white regardless. */
+html[data-theme="night"],
+html[data-theme="focus"],
+html[data-theme="cram"] {
+  background-color: #FFFFFF !important;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.25);
+  color: #000000;
+}
+
+/* ── the last of the teal/blue literals → neutral ──────────────────────────
+   `bg-accent` was already tokenised above; these are the handful of places that
+   spelled the colour out by hand. The accent is charcoal now, so a fill uses the
+   ink tone (its label is white) and a text use uses the ink tone too. Telegram's
+   own brand blue (#0088cc) is intentionally left alone — it belongs to the icon. */
+[class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"], [class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"], [class~="bg-[#16697A]"], [class*=" bg-[#16697A]/"], [class~="bg-[#205f7a]"], [class*=" bg-[#205f7a]/"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class~="text-[#2B8A9E]"], [class*=" text-[#2B8A9E]/"], [class~="text-[#1B4F72]"], [class*=" text-[#1B4F72]/"] {
+  color: hsl(210 20% 18%) !important;
+}
+
+[class~="border-[#2B8A9E]"], [class*=" border-[#2B8A9E]/"], [class~="border-[#C5D9E0]"], [class*=" border-[#C5D9E0]/"], [class~="border-[#D6E9F0]"], [class*=" border-[#D6E9F0]/"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class~="bg-[#E6F3F6]"], [class*=" bg-[#E6F3F6]/"], [class~="bg-[#D6E9F0]"], [class*=" bg-[#D6E9F0]/"], [class~="bg-[#EAF4F7]"], [class*=" bg-[#EAF4F7]/"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+/* ── cyan / sky / blue / indigo / teal → the neutral palette ──────────────
+   The quiz and AI screens were built on a cyan accent from an earlier dark
+   theme. On the white palette it read as the pale "لبني" the owner rejected,
+   so those hues are folded into the same grey/charcoal scale as everything else:
+   pale tints become light grey chips, solid fills become charcoal (their labels
+   are already excluded white), text becomes ink and borders become the token
+   border. Slate gradients are flattened too, so no dark band survives. */
+
+[class*="bg-cyan-50"],
+[class*="bg-cyan-100"],
+[class*="bg-cyan-200"],
+[class*="bg-cyan-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-cyan-400"],
+[class*="bg-cyan-500"],
+[class*="bg-cyan-600"],
+[class*="bg-cyan-700"],
+[class*="bg-cyan-800"],
+[class*="bg-cyan-900"],
+[class*="bg-cyan-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-cyan-50"],
+[class*="text-cyan-100"],
+[class*="text-cyan-200"],
+[class*="text-cyan-300"],
+[class*="text-cyan-400"],
+[class*="text-cyan-500"],
+[class*="text-cyan-600"],
+[class*="text-cyan-700"],
+[class*="text-cyan-800"],
+[class*="text-cyan-900"],
+[class*="text-cyan-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-cyan-50"],
+[class*="border-cyan-100"],
+[class*="border-cyan-200"],
+[class*="border-cyan-300"],
+[class*="border-cyan-400"],
+[class*="border-cyan-500"],
+[class*="border-cyan-600"],
+[class*="border-cyan-700"],
+[class*="border-cyan-800"],
+[class*="border-cyan-900"],
+[class*="border-cyan-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-cyan-50"],
+[class*="from-cyan-100"],
+[class*="from-cyan-200"],
+[class*="from-cyan-300"],
+[class*="from-cyan-400"],
+[class*="from-cyan-500"],
+[class*="from-cyan-600"],
+[class*="from-cyan-700"],
+[class*="from-cyan-800"],
+[class*="from-cyan-900"],
+[class*="from-cyan-950"], [class*="via-cyan-50"],
+[class*="via-cyan-100"],
+[class*="via-cyan-200"],
+[class*="via-cyan-300"],
+[class*="via-cyan-400"],
+[class*="via-cyan-500"],
+[class*="via-cyan-600"],
+[class*="via-cyan-700"],
+[class*="via-cyan-800"],
+[class*="via-cyan-900"],
+[class*="via-cyan-950"], [class*="to-cyan-50"],
+[class*="to-cyan-100"],
+[class*="to-cyan-200"],
+[class*="to-cyan-300"],
+[class*="to-cyan-400"],
+[class*="to-cyan-500"],
+[class*="to-cyan-600"],
+[class*="to-cyan-700"],
+[class*="to-cyan-800"],
+[class*="to-cyan-900"],
+[class*="to-cyan-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-sky-50"],
+[class*="bg-sky-100"],
+[class*="bg-sky-200"],
+[class*="bg-sky-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-sky-400"],
+[class*="bg-sky-500"],
+[class*="bg-sky-600"],
+[class*="bg-sky-700"],
+[class*="bg-sky-800"],
+[class*="bg-sky-900"],
+[class*="bg-sky-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-sky-50"],
+[class*="text-sky-100"],
+[class*="text-sky-200"],
+[class*="text-sky-300"],
+[class*="text-sky-400"],
+[class*="text-sky-500"],
+[class*="text-sky-600"],
+[class*="text-sky-700"],
+[class*="text-sky-800"],
+[class*="text-sky-900"],
+[class*="text-sky-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-sky-50"],
+[class*="border-sky-100"],
+[class*="border-sky-200"],
+[class*="border-sky-300"],
+[class*="border-sky-400"],
+[class*="border-sky-500"],
+[class*="border-sky-600"],
+[class*="border-sky-700"],
+[class*="border-sky-800"],
+[class*="border-sky-900"],
+[class*="border-sky-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-sky-50"],
+[class*="from-sky-100"],
+[class*="from-sky-200"],
+[class*="from-sky-300"],
+[class*="from-sky-400"],
+[class*="from-sky-500"],
+[class*="from-sky-600"],
+[class*="from-sky-700"],
+[class*="from-sky-800"],
+[class*="from-sky-900"],
+[class*="from-sky-950"], [class*="via-sky-50"],
+[class*="via-sky-100"],
+[class*="via-sky-200"],
+[class*="via-sky-300"],
+[class*="via-sky-400"],
+[class*="via-sky-500"],
+[class*="via-sky-600"],
+[class*="via-sky-700"],
+[class*="via-sky-800"],
+[class*="via-sky-900"],
+[class*="via-sky-950"], [class*="to-sky-50"],
+[class*="to-sky-100"],
+[class*="to-sky-200"],
+[class*="to-sky-300"],
+[class*="to-sky-400"],
+[class*="to-sky-500"],
+[class*="to-sky-600"],
+[class*="to-sky-700"],
+[class*="to-sky-800"],
+[class*="to-sky-900"],
+[class*="to-sky-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-blue-50"],
+[class*="bg-blue-100"],
+[class*="bg-blue-200"],
+[class*="bg-blue-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-blue-400"],
+[class*="bg-blue-500"],
+[class*="bg-blue-600"],
+[class*="bg-blue-700"],
+[class*="bg-blue-800"],
+[class*="bg-blue-900"],
+[class*="bg-blue-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-blue-50"],
+[class*="text-blue-100"],
+[class*="text-blue-200"],
+[class*="text-blue-300"],
+[class*="text-blue-400"],
+[class*="text-blue-500"],
+[class*="text-blue-600"],
+[class*="text-blue-700"],
+[class*="text-blue-800"],
+[class*="text-blue-900"],
+[class*="text-blue-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-blue-50"],
+[class*="border-blue-100"],
+[class*="border-blue-200"],
+[class*="border-blue-300"],
+[class*="border-blue-400"],
+[class*="border-blue-500"],
+[class*="border-blue-600"],
+[class*="border-blue-700"],
+[class*="border-blue-800"],
+[class*="border-blue-900"],
+[class*="border-blue-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-blue-50"],
+[class*="from-blue-100"],
+[class*="from-blue-200"],
+[class*="from-blue-300"],
+[class*="from-blue-400"],
+[class*="from-blue-500"],
+[class*="from-blue-600"],
+[class*="from-blue-700"],
+[class*="from-blue-800"],
+[class*="from-blue-900"],
+[class*="from-blue-950"], [class*="via-blue-50"],
+[class*="via-blue-100"],
+[class*="via-blue-200"],
+[class*="via-blue-300"],
+[class*="via-blue-400"],
+[class*="via-blue-500"],
+[class*="via-blue-600"],
+[class*="via-blue-700"],
+[class*="via-blue-800"],
+[class*="via-blue-900"],
+[class*="via-blue-950"], [class*="to-blue-50"],
+[class*="to-blue-100"],
+[class*="to-blue-200"],
+[class*="to-blue-300"],
+[class*="to-blue-400"],
+[class*="to-blue-500"],
+[class*="to-blue-600"],
+[class*="to-blue-700"],
+[class*="to-blue-800"],
+[class*="to-blue-900"],
+[class*="to-blue-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-indigo-50"],
+[class*="bg-indigo-100"],
+[class*="bg-indigo-200"],
+[class*="bg-indigo-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-indigo-400"],
+[class*="bg-indigo-500"],
+[class*="bg-indigo-600"],
+[class*="bg-indigo-700"],
+[class*="bg-indigo-800"],
+[class*="bg-indigo-900"],
+[class*="bg-indigo-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-indigo-50"],
+[class*="text-indigo-100"],
+[class*="text-indigo-200"],
+[class*="text-indigo-300"],
+[class*="text-indigo-400"],
+[class*="text-indigo-500"],
+[class*="text-indigo-600"],
+[class*="text-indigo-700"],
+[class*="text-indigo-800"],
+[class*="text-indigo-900"],
+[class*="text-indigo-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-indigo-50"],
+[class*="border-indigo-100"],
+[class*="border-indigo-200"],
+[class*="border-indigo-300"],
+[class*="border-indigo-400"],
+[class*="border-indigo-500"],
+[class*="border-indigo-600"],
+[class*="border-indigo-700"],
+[class*="border-indigo-800"],
+[class*="border-indigo-900"],
+[class*="border-indigo-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-indigo-50"],
+[class*="from-indigo-100"],
+[class*="from-indigo-200"],
+[class*="from-indigo-300"],
+[class*="from-indigo-400"],
+[class*="from-indigo-500"],
+[class*="from-indigo-600"],
+[class*="from-indigo-700"],
+[class*="from-indigo-800"],
+[class*="from-indigo-900"],
+[class*="from-indigo-950"], [class*="via-indigo-50"],
+[class*="via-indigo-100"],
+[class*="via-indigo-200"],
+[class*="via-indigo-300"],
+[class*="via-indigo-400"],
+[class*="via-indigo-500"],
+[class*="via-indigo-600"],
+[class*="via-indigo-700"],
+[class*="via-indigo-800"],
+[class*="via-indigo-900"],
+[class*="via-indigo-950"], [class*="to-indigo-50"],
+[class*="to-indigo-100"],
+[class*="to-indigo-200"],
+[class*="to-indigo-300"],
+[class*="to-indigo-400"],
+[class*="to-indigo-500"],
+[class*="to-indigo-600"],
+[class*="to-indigo-700"],
+[class*="to-indigo-800"],
+[class*="to-indigo-900"],
+[class*="to-indigo-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-teal-50"],
+[class*="bg-teal-100"],
+[class*="bg-teal-200"],
+[class*="bg-teal-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-teal-400"],
+[class*="bg-teal-500"],
+[class*="bg-teal-600"],
+[class*="bg-teal-700"],
+[class*="bg-teal-800"],
+[class*="bg-teal-900"],
+[class*="bg-teal-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-teal-50"],
+[class*="text-teal-100"],
+[class*="text-teal-200"],
+[class*="text-teal-300"],
+[class*="text-teal-400"],
+[class*="text-teal-500"],
+[class*="text-teal-600"],
+[class*="text-teal-700"],
+[class*="text-teal-800"],
+[class*="text-teal-900"],
+[class*="text-teal-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-teal-50"],
+[class*="border-teal-100"],
+[class*="border-teal-200"],
+[class*="border-teal-300"],
+[class*="border-teal-400"],
+[class*="border-teal-500"],
+[class*="border-teal-600"],
+[class*="border-teal-700"],
+[class*="border-teal-800"],
+[class*="border-teal-900"],
+[class*="border-teal-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-teal-50"],
+[class*="from-teal-100"],
+[class*="from-teal-200"],
+[class*="from-teal-300"],
+[class*="from-teal-400"],
+[class*="from-teal-500"],
+[class*="from-teal-600"],
+[class*="from-teal-700"],
+[class*="from-teal-800"],
+[class*="from-teal-900"],
+[class*="from-teal-950"], [class*="via-teal-50"],
+[class*="via-teal-100"],
+[class*="via-teal-200"],
+[class*="via-teal-300"],
+[class*="via-teal-400"],
+[class*="via-teal-500"],
+[class*="via-teal-600"],
+[class*="via-teal-700"],
+[class*="via-teal-800"],
+[class*="via-teal-900"],
+[class*="via-teal-950"], [class*="to-teal-50"],
+[class*="to-teal-100"],
+[class*="to-teal-200"],
+[class*="to-teal-300"],
+[class*="to-teal-400"],
+[class*="to-teal-500"],
+[class*="to-teal-600"],
+[class*="to-teal-700"],
+[class*="to-teal-800"],
+[class*="to-teal-900"],
+[class*="to-teal-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-violet-50"],
+[class*="bg-violet-100"],
+[class*="bg-violet-200"],
+[class*="bg-violet-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-violet-400"],
+[class*="bg-violet-500"],
+[class*="bg-violet-600"],
+[class*="bg-violet-700"],
+[class*="bg-violet-800"],
+[class*="bg-violet-900"],
+[class*="bg-violet-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-violet-50"],
+[class*="text-violet-100"],
+[class*="text-violet-200"],
+[class*="text-violet-300"],
+[class*="text-violet-400"],
+[class*="text-violet-500"],
+[class*="text-violet-600"],
+[class*="text-violet-700"],
+[class*="text-violet-800"],
+[class*="text-violet-900"],
+[class*="text-violet-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-violet-50"],
+[class*="border-violet-100"],
+[class*="border-violet-200"],
+[class*="border-violet-300"],
+[class*="border-violet-400"],
+[class*="border-violet-500"],
+[class*="border-violet-600"],
+[class*="border-violet-700"],
+[class*="border-violet-800"],
+[class*="border-violet-900"],
+[class*="border-violet-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-violet-50"],
+[class*="from-violet-100"],
+[class*="from-violet-200"],
+[class*="from-violet-300"],
+[class*="from-violet-400"],
+[class*="from-violet-500"],
+[class*="from-violet-600"],
+[class*="from-violet-700"],
+[class*="from-violet-800"],
+[class*="from-violet-900"],
+[class*="from-violet-950"], [class*="via-violet-50"],
+[class*="via-violet-100"],
+[class*="via-violet-200"],
+[class*="via-violet-300"],
+[class*="via-violet-400"],
+[class*="via-violet-500"],
+[class*="via-violet-600"],
+[class*="via-violet-700"],
+[class*="via-violet-800"],
+[class*="via-violet-900"],
+[class*="via-violet-950"], [class*="to-violet-50"],
+[class*="to-violet-100"],
+[class*="to-violet-200"],
+[class*="to-violet-300"],
+[class*="to-violet-400"],
+[class*="to-violet-500"],
+[class*="to-violet-600"],
+[class*="to-violet-700"],
+[class*="to-violet-800"],
+[class*="to-violet-900"],
+[class*="to-violet-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-fuchsia-50"],
+[class*="bg-fuchsia-100"],
+[class*="bg-fuchsia-200"],
+[class*="bg-fuchsia-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-fuchsia-400"],
+[class*="bg-fuchsia-500"],
+[class*="bg-fuchsia-600"],
+[class*="bg-fuchsia-700"],
+[class*="bg-fuchsia-800"],
+[class*="bg-fuchsia-900"],
+[class*="bg-fuchsia-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-fuchsia-50"],
+[class*="text-fuchsia-100"],
+[class*="text-fuchsia-200"],
+[class*="text-fuchsia-300"],
+[class*="text-fuchsia-400"],
+[class*="text-fuchsia-500"],
+[class*="text-fuchsia-600"],
+[class*="text-fuchsia-700"],
+[class*="text-fuchsia-800"],
+[class*="text-fuchsia-900"],
+[class*="text-fuchsia-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-fuchsia-50"],
+[class*="border-fuchsia-100"],
+[class*="border-fuchsia-200"],
+[class*="border-fuchsia-300"],
+[class*="border-fuchsia-400"],
+[class*="border-fuchsia-500"],
+[class*="border-fuchsia-600"],
+[class*="border-fuchsia-700"],
+[class*="border-fuchsia-800"],
+[class*="border-fuchsia-900"],
+[class*="border-fuchsia-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-fuchsia-50"],
+[class*="from-fuchsia-100"],
+[class*="from-fuchsia-200"],
+[class*="from-fuchsia-300"],
+[class*="from-fuchsia-400"],
+[class*="from-fuchsia-500"],
+[class*="from-fuchsia-600"],
+[class*="from-fuchsia-700"],
+[class*="from-fuchsia-800"],
+[class*="from-fuchsia-900"],
+[class*="from-fuchsia-950"], [class*="via-fuchsia-50"],
+[class*="via-fuchsia-100"],
+[class*="via-fuchsia-200"],
+[class*="via-fuchsia-300"],
+[class*="via-fuchsia-400"],
+[class*="via-fuchsia-500"],
+[class*="via-fuchsia-600"],
+[class*="via-fuchsia-700"],
+[class*="via-fuchsia-800"],
+[class*="via-fuchsia-900"],
+[class*="via-fuchsia-950"], [class*="to-fuchsia-50"],
+[class*="to-fuchsia-100"],
+[class*="to-fuchsia-200"],
+[class*="to-fuchsia-300"],
+[class*="to-fuchsia-400"],
+[class*="to-fuchsia-500"],
+[class*="to-fuchsia-600"],
+[class*="to-fuchsia-700"],
+[class*="to-fuchsia-800"],
+[class*="to-fuchsia-900"],
+[class*="to-fuchsia-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-purple-50"],
+[class*="bg-purple-100"],
+[class*="bg-purple-200"],
+[class*="bg-purple-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-purple-400"],
+[class*="bg-purple-500"],
+[class*="bg-purple-600"],
+[class*="bg-purple-700"],
+[class*="bg-purple-800"],
+[class*="bg-purple-900"],
+[class*="bg-purple-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-purple-50"],
+[class*="text-purple-100"],
+[class*="text-purple-200"],
+[class*="text-purple-300"],
+[class*="text-purple-400"],
+[class*="text-purple-500"],
+[class*="text-purple-600"],
+[class*="text-purple-700"],
+[class*="text-purple-800"],
+[class*="text-purple-900"],
+[class*="text-purple-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-purple-50"],
+[class*="border-purple-100"],
+[class*="border-purple-200"],
+[class*="border-purple-300"],
+[class*="border-purple-400"],
+[class*="border-purple-500"],
+[class*="border-purple-600"],
+[class*="border-purple-700"],
+[class*="border-purple-800"],
+[class*="border-purple-900"],
+[class*="border-purple-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-purple-50"],
+[class*="from-purple-100"],
+[class*="from-purple-200"],
+[class*="from-purple-300"],
+[class*="from-purple-400"],
+[class*="from-purple-500"],
+[class*="from-purple-600"],
+[class*="from-purple-700"],
+[class*="from-purple-800"],
+[class*="from-purple-900"],
+[class*="from-purple-950"], [class*="via-purple-50"],
+[class*="via-purple-100"],
+[class*="via-purple-200"],
+[class*="via-purple-300"],
+[class*="via-purple-400"],
+[class*="via-purple-500"],
+[class*="via-purple-600"],
+[class*="via-purple-700"],
+[class*="via-purple-800"],
+[class*="via-purple-900"],
+[class*="via-purple-950"], [class*="to-purple-50"],
+[class*="to-purple-100"],
+[class*="to-purple-200"],
+[class*="to-purple-300"],
+[class*="to-purple-400"],
+[class*="to-purple-500"],
+[class*="to-purple-600"],
+[class*="to-purple-700"],
+[class*="to-purple-800"],
+[class*="to-purple-900"],
+[class*="to-purple-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="bg-pink-50"],
+[class*="bg-pink-100"],
+[class*="bg-pink-200"],
+[class*="bg-pink-300"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+[class*="bg-pink-400"],
+[class*="bg-pink-500"],
+[class*="bg-pink-600"],
+[class*="bg-pink-700"],
+[class*="bg-pink-800"],
+[class*="bg-pink-900"],
+[class*="bg-pink-950"] {
+  background-color: hsl(210 20% 18%) !important;
+}
+
+[class*="text-pink-50"],
+[class*="text-pink-100"],
+[class*="text-pink-200"],
+[class*="text-pink-300"],
+[class*="text-pink-400"],
+[class*="text-pink-500"],
+[class*="text-pink-600"],
+[class*="text-pink-700"],
+[class*="text-pink-800"],
+[class*="text-pink-900"],
+[class*="text-pink-950"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+[class*="border-pink-50"],
+[class*="border-pink-100"],
+[class*="border-pink-200"],
+[class*="border-pink-300"],
+[class*="border-pink-400"],
+[class*="border-pink-500"],
+[class*="border-pink-600"],
+[class*="border-pink-700"],
+[class*="border-pink-800"],
+[class*="border-pink-900"],
+[class*="border-pink-950"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+[class*="from-pink-50"],
+[class*="from-pink-100"],
+[class*="from-pink-200"],
+[class*="from-pink-300"],
+[class*="from-pink-400"],
+[class*="from-pink-500"],
+[class*="from-pink-600"],
+[class*="from-pink-700"],
+[class*="from-pink-800"],
+[class*="from-pink-900"],
+[class*="from-pink-950"], [class*="via-pink-50"],
+[class*="via-pink-100"],
+[class*="via-pink-200"],
+[class*="via-pink-300"],
+[class*="via-pink-400"],
+[class*="via-pink-500"],
+[class*="via-pink-600"],
+[class*="via-pink-700"],
+[class*="via-pink-800"],
+[class*="via-pink-900"],
+[class*="via-pink-950"], [class*="to-pink-50"],
+[class*="to-pink-100"],
+[class*="to-pink-200"],
+[class*="to-pink-300"],
+[class*="to-pink-400"],
+[class*="to-pink-500"],
+[class*="to-pink-600"],
+[class*="to-pink-700"],
+[class*="to-pink-800"],
+[class*="to-pink-900"],
+[class*="to-pink-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="from-slate-700"],
+[class*="from-slate-800"],
+[class*="from-slate-900"],
+[class*="from-slate-950"], [class*="via-slate-700"],
+[class*="via-slate-800"],
+[class*="via-slate-900"],
+[class*="via-slate-950"], [class*="to-slate-700"],
+[class*="to-slate-800"],
+[class*="to-slate-900"],
+[class*="to-slate-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="from-gray-700"],
+[class*="from-gray-800"],
+[class*="from-gray-900"],
+[class*="from-gray-950"], [class*="via-gray-700"],
+[class*="via-gray-800"],
+[class*="via-gray-900"],
+[class*="via-gray-950"], [class*="to-gray-700"],
+[class*="to-gray-800"],
+[class*="to-gray-900"],
+[class*="to-gray-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="from-zinc-700"],
+[class*="from-zinc-800"],
+[class*="from-zinc-900"],
+[class*="from-zinc-950"], [class*="via-zinc-700"],
+[class*="via-zinc-800"],
+[class*="via-zinc-900"],
+[class*="via-zinc-950"], [class*="to-zinc-700"],
+[class*="to-zinc-800"],
+[class*="to-zinc-900"],
+[class*="to-zinc-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="from-neutral-700"],
+[class*="from-neutral-800"],
+[class*="from-neutral-900"],
+[class*="from-neutral-950"], [class*="via-neutral-700"],
+[class*="via-neutral-800"],
+[class*="via-neutral-900"],
+[class*="via-neutral-950"], [class*="to-neutral-700"],
+[class*="to-neutral-800"],
+[class*="to-neutral-900"],
+[class*="to-neutral-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+[class*="from-stone-700"],
+[class*="from-stone-800"],
+[class*="from-stone-900"],
+[class*="from-stone-950"], [class*="via-stone-700"],
+[class*="via-stone-800"],
+[class*="via-stone-900"],
+[class*="via-stone-950"], [class*="to-stone-700"],
+[class*="to-stone-800"],
+[class*="to-stone-900"],
+[class*="to-stone-950"] {
+  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
+  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
+  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
+}
+
+/* ── decorative glows ──────────────────────────────────────────────────────
+   Screens used to paint large blurred orbs with `bg-primary/20 blur-3xl` and
+   `bg-accent/20 blur-3xl`. When those tokens were colourful that read as a soft
+   ambient glow; now that the palette is neutral, a blurred charcoal orb just
+   smears a dark band across the white page. Decorative blurs therefore fall back
+   to the muted surface, which is invisible on white — the layout keeps its
+   spacing, the smudge goes away. */
+[class*=" bg-primary/"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*=" bg-accent/"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*="bg-cyan-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*="bg-sky-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*="bg-indigo-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*="bg-violet-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*="bg-blue-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*="bg-fuchsia-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
+[class*="bg-purple-"]:is([class*="blur-2xl"], [class*="blur-3xl"]) {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+/* ── opacity-modified white ink ────────────────────────────────────────────
+   `text-white/70` and friends are how the UI expressed secondary text on dark
+   surfaces. `class~="text-white"` cannot see them (different token), so on the
+   white palette they stayed near-invisible. Each keeps its own opacity so the
+   hierarchy the author intended survives — just as ink instead of white. */
+[class~="text-white/10"] { color: hsl(var(--foreground) / 0.10) !important; }
+[class~="text-white/15"] { color: hsl(var(--foreground) / 0.15) !important; }
+[class~="text-white/20"] { color: hsl(var(--foreground) / 0.20) !important; }
+[class~="text-white/25"] { color: hsl(var(--foreground) / 0.25) !important; }
+[class~="text-white/30"] { color: hsl(var(--foreground) / 0.30) !important; }
+[class~="text-white/35"] { color: hsl(var(--foreground) / 0.35) !important; }
+[class~="text-white/40"] { color: hsl(var(--foreground) / 0.40) !important; }
+[class~="text-white/45"] { color: hsl(var(--foreground) / 0.45) !important; }
+[class~="text-white/50"] { color: hsl(var(--foreground) / 0.50) !important; }
+[class~="text-white/55"] { color: hsl(var(--foreground) / 0.55) !important; }
+[class~="text-white/60"] { color: hsl(var(--foreground) / 0.60) !important; }
+[class~="text-white/65"] { color: hsl(var(--foreground) / 0.65) !important; }
+[class~="text-white/70"] { color: hsl(var(--foreground) / 0.70) !important; }
+[class~="text-white/75"] { color: hsl(var(--foreground) / 0.75) !important; }
+[class~="text-white/80"] { color: hsl(var(--foreground) / 0.80) !important; }
+[class~="text-white/85"] { color: hsl(var(--foreground) / 0.85) !important; }
+[class~="text-white/90"] { color: hsl(var(--foreground) / 0.90) !important; }
+[class~="text-white/95"] { color: hsl(var(--foreground) / 0.95) !important; }
+
+/* ==========================================================================
+   READABILITY PASS - driven by an in-page WCAG contrast audit
+   ==========================================================================
+   A contrast audit of the real page reported 21 failing text nodes. Each cause
+   is fixed here rather than guessed at. */
+
+/* 1. `bg-cyan-500/20` is a 20% TINT, but the earlier mapping handed every hue
+      variant the SOLID charcoal fill, so dark text sat on a dark fill and
+      vanished (1.52:1 - the "الصق نص المحاضرة" button and every selected chip).
+      Tints go back to a light surface so their labels read. */
+[class*=" bg-cyan-300/"],
+[class*=" bg-cyan-400/"],
+[class*=" bg-cyan-500/"],
+[class*=" bg-cyan-600/"],
+[class*=" bg-sky-300/"],
+[class*=" bg-sky-400/"],
+[class*=" bg-sky-500/"],
+[class*=" bg-sky-600/"],
+[class*=" bg-blue-300/"],
+[class*=" bg-blue-400/"],
+[class*=" bg-blue-500/"],
+[class*=" bg-blue-600/"],
+[class*=" bg-indigo-300/"],
+[class*=" bg-indigo-400/"],
+[class*=" bg-indigo-500/"],
+[class*=" bg-indigo-600/"],
+[class*=" bg-teal-300/"],
+[class*=" bg-teal-400/"],
+[class*=" bg-teal-500/"],
+[class*=" bg-teal-600/"],
+[class*=" bg-violet-300/"],
+[class*=" bg-violet-400/"],
+[class*=" bg-violet-500/"],
+[class*=" bg-violet-600/"],
+[class*=" bg-fuchsia-300/"],
+[class*=" bg-fuchsia-400/"],
+[class*=" bg-fuchsia-500/"],
+[class*=" bg-fuchsia-600/"],
+[class*=" bg-purple-300/"],
+[class*=" bg-purple-400/"],
+[class*=" bg-purple-500/"],
+[class*=" bg-purple-600/"],
+[class*=" bg-pink-300/"],
+[class*=" bg-pink-400/"],
+[class*=" bg-pink-500/"],
+[class*=" bg-pink-600/"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+/* 2. Status colours: an amber label on white measured 1.53:1. Status text is
+      darkened to its own readable ink; the pale status backgrounds are left
+      alone so badges keep their meaning. */
+[class~="text-amber-200"], [class*=" text-amber-200/"] { color: #8A5A00 !important; }
+[class~="text-amber-300"], [class*=" text-amber-300/"] { color: #8A5A00 !important; }
+[class~="text-amber-400"], [class*=" text-amber-400/"] { color: #8A5A00 !important; }
+[class~="text-amber-500"], [class*=" text-amber-500/"] { color: #8A5A00 !important; }
+[class~="text-amber-600"], [class*=" text-amber-600/"] { color: #8A5A00 !important; }
+[class~="text-yellow-200"], [class*=" text-yellow-200/"] { color: #8A5A00 !important; }
+[class~="text-yellow-300"], [class*=" text-yellow-300/"] { color: #8A5A00 !important; }
+[class~="text-yellow-400"], [class*=" text-yellow-400/"] { color: #8A5A00 !important; }
+[class~="text-yellow-500"], [class*=" text-yellow-500/"] { color: #8A5A00 !important; }
+[class~="text-yellow-600"], [class*=" text-yellow-600/"] { color: #8A5A00 !important; }
+[class~="text-orange-200"], [class*=" text-orange-200/"] { color: #9A4A00 !important; }
+[class~="text-orange-300"], [class*=" text-orange-300/"] { color: #9A4A00 !important; }
+[class~="text-orange-400"], [class*=" text-orange-400/"] { color: #9A4A00 !important; }
+[class~="text-orange-500"], [class*=" text-orange-500/"] { color: #9A4A00 !important; }
+[class~="text-orange-600"], [class*=" text-orange-600/"] { color: #9A4A00 !important; }
+[class~="text-emerald-200"], [class*=" text-emerald-200/"] { color: #0E6B3F !important; }
+[class~="text-emerald-300"], [class*=" text-emerald-300/"] { color: #0E6B3F !important; }
+[class~="text-emerald-400"], [class*=" text-emerald-400/"] { color: #0E6B3F !important; }
+[class~="text-emerald-500"], [class*=" text-emerald-500/"] { color: #0E6B3F !important; }
+[class~="text-emerald-600"], [class*=" text-emerald-600/"] { color: #0E6B3F !important; }
+[class~="text-green-200"], [class*=" text-green-200/"] { color: #0E6B3F !important; }
+[class~="text-green-300"], [class*=" text-green-300/"] { color: #0E6B3F !important; }
+[class~="text-green-400"], [class*=" text-green-400/"] { color: #0E6B3F !important; }
+[class~="text-green-500"], [class*=" text-green-500/"] { color: #0E6B3F !important; }
+[class~="text-green-600"], [class*=" text-green-600/"] { color: #0E6B3F !important; }
+[class~="text-lime-200"], [class*=" text-lime-200/"] { color: #3F6212 !important; }
+[class~="text-lime-300"], [class*=" text-lime-300/"] { color: #3F6212 !important; }
+[class~="text-lime-400"], [class*=" text-lime-400/"] { color: #3F6212 !important; }
+[class~="text-lime-500"], [class*=" text-lime-500/"] { color: #3F6212 !important; }
+[class~="text-lime-600"], [class*=" text-lime-600/"] { color: #3F6212 !important; }
+[class~="text-red-200"], [class*=" text-red-200/"] { color: #B42318 !important; }
+[class~="text-red-300"], [class*=" text-red-300/"] { color: #B42318 !important; }
+[class~="text-red-400"], [class*=" text-red-400/"] { color: #B42318 !important; }
+[class~="text-red-500"], [class*=" text-red-500/"] { color: #B42318 !important; }
+[class~="text-red-600"], [class*=" text-red-600/"] { color: #B42318 !important; }
+[class~="text-rose-200"], [class*=" text-rose-200/"] { color: #B42318 !important; }
+[class~="text-rose-300"], [class*=" text-rose-300/"] { color: #B42318 !important; }
+[class~="text-rose-400"], [class*=" text-rose-400/"] { color: #B42318 !important; }
+[class~="text-rose-500"], [class*=" text-rose-500/"] { color: #B42318 !important; }
+[class~="text-rose-600"], [class*=" text-rose-600/"] { color: #B42318 !important; }
+
+/* 3. The headline gradient computed to `color: transparent` (1:1 by definition),
+      which is why the page title kept washing out. It is solid ink now - the
+      simplest thing that is always legible. */
+.studio-headline-gradient,
+.neon-text-gradient,
+.text-gradient {
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* 4. Translucent white ink is floored at 62%: below that it fails 4.5:1 on
+      white, so a "secondary" label becomes an unreadable one. */
+[class~="text-white/10"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/15"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/20"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/25"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/30"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/35"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/40"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/45"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/50"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/55"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/60"] { color: hsl(var(--foreground) / 0.62) !important; }
+[class~="text-white/65"] { color: hsl(var(--foreground) / 0.65) !important; }
+[class~="text-white/70"] { color: hsl(var(--foreground) / 0.70) !important; }
+[class~="text-white/75"] { color: hsl(var(--foreground) / 0.75) !important; }
+[class~="text-white/80"] { color: hsl(var(--foreground) / 0.80) !important; }
+[class~="text-white/85"] { color: hsl(var(--foreground) / 0.85) !important; }
+[class~="text-white/90"] { color: hsl(var(--foreground) / 0.90) !important; }
+[class~="text-white/95"] { color: hsl(var(--foreground) / 0.95) !important; }
+
+/* 5. Hand-written greys that sat just under the threshold. */
+[class~="text-[#8A97A8]"], [class~="text-[#8A91A0]"], [class~="text-[#9AA0AE]"] {
+  color: hsl(0 0% 30%) !important;
+}
+
+/* 6. Solid accent fills became charcoal, but a few buttons carried `text-black`
+      (they used to be bright cyan). Black on charcoal measures 1.52:1, so a
+      label on a SOLID accent fill is white. The `:not(.../…)` guard keeps the
+      20% tints - which are light surfaces now - on their dark labels. */
+[class~="text-black"][class*=" bg-cyan-300"]:not([class*=" bg-cyan-300/"]),
+[class~="text-black"][class*=" bg-cyan-400"]:not([class*=" bg-cyan-400/"]),
+[class~="text-black"][class*=" bg-cyan-500"]:not([class*=" bg-cyan-500/"]),
+[class~="text-black"][class*=" bg-cyan-600"]:not([class*=" bg-cyan-600/"]),
+[class~="text-black"][class*=" bg-cyan-700"]:not([class*=" bg-cyan-700/"]),
+[class~="text-black"][class*=" bg-sky-300"]:not([class*=" bg-sky-300/"]),
+[class~="text-black"][class*=" bg-sky-400"]:not([class*=" bg-sky-400/"]),
+[class~="text-black"][class*=" bg-sky-500"]:not([class*=" bg-sky-500/"]),
+[class~="text-black"][class*=" bg-sky-600"]:not([class*=" bg-sky-600/"]),
+[class~="text-black"][class*=" bg-sky-700"]:not([class*=" bg-sky-700/"]),
+[class~="text-black"][class*=" bg-blue-300"]:not([class*=" bg-blue-300/"]),
+[class~="text-black"][class*=" bg-blue-400"]:not([class*=" bg-blue-400/"]),
+[class~="text-black"][class*=" bg-blue-500"]:not([class*=" bg-blue-500/"]),
+[class~="text-black"][class*=" bg-blue-600"]:not([class*=" bg-blue-600/"]),
+[class~="text-black"][class*=" bg-blue-700"]:not([class*=" bg-blue-700/"]),
+[class~="text-black"][class*=" bg-indigo-300"]:not([class*=" bg-indigo-300/"]),
+[class~="text-black"][class*=" bg-indigo-400"]:not([class*=" bg-indigo-400/"]),
+[class~="text-black"][class*=" bg-indigo-500"]:not([class*=" bg-indigo-500/"]),
+[class~="text-black"][class*=" bg-indigo-600"]:not([class*=" bg-indigo-600/"]),
+[class~="text-black"][class*=" bg-indigo-700"]:not([class*=" bg-indigo-700/"]),
+[class~="text-black"][class*=" bg-teal-300"]:not([class*=" bg-teal-300/"]),
+[class~="text-black"][class*=" bg-teal-400"]:not([class*=" bg-teal-400/"]),
+[class~="text-black"][class*=" bg-teal-500"]:not([class*=" bg-teal-500/"]),
+[class~="text-black"][class*=" bg-teal-600"]:not([class*=" bg-teal-600/"]),
+[class~="text-black"][class*=" bg-teal-700"]:not([class*=" bg-teal-700/"]),
+[class~="text-black"][class*=" bg-violet-300"]:not([class*=" bg-violet-300/"]),
+[class~="text-black"][class*=" bg-violet-400"]:not([class*=" bg-violet-400/"]),
+[class~="text-black"][class*=" bg-violet-500"]:not([class*=" bg-violet-500/"]),
+[class~="text-black"][class*=" bg-violet-600"]:not([class*=" bg-violet-600/"]),
+[class~="text-black"][class*=" bg-violet-700"]:not([class*=" bg-violet-700/"]),
+[class~="text-black"][class*=" bg-fuchsia-300"]:not([class*=" bg-fuchsia-300/"]),
+[class~="text-black"][class*=" bg-fuchsia-400"]:not([class*=" bg-fuchsia-400/"]),
+[class~="text-black"][class*=" bg-fuchsia-500"]:not([class*=" bg-fuchsia-500/"]),
+[class~="text-black"][class*=" bg-fuchsia-600"]:not([class*=" bg-fuchsia-600/"]),
+[class~="text-black"][class*=" bg-fuchsia-700"]:not([class*=" bg-fuchsia-700/"]),
+[class~="text-black"][class*=" bg-purple-300"]:not([class*=" bg-purple-300/"]),
+[class~="text-black"][class*=" bg-purple-400"]:not([class*=" bg-purple-400/"]),
+[class~="text-black"][class*=" bg-purple-500"]:not([class*=" bg-purple-500/"]),
+[class~="text-black"][class*=" bg-purple-600"]:not([class*=" bg-purple-600/"]),
+[class~="text-black"][class*=" bg-purple-700"]:not([class*=" bg-purple-700/"]),
+[class~="text-black"][class*=" bg-pink-300"]:not([class*=" bg-pink-300/"]),
+[class~="text-black"][class*=" bg-pink-400"]:not([class*=" bg-pink-400/"]),
+[class~="text-black"][class*=" bg-pink-500"]:not([class*=" bg-pink-500/"]),
+[class~="text-black"][class*=" bg-pink-600"]:not([class*=" bg-pink-600/"]),
+[class~="text-black"][class*=" bg-pink-700"]:not([class*=" bg-pink-700/"]) {
+  color: #FFFFFF !important;
+}
+
+/* 7. The legacy teal accent had the same tint defect as the Tailwind hues:
+      `bg-[#2B8A9E]/10` is a 10% tint but received the solid charcoal fill, so
+      its dark label vanished (1:1 on the dashboard "شحن" chip). */
+[class*=" bg-[#2B8A9E]/"], [class*=" bg-[#1B4F72]/"], [class*=" bg-[#0088cc]/"],
+[class*=" bg-[#16697A]/"], [class*=" bg-[#205f7a]/"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+/* 8. Remaining bright literals used as TEXT on white. Each measured under 3:1,
+      so they resolve to readable ink while keeping a hint of their hue. */
+[class~="text-[#F5A524]"], [class~="text-[#F0A020]"] { color: #8A5A00 !important; }
+[class~="text-[#00E5FF]"], [class~="text-[#22D3EE]"], [class~="text-[#06B6D4]"],
+[class~="text-[#3DDC97]"], [class~="text-[#2B8A9E]"] { color: #0F5E6B !important; }
+[class~="text-[#E5484D]"], [class~="text-[#EF4444]"] { color: #B42318 !important; }
+
+/* 9. Light neutral ink: `text-slate-100..300` is near-white and disappears on a
+      white page, so the light end of every neutral ramp maps to real ink. */
+[class~="text-slate-100"], [class~="text-slate-200"], [class~="text-slate-300"],
+[class~="text-gray-100"], [class~="text-gray-200"], [class~="text-gray-300"],
+[class~="text-zinc-100"], [class~="text-zinc-200"], [class~="text-zinc-300"],
+[class~="text-neutral-100"], [class~="text-neutral-200"], [class~="text-neutral-300"],
+[class~="text-stone-100"], [class~="text-stone-200"], [class~="text-stone-300"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* 10. `text-muted-foreground/70` measured 3.18:1 — dimming an already-muted
+       colour pushes it under AA. Section labels use the full muted ink. */
+[class~="text-muted-foreground/50"], [class~="text-muted-foreground/60"],
+[class~="text-muted-foreground/70"], [class~="text-muted-foreground/80"],
+[class~="text-muted-foreground/90"] {
+  color: hsl(0 0% 30%) !important;
+}
+
+/* 11. Third-party brand blues/greens used as small labels on white: Google
+       Drive's #4285F4 measured 3.56:1. Each keeps its identity at a darker,
+       readable shade. */
+[class~="text-[#4285F4]"] { color: #1A56C4 !important; }
+[class~="text-[#611f69]"] { color: #4A1650 !important; }
+[class~="text-[#0F9D58]"] { color: #0A6B3C !important; }
+[class~="text-[#EA4335]"] { color: #A5281B !important; }
+[class~="text-[#FBBC05]"] { color: #8A5A00 !important; }
+[class~="text-[#0088cc]"] { color: #15628F !important; }

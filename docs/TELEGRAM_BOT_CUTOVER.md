@@ -1,18 +1,25 @@
 # نقل بوت Telegram إلى @black_fighters_bot
 
-تم تغيير جميع روابط الواجهة والنصوص والـAndroid والبوت إلى `@black_fighters_bot`، كما أصبح رابط المنصة الافتراضي `https://blackfighters.site`.
+> ⚠️ **هذا الملف اتحدّث.** طريقة الإعداد اليدوي القديمة (لصق رابط `setWebhook` من غير `allowed_updates`) بقت خطأ، لأنها كانت بتسجّل الـwebhook **من غير `poll_answer`** — يعني البوت ماكانش بيعرف إجابة الطالب أصلاً وكل الدرجات كانت 100% وهمية.
+>
+> **الإعداد الكامل دلوقتي في [TELEGRAM_ARCHITECTURE.md](./TELEGRAM_ARCHITECTURE.md).**
 
-إذا كان هذا الحساب بوتاً جديداً (وليس مجرد تغيير username للبوت نفسه)، نفّذ الإعدادات التالية في بيئة الاستضافة قبل النشر:
+## الملخص السريع
 
-1. غيّر `TELEGRAM_BOT_TOKEN` إلى token الذي أعطاه BotFather للبوت `@black_fighters_bot`.
-2. اضبط `APP_BASE_URL=https://blackfighters.site`.
-3. أنشئ/حدّث `TELEGRAM_WEBHOOK_SECRET` بقيمة عشوائية قوية.
-4. سجّل الـwebhook الجديد عند Telegram باستخدام رابط الاستضافة الفعلي:
+1. **ألغِ التوكن القديم من [@BotFather](https://t.me/BotFather)** — كان مكتوب صراحة في كود الواجهة وشُحن لكل زائر.
+2. اضبط في بيئة الاستضافة:
+   - `TELEGRAM_BOT_TOKEN` (إلزامي)
+   - `TELEGRAM_WEBHOOK_SECRET` (إلزامي — **من غيره الـwebhook بيرفض كل التحديثات بـ503** ، فشل مغلق)
+   - `ALPHA_TELEGRAM_CHAT_ID`, `TELEGRAM_BOT_USERNAME`, `APP_BASE_URL`, `CRON_SECRET`
+3. سجّل الـwebhook وقائمة الأوامر بالأمر:
 
-```text
-https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://blackfighters.site/api/telegram-webhook&secret_token=<SECRET>
-```
+   ```bash
+   node scripts/telegram-setup.mjs
+   ```
 
-5. اختبر من Telegram: `/start` ثم افتح رابط ربط الحساب من صفحة Profile، وتأكد أن عملية التصدير تصل للبوت الجديد.
+   (بيسجّل `setWebhook` + `allowed_updates` شاملة `poll_answer` + `setMyCommands` + زر الـMini App)
 
-لا تضع token أو secret في Git أو في ملفات الواجهة `VITE_*`.
+4. **ربط الحساب بقى بكود مش بالـuid:** الطالب يفتح الإعدادات → «ربط تيليجرام» → ياخد كود 8 حروف → يبعته للبوت `/link <CODE>`. الرابط القديم `?start=link_<uid>` اتشال لأنه كان بيسمح لأي حد يربط حسابه بحساب غيره.
+5. انشر القواعد: `firebase deploy --only firestore:rules`
+
+لا تضع token أو secret في Git ولا في أي متغيّر `VITE_*`.

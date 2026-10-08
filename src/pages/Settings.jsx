@@ -13,11 +13,32 @@ import AvatarPicker from "@/components/settings/AvatarPicker";
 import ThemePicker from "@/components/settings/ThemePicker";
 import DeleteAccountCard from "@/components/settings/DeleteAccountCard";
 import IntegrationsPanel from "@/components/settings/IntegrationsPanel";
+import TelegramPanel from "@/components/settings/TelegramPanel";
 import PageLoader from "@/components/PageLoader";
 import PerformanceSettings from "@/components/settings/PerformanceSettings";
 import LanguageSettings from "@/components/settings/LanguageSettings";
 import SwitchShowcase from "@/components/settings/SwitchShowcase";
 import { useLocale } from "@/lib/LocaleContext";
+
+/**
+ * A labelled block of settings.
+ *
+ * The page used to be eight cards separated only by `mt-8`, so there was no way
+ * to tell where "appearance" ended and "account deletion" began — and the
+ * destructive card sat one scroll away from the theme swatches with nothing
+ * marking it apart.
+ */
+function SettingsSection({ title, hint, children }) {
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border pb-2">
+        <h2 className="text-[13px] font-black uppercase tracking-[0.16em] text-primary">{title}</h2>
+        {hint && <p className="text-[12px] text-muted-foreground">{hint}</p>}
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -83,14 +104,14 @@ export default function Settings() {
 
   return (
     <div dir={dir} className="max-w-3xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-black mb-2">{isEn ? "Settings & Preferences ⚙️" : "الإعدادات ⚙️"}</h1>
-        <p className="text-muted-foreground mb-6">
-          {isEn 
-            ? (isAlphaAdmin ? "Sovereign AI Engine control & preferences." : "Customize app appearance, language, and study vibes.")
-            : (isAlphaAdmin ? "لوحة تحكم محركات الذكاء الاصطناعي والإعدادات المتقدمة للقائد Alpha ⚡" : "خصّص شكل التطبيق، اللغة، وثيم الألوان وتفضيلات حسابك ✨")}
+      <header className="mb-2">
+        <h1 className="text-2xl font-black sm:text-3xl">{isEn ? "Settings" : "الإعدادات"}</h1>
+        <p className="mt-1.5 text-[13.5px] leading-6 text-muted-foreground">
+          {isEn
+            ? "Your look, language, notifications and account — grouped below."
+            : "شكلك، لغتك، تنبيهاتك، وحسابك — مرتبين تحت في أقسام واضحة."}
         </p>
-      </div>
+      </header>
 
       {isAlphaAdmin && (
         <>
@@ -159,36 +180,30 @@ export default function Settings() {
         </>
       )}
 
-      {/* ثيم الألوان — متاح للجميع */}
-      <div className="mt-8">
+      <SettingsSection title={isEn ? "Appearance" : "الشكل والمظهر"} hint={isEn ? "Theme, avatar, frame and motion" : "الثيم، الصورة، الإطار، وحركة الواجهة"}>
         <ThemePicker />
-      </div>
+        <AvatarPicker profile={profile} onSaved={() => refreshProfile()} />
+        <PerformanceSettings />
+        {isAdmin && <SwitchShowcase />}
+      </SettingsSection>
+
+      <SettingsSection title={isEn ? "Language" : "اللغة"} hint={isEn ? "Interface language" : "لغة الواجهة"}>
+        <LanguageSettings />
+      </SettingsSection>
+
+      <SettingsSection title={isEn ? "Telegram" : "تيليجرام"} hint={isEn ? "Link the bot and choose what it may send you" : "اربط البوت واختار اللي يوصلك منه"}>
+        <TelegramPanel />
+      </SettingsSection>
 
       {isAdmin && (
-        <div className="mt-8">
-          <SwitchShowcase />
-        </div>
+        <SettingsSection title={isEn ? "AI providers" : "مزودو الذكاء الاصطناعي"} hint={isEn ? "Your own API keys and Slack/Drive hooks" : "مفاتيحك الشخصية وربط Slack/Drive"}>
+          <IntegrationsPanel />
+        </SettingsSection>
       )}
 
-      <div className="mt-8">
-        <LanguageSettings />
-      </div>
-
-      <div className="mt-8">
-        <PerformanceSettings />
-      </div>
-
-      {/* بروفايل البريميوم — صورة + إطار متحرك */}
-      <div className="mt-8">
-        <AvatarPicker profile={profile} onSaved={() => refreshProfile()} />
-      </div>
-
-      {/* الربط الخارجي — Slack + Google Drive بمفاتيح المستخدم */}
-      <div className="mt-8">
-        {isAdmin && <IntegrationsPanel />}
-      </div>
-
-      <DeleteAccountCard />
+      <SettingsSection title={isEn ? "Account" : "الحساب"} hint={isEn ? "Irreversible actions live here" : "خطوات مفيش رجوع فيها"}>
+        <DeleteAccountCard />
+      </SettingsSection>
     </div>
   );
 }

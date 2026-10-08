@@ -16,7 +16,7 @@ import {
   Check
 } from "lucide-react";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
-import { uploadDirectToTelegram } from "@/lib/directUpload";
+import { uploadMedia } from "@/lib/mediaUpload";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 
@@ -80,10 +80,10 @@ export default function EmergencyContentManager() {
         setFileName(file.name);
         if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ""));
 
-        // Always upload HTML to Telegram Storage Cloud for permanent direct URL & fast streaming
-        const uploadRes = await uploadDirectToTelegram(file);
-        if (uploadRes?.url) {
-          setFileUrl(uploadRes.url);
+        // Upload HTML to platform storage for a permanent streaming URL
+        const uploadUrl = await uploadMedia(file);
+        if (uploadUrl) {
+          setFileUrl(uploadUrl);
           toast.success("تم رفع ملف الـ HTML بنجاح إلى السحابة الدائمة! 🚀");
         } else {
           toast.success("تم استيراد كود الـ HTML بنجاح! 🚀");
@@ -103,12 +103,12 @@ export default function EmergencyContentManager() {
         setIsUploadingFile(false);
       }
     } else if (contentType === "pdf") {
-      // Upload PDF directly to Telegram Storage Cloud (bypasses Vercel 4.5MB payload limit completely)
+      // Upload the PDF through the authenticated server endpoint (streamed to storage)
       setIsUploadingFile(true);
       try {
-        const uploadRes = await uploadDirectToTelegram(file);
-        if (uploadRes?.url) {
-          setFileUrl(uploadRes.url);
+        const uploadUrl = await uploadMedia(file);
+        if (uploadUrl) {
+          setFileUrl(uploadUrl);
           setFileName(file.name);
           if (!title) setTitle(file.name.replace(/\.[^/.]+$/, ""));
           toast.success("تم رفع ملف الـ PDF بنجاح إلى السحابة الدائمة! 🚀");

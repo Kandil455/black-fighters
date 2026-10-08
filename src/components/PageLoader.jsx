@@ -1,13 +1,15 @@
 import React from "react";
-import { LottieLoader } from "@/components/ui/LottieIcons";
+import { LoaderIcon } from "@/components/ui/icons";
 
 export default function PageLoader({ message = "جاري التحميل..." }) {
   return (
     <div
+      // No inline background: it hardcoded the dark palette and inline styles
+      // cannot be theme-corrected from CSS, so the whole app appeared as a black
+      // slab over a light theme while loading.
       className="fixed inset-0 z-50 flex items-center justify-center bg-background"
       role="status"
       aria-live="polite"
-      style={{ backgroundColor: "#07080c" }}
     >
       {/* Ambient glow */}
       <div
@@ -20,7 +22,7 @@ export default function PageLoader({ message = "جاري التحميل..." }) {
       />
 
       <div className="relative z-10 flex flex-col items-center gap-4">
-        {/* Lottie loader */}
+        {/* Unified icon loader (src/components/ui/icons.jsx) */}
         <div
           className="relative flex items-center justify-center"
           style={{
@@ -31,7 +33,7 @@ export default function PageLoader({ message = "جاري التحميل..." }) {
             boxShadow: "0 0 32px rgba(0,245,255,0.2)",
           }}
         >
-          <LottieLoader className="w-14 h-14" />
+          <LoaderIcon className="w-14 h-14" />
         </div>
 
         <div className="text-center">

@@ -17,7 +17,7 @@ function createBootstrapProfile(firebaseUser) {
     subscription_status: 'inactive',
     credits: 0,
     token_balance: 0,
-    app_theme: 'dark',
+    app_theme: 'clinical',
   };
 }
 
@@ -45,7 +45,7 @@ const LOCAL_TRIAL_PROFILE = applyOwnerPrivileges({
   total_xp: 50000,
   referral_code: "ALPHA777",
   referrals_count: 99,
-  app_theme: "dark",
+  app_theme: "clinical",
   is_locked: false,
 });
 
@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }) => {
         setUser(privileged);
         setProfile(privileged);
         setIsAuthenticated(true);
-        applyTheme(privileged.app_theme || 'dark');
+        applyTheme(privileged.app_theme || 'clinical');
         return privileged;
       }
     } catch (e) {
@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }) => {
     let mounted = true;
     const init = async () => {
       if (IS_LOCAL_TRIAL) {
-        applyTheme(LOCAL_TRIAL_PROFILE.app_theme || 'dark');
+        applyTheme(LOCAL_TRIAL_PROFILE.app_theme || 'clinical');
         setUser((prev) => prev || LOCAL_TRIAL_PROFILE);
         setProfile((prev) => prev || LOCAL_TRIAL_PROFILE);
         setIsAuthenticated(true);
@@ -149,7 +149,7 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
             setProfile(null);
             setIsAuthenticated(false);
-            applyTheme('dark');
+            applyTheme('clinical');
           }
           setIsLoadingAuth(false);
           setAuthChecked(true);

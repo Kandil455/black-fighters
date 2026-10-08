@@ -2,7 +2,7 @@ import {
   collection, doc, addDoc, setDoc, getDoc, getDocs,
   updateDoc, deleteDoc, query, where, orderBy, limit,
   serverTimestamp, increment, arrayUnion, Timestamp, writeBatch,
-  onSnapshot
+  onSnapshot, documentId
 } from 'firebase/firestore';
 
 // Sort keys Firestore has already rejected (missing composite index / not a real
@@ -191,6 +191,72 @@ export const Users = {
     }
   },
 
+  /**
+   * Bounded, server-ordered query over the users collection.
+   *
+   * `Users` is hand-written (not a createEntityStore), so it previously had no
+   * `filter` at all. Callers such as the leaderboard asked for
+   * `filter({}, "-total_xp", 100)` and silently fell back to a full-collection
+   * `getAll()` + in-memory sort because the arguments were ignored.
+   *
+   * Falls back to an unordered scan only when the ordered query itself fails
+   * (missing index / unindexed field), so a bad sort key degrades instead of
+   * emptying the page.
+   */
+  async filter(filters = {}, sortOrder = null, maxResults = null) {
+    if (!db) return [];
+    const conditions = [];
+    for (const [key, value] of Object.entries(filters || {})) {
+      if (value === undefined || value === null) continue;
+      if (key === 'id') continue;
+      conditions.push(where(key, '==', value));
+    }
+
+    let desc = false;
+    let orderField = null;
+    if (typeof sortOrder === 'string' && sortOrder.trim()) {
+      desc = sortOrder.trim().startsWith('-');
+      orderField = sortOrder.trim().replace(/^[+-]/, '');
+    }
+    const max = Number(maxResults) > 0 ? Number(maxResults) : null;
+
+    try {
+      const constraints = [...conditions];
+      if (orderField) constraints.push(orderBy(orderField, desc ? 'desc' : 'asc'));
+      if (max) constraints.push(limit(max));
+      const snap = await getDocs(constraints.length ? query(collection(db, 'users'), ...constraints) : collection(db, 'users'));
+      let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      // Secondary in-memory filter for anything Firestore could not express.
+      if (!orderField && sortOrder) {
+        rows = this.sortInMemory(rows, sortOrder);
+      }
+      return max ? rows.slice(0, max) : rows;
+    } catch (err) {
+      console.warn(`[Users.filter] query failed (${err?.message}); falling back to scan`);
+      let rows = await this.getAll();
+      if (conditions.length) {
+        rows = rows.filter((row) => Object.entries(filters).every(([k, v]) => k === 'id' || v === undefined || v === null || row[k] === v));
+      }
+      if (sortOrder) rows = this.sortInMemory(rows, sortOrder);
+      return max ? rows.slice(0, max) : rows;
+    }
+  },
+
+  /** Numeric-or-string aware sort used by the fallback paths. */
+  sortInMemory(rows, sortOrder) {
+    const key = String(sortOrder || '').trim().replace(/^[+-]/, '');
+    const desc = String(sortOrder || '').trim().startsWith('-');
+    if (!key) return rows;
+    return [...rows].sort((a, b) => {
+      const av = a?.[key] ?? 0;
+      const bv = b?.[key] ?? 0;
+      if (typeof av === 'number' || typeof bv === 'number') {
+        return desc ? Number(bv || 0) - Number(av || 0) : Number(av || 0) - Number(bv || 0);
+      }
+      return desc ? String(bv).localeCompare(String(av)) : String(av).localeCompare(String(bv));
+    });
+  },
+
   async update(userId, data) {
     if (!db) return;
     await setDoc(doc(db, 'users', userId), { ...data, updatedAt: serverTimestamp() }, { merge: true });
@@ -200,6 +266,41 @@ export const Users = {
     if (!db) return null;
     const snap = await getDoc(doc(db, 'users', userId));
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  },
+
+  /**
+   * Fetches several user documents in bounded batches.
+   *
+   * Replaces `Promise.all(ids.map(id => Users.get(id)))`, which issued one request
+   * (plus one rules evaluation) per id — the N+1 that made /groups and /friends
+   * crawl before their first paint. Firestore caps `in` filters at 30 values.
+   */
+  async getMany(ids = [], { chunkSize = 30 } = {}) {
+    if (!db) return [];
+    const unique = [...new Set((Array.isArray(ids) ? ids : []).filter(Boolean).map(String))];
+    if (!unique.length) return [];
+
+    const chunks = [];
+    for (let i = 0; i < unique.length; i += chunkSize) {
+      chunks.push(unique.slice(i, i + chunkSize));
+    }
+
+    const pages = await Promise.all(
+      chunks.map(async (chunk) => {
+        try {
+          const snap = await getDocs(query(collection(db, 'users'), where(documentId(), 'in', chunk)));
+          return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        } catch (err) {
+          console.warn('[Users.getMany] batch failed, falling back:', err?.message);
+          const results = await Promise.all(chunk.map((id) => this.get(id).catch(() => null)));
+          return results.filter(Boolean);
+        }
+      }),
+    );
+
+    // Preserve the caller's requested order (rank/friend ordering depends on it).
+    const byId = new Map(pages.flat().map((user) => [user.id, user]));
+    return unique.map((id) => byId.get(id)).filter(Boolean);
   },
 };
 
@@ -675,4 +776,9 @@ export const StandaloneQuizzes = createEntityStore('standaloneQuizzes');
 export const QuizAttempts = createEntityStore('quizAttempts');
 export const Questions = createEntityStore('questions');
 export const Lessons = createEntityStore('lessons');
+// Student-reported quiz problems. The entity was referenced by BOTH the report
+// modal and the admin review tab but never defined, so `entities.FlaggedQuestion`
+// was undefined, every report was dropped by `?.create(...)`, and admins saw an
+// empty queue forever.
+export const FlaggedQuestions = createEntityStore('flaggedQuestions');
 export const AssistantConversations = createEntityStore('assistantConversations');

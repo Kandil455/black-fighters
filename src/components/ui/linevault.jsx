@@ -49,28 +49,27 @@ export function compactQty(n) {
 }
 
 /**
- * Exact port of Black Fighters «الأطلس – نسخة نضيفة (داكنة)» Logo
- * 36x36 rounded-[10px] #3DDC97 BF badge + Black Fighters title
+ * Clinical Light brand mark — navy B badge + Black Fighters wordmark
  */
 export function LVLogo({ to = "/", label = "Black Fighters", className }) {
   return (
     <Link
       to={to}
       className={cn(
-        "group inline-flex items-center gap-3 font-bold text-[19px] tracking-tight text-[#F2F3F5]",
+        "group inline-flex items-center gap-2.5 font-bold text-[18px] tracking-tight text-[#0B1F33]",
         className
       )}
     >
-      <span className="font-mono w-9 h-9 rounded-[10px] bg-[#3DDC97] text-[#04140D] inline-flex items-center justify-center text-[15px] font-medium shrink-0">
-        BF
+      <span className="w-9 h-9 rounded-md bg-[#0B1F33] text-white inline-flex items-center justify-center text-[15px] font-bold shrink-0 shadow-[0_1px_2px_rgba(11,31,51,0.15)]">
+        B
       </span>
-      <span className="font-bold text-[#F2F3F5]">{label}</span>
+      <span className="font-bold text-[#0B1F33]">{label}</span>
     </Link>
   );
 }
 
 /**
- * Exact port of Black Fighters «الأطلس – نسخة نضيفة (داكنة)» EN / ع LangSwitch
+ * Clinical Light language switch
  */
 export function LVLangSwitch({ locale, onChange, className }) {
   return (
@@ -81,7 +80,7 @@ export function LVLangSwitch({ locale, onChange, className }) {
       }
       onClick={() => onChange?.(locale === "en" ? "ar" : "en")}
       className={cn(
-        "h-[46px] px-4 rounded-[10px] border border-[#262A34] bg-[#0E1117] text-[#F2F3F5] font-medium text-[15px] hover:border-[#2C7A55] transition-colors cursor-pointer",
+        "h-[42px] px-4 rounded-md border border-[#D5DEE7] bg-white text-[#0B1F33] font-medium text-[14px] hover:border-[#2B8A9E] hover:text-[#2B8A9E] transition-colors cursor-pointer",
         className
       )}
     >
@@ -167,30 +166,30 @@ export function LineStream({
     <div className="relative">
       <div className="bf-glow" aria-hidden="true" />
       <div className="bf-card bf-float relative p-[22px] shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center justify-between pb-4 border-b border-[#1E222B]">
-          <span className="font-semibold text-[17px] text-[#F2F3F5]">
+        <div className="flex items-center justify-between pb-4 border-b border-[#D5DEE7]">
+          <span className="font-semibold text-[17px] text-[#0B1F33]">
             {isAr ? "مراجعة اليوم" : "Today's Review"}
           </span>
           <span className="bf-pill py-1 px-3 text-[13px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#3DDC97]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#2B8A9E]" />
             <span>{isAr ? "لحظي" : "Live"}</span>
           </span>
         </div>
 
         <div className="flex items-baseline gap-3 mt-5">
-          <span className="font-mono text-[68px] font-medium text-[#3DDC97] leading-none">
+          <span className="font-mono text-[68px] font-medium text-[#2B8A9E] leading-none">
             <AnimatedNumber value={38} />
           </span>
-          <span className="text-[#9AA0AE] text-[17px]">
+          <span className="text-[#5A6B7D] text-[17px]">
             {isAr ? "بطاقة مستحقة" : "cards due"}
           </span>
         </div>
 
         <div className="h-2 rounded-full bg-[#1A1E27] mt-[18px] overflow-hidden">
-          <div className="bf-progress-fill w-[62%] h-2 rounded-full bg-[#3DDC97]" />
+          <div className="bf-progress-fill w-[62%] h-2 rounded-full bg-[#2B8A9E]" />
         </div>
 
-        <div className="flex justify-between mt-2 text-[13px] text-[#8A91A0]">
+        <div className="flex justify-between mt-2 text-[13px] text-[#5A6B7D]">
           <span>{isAr ? "تم 24 من 62" : "24 of 62 completed"}</span>
           <span>{isAr ? "حوالي 9 دقايق" : "~9 minutes"}</span>
         </div>
@@ -198,10 +197,10 @@ export function LineStream({
         <div className="grid gap-2.5 mt-5">
           {pools.map((pool) => (
             <div key={pool.id} className="bf-row">
-              <span className="text-[#F2F3F5] text-[15px]">
+              <span className="text-[#0B1F33] text-[15px]">
                 {isAr ? pool.nameAr : pool.nameEn}
               </span>
-              <span className="font-mono text-[#9AA0AE] tabular">
+              <span className="font-mono text-[#5A6B7D] tabular">
                 {pool.count ?? 12}
               </span>
             </div>
@@ -210,7 +209,7 @@ export function LineStream({
 
         <Link
           to={ctaHref}
-          className="mt-5 w-full h-[52px] rounded-xl bg-[#3DDC97] text-[#04140D] font-semibold text-[17px] inline-flex items-center justify-center shadow-[0_8px_32px_rgba(61,220,151,0.28)] hover:-translate-y-0.5 transition-transform"
+          className="mt-5 w-full h-[52px] rounded-xl bg-[#2B8A9E] text-[#FFFFFF] font-semibold text-[17px] inline-flex items-center justify-center shadow-[0_8px_32px_rgba(61,220,151,0.28)] hover:-translate-y-0.5 transition-transform"
         >
           {isAr ? "ابدأ المراجعة" : "Start Review"}
         </Link>
@@ -220,7 +219,7 @@ export function LineStream({
 }
 
 /**
- * Exact port of Black Fighters Section header (.k eyebrow + 44px title + #9AA0AE subtitle)
+ * Exact port of Black Fighters Section header (.k eyebrow + 44px title + #5A6B7D subtitle)
  */
 export function Section({ id, eyebrow, title, subtitle, children, className }) {
   return (
@@ -233,11 +232,11 @@ export function Section({ id, eyebrow, title, subtitle, children, className }) {
     >
       <div className="mb-8 max-w-2xl">
         {eyebrow && <div className="bf-k">{eyebrow}</div>}
-        <h2 className="mt-2.5 text-balance text-3xl sm:text-[44px] font-bold tracking-[-0.01em] text-[#F2F3F5] leading-[1.2]">
+        <h2 className="mt-2.5 text-balance text-3xl sm:text-[44px] font-bold tracking-[-0.01em] text-[#0B1F33] leading-[1.2]">
           {title}
         </h2>
         {subtitle && (
-          <p className="mt-3.5 text-[18px] text-[#9AA0AE] leading-[1.8] max-w-[640px]">
+          <p className="mt-3.5 text-[18px] text-[#5A6B7D] leading-[1.8] max-w-[640px]">
             {subtitle}
           </p>
         )}
@@ -264,22 +263,22 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 mb-6 border-b border-[#151922]",
+        "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 mb-6 border-b border-[#D5DEE7]",
         className
       )}
     >
       <div className="space-y-2 min-w-0">
         {badge ? (
           <div className="bf-pill py-1.5 px-3.5 text-xs">
-            <span className="bf-pulse-dot size-1.5 rounded-full bg-[#3DDC97]" aria-hidden="true" />
+            <span className="bf-pulse-dot size-1.5 rounded-full bg-[#2B8A9E]" aria-hidden="true" />
             <span>{badge}</span>
           </div>
         ) : null}
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#F2F3F5] truncate">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0B1F33] truncate">
           {title}
         </h1>
         {description ? (
-          <p className="text-sm text-[#9AA0AE] max-w-2xl leading-relaxed">
+          <p className="text-sm text-[#5A6B7D] max-w-2xl leading-relaxed">
             {description}
           </p>
         ) : null}
@@ -295,7 +294,7 @@ export function PageHeader({
 }
 
 /**
- * Clean Dark Card (.c: background #0E1117, border 1px solid #1E222B, border-radius 20px)
+ * Clean Dark Card (.c: background #FFFFFF, border 1px solid #D5DEE7, border-radius 20px)
  */
 export function LVCard({
   children,
@@ -309,7 +308,7 @@ export function LVCard({
     <div
       className={cn(
         "bf-card transition-colors duration-200",
-        accent && "border-[#1F6B46]",
+        accent && "border-[#2B8A9E]",
         interactive && "bf-card-hover cursor-pointer",
         padding,
         className
@@ -324,7 +323,7 @@ export function LVCard({
 export const GlassCard = LVCard;
 
 /**
- * Clean Dark Pill / Badge (.pill: border #1F6B46, bg #0C2219, color #3DDC97)
+ * Clean Dark Pill / Badge (.pill: border #C5D9E0, bg #E6F3F6, color #2B8A9E)
  */
 export function LVBadge({
   children,
@@ -334,10 +333,10 @@ export function LVBadge({
   ...props
 }) {
   const variants = {
-    default: "border-[#262A34] text-[#9AA0AE] bg-[#11151C]",
-    neutral: "border-[#262A34] text-[#9AA0AE] bg-[#11151C]",
-    accent: "border-[#1F6B46] text-[#3DDC97] bg-[#0C2219]",
-    success: "border-[#1F6B46] text-[#3DDC97] bg-[#0C2219]",
+    default: "border-[#D5DEE7] text-[#5A6B7D] bg-[#EEF2F5]",
+    neutral: "border-[#D5DEE7] text-[#5A6B7D] bg-[#EEF2F5]",
+    accent: "border-[#C5D9E0] text-[#2B8A9E] bg-[#E6F3F6]",
+    success: "border-[#C5D9E0] text-[#2B8A9E] bg-[#E6F3F6]",
     warning: "border-[#F5A524]/40 text-[#F5A524] bg-[#F5A524]/10",
     warn: "border-[#F5A524]/40 text-[#F5A524] bg-[#F5A524]/10",
     danger: "border-[#E5484D] text-[#FF9A9D] bg-[#2A1214]",
@@ -376,25 +375,25 @@ export function StatCard({
   return (
     <LVCard padding="p-5" className={cn("flex flex-col gap-3", className)}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-[#9AA0AE]">{label}</span>
+        <span className="text-xs font-medium text-[#5A6B7D]">{label}</span>
         {Icon ? (
-          <div className="grid size-9 place-items-center rounded-xl border border-[#3DDC97]/30 bg-[#3DDC97]/10 text-[#3DDC97]">
+          <div className="grid size-9 place-items-center rounded-xl border border-[#2B8A9E]/30 bg-[#2B8A9E]/10 text-[#2B8A9E]">
             <Icon className="w-4 h-4" />
           </div>
         ) : null}
       </div>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-2xl sm:text-3xl font-semibold font-mono tabular text-[#F2F3F5] tracking-tight">
+        <span className="text-2xl sm:text-3xl font-semibold font-mono tabular text-[#0B1F33] tracking-tight">
           {numericValue !== null ? <AnimatedNumber value={numericValue} /> : value}
         </span>
         {trend ? (
-          <span className="text-xs font-mono font-semibold text-[#3DDC97]">
+          <span className="text-xs font-mono font-semibold text-[#2B8A9E]">
             {trend}
           </span>
         ) : null}
       </div>
       {caption ? (
-        <span className="text-xs text-[#8A91A0]">{caption}</span>
+        <span className="text-xs text-[#5A6B7D]">{caption}</span>
       ) : null}
     </LVCard>
   );
@@ -421,13 +420,13 @@ export function EmptyState({
       )}
     >
       {Icon ? (
-        <div className="grid size-12 place-items-center rounded-2xl border border-[#3DDC97]/30 bg-[#3DDC97]/10 text-[#3DDC97]">
+        <div className="grid size-12 place-items-center rounded-2xl border border-[#2B8A9E]/30 bg-[#2B8A9E]/10 text-[#2B8A9E]">
           <Icon className="w-6 h-6" />
         </div>
       ) : null}
-      <h3 className="text-lg font-semibold text-[#F2F3F5]">{title}</h3>
+      <h3 className="text-lg font-semibold text-[#0B1F33]">{title}</h3>
       {description ? (
-        <p className="text-sm text-[#9AA0AE] max-w-sm leading-relaxed">
+        <p className="text-sm text-[#5A6B7D] max-w-sm leading-relaxed">
           {description}
         </p>
       ) : null}
@@ -467,7 +466,7 @@ export function PricingCard({
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h3 className="text-lg font-semibold text-[#F2F3F5]">{name}</h3>
+          <h3 className="text-lg font-semibold text-[#0B1F33]">{name}</h3>
           {badge ? (
             <LVBadge variant={recommended ? "accent" : "default"}>
               {badge}
@@ -475,26 +474,26 @@ export function PricingCard({
           ) : null}
         </div>
         {subtitle ? (
-          <p className="text-xs text-[#9AA0AE] mb-4">{subtitle}</p>
+          <p className="text-xs text-[#5A6B7D] mb-4">{subtitle}</p>
         ) : null}
 
-        <div className="flex items-baseline gap-1.5 mb-6 pb-5 border-b border-[#1E222B]">
-          <span className="text-3xl font-semibold font-mono tabular text-[#F2F3F5]">
+        <div className="flex items-baseline gap-1.5 mb-6 pb-5 border-b border-[#D5DEE7]">
+          <span className="text-3xl font-semibold font-mono tabular text-[#0B1F33]">
             {price}
           </span>
           {period ? (
-            <span className="text-xs text-[#9AA0AE]">{period}</span>
+            <span className="text-xs text-[#5A6B7D]">{period}</span>
           ) : null}
         </div>
 
-        <ul className="divide-y divide-[#1E222B] text-sm mb-6">
+        <ul className="divide-y divide-[#D5DEE7] text-sm mb-6">
           {features.slice(0, 6).map((feat, idx) => (
             <li
               key={idx}
-              className="flex items-center justify-between gap-2.5 py-2.5 text-[#F2F3F5]/90"
+              className="flex items-center justify-between gap-2.5 py-2.5 text-[#0B1F33]/90"
             >
               <span>{feat}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] shrink-0" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2B8A9E] shrink-0" />
             </li>
           ))}
         </ul>
@@ -569,7 +568,7 @@ export function CopyButton({
       type="button"
       variant="secondary"
       size={compact ? "icon" : "sm"}
-      className={cn(compact && "size-8 rounded-lg", done && "text-[#3DDC97]")}
+      className={cn(compact && "size-8 rounded-lg", done && "text-[#2B8A9E]")}
       onClick={() => void onClick()}
       aria-label={label}
     >
@@ -592,13 +591,13 @@ export function CopyField({
   copiedLabel = "تم النسخ",
 }) {
   return (
-    <div className="rounded-2xl border border-[#1E222B] bg-[#0A0D13] p-4">
-      <div className="mb-2 text-xs font-medium text-[#9AA0AE]">{label}</div>
+    <div className="rounded-2xl border border-[#D5DEE7] bg-[#EEF2F5] p-4">
+      <div className="mb-2 text-xs font-medium text-[#5A6B7D]">{label}</div>
       <div className="flex items-start justify-between gap-3">
         <div
           dir="ltr"
           className={cn(
-            "min-w-0 break-all text-start font-mono text-[#F2F3F5]",
+            "min-w-0 break-all text-start font-mono text-[#0B1F33]",
             big
               ? "text-2xl font-semibold tabular sm:text-3xl"
               : "text-sm leading-relaxed"
@@ -606,7 +605,7 @@ export function CopyField({
         >
           <span className="select-all">{value}</span>
           {unit && (
-            <span className="ms-2 text-base font-medium text-[#9AA0AE]">
+            <span className="ms-2 text-base font-medium text-[#5A6B7D]">
               {unit}
             </span>
           )}
@@ -661,7 +660,7 @@ export function CountdownRing({
   const r = (size - 8) / 2;
   const c = 2 * Math.PI * r;
   const tone =
-    left < 60_000 ? "#E5484D" : left < 300_000 ? "#F5A524" : "#3DDC97";
+    left < 60_000 ? "#E5484D" : left < 300_000 ? "#F5A524" : "#2B8A9E";
   const mm = Math.floor(left / 60_000);
   const ss = Math.floor((left % 60_000) / 1000);
 
@@ -701,7 +700,7 @@ export function CountdownRing({
         />
       </svg>
       <span
-        className="absolute font-mono text-[15px] font-semibold tabular text-[#F2F3F5]"
+        className="absolute font-mono text-[15px] font-semibold tabular text-[#0B1F33]"
         dir="ltr"
       >
         {pad2(mm)}:{pad2(ss)}
@@ -715,7 +714,7 @@ function StepDot({ state }) {
     "relative z-10 grid size-7 shrink-0 place-items-center rounded-full ring-1 transition-colors duration-300";
   if (state === "done") {
     return (
-      <span className={cn(base, "bg-[#3DDC97] text-[#04140D] ring-[#3DDC97]")}>
+      <span className={cn(base, "bg-[#2B8A9E] text-[#FFFFFF] ring-[#2B8A9E]")}>
         <Check className="size-4" strokeWidth={3} aria-hidden="true" />
       </span>
     );
@@ -729,20 +728,20 @@ function StepDot({ state }) {
   }
   if (state === "current") {
     return (
-      <span className={cn(base, "bg-[#3DDC97]/10 ring-[#3DDC97]/60")}>
+      <span className={cn(base, "bg-[#2B8A9E]/10 ring-[#2B8A9E]/60")}>
         <span
           aria-hidden="true"
-          className="absolute inset-0 rounded-full bg-[#3DDC97]/30 motion-safe:animate-ping"
+          className="absolute inset-0 rounded-full bg-[#2B8A9E]/30 motion-safe:animate-ping"
         />
         <span
           aria-hidden="true"
-          className="relative size-2.5 rounded-full bg-[#3DDC97]"
+          className="relative size-2.5 rounded-full bg-[#2B8A9E]"
         />
       </span>
     );
   }
   return (
-    <span className={cn(base, "ring-[#262A34]")}>
+    <span className={cn(base, "ring-[#D5DEE7]")}>
       <span aria-hidden="true" className="size-1.5 rounded-full bg-white/20" />
     </span>
   );
@@ -769,8 +768,8 @@ export function Stepper({ steps = [] }) {
                 className={cn(
                   "absolute start-[13px] top-7 bottom-0 w-px transition-colors duration-500",
                   s.state === "done"
-                    ? "bg-[#3DDC97]/60"
-                    : "bg-[#262A34]"
+                    ? "bg-[#2B8A9E]/60"
+                    : "bg-[#D5DEE7]"
                 )}
               />
             )}
@@ -779,13 +778,13 @@ export function Stepper({ steps = [] }) {
               <div
                 className={cn(
                   "text-sm font-medium",
-                  s.state === "pending" ? "text-[#8A91A0]" : "text-[#F2F3F5]"
+                  s.state === "pending" ? "text-[#5A6B7D]" : "text-[#0B1F33]"
                 )}
               >
                 {s.label}
               </div>
               {s.sub && (
-                <div className="mt-0.5 text-xs text-[#9AA0AE] tabular">
+                <div className="mt-0.5 text-xs text-[#5A6B7D] tabular">
                   {s.sub}
                 </div>
               )}
@@ -803,7 +802,7 @@ export function Stepper({ steps = [] }) {
 export function ConnBadge({ mode = "sse", isEn = false }) {
   const map = {
     sse: {
-      dot: "bg-[#3DDC97]",
+      dot: "bg-[#2B8A9E]",
       ping: true,
       text: isEn ? "Live" : "مباشر",
     },
@@ -818,7 +817,7 @@ export function ConnBadge({ mode = "sse", isEn = false }) {
       text: isEn ? "Reconnecting…" : "إعادة اتصال…",
     },
   }[mode] || {
-    dot: "bg-[#3DDC97]",
+    dot: "bg-[#2B8A9E]",
     ping: true,
     text: isEn ? "Live" : "مباشر",
   };
@@ -826,7 +825,7 @@ export function ConnBadge({ mode = "sse", isEn = false }) {
   return (
     <span
       aria-live="polite"
-      className="inline-flex items-center gap-2 rounded-full border border-[#1E222B] bg-[#0A0D13] px-3 py-1 text-xs font-medium text-[#9AA0AE]"
+      className="inline-flex items-center gap-2 rounded-full border border-[#D5DEE7] bg-[#EEF2F5] px-3 py-1 text-xs font-medium text-[#5A6B7D]"
     >
       <span className="relative flex size-2">
         {map.ping && (
@@ -854,7 +853,7 @@ export function ConnBadge({ mode = "sse", isEn = false }) {
 export function AnimatedCheck() {
   const reduce = useReducedMotion();
   return (
-    <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-[#3DDC97]/40 bg-[#3DDC97]/10 text-[#3DDC97]">
+    <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-[#2B8A9E]/40 bg-[#2B8A9E]/10 text-[#2B8A9E]">
       <svg
         viewBox="0 0 24 24"
         className="size-8"
@@ -895,10 +894,10 @@ export function AvailabilityBar({
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between gap-3 text-xs">
-        <span className="font-medium uppercase tracking-wider text-[#8A91A0]">
+        <span className="font-medium uppercase tracking-wider text-[#5A6B7D]">
           {label}
         </span>
-        <span className="font-mono text-[#9AA0AE] tabular" dir="ltr">
+        <span className="font-mono text-[#5A6B7D] tabular" dir="ltr">
           {formatInt(available)} {availableSuffix}
         </span>
       </div>
@@ -913,7 +912,7 @@ export function AvailabilityBar({
         <div
           className={cn(
             "h-full rounded-full transition-[width,background-color] duration-500",
-            low ? "bg-[#F5A524]" : "bg-[#3DDC97]"
+            low ? "bg-[#F5A524]" : "bg-[#2B8A9E]"
           )}
           style={{ width: `${Math.max(pct, 4)}%` }}
         />
@@ -935,7 +934,7 @@ export function TierList({
   const sorted = [...tiers].sort((a, b) => a.min_qty - b.min_qty);
   const base = sorted[0]?.unit_price || 1;
   return (
-    <ul className="divide-y divide-[#1E222B] text-sm">
+    <ul className="divide-y divide-[#D5DEE7] text-sm">
       {sorted.map((tier, i) => {
         const pct = base
           ? Math.round((1 - tier.unit_price / base) * 100)
@@ -947,21 +946,21 @@ export function TierList({
             aria-current={isActive ? "true" : undefined}
             className={cn(
               "flex items-center justify-between gap-3 py-2.5",
-              isActive && "-mx-3 rounded-lg bg-[#3DDC97]/[0.08] px-3"
+              isActive && "-mx-3 rounded-lg bg-[#2B8A9E]/[0.08] px-3"
             )}
           >
-            <span className="text-[#9AA0AE] tabular" dir="ltr">
+            <span className="text-[#5A6B7D] tabular" dir="ltr">
               {compactQty(tier.min_qty)}+ {isEn ? "Credits" : unitLabel}
             </span>
             <span className="flex items-center gap-2">
               {i > 0 && pct > 0 && (
-                <span className="rounded-full bg-[#3DDC97]/10 border border-[#3DDC97]/25 px-2 py-0.5 text-xs text-[#3DDC97]">
+                <span className="rounded-full bg-[#2B8A9E]/10 border border-[#2B8A9E]/25 px-2 py-0.5 text-xs text-[#2B8A9E]">
                   {isEn ? `Save ${pct}%` : `وفّر ${pct}%`}
                 </span>
               )}
-              <span className="font-mono tabular text-[#F2F3F5]" dir="ltr">
+              <span className="font-mono tabular text-[#0B1F33]" dir="ltr">
                 {tier.unit_price.toFixed(2)} {isEn ? "EGP" : currencyLabel}
-                <span className="text-[#8A91A0]">
+                <span className="text-[#5A6B7D]">
                   {" "}
                   / {isEn ? "cr" : unitLabel}
                 </span>
@@ -1133,13 +1132,13 @@ export function LVConfigurator({
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <label
               htmlFor={inputId}
-              className="text-sm font-medium text-[#9AA0AE]"
+              className="text-sm font-medium text-[#5A6B7D]"
             >
               {isEn
                 ? "How many credits do you need?"
                 : "كم نقطة كريدت تحتاج؟"}
             </label>
-            <span className="text-xs font-mono text-[#8A91A0]" dir="ltr">
+            <span className="text-xs font-mono text-[#5A6B7D]" dir="ltr">
               {isEn ? "Between 100 and 10,000" : "بين 100 و 10,000 نقطة"}
             </span>
           </div>
@@ -1155,9 +1154,9 @@ export function LVConfigurator({
               value={raw}
               onChange={handleRawInput}
               onBlur={() => setRaw(formatInt(qty))}
-              className="h-16 w-full rounded-xl border border-[#1E222B] bg-[#0A0D13] px-4 pe-24 font-mono text-3xl font-semibold tabular text-[#F2F3F5] focus:border-[#3DDC97]/60 focus:outline-none"
+              className="h-16 w-full rounded-xl border border-[#D5DEE7] bg-[#EEF2F5] px-4 pe-24 font-mono text-3xl font-semibold tabular text-[#0B1F33] focus:border-[#2B8A9E]/60 focus:outline-none"
             />
-            <span className="pointer-events-none absolute inset-y-0 right-5 flex items-center font-mono text-sm text-[#8A91A0]">
+            <span className="pointer-events-none absolute inset-y-0 right-5 flex items-center font-mono text-sm text-[#5A6B7D]">
               {isEn ? "Credits" : "نقطة"}
             </span>
           </div>
@@ -1172,10 +1171,10 @@ export function LVConfigurator({
               value={sliderIdx}
               onChange={handleSlider}
               aria-label={isEn ? "Credit Quantity" : "كمية الكريدتس"}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[#3DDC97]"
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[#2B8A9E]"
             />
             <div
-              className="flex items-center justify-between font-mono text-xs text-[#8A91A0] tabular"
+              className="flex items-center justify-between font-mono text-xs text-[#5A6B7D] tabular"
               dir="ltr"
             >
               <span>100</span>
@@ -1204,8 +1203,8 @@ export function LVConfigurator({
                   className={cn(
                     "h-9 rounded-full border px-3.5 font-mono text-sm tabular transition-colors",
                     active
-                      ? "border-[#3DDC97]/60 bg-[#3DDC97]/10 text-[#3DDC97]"
-                      : "border-[#1E222B] bg-[#0A0D13] text-[#9AA0AE] hover:border-[#262A34] hover:text-[#F2F3F5]"
+                      ? "border-[#2B8A9E]/60 bg-[#2B8A9E]/10 text-[#2B8A9E]"
+                      : "border-[#D5DEE7] bg-[#EEF2F5] text-[#5A6B7D] hover:border-[#D5DEE7] hover:text-[#0B1F33]"
                   )}
                 >
                   {compactQty(n)}
@@ -1216,8 +1215,8 @@ export function LVConfigurator({
         </div>
 
         {/* Tier Breakdown */}
-        <div className="border-t border-[#1E222B] pt-6">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[#8A91A0]">
+        <div className="border-t border-[#D5DEE7] pt-6">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[#5A6B7D]">
             {isEn ? "Volume Pricing Tiers" : "شرائح التسعير حسب الكمية"}
           </p>
           <TierList
@@ -1228,7 +1227,7 @@ export function LVConfigurator({
         </div>
 
         {/* Pool Availability Bar (1:1 joyful-heisenberg AvailabilityBar) */}
-        <div className="border-t border-[#1E222B] pt-5">
+        <div className="border-t border-[#D5DEE7] pt-5">
           <AvailabilityBar
             available={poolAvailable}
             max={poolAvailable}
@@ -1241,17 +1240,17 @@ export function LVConfigurator({
 
       {/* Live Quote + CountdownRing + Stepper Terminal (1:1 joyful-heisenberg configurator.tsx + checkout-view.tsx) */}
       <GlassCard className="space-y-5 p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-3 border-b border-[#1E222B] pb-4">
+        <div className="flex items-start justify-between gap-3 border-b border-[#D5DEE7] pb-4">
           <div>
             <div className="mb-2">
               <ConnBadge mode="sse" isEn={isEn} />
             </div>
-            <p className="text-sm font-medium text-[#9AA0AE]">
+            <p className="text-sm font-medium text-[#5A6B7D]">
               {isEn ? "Total" : "الإجمالي"}
             </p>
-            <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#F2F3F5]">
+            <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#0B1F33]">
               <AnimatedNumber value={quote.totalEgp} />
-              <span className="text-base font-normal text-[#9AA0AE]">
+              <span className="text-base font-normal text-[#5A6B7D]">
                 {isEn ? "EGP" : "ج.م"}
               </span>
             </div>
@@ -1278,7 +1277,7 @@ export function LVConfigurator({
             )}
           </div>
 
-          <p className="mt-2.5 flex items-center gap-1.5 text-xs text-[#3DDC97]">
+          <p className="mt-2.5 flex items-center gap-1.5 text-xs text-[#2B8A9E]">
             <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
             <span>
               {isEn
@@ -1288,7 +1287,7 @@ export function LVConfigurator({
           </p>
 
           {quote.savingsEgp > 0 && (
-            <p className="mt-1 text-xs font-mono text-[#9AA0AE]">
+            <p className="mt-1 text-xs font-mono text-[#5A6B7D]">
               {isEn
                 ? `You save ${quote.savingsEgp} EGP vs base rate`
                 : `توفّر ${quote.savingsEgp} ج.م مقارنة بالسعر الأساسي`}
@@ -1300,10 +1299,10 @@ export function LVConfigurator({
           <button
             type="button"
             onClick={() => applyQty(quote.nextTier.min_qty)}
-            className="flex w-full items-center gap-2 rounded-xl border border-[#1E222B] bg-[#0A0D13] px-3 py-2.5 text-start text-xs text-[#9AA0AE] transition-colors hover:border-[#3DDC97]/40 hover:text-[#F2F3F5]"
+            className="flex w-full items-center gap-2 rounded-xl border border-[#D5DEE7] bg-[#EEF2F5] px-3 py-2.5 text-start text-xs text-[#5A6B7D] transition-colors hover:border-[#2B8A9E]/40 hover:text-[#0B1F33]"
           >
             <TrendingDown
-              className="size-4 shrink-0 text-[#3DDC97]"
+              className="size-4 shrink-0 text-[#2B8A9E]"
               aria-hidden="true"
             />
             <span>
@@ -1315,15 +1314,15 @@ export function LVConfigurator({
         )}
 
         {/* Live Order Status Stepper (1:1 joyful-heisenberg checkout-view.tsx) */}
-        <div className="rounded-2xl border border-[#1E222B] bg-[#0A0D13] p-4 space-y-3">
+        <div className="rounded-2xl border border-[#D5DEE7] bg-[#EEF2F5] p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-[#8A91A0]">
+            <span className="text-xs font-medium uppercase tracking-wider text-[#5A6B7D]">
               {isEn ? "Live Delivery Flow" : "مراحل التسليم المباشر"}
             </span>
             <button
               type="button"
               onClick={() => setDemoStage((s) => (s + 1) % 4)}
-              className="font-mono text-[11px] text-[#3DDC97] hover:underline"
+              className="font-mono text-[11px] text-[#2B8A9E] hover:underline"
             >
               {isEn ? "Preview stage →" : "معاينة المرحلة ←"}
             </button>
@@ -1339,7 +1338,7 @@ export function LVConfigurator({
                 className="py-2 text-center space-y-2"
               >
                 <AnimatedCheck />
-                <p className="text-sm font-semibold text-[#F2F3F5]">
+                <p className="text-sm font-semibold text-[#0B1F33]">
                   {isEn ? "Credits Ready in Ledger" : "الرصيد جاهز في حسابك"}
                 </p>
               </motion.div>
@@ -1372,8 +1371,8 @@ export function LVConfigurator({
           </Button>
         )}
 
-        <p className="flex items-start gap-2 text-xs text-[#8A91A0]">
-          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[#3DDC97]" />
+        <p className="flex items-start gap-2 text-xs text-[#5A6B7D]">
+          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[#2B8A9E]" />
           <span>
             {isEn
               ? "Unique order locked for 15 minutes. Auto-delivered on confirmation."

@@ -58,6 +58,42 @@ export const SUMMARY_COLOR_PROFILES = Object.freeze({
 const allLanguages = Object.freeze(["ar", "en", "bilingual"]);
 
 export const SUMMARY_TEMPLATE_REGISTRY = Object.freeze({
+  /**
+   * Atlas V5 "شرح من الأساس" — the template the Create Course dialog defaults to.
+   *
+   * It was missing from this registry while the picker offered it, so the default
+   * create-course flow threw `UNKNOWN_SUMMARY_TEMPLATE:foundational_bilingual`
+   * and no summary could be generated at all.
+   */
+  foundational_bilingual: Object.freeze({
+    id: "foundational_bilingual",
+    version: 1,
+    label: "Foundational Bilingual",
+    // Must accept every mode the create dialog offers: pinning this to
+    // "bilingual" made picking English fail with a language conflict.
+    supportedLanguages: allLanguages,
+    structure: Object.freeze({
+      requiresOverview: true,
+      requiresConclusion: true,
+      minSections: 1,
+      maxSections: 20,
+      requiredRolesPerSection: Object.freeze(["english_points", "arabic_explanation"]),
+    }),
+  }),
+  /** Atlas Cram "برشامة ليلة الامتحان" — the "fast" depth toggle. */
+  atlas_cram: Object.freeze({
+    id: "atlas_cram",
+    version: 1,
+    label: "Atlas Cram Sheet",
+    supportedLanguages: allLanguages,
+    structure: Object.freeze({
+      requiresOverview: true,
+      requiresConclusion: true,
+      minSections: 1,
+      maxSections: 24,
+      requiredRolesPerSection: Object.freeze([]),
+    }),
+  }),
   bilingual_lecture: Object.freeze({
     id: "bilingual_lecture",
     version: 1,

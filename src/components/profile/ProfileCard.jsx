@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Zap, Flame, Shield } from "lucide-react";
-import { CreditCoin3D } from "@/components/ui/Custom3DIcons";
+import { PaymentIcon } from "@/components/ui/icons";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import Avatar3DOrbit from "@/components/profile/Avatar3DOrbit";
 import Tilt3DCard from "@/components/profile/Tilt3DCard";
@@ -54,9 +54,13 @@ export default function ProfileCard({ user }) {
           {user?.bio && <p className="text-sm text-muted-foreground text-center mt-3 max-w-md">{user.bio}</p>}
           <div className="flex items-center gap-3 mt-3 text-sm">
             <span className="flex items-center gap-1.5 text-amber-400 font-bold bg-amber-400/10 px-2.5 py-1 rounded-xl border border-amber-400/25">
-              <CreditCoin3D size={18} /> {user?.credits ?? 0}
+              <PaymentIcon size={18} /> {user?.credits ?? 0}
             </span>
-            <span className="flex items-center gap-1 font-bold" style={{ color: accentHex }}>
+            {/* The XP figure used the profile accent as its TEXT colour. The
+                default accent is neon cyan (#00e5ff), which measures 1.54:1 on a
+                white page — effectively invisible. The accent stays for the
+                decorative glow/border above; the number itself is ink. */}
+            <span className="flex items-center gap-1 font-bold text-foreground">
               <Zap className="w-4 h-4" /> {user?.total_xp ?? 0} XP
             </span>
             {(user?.current_streak ?? 0) > 0 && (

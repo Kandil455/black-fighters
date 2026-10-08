@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { Loader2, Trash2, ChevronDown, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { AnimatedTheoryQuiz } from "@/components/ui/AnimatedMicroIcons";
+import { TheoryQuizIcon } from "@/components/ui/icons";
 
 import QuizGeneratorPanel from "@/components/quiz/QuizGeneratorPanel";
 import QuizCard from "@/components/quiz/QuizCard";
@@ -96,7 +96,7 @@ export default function Quizzes() {
         transition={{ type: "spring", stiffness: 200, damping: 16 }}
       >
         <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-lg shadow-indigo-500/10">
-          <AnimatedTheoryQuiz size={30} />
+          <TheoryQuizIcon size={30} />
         </div>
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 text-[10px] font-mono font-bold tracking-wider mb-1">

@@ -2,11 +2,40 @@
 // القيم بصيغة HSL (نفس صيغة index.css) بدون hsl()
 
 export const THEMES = {
+  clinical: {
+    key: "clinical",
+    name: "سريري فاتح",
+    nameEn: "Clinical Light",
+    emoji: "",
+    preview: ["#0B1F33", "#F6F8FA", "#2B8A9E"],
+    isLight: true,
+    atlasTheme: "focus",
+    vars: {
+      "--background": "210 20% 97%",
+      "--foreground": "207 65% 12%",
+      "--card": "0 0% 100%",
+      "--card-foreground": "207 65% 12%",
+      "--popover": "0 0% 100%",
+      "--popover-foreground": "207 65% 12%",
+      "--primary": "207 65% 12%",
+      "--primary-foreground": "0 0% 100%",
+      "--secondary": "204 18% 94%",
+      "--secondary-foreground": "207 65% 12%",
+      "--muted": "204 18% 94%",
+      "--muted-foreground": "210 16% 42%",
+      "--accent": "191 57% 39%",
+      "--accent-foreground": "0 0% 100%",
+      "--border": "210 18% 87%",
+      "--input": "210 18% 87%",
+      "--ring": "191 57% 39%",
+    },
+  },
+
   dark: {
     key: "dark",
     name: "نيون داكن",
     nameEn: "Dark Neon",
-    emoji: "🌌",
+    emoji: "",
     preview: ["#00e5ff", "#0a0a14", "#a855f7"],
     isLight: false,
     vars: {
@@ -34,27 +63,27 @@ export const THEMES = {
     key: "light",
     name: "أبيض ناصع",
     nameEn: "Clean Light",
-    emoji: "☀️",
-    preview: ["#0ea5e9", "#ffffff", "#7c3aed"],
+    emoji: "",
+    preview: ["#0B1F33", "#ffffff", "#2B8A9E"],
     isLight: true,
     vars: {
-      "--background": "0 0% 100%",
-      "--foreground": "240 20% 10%",
+      "--background": "210 20% 97%",
+      "--foreground": "207 65% 12%",
       "--card": "0 0% 100%",
-      "--card-foreground": "240 20% 10%",
+      "--card-foreground": "207 65% 12%",
       "--popover": "0 0% 100%",
-      "--popover-foreground": "240 20% 10%",
-      "--primary": "199 89% 48%",
+      "--popover-foreground": "207 65% 12%",
+      "--primary": "207 65% 12%",
       "--primary-foreground": "0 0% 100%",
-      "--secondary": "240 10% 95%",
-      "--secondary-foreground": "240 20% 12%",
-      "--muted": "240 10% 95%",
-      "--muted-foreground": "240 6% 42%",
-      "--accent": "262 83% 58%",
+      "--secondary": "204 18% 94%",
+      "--secondary-foreground": "207 65% 12%",
+      "--muted": "204 18% 94%",
+      "--muted-foreground": "210 16% 42%",
+      "--accent": "191 57% 39%",
       "--accent-foreground": "0 0% 100%",
-      "--border": "240 12% 88%",
-      "--input": "240 12% 88%",
-      "--ring": "199 89% 48%",
+      "--border": "210 18% 87%",
+      "--input": "210 18% 87%",
+      "--ring": "191 57% 39%",
     },
   },
 
@@ -269,15 +298,15 @@ export const ATLAS_READER_THEMES = Object.freeze([
 export const THEME_LIST = Object.values(THEMES);
 
 export function applyTheme(key) {
-  const theme = THEMES[key] || THEMES.dark;
+  const theme = THEMES[key] || THEMES.clinical;
   const root = document.documentElement;
   Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v));
   if (theme.atlasTheme) {
     root.dataset.theme = theme.atlasTheme;
   } else {
-    root.dataset.theme = theme.isLight ? "plate" : "night";
+    root.dataset.theme = theme.isLight ? "focus" : "night";
   }
-  // للثيم الفاتح نضيف class عشان أي ستايلات معتمدة على الوضوح
   root.classList.toggle("theme-light", !!theme.isLight);
+  root.classList.toggle("dark", !theme.isLight);
   return theme;
 }

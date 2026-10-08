@@ -1,831 +1,2228 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-  ArrowRight,
-  ChevronDown,
-  Send,
-  Check,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  GlassCard,
-  AnimatedNumber,
-  LineStream,
-  Section,
-  LVLogo,
-  LVLangSwitch,
-  LVConfigurator,
-  AvailabilityBar,
-  reveal,
-  rise,
-} from "@/components/ui/linevault";
-import { useAuth } from "@/lib/AuthContext";
-import { useLocale } from "@/lib/LocaleContext";
-import { cn } from "@/lib/utils";
-
-const SUBJECT_CHIPS = [
-  { ar: "التشريح", en: "Anatomy" },
-  { ar: "الفسيولوجي", en: "Physiology" },
-  { ar: "الباثولوجي", en: "Pathology" },
-  { ar: "الأدوية", en: "Pharmacology" },
-  { ar: "الميكروبيولوجي", en: "Microbiology" },
-  { ar: "الباطنة", en: "Internal Medicine" },
-  { ar: "الجراحة", en: "Surgery" },
-  { ar: "الأطفال", en: "Pediatrics" },
-];
-
-const HOW_STEPS = [
-  {
-    num: "01",
-    titleAr: "ارفع المحاضرة",
-    titleEn: "Upload the Lecture",
-    descAr: "PDF أو سلايدات أو صور، لحد 1000 صفحة في الملف الواحد.",
-    descEn: "PDF, slides, or images — up to 1,000 pages in a single file.",
-  },
-  {
-    num: "02",
-    titleAr: "الملخص بيتكتب",
-    titleEn: "Summary Is Written",
-    descAr: "شرح كامل من الأساس، وكل معلومة ليها صفحة مصدر تفتحها.",
-    descEn: "Complete foundational explanation with every fact linked to its source page.",
-  },
-  {
-    num: "03",
-    titleAr: "ذاكر وراجع",
-    titleEn: "Study & Review",
-    descAr: "على الموقع أو تيليجرام، مع كويز وبطاقات مراجعة.",
-    descEn: "On the web or Telegram, with active-recall quizzes and FSRS flashcards.",
-  },
-];
-
-const PRICING_TIERS = [
-  {
-    id: "free",
-    nameAr: "الباقة الأساسية (Free)",
-    nameEn: "Free Starter",
-    ctaAr: "ابدأ مجاناً",
-    ctaEn: "Start Free",
-    href: "/register",
-    recommended: false,
-    rows: [
-      { labelAr: "تلخيص محاضرات أساسي", labelEn: "Core Lecture Summaries", valueAr: "مشمول", valueEn: "Included" },
-      { labelAr: "قالب «قبل ما تقرا»", labelEn: "Foundational Bilingual", valueAr: "مشمول", valueEn: "Included" },
-      { labelAr: "بطاقات المراجعة FSRS", labelEn: "FSRS Flashcards", valueAr: "يومي", valueEn: "Daily" },
-      { labelAr: "السعر الشهري", labelEn: "Monthly Price", valueAr: "0 ج.م", valueEn: "0 EGP" },
-    ],
-  },
-  {
-    id: "pro",
-    nameAr: "باقة المحترفين (Pro)",
-    nameEn: "Pro Fighter",
-    ctaAr: "اشترك في Pro",
-    ctaEn: "Choose Pro",
-    href: "/subscriptions?plan=pro",
-    recommended: true,
-    saveAr: "وفّر 25%",
-    saveEn: "Save 25%",
-    rows: [
-      { labelAr: "رصيد الكريدتس الشهري", labelEn: "Monthly AI Credits", valueAr: "900 نقطة", valueEn: "900 Credits", highlight: true },
-      { labelAr: "توثيق الصفحة + تدقيق الجرعات", labelEn: "Page Citations + Dosage Verifier", valueAr: "مفعّل", valueEn: "Active" },
-      { labelAr: "تصدير HTML + PDF + تيليجرام", labelEn: "HTML + PDF + Telegram Bot", valueAr: "غير محدود", valueEn: "Unlimited" },
-      { labelAr: "السعر الشهري", labelEn: "Monthly Price", valueAr: "149 ج.م / شهر", valueEn: "149 EGP / mo" },
-    ],
-  },
-  {
-    id: "supreme",
-    nameAr: "الباقة القصوى (Supreme)",
-    nameEn: "Supreme Max",
-    ctaAr: "اختر Supreme",
-    ctaEn: "Choose Supreme",
-    href: "/subscriptions?plan=supreme",
-    recommended: false,
-    saveAr: "وفّر 40%",
-    saveEn: "Save 40%",
-    rows: [
-      { labelAr: "محرك المراجع حتى 1000 صفحة", labelEn: "1,000-Page Textbook Engine", valueAr: "2,500 نقطة", valueEn: "2,500 Credits", highlight: true },
-      { labelAr: "أولوية قصوى في طابور المعالجة", labelEn: "Priority Queue", valueAr: "فوري", valueEn: "Instant" },
-      { labelAr: "مزامنة كاملة مع بوت تيليجرام", labelEn: "Full Telegram Bot Sync", valueAr: "مشمول", valueEn: "Included" },
-      { labelAr: "السعر الشهري", labelEn: "Monthly Price", valueAr: "249 ج.م / شهر", valueEn: "249 EGP / mo" },
-    ],
-  },
-];
-
-const FAQ_ITEMS = [
-  {
-    qAr: "إزاي الموقع بيلخص ملفات لحد 1000 صفحة من غير ما يطير نص الكلام؟",
-    qEn: "How does the platform summarize up to 1,000 pages without skipping content?",
-    aAr: "الملف بيتقسم فصول منظمة مع قاموس مصطلحات ثابت، وكل فقرة في الملخص بتفضل مربوطة برقم صفحتها الأصلية في الـ PDF.",
-    aEn: "Large PDFs are partitioned into chapters with a locked glossary, and every paragraph remains linked to its source PDF page.",
-  },
-  {
-    qAr: "يعني إيه «قبل ما تقرا» جوه الملخص؟",
-    qEn: "What is the 'Before You Read' box inside each summary?",
-    aAr: "قبل ما يدخل في تفاصيل الأدوية أو الفسيولوجي، بيبدأ بصندوق يمهد الفكرة الأساسية من الصفر بالعربي البسيط مع المصطلح الإنجليزي في مكانه.",
-    aEn: "Each section starts with a foundational prerequisite bridge in clear Arabic while preserving exact English medical terminology inline.",
-  },
-  {
-    qAr: "إزاي بكمل مذاكرة من تيليجرام؟",
-    qEn: "How do I continue studying from Telegram?",
-    aAr: "أول ما الملخص يخلص، البوت بيبعتلك إشعار تقدر منه تفتح القارئ، تستلم الـ PDF، أو تحل الكويز وبطاقات المراجعة مباشرة.",
-    aEn: "Once your summary is ready, the Telegram bot lets you open the reader, download the PDF, or answer quizzes and flashcards right away.",
-  },
-  {
-    qAr: "لو عملية التلخيص وقفت لأي سبب، الكريدتس بتروح عليا؟",
-    qEn: "Are my credits safe if a generation job fails?",
-    aAr: "لا نهائياً. الرصيد بيتحجز مؤقتاً بس، ولو حصل أي خطأ بيرجع لحسابك تلقائياً 100%.",
-    aEn: "Never. Credits are reserved in a double-entry ledger and automatically refunded 100% if any chapter fails.",
-  },
-];
+import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function Landing() {
   const { user } = useAuth();
-  const { locale, dir, setLocale } = useLocale();
-  const navigate = useNavigate();
-  const isAr = locale !== "en";
 
-  const [cardFlipped, setCardFlipped] = useState(false);
-  const [declassified, setDeclassified] = useState({
-    d1: false,
-    d2: false,
-    d3: false,
+  // Theme state
+  const [theme, setTheme] = useState(() => {
+    try {
+      const stored = localStorage.getItem('bf_theme');
+      if (stored) return stored;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
   });
-  const [selectedQuizOption, setSelectedQuizOption] = useState(null);
-  const [openFaq, setOpenFaq] = useState(0);
 
-  const primaryHref = user ? "/dashboard" : "/register";
-  const loginHref = user ? "/dashboard" : "/login";
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [openFaqIndex, setOpenFaqIndex] = useState(null);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterStatus, setNewsletterStatus] = useState({ text: '', type: '' });
+  const [pricesUpdating, setPricesUpdating] = useState(false);
 
-  const navLinks = [
-    { href: "#summary", label: isAr ? "المكتبة" : "Library" },
-    { href: "#study-now", label: isAr ? "الكورسات" : "Study Now" },
-    { href: "#how", label: isAr ? "إزاي بيشتغل" : "How it works" },
-    { href: "#pricing", label: isAr ? "الأسعار" : "Pricing" },
-    { href: "#faq", label: isAr ? "الأسئلة" : "FAQ" },
-  ];
+  // Refs
+  const progressLineRef = useRef(null);
+  const cursorDotRef = useRef(null);
+  const headerRef = useRef(null);
+  const heroHeadlineRef = useRef(null);
+  const heroGuidesRef = useRef(null);
+  const manifestoRef = useRef(null);
+  const footerWordmarkRef = useRef(null);
 
-  const toggleDeclassify = (key) => {
-    setDeclassified((prev) => ({ ...prev, [key]: !prev[key] }));
+  const authTarget = user ? '/dashboard' : '/register';
+
+  // Apply theme & force document styles
+  useEffect(() => {
+    const originalDir = document.documentElement.dir || 'rtl';
+    const originalLang = document.documentElement.lang || 'ar';
+    const originalBg = document.body.style.backgroundColor;
+    const originalColor = document.body.style.color;
+
+    document.documentElement.dir = 'ltr';
+    document.documentElement.lang = 'en';
+    document.documentElement.setAttribute('data-theme', theme);
+
+    const isDark = theme === 'dark';
+    const bg = isDark ? '#0c0c0b' : '#f3f1ec';
+    const text = isDark ? '#f1efe9' : '#0d0d0c';
+
+    document.body.style.backgroundColor = bg;
+    document.body.style.color = text;
+
+    try {
+      localStorage.setItem('bf_theme', theme);
+    } catch {}
+
+    const meta = document.getElementById('theme-color-meta');
+    if (meta) meta.setAttribute('content', bg);
+
+    return () => {
+      document.documentElement.dir = originalDir;
+      document.documentElement.lang = originalLang;
+      document.body.style.backgroundColor = originalBg;
+      document.body.style.color = originalColor;
+    };
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const handleBillingToggle = (cycle) => {
+    if (cycle === billingCycle) return;
+    setPricesUpdating(true);
+    setTimeout(() => {
+      setBillingCycle(cycle);
+      setPricesUpdating(false);
+    }, 180);
+  };
+
+  const handleNewsletterSubmit = (e) => {
+    e.preventDefault();
+    const val = newsletterEmail.trim();
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!val) {
+      setNewsletterStatus({ text: 'Email required.', type: 'error' });
+    } else if (!regex.test(val)) {
+      setNewsletterStatus({ text: 'Please enter a valid email address.', type: 'error' });
+    } else {
+      setNewsletterStatus({ text: 'Subscribed to quarterly updates.', type: 'success' });
+      setNewsletterEmail('');
+    }
+  };
+
+  // Scroll & Animation Engine
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isLowEnd = Boolean(
+      (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+      (navigator.connection && navigator.connection.saveData)
+    );
+    const shouldAnimate = !prefersReduced && !isLowEnd;
+
+    // 1. Hero Reveal
+    if (heroGuidesRef.current) heroGuidesRef.current.classList.add('loaded');
+    const heroTimer = setTimeout(() => {
+      if (heroHeadlineRef.current) heroHeadlineRef.current.classList.add('revealed');
+    }, 100);
+
+    // 2. Manifesto Word Wrapping
+    let manifestoWords = [];
+    if (manifestoRef.current) {
+      const originalHtml = manifestoRef.current.innerHTML;
+      const words = originalHtml.trim().split(/\s+/);
+      manifestoRef.current.innerHTML = words
+        .map((w) => `<span class="manifesto-word">${w}</span>`)
+        .join(' ');
+      manifestoWords = manifestoRef.current.querySelectorAll('.manifesto-word');
+    }
+
+    // 3. Scroll Handling
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+    let headerHidden = false;
+
+    const onScroll = () => {
+      const scrollY = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = docHeight > 0 ? scrollY / docHeight : 0;
+
+      if (progressLineRef.current) {
+        progressLineRef.current.style.transform = `scaleX(${Math.min(Math.max(progress, 0), 1)})`;
+      }
+
+      if (headerRef.current) {
+        if (scrollY > 24) {
+          headerRef.current.classList.add('scrolled');
+        } else {
+          headerRef.current.classList.remove('scrolled');
+        }
+
+        if (scrollY > 120 && scrollY > lastScrollY && !headerHidden) {
+          headerRef.current.classList.add('header-hidden');
+          headerHidden = true;
+        } else if (scrollY < lastScrollY && headerHidden) {
+          headerRef.current.classList.remove('header-hidden');
+          headerHidden = false;
+        }
+      }
+
+      if (shouldAnimate && heroHeadlineRef.current) {
+        const drift = Math.min(scrollY * 0.18, 60);
+        heroHeadlineRef.current.style.transform = `translateY(-${drift}px)`;
+      }
+
+      if (shouldAnimate && manifestoRef.current && manifestoWords.length > 0) {
+        const rect = manifestoRef.current.getBoundingClientRect();
+        const winH = window.innerHeight;
+        const ratio = (winH - rect.top) / (winH + rect.height * 0.75);
+        const clampedRatio = Math.max(0, Math.min(1, ratio));
+        const activeIdx = Math.floor(clampedRatio * manifestoWords.length);
+
+        for (let i = 0; i < manifestoWords.length; i++) {
+          manifestoWords[i].style.opacity = i <= activeIdx ? '1' : '0.14';
+        }
+      }
+
+      if (footerWordmarkRef.current) {
+        const fRect = footerWordmarkRef.current.getBoundingClientRect();
+        if (fRect.top < window.innerHeight) {
+          footerWordmarkRef.current.classList.add('revealed');
+        }
+      }
+
+      lastScrollY = scrollY;
+      ticking = false;
+    };
+
+    const scrollHandler = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(onScroll);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', scrollHandler, { passive: true });
+
+    // 4. Section Reveals & Stats Counters
+    const reveals = document.querySelectorAll('.reveal-on-scroll');
+    const statCells = document.querySelectorAll('.stat-number');
+    let revealObserver;
+    let statsObserver;
+
+    if (shouldAnimate && 'IntersectionObserver' in window) {
+      revealObserver = new IntersectionObserver(
+        (entries, obs) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('revealed');
+              obs.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.1 }
+      );
+
+      reveals.forEach((el) => revealObserver.observe(el));
+
+      statsObserver = new IntersectionObserver(
+        (entries, obs) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              animateNumber(entry.target);
+              obs.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.25 }
+      );
+
+      statCells.forEach((el) => statsObserver.observe(el));
+    } else {
+      reveals.forEach((el) => el.classList.add('revealed'));
+      statCells.forEach((el) => {
+        el.textContent = el.getAttribute('data-target') + (el.getAttribute('data-suffix') || '');
+      });
+      if (manifestoWords.length > 0) {
+        manifestoWords.forEach((w) => (w.style.opacity = '1'));
+      }
+      if (footerWordmarkRef.current) footerWordmarkRef.current.classList.add('revealed');
+    }
+
+    function animateNumber(element) {
+      const targetVal = parseFloat(element.getAttribute('data-target'));
+      const suffix = element.getAttribute('data-suffix') || '';
+      const isFloat = element.getAttribute('data-target').includes('.');
+      const duration = 1500;
+      let startTimestamp = null;
+
+      function step(timestamp) {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const elapsed = timestamp - startTimestamp;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const current = ease * targetVal;
+
+        element.textContent = (isFloat ? current.toFixed(1) : Math.floor(current)) + suffix;
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        } else {
+          element.textContent = element.getAttribute('data-target') + suffix;
+        }
+      }
+      window.requestAnimationFrame(step);
+    }
+
+    // 5. Custom Cursor & Magnetism
+    let cursorRaf = null;
+    const isFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+    if (shouldAnimate && isFinePointer) {
+      document.body.classList.add('has-custom-cursor');
+      let mouseX = window.innerWidth / 2;
+      let mouseY = window.innerHeight / 2;
+      let curX = mouseX;
+      let curY = mouseY;
+
+      const mouseMoveHandler = (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+      };
+      window.addEventListener('mousemove', mouseMoveHandler);
+
+      const renderCursor = () => {
+        curX += (mouseX - curX) * 0.22;
+        curY += (mouseY - curY) * 0.22;
+        if (cursorDotRef.current) {
+          cursorDotRef.current.style.left = `${curX}px`;
+          cursorDotRef.current.style.top = `${curY}px`;
+        }
+        cursorRaf = window.requestAnimationFrame(renderCursor);
+      };
+      cursorRaf = window.requestAnimationFrame(renderCursor);
+
+      const interactives = document.querySelectorAll(
+        'a, button, [role="button"], input, .capability-row'
+      );
+      interactives.forEach((el) => {
+        el.addEventListener('mouseenter', () => {
+          if (cursorDotRef.current) cursorDotRef.current.classList.add('active');
+        });
+        el.addEventListener('mouseleave', () => {
+          if (cursorDotRef.current) cursorDotRef.current.classList.remove('active');
+        });
+      });
+
+      const magneticBtns = document.querySelectorAll('[data-magnet]');
+      magneticBtns.forEach((btn) => {
+        btn.addEventListener('mousemove', (e) => {
+          const bRect = btn.getBoundingClientRect();
+          const bCenterX = bRect.left + bRect.width / 2;
+          const bCenterY = bRect.top + bRect.height / 2;
+          const deltaX = (e.clientX - bCenterX) * 0.15;
+          const deltaY = (e.clientY - bCenterY) * 0.15;
+          const magX = Math.max(-6, Math.min(6, deltaX));
+          const magY = Math.max(-6, Math.min(6, deltaY));
+          btn.style.transform = `translate(${magX}px, ${magY}px)`;
+        });
+        btn.addEventListener('mouseleave', () => {
+          btn.style.transform = 'translate(0, 0)';
+        });
+      });
+    }
+
+    return () => {
+      clearTimeout(heroTimer);
+      window.removeEventListener('scroll', scrollHandler);
+      if (revealObserver) revealObserver.disconnect();
+      if (statsObserver) statsObserver.disconnect();
+      if (cursorRaf) window.cancelAnimationFrame(cursorRaf);
+      document.body.classList.remove('has-custom-cursor');
+    };
+  }, []);
+
+  // Lock scroll on mobile menu
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleEscape = (e) => {
+        if (e.key === 'Escape') setMobileMenuOpen(false);
+      };
+      document.addEventListener('keydown', handleEscape);
+      return () => {
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', handleEscape);
+      };
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [mobileMenuOpen]);
+
+  const pricingData = {
+    monthly: { starter: '0 EGP', pro: '149 EGP', supreme: '249 EGP' },
+    annual: { starter: '0 EGP', pro: '119 EGP', supreme: '199 EGP' },
   };
 
   return (
-    <div dir={dir || "rtl"} className="min-h-screen bg-[#07080C] text-[#F2F3F5]">
-      <div className="mx-auto max-w-[1280px] px-5 sm:px-11">
-        {/* ─── HEADER (1:1 Black Fighters الأطلس – نسخة نضيفة داكنة) ─── */}
-        <header className="flex h-[84px] items-center justify-between gap-4 border-b border-[#151922]">
-          <LVLogo to="/" label="Black Fighters" />
+    <div className="blackfighters-editorial-root" dir="ltr" lang="en" data-theme={theme}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
-          <nav
-            aria-label={isAr ? "التنقل الرئيسي" : "Primary Navigation"}
-            className="hidden md:flex items-center gap-8 text-[16px] text-[#9AA0AE]"
-          >
-            {navLinks.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                className="transition-colors hover:text-[#F2F3F5]"
-              >
-                {l.label}
-              </a>
-            ))}
+        .btn-pill-sm { padding: 10px 22px !important; font-size: 0.76rem !important; min-height: 38px !important; }
+        .btn-pill-lg { padding: 20px 48px !important; font-size: 0.9rem !important; }
+        .btn-pill-outline { width: 100% !important; border: 1px solid var(--line) !important; background: transparent !important; color: var(--ink) !important; }
+        .text-signal { color: var(--signal) !important; }
+        .opacity-80 { opacity: 0.8 !important; }
+        .w-full { width: 100% !important; }
+        .newsletter-subtext { color: var(--mute) !important; font-size: 0.78rem !important; margin-bottom: 16px !important; line-height: 1.5 !important; }
+        .footer-direct-desc { color: var(--mute) !important; line-height: 1.6 !important; font-size: 0.78rem !important; margin-bottom: 16px !important; }
+        .footer-privacy-link { margin-right: 16px !important; }
+        .sr-only-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; border: 0 !important; }
+
+        /* Root Theme Tokens */
+        .blackfighters-editorial-root {
+          direction: ltr !important;
+          text-align: left !important;
+          unicode-bidi: isolate;
+
+          --paper: #f3f1ec;
+          --paper-2: #e9e6de;
+          --ink: #0d0d0c;
+          --mute: #54524c;
+          --line: rgba(13, 13, 12, 0.14);
+          --signal: #ff4d1f;
+
+          --font-serif: "Instrument Serif", Georgia, serif;
+          --font-sans: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          --font-mono: "JetBrains Mono", monospace;
+
+          --ease: cubic-bezier(0.19, 1, 0.22, 1);
+          --gutter: clamp(20px, 4vw, 56px);
+          --max-width: 1600px;
+          --section-vpad: clamp(110px, 15vw, 220px);
+
+          background-color: var(--paper) !important;
+          color: var(--ink) !important;
+          font-family: var(--font-sans) !important;
+          min-height: 100svh;
+          overflow-x: hidden;
+          position: relative;
+        }
+
+        /* Dark Theme Tokens: Bright Crisp Off-White Text on Deep Carbon Black */
+        .blackfighters-editorial-root[data-theme="dark"],
+        html[data-theme="dark"] .blackfighters-editorial-root {
+          --paper: #0c0c0b;
+          --paper-2: #151513;
+          --ink: #f1efe9;
+          --mute: #9e9c94;
+          --line: rgba(241, 239, 233, 0.16);
+          --signal: #ff6a3d;
+
+          background-color: #0c0c0b !important;
+          color: #f1efe9 !important;
+        }
+
+        .blackfighters-editorial-root *,
+        .blackfighters-editorial-root *::before,
+        .blackfighters-editorial-root *::after {
+          box-sizing: border-box;
+          border-radius: 0;
+          direction: ltr;
+          text-align: left;
+          -webkit-font-smoothing: antialiased;
+        }
+
+        /* Enforce Exact Text Colors */
+        .blackfighters-editorial-root h1,
+        .blackfighters-editorial-root h2,
+        .blackfighters-editorial-root h3,
+        .blackfighters-editorial-root h4,
+        .blackfighters-editorial-root .hero-headline,
+        .blackfighters-editorial-root .hero-line-inner,
+        .blackfighters-editorial-root .section-headline,
+        .blackfighters-editorial-root .cap-title,
+        .blackfighters-editorial-root .card-headline,
+        .blackfighters-editorial-root .stat-number,
+        .blackfighters-editorial-root .editorial-quote,
+        .blackfighters-editorial-root .pricing-amount,
+        .blackfighters-editorial-root .pricing-tier-name,
+        .blackfighters-editorial-root .faq-question,
+        .blackfighters-editorial-root .cta-big-line,
+        .blackfighters-editorial-root .brand-wordmark,
+        .blackfighters-editorial-root .footer-giant-wordmark {
+          color: var(--ink) !important;
+        }
+
+        .blackfighters-editorial-root a {
+          color: inherit;
+          text-decoration: none;
+        }
+
+        .blackfighters-editorial-root button {
+          background: none;
+          border: none;
+          color: inherit;
+          font: inherit;
+          cursor: pointer;
+        }
+
+        .mono {
+          font-family: var(--font-mono) !important;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-size: 0.78rem;
+        }
+
+        .serif {
+          font-family: var(--font-serif) !important;
+          font-weight: 400;
+        }
+
+        .signal-text {
+          color: var(--signal) !important;
+          font-style: italic;
+        }
+
+        .signal-dot {
+          color: var(--signal) !important;
+        }
+
+        .container {
+          width: 100%;
+          max-width: var(--max-width);
+          margin-left: auto;
+          margin-right: auto;
+          padding-left: var(--gutter);
+          padding-right: var(--gutter);
+        }
+
+        .skip-link {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          z-index: 9999;
+          background: var(--ink);
+          color: var(--paper);
+          padding: 8px 16px;
+          transform: translateY(-150%);
+          transition: transform 0.2s var(--ease);
+          font-family: var(--font-mono);
+          font-size: 0.8rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .skip-link:focus {
+          transform: translateY(0);
+        }
+
+        #progress-line {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 2px;
+          background: var(--signal);
+          transform-origin: 0 50%;
+          transform: scaleX(0);
+          z-index: 1000;
+          pointer-events: none;
+        }
+
+        #cursor-dot {
+          display: none;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          body.has-custom-cursor,
+          body.has-custom-cursor a,
+          body.has-custom-cursor button {
+            cursor: none;
+          }
+          #cursor-dot {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 10px;
+            height: 10px;
+            background-color: var(--signal);
+            border-radius: 50% !important;
+            pointer-events: none;
+            z-index: 99999;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s var(--ease), height 0.3s var(--ease), background-color 0.3s var(--ease), opacity 0.3s var(--ease);
+          }
+          #cursor-dot.active {
+            width: 56px;
+            height: 56px;
+            background-color: var(--signal);
+            opacity: 0.28;
+          }
+        }
+
+        .btn-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px 36px;
+          border-radius: 9999px !important;
+          background-color: var(--signal) !important;
+          color: #ffffff !important;
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          font-size: 0.82rem;
+          letter-spacing: 0.06em;
+          font-weight: 500;
+          min-height: 48px;
+          min-width: 44px;
+          transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+          border: 1px solid transparent;
+        }
+        .btn-pill:hover {
+          opacity: 0.9;
+          transform: translateY(-1px);
+        }
+
+        .editorial-section {
+          position: relative;
+          padding-top: var(--section-vpad);
+          padding-bottom: var(--section-vpad);
+          border-bottom: 1px solid var(--line);
+        }
+
+        .reveal-on-scroll {
+          opacity: 0;
+          transform: translateY(36px);
+          transition: opacity 1s var(--ease), transform 1s var(--ease);
+        }
+        .reveal-on-scroll.revealed {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        header#site-header {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          z-index: 900;
+          transition: transform 0.5s var(--ease), background-color 0.3s var(--ease), border-color 0.3s var(--ease);
+          border-bottom: 1px solid transparent;
+        }
+        header#site-header.scrolled {
+          background-color: var(--paper) !important;
+          border-bottom-color: var(--line) !important;
+        }
+        header#site-header.header-hidden {
+          transform: translateY(-100%);
+        }
+
+        .header-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 76px;
+        }
+
+        .desktop-nav {
+          display: flex;
+          align-items: center;
+          gap: 36px;
+        }
+        .desktop-nav a {
+          font-family: var(--font-mono);
+          font-size: 0.8rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--mute) !important;
+          transition: color 0.25s var(--ease);
+          padding: 8px 0;
+        }
+        .desktop-nav a:hover {
+          color: var(--ink) !important;
+        }
+
+        .header-controls {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+
+        .theme-toggle {
+          font-family: var(--font-mono);
+          font-size: 0.78rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--ink) !important;
+          padding: 10px 14px;
+          border: 1px solid var(--line);
+          transition: border-color 0.25s var(--ease), background-color 0.25s var(--ease);
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+        }
+        .theme-toggle:hover {
+          border-color: var(--ink);
+        }
+
+        .mobile-menu-btn {
+          display: none;
+          font-family: var(--font-mono);
+          font-size: 0.82rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--ink) !important;
+          padding: 10px 14px;
+          border: 1px solid var(--line);
+          min-height: 44px;
+          min-width: 44px;
+        }
+
+        #mobile-menu-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100svh;
+          background-color: var(--paper) !important;
+          z-index: 950;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding: var(--gutter);
+          transform: translateY(-100%);
+          transition: transform 0.6s var(--ease);
+          pointer-events: none;
+        }
+        #mobile-menu-overlay.open {
+          transform: translateY(0);
+          pointer-events: auto;
+        }
+        .mobile-menu-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          height: 76px;
+        }
+        .mobile-nav-links {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          margin: auto 0;
+        }
+        .mobile-nav-links a {
+          font-family: var(--font-serif);
+          font-size: clamp(2.5rem, 8vw, 4rem);
+          line-height: 1.1;
+          color: var(--ink) !important;
+          transition: color 0.2s var(--ease);
+        }
+        .mobile-nav-links a:hover {
+          color: var(--signal) !important;
+        }
+        .mobile-menu-foot {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-top: 1px solid var(--line);
+          padding-top: 24px;
+        }
+
+        section#hero {
+          padding-top: calc(76px + clamp(40px, 8vw, 90px));
+          padding-bottom: clamp(70px, 10vw, 130px);
+          position: relative;
+          overflow: hidden;
+          border-bottom: none;
+        }
+
+        .hero-guides {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: var(--gutter);
+          right: var(--gutter);
+          pointer-events: none;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          z-index: 1;
+        }
+        .hero-guide-line {
+          border-left: 1px solid var(--line);
+          height: 100%;
+          transform-origin: top;
+          transform: scaleY(0);
+          transition: transform 1.4s var(--ease);
+        }
+        .hero-guide-line:last-child {
+          border-right: 1px solid var(--line);
+        }
+        .hero-guides.loaded .hero-guide-line {
+          transform: scaleY(1);
+        }
+
+        .hero-content {
+          position: relative;
+          z-index: 2;
+        }
+
+        .hero-meta-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 20px;
+          color: var(--mute) !important;
+          padding-bottom: clamp(28px, 4vw, 44px);
+          border-bottom: 1px solid var(--line);
+          margin-bottom: clamp(32px, 5vw, 64px);
+        }
+
+        .hero-headline {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(3.2rem, 14vw, 13.5rem);
+          line-height: 0.92;
+          letter-spacing: -0.025em;
+          margin-bottom: clamp(40px, 6vw, 76px);
+          will-change: transform;
+          color: var(--ink) !important;
+        }
+        .hero-line-mask {
+          overflow: hidden;
+          display: block;
+        }
+        .hero-line-inner {
+          display: block;
+          transform: translateY(115%);
+          transition: transform 1.2s var(--ease);
+          color: var(--ink) !important;
+        }
+        .hero-line-mask:nth-child(2) .hero-line-inner {
+          transition-delay: 0.15s;
+        }
+        .hero-headline.revealed .hero-line-inner {
+          transform: translateY(0);
+        }
+
+        .hero-bottom-row {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 36px;
+          max-width: 1100px;
+        }
+        @media (min-width: 900px) {
+          .hero-bottom-row {
+            grid-template-columns: minmax(0, 42ch) auto;
+            align-items: flex-end;
+            justify-content: space-between;
+          }
+        }
+
+        .hero-lede {
+          font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+          line-height: 1.45;
+          color: var(--mute) !important;
+          max-width: 36ch;
+        }
+
+        .hero-actions {
+          display: flex;
+          align-items: center;
+          gap: 28px;
+          flex-wrap: wrap;
+        }
+
+        .hero-link {
+          font-family: var(--font-mono);
+          font-size: 0.82rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          text-decoration: underline;
+          text-underline-offset: 6px;
+          color: var(--ink) !important;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+          transition: color 0.2s var(--ease);
+        }
+        .hero-link:hover {
+          color: var(--signal) !important;
+        }
+
+        .ticker-wrap {
+          width: 100%;
+          overflow: hidden;
+          border-top: 1px solid var(--line);
+          border-bottom: 1px solid var(--line);
+          background-color: var(--paper) !important;
+          padding: 18px 0;
+          position: relative;
+        }
+        .ticker-track {
+          display: flex;
+          width: max-content;
+          animation: ticker-scroll 40s linear infinite;
+        }
+        .ticker-wrap:hover .ticker-track {
+          animation-play-state: paused;
+        }
+        .ticker-group {
+          display: flex;
+          align-items: center;
+          gap: 32px;
+          padding-right: 32px;
+        }
+        .ticker-item {
+          font-family: var(--font-mono);
+          font-size: 0.78rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--ink) !important;
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
+          gap: 32px;
+        }
+        .ticker-item::after {
+          content: "•";
+          color: var(--signal) !important;
+          font-size: 0.9rem;
+        }
+        @keyframes ticker-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+
+        .manifesto-label {
+          color: var(--mute) !important;
+          margin-bottom: clamp(28px, 4vw, 48px);
+        }
+        .manifesto-text {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(2.1rem, 5.4vw, 5.2rem);
+          line-height: 1.08;
+          letter-spacing: -0.015em;
+          max-width: 24ch;
+          color: var(--ink) !important;
+        }
+        .manifesto-word {
+          display: inline-block;
+          opacity: 0.14;
+          transition: opacity 0.1s linear;
+        }
+
+        .section-header-row {
+          margin-bottom: clamp(48px, 8vw, 84px);
+        }
+        .section-label {
+          color: var(--mute) !important;
+          margin-bottom: 20px;
+        }
+        .section-headline {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(2.4rem, 6vw, 4.8rem);
+          line-height: 1.02;
+          letter-spacing: -0.02em;
+          color: var(--ink) !important;
+        }
+
+        .capabilities-list {
+          border-top: 1px solid var(--line);
+        }
+        .capability-row {
+          position: relative;
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          gap: 24px;
+          align-items: baseline;
+          padding: clamp(28px, 4vw, 44px) 0;
+          border-bottom: 1px solid var(--line);
+          cursor: pointer;
+          color: var(--ink) !important;
+          overflow: hidden;
+          transition: color 0.4s var(--ease);
+        }
+        @media (min-width: 900px) {
+          .capability-row {
+            grid-template-columns: 80px 1.2fr 1fr 60px;
+            align-items: center;
+          }
+        }
+        .capability-row::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: var(--ink);
+          transform: scaleY(0);
+          transform-origin: 50% 100%;
+          transition: transform 0.6s var(--ease);
+          z-index: 1;
+        }
+        .capability-row:hover::before {
+          transform: scaleY(1);
+        }
+        .capability-row > * {
+          position: relative;
+          z-index: 2;
+          transition: color 0.4s var(--ease), transform 0.4s var(--ease);
+        }
+        .capability-row:hover {
+          color: var(--paper) !important;
+        }
+        .capability-row:hover .cap-title,
+        .capability-row:hover .cap-desc {
+          color: var(--paper) !important;
+        }
+        .capability-row:hover .cap-index {
+          color: var(--signal) !important;
+        }
+        .capability-row:hover .cap-arrow {
+          transform: translate(6px, -6px);
+          color: var(--signal) !important;
+        }
+
+        .cap-index { color: var(--mute) !important; }
+        .cap-title {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(1.8rem, 4.4vw, 4rem);
+          line-height: 1;
+          letter-spacing: -0.015em;
+          color: var(--ink) !important;
+        }
+        .cap-desc {
+          color: var(--mute) !important;
+          font-size: 0.95rem;
+          line-height: 1.45;
+          max-width: 44ch;
+        }
+        @media (max-width: 899px) {
+          .cap-desc {
+            grid-column: 2 / -1;
+            margin-top: -8px;
+          }
+        }
+        .cap-arrow {
+          font-family: var(--font-serif);
+          font-size: 2rem;
+          line-height: 1;
+          text-align: right;
+          color: var(--ink);
+        }
+
+        .process-cards-stack {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          gap: 36px;
+          margin-top: clamp(40px, 6vw, 72px);
+        }
+        .process-card {
+          position: sticky;
+          background-color: var(--paper-2) !important;
+          border: 1px solid var(--line);
+          min-height: min(68svh, 600px);
+          padding: clamp(32px, 5vw, 64px);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        .process-card:nth-child(1) { top: clamp(90px, 12vh, 130px); }
+        .process-card:nth-child(2) { top: calc(clamp(90px, 12vh, 130px) + 26px); }
+        .process-card:nth-child(3) { top: calc(clamp(90px, 12vh, 130px) + 52px); }
+
+        @media (max-width: 768px) {
+          .process-card { min-height: 60svh; }
+        }
+
+        .card-top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: 24px;
+          border-bottom: 1px solid var(--line);
+          color: var(--mute) !important;
+        }
+        .card-headline {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(2.4rem, 6.2vw, 5.2rem);
+          line-height: 0.98;
+          letter-spacing: -0.02em;
+          margin: 40px 0;
+          max-width: 18ch;
+          color: var(--ink) !important;
+        }
+        .card-bottom-row {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 20px;
+          padding-top: 24px;
+          border-top: 1px solid var(--line);
+        }
+        @media (min-width: 900px) {
+          .card-bottom-row {
+            grid-template-columns: 1.4fr auto;
+            align-items: flex-end;
+          }
+        }
+        .card-desc {
+          color: var(--mute) !important;
+          font-size: 1.05rem;
+          max-width: 48ch;
+          line-height: 1.45;
+        }
+        .card-tags {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        .card-tag {
+          padding: 6px 12px;
+          border: 1px solid var(--line);
+          color: var(--ink) !important;
+        }
+
+        .numbers-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          border-top: 1px solid var(--line);
+          border-bottom: 1px solid var(--line);
+        }
+        @media (min-width: 600px) {
+          .numbers-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 1024px) {
+          .numbers-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .stat-cell {
+          padding: clamp(36px, 5vw, 64px) clamp(20px, 3vw, 36px);
+          border-bottom: 1px solid var(--line);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        @media (min-width: 600px) {
+          .stat-cell:nth-child(odd) { border-right: 1px solid var(--line); }
+        }
+        @media (min-width: 1024px) {
+          .stat-cell {
+            border-bottom: none;
+            border-right: 1px solid var(--line);
+          }
+          .stat-cell:last-child { border-right: none; }
+        }
+
+        .stat-number {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(3.8rem, 8.5vw, 9.2rem);
+          line-height: 0.9;
+          letter-spacing: -0.03em;
+          margin-bottom: 24px;
+          color: var(--ink) !important;
+        }
+        .stat-label {
+          color: var(--mute) !important;
+          font-size: 0.82rem;
+          line-height: 1.4;
+          max-width: 22ch;
+        }
+
+        .editorial-quote {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(2.3rem, 5.6vw, 5.8rem);
+          line-height: 1.05;
+          letter-spacing: -0.02em;
+          margin-bottom: clamp(36px, 5vw, 60px);
+          max-width: 24ch;
+          color: var(--ink) !important;
+        }
+        .quote-attribution { color: var(--mute) !important; }
+
+        .pricing-header-wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
+          margin-bottom: clamp(48px, 7vw, 84px);
+        }
+        @media (min-width: 900px) {
+          .pricing-header-wrap {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-end;
+          }
+        }
+
+        .pricing-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 24px;
+          border: 1px solid var(--line);
+          padding: 10px 18px;
+        }
+        .pricing-toggle-btn {
+          color: var(--mute) !important;
+          font-size: 0.78rem;
+          position: relative;
+          padding-bottom: 3px;
+          transition: color 0.25s var(--ease);
+        }
+        .pricing-toggle-btn.active { color: var(--ink) !important; }
+        .pricing-toggle-btn.active::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          width: 100%;
+          height: 1px;
+          background-color: var(--ink);
+        }
+
+        .pricing-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          border: 1px solid var(--line);
+        }
+        @media (min-width: 900px) {
+          .pricing-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .pricing-card {
+          padding: clamp(36px, 4.5vw, 56px);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          border-bottom: 1px solid var(--line);
+          background-color: var(--paper) !important;
+          color: var(--ink) !important;
+        }
+        @media (min-width: 900px) {
+          .pricing-card {
+            border-bottom: none;
+            border-right: 1px solid var(--line);
+          }
+          .pricing-card:last-child { border-right: none; }
+        }
+
+        /* Featured Inverted Tier */
+        .pricing-card.featured {
+          background-color: var(--ink) !important;
+          color: var(--paper) !important;
+        }
+        .pricing-card.featured .pricing-amount,
+        .pricing-card.featured .pricing-feature-item {
+          color: var(--paper) !important;
+        }
+        .pricing-card.featured .pricing-desc,
+        .pricing-card.featured .pricing-period {
+          color: var(--paper) !important;
+          opacity: 0.75;
+        }
+        .pricing-card.featured .pricing-card-header,
+        .pricing-card.featured .pricing-feature-item {
+          border-color: rgba(241, 239, 233, 0.18);
+        }
+
+        .pricing-card-header {
+          padding-bottom: 32px;
+          border-bottom: 1px solid var(--line);
+          margin-bottom: 32px;
+        }
+        .pricing-tier-name { margin-bottom: 16px; color: var(--ink) !important; }
+        .pricing-price-wrap {
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        .pricing-amount {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(3rem, 5.5vw, 4.8rem);
+          line-height: 1;
+          letter-spacing: -0.02em;
+          transition: opacity 0.25s var(--ease);
+          color: var(--ink) !important;
+        }
+        .pricing-amount.updating { opacity: 0.2; }
+        .pricing-period { color: var(--mute) !important; }
+        .pricing-desc {
+          color: var(--mute) !important;
+          font-size: 0.92rem;
+          line-height: 1.4;
+          min-height: 40px;
+        }
+
+        .pricing-features {
+          list-style: none;
+          margin-bottom: 40px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .pricing-feature-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 0.9rem;
+          color: var(--ink) !important;
+        }
+        .pricing-check {
+          color: var(--signal) !important;
+          font-size: 0.9rem;
+          font-weight: 600;
+        }
+
+        .faq-list {
+          border-top: 1px solid var(--line);
+          margin-top: clamp(40px, 6vw, 68px);
+        }
+        .faq-item { border-bottom: 1px solid var(--line); }
+        .faq-trigger {
+          width: 100%;
+          text-align: left;
+          padding: clamp(28px, 3.5vw, 40px) 0;
+          display: grid;
+          grid-template-columns: 48px 1fr 32px;
+          align-items: center;
+          gap: 16px;
+          cursor: pointer;
+        }
+        .faq-index { color: var(--mute) !important; }
+        .faq-question {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(1.5rem, 3.2vw, 2.3rem);
+          line-height: 1.15;
+          letter-spacing: -0.01em;
+          color: var(--ink) !important;
+        }
+        .faq-icon {
+          font-family: var(--font-mono);
+          font-size: 1.35rem;
+          text-align: right;
+          color: var(--ink) !important;
+          transition: transform 0.4s var(--ease);
+          display: inline-block;
+        }
+        .faq-item.open .faq-icon {
+          transform: rotate(45deg);
+          color: var(--signal) !important;
+        }
+
+        .faq-answer-grid {
+          display: grid;
+          grid-template-rows: 0fr;
+          transition: grid-template-rows 0.5s var(--ease);
+        }
+        .faq-item.open .faq-answer-grid { grid-template-rows: 1fr; }
+        .faq-answer-inner { overflow: hidden; }
+        .faq-answer-content {
+          padding-left: 64px;
+          padding-bottom: clamp(28px, 4vw, 40px);
+          color: var(--mute) !important;
+          font-size: 1.05rem;
+          line-height: 1.55;
+          max-width: 64ch;
+        }
+        @media (max-width: 768px) {
+          .faq-answer-content { padding-left: 0; }
+        }
+
+        section#cta {
+          border-bottom: 1px solid var(--line);
+          text-align: center;
+          padding-top: clamp(120px, 18vw, 240px);
+          padding-bottom: clamp(120px, 18vw, 240px);
+        }
+        .cta-big-line {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(3.2rem, 9.5vw, 9.8rem);
+          line-height: 0.95;
+          letter-spacing: -0.025em;
+          margin-bottom: clamp(40px, 6vw, 64px);
+          color: var(--ink) !important;
+        }
+        .cta-actions {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 18px;
+        }
+        .cta-microcopy {
+          color: var(--mute) !important;
+          font-size: 0.78rem;
+        }
+
+        footer#site-footer {
+          padding-top: clamp(80px, 12vw, 140px);
+          padding-bottom: clamp(36px, 6vw, 60px);
+          background-color: var(--paper) !important;
+          position: relative;
+          overflow: hidden;
+        }
+        .footer-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 48px;
+          padding-bottom: clamp(60px, 10vw, 120px);
+          border-bottom: 1px solid var(--line);
+        }
+        @media (min-width: 768px) {
+          .footer-grid { grid-template-columns: 1.2fr 1fr 1fr; }
+        }
+        @media (min-width: 1024px) {
+          .footer-grid { grid-template-columns: 2fr 1fr 1fr 1.5fr; }
+        }
+
+        .footer-col-title {
+          color: var(--mute) !important;
+          margin-bottom: 24px;
+        }
+        .footer-links {
+          list-style: none;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        .footer-links a {
+          color: var(--ink) !important;
+          font-size: 0.8rem;
+          transition: color 0.2s var(--ease);
+          min-height: 24px;
+          display: inline-flex;
+          align-items: center;
+        }
+        .footer-links a:hover { color: var(--signal) !important; }
+
+        .newsletter-form {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .newsletter-input-wrap {
+          position: relative;
+          display: flex;
+        }
+        .newsletter-input {
+          width: 100%;
+          background: transparent;
+          border: none;
+          border-bottom: 1px solid var(--line);
+          color: var(--ink) !important;
+          font-family: var(--font-mono);
+          font-size: 0.82rem;
+          padding: 12px 0;
+          border-radius: 0;
+          outline: none;
+          transition: border-color 0.25s var(--ease);
+        }
+        .newsletter-input:focus { border-bottom-color: var(--signal) !important; }
+        .newsletter-input::placeholder { color: var(--mute) !important; }
+        .newsletter-submit {
+          position: absolute;
+          right: 0;
+          bottom: 12px;
+          font-family: var(--font-mono);
+          font-size: 0.8rem;
+          color: var(--ink) !important;
+          transition: color 0.25s var(--ease);
+        }
+        .newsletter-submit:hover { color: var(--signal) !important; }
+        .newsletter-msg {
+          font-family: var(--font-mono);
+          font-size: 0.74rem;
+          letter-spacing: 0.04em;
+          min-height: 18px;
+        }
+        .newsletter-msg.error { color: var(--signal) !important; }
+        .newsletter-msg.success { color: var(--ink) !important; }
+
+        .footer-giant-wordmark-wrap {
+          padding-top: clamp(40px, 8vw, 80px);
+          overflow: hidden;
+          width: 100%;
+        }
+        .footer-giant-wordmark {
+          font-family: var(--font-serif) !important;
+          font-size: clamp(3.2rem, 24vw, 24rem);
+          line-height: 0.82;
+          letter-spacing: -0.035em;
+          white-space: nowrap;
+          color: var(--ink) !important;
+          display: block;
+          width: 100%;
+          text-align: center;
+          transform: translateY(105%);
+          transition: transform 1.2s var(--ease);
+        }
+        .footer-giant-wordmark.revealed { transform: translateY(0); }
+
+        .footer-meta-bottom {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          padding-top: 32px;
+          color: var(--mute) !important;
+          font-size: 0.75rem;
+        }
+        @media (min-width: 768px) {
+          .footer-meta-bottom {
+            flex-direction: row;
+            justify-content: space-between;
+          }
+        }
+
+        @media (max-width: 899px) {
+          .desktop-nav { display: none; }
+          .mobile-menu-btn { display: inline-flex; align-items: center; }
+          .hero-guides { grid-template-columns: repeat(2, 1fr); }
+          .hero-guides .hero-guide-line:nth-child(3),
+          .hero-guides .hero-guide-line:nth-child(4) {
+            display: none;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .blackfighters-editorial-root *,
+          .blackfighters-editorial-root *::before,
+          .blackfighters-editorial-root *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+          }
+          .hero-line-inner { transform: none !important; }
+          .hero-guides .hero-guide-line { transform: none !important; }
+          .reveal-on-scroll { opacity: 1 !important; transform: none !important; }
+          .manifesto-word { opacity: 1 !important; }
+          .footer-giant-wordmark { transform: none !important; }
+          #cursor-dot { display: none !important; }
+          .ticker-track { animation: none !important; }
+        }
+      `}</style>
+
+      {/* Accessible Skip Link */}
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
+
+      {/* Top Reading Progress Bar */}
+      <div id="progress-line" ref={progressLineRef} aria-hidden="true" />
+
+      {/* Signal Cursor Dot */}
+      <div id="cursor-dot" ref={cursorDotRef} aria-hidden="true" />
+
+      {/* Fixed Header */}
+      <header id="site-header" ref={headerRef} role="banner">
+        <div className="container header-inner">
+          <Link to="/" className="brand-wordmark" aria-label="Black Fighters Home">
+            Black Fighters<span className="signal-dot">.</span>
+          </Link>
+
+          <nav className="desktop-nav" aria-label="Primary navigation">
+            <a href="#work">Capabilities</a>
+            <a href="#process">Methodology</a>
+            <a href="#numbers">Telemetry</a>
+            <a href="#pricing">Tiers</a>
+            <a href="#faq">Inquiries</a>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <LVLangSwitch locale={locale} onChange={setLocale} />
-            <Button asChild className="h-[46px] px-6 text-[15px] rounded-[10px]">
-              <Link to={loginHref}>
-                {user
-                  ? isAr
-                    ? "لوحة التحكم"
-                    : "Dashboard"
-                  : isAr
-                  ? "سجّل دخولك"
-                  : "Sign In"}
-              </Link>
-            </Button>
+          <div className="header-controls">
+            <Link
+              to={authTarget}
+              className="btn-pill btn-pill-sm"
+            >
+              {user ? 'Dashboard' : 'Start Free →'}
+            </Link>
+
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              aria-label="Toggle visual theme"
+              type="button"
+            >
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+
+            <button
+              className="mobile-menu-btn"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open navigation menu"
+              aria-expanded={mobileMenuOpen}
+              type="button"
+            >
+              Menu
+            </button>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* ─── HERO SECTION (1:1 Black Fighters الأطلس – نسخة نضيفة داكنة) ─── */}
-        <section className="grid items-center gap-14 pt-[72px] pb-16 lg:grid-cols-[1.2fr_1fr]">
-          <div>
-            <motion.div {...reveal(0)}>
-              <span className="bf-pill">
-                <span className="bf-pulse-dot w-[7px] h-[7px] rounded-full bg-[#3DDC97]" />
-                <span>
-                  {isAr ? "مكتبة بتتحدث أول بأول" : "Live Updated Study Library"}
-                </span>
-              </span>
-            </motion.div>
+      {/* Mobile Fullscreen Overlay */}
+      <div
+        id="mobile-menu-overlay"
+        className={mobileMenuOpen ? 'open' : ''}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile navigation menu"
+      >
+        <div className="mobile-menu-head">
+          <span className="brand-wordmark">
+            Black Fighters<span className="signal-dot">.</span>
+          </span>
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close navigation menu"
+            type="button"
+          >
+            Close
+          </button>
+        </div>
 
-            <motion.h1
-              {...reveal(1)}
-              className="mt-7 text-5xl sm:text-6xl lg:text-[74px] font-bold leading-[1.12] tracking-[-0.015em] text-[#F2F3F5]"
-            >
-              {isAr ? "ذاكر من ملخص" : "Study from a summary"}
-              <br />
-              <span className="bf-hero-gradient">
-                {isAr ? "مكتوب من الأول للآخر." : "written from the ground up."}
-              </span>
-            </motion.h1>
+        <nav className="mobile-nav-links" aria-label="Mobile links">
+          <a href="#work" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+            Capabilities
+          </a>
+          <a href="#process" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+            Methodology
+          </a>
+          <a href="#numbers" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+            Telemetry
+          </a>
+          <a href="#pricing" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+            Tiers
+          </a>
+          <a href="#faq" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
+            Inquiries
+          </a>
+          <Link
+            to={authTarget}
+            className="mobile-nav-link text-signal"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {user ? 'Open Dashboard' : 'Start Free →'}
+          </Link>
+        </nav>
 
-            <motion.p
-              {...reveal(2)}
-              className="mt-7 max-w-[560px] text-[20px] leading-[1.9] text-[#9AA0AE]"
-            >
-              {isAr
-                ? "ارفع المحاضرة وخد ملخص HTML مرتب يشرح كل مصطلح من الأساس، وكل معلومة فيه مربوطة بصفحتها الأصلية. وتكمل من موبايلك على تيليجرام."
-                : "Upload your lecture and get a structured HTML summary that explains every term from scratch, linked to its source page — and continue on Telegram."}
-            </motion.p>
-
-            <motion.div
-              {...reveal(3)}
-              className="mt-9 flex flex-wrap items-center gap-3.5"
-            >
-              <Button asChild size="lg">
-                <Link to={primaryHref}>
-                  {isAr ? "ارفع محاضرة" : "Upload Lecture"}
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <a href="#how">
-                  {isAr ? "شوف إزاي بيشتغل" : "See How It Works"}
-                </a>
-              </Button>
-            </motion.div>
-
-            <motion.div
-              {...reveal(4)}
-              className="mt-12 pt-7 border-t border-[#151922] flex flex-wrap gap-10"
-            >
-              <div>
-                <div className="text-[14px] text-[#8A91A0]">
-                  {isAr ? "ملخصات جاهزة اليوم" : "Summaries Ready Today"}
-                </div>
-                <div className="mt-1.5 font-mono text-[44px] font-medium text-[#F2F3F5] leading-none">
-                  <AnimatedNumber value={214} />
-                </div>
-              </div>
-              <div>
-                <div className="text-[14px] text-[#8A91A0]">
-                  {isAr ? "أكبر ملف اتلخص" : "Largest Book Summarized"}
-                </div>
-                <div className="mt-1.5 font-mono text-[44px] font-medium text-[#F2F3F5] leading-none">
-                  1000
-                  <span className="text-[18px] text-[#8A91A0] ms-1 font-sans">
-                    {isAr ? "ص" : "p"}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          <motion.div {...reveal(2)}>
-            <LineStream locale={locale} ctaHref={primaryHref} />
-          </motion.div>
-        </section>
-
-        {/* ─── SUBJECT MARQUEE STRIP (1:1 نسخة نضيفة داكنة) ─── */}
-        <div className="overflow-hidden border-y border-[#151922] mb-14 bf-marquee-mask">
-          <div className="bf-marquee-track">
-            {[0, 1].map((dup) => (
-              <div
-                key={dup}
-                aria-hidden={dup === 1 ? "true" : undefined}
-                className="flex gap-3.5 py-[18px] px-[7px]"
-              >
-                {SUBJECT_CHIPS.map((chip, idx) => (
-                  <span key={idx} className="bf-chip">
-                    <i className="w-1.5 h-1.5 rounded-full bg-[#3DDC97] inline-block" />
-                    <span>{isAr ? chip.ar : chip.en}</span>
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
+        <div className="mobile-menu-foot">
+          <span className="mono">Clinical Intelligence · Est. 2024</span>
+          <button className="theme-toggle" onClick={toggleTheme} type="button">
+            {theme === 'dark' ? 'Light' : 'Dark'}
+          </button>
         </div>
       </div>
 
-      <main className="pb-24">
-        {/* ─── SECTION 1: SUMMARY + TELEGRAM BOT (1:1 نسخة نضيفة داكنة) ─── */}
-        <Section
-          id="summary"
-          eyebrow="SUMMARY"
-          title={
-            isAr
-              ? "ملخص بيشرح، مش نقط مضغوطة"
-              : "A Summary That Explains, Not Compressed Bullet Points"
-          }
-          subtitle={
-            isAr
-              ? "كل قسم بيبدأ بشرح المفاهيم اللي قبله من الصفر، وبعدين المحتوى نفسه، وتبعته لتيليجرام بضغطة."
-              : "Every section starts by explaining prerequisite concepts from scratch, followed by the core content — and sends to Telegram in one click."
-          }
-          className="pt-6"
-        >
-          <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr] items-start">
-            {/* Summary Reader Card */}
-            <motion.div {...rise(0)} className="bf-card p-6 sm:p-8">
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[13px] text-[#9AA0AE]">
-                  {isAr ? "CARDIOLOGY · الفصل 4" : "CARDIOLOGY · CHAPTER 4"}
-                </span>
-                <span className="bf-pill border-[#262A34] bg-[#11151C] text-[#9AA0AE] py-1.5 px-3.5 text-xs">
-                  {isAr ? "المصدر: ص 14" : "Source: p. 14"}
-                </span>
-              </div>
-
-              <h3
-                dir="ltr"
-                className="mt-4 font-mono text-3xl sm:text-[38px] font-medium text-[#F2F3F5] text-end"
-              >
-                Beta-blockers
-              </h3>
-
-              <div className="mt-5 p-[18px_20px] rounded-[14px] bg-[#0A0D13] border border-[#1E222B]">
-                <div className="bf-k mb-1.5">
-                  {isAr ? "قبل ما تقرا" : "BEFORE YOU READ"}
-                </div>
-                <div className="text-[#B7BCC8] leading-[1.9] text-[17px]">
-                  {isAr
-                    ? "المستقبل (receptor) بروتين على سطح الخلية. لما مادة معينة تلزق فيه بتدّي الخلية أمر تنفذه."
-                    : "A receptor is a protein on the cell surface. When a specific messenger binds to it, it instructs the cell to act."}
-                </div>
-              </div>
-
-              <p className="mt-5 text-[19px] leading-[2] text-[#E4E6EB]">
-                {isAr ? (
-                  <>
-                    حاصرات بيتا (<span className="bf-hl">Beta-blockers</span>) بتمنع
-                    مستقبلات بيتا الأدرينالية، فبتقلل{" "}
-                    <span className="bf-hl">معدل ضربات القلب</span> وقوة انقباضه.
-                  </>
-                ) : (
-                  <>
-                    <span className="bf-hl">Beta-blockers</span> competitively block
-                    beta-adrenergic receptors, reducing{" "}
-                    <span className="bf-hl">heart rate</span> and myocardial contractility.
-                  </>
-                )}
-              </p>
-
-              <div className="mt-5 grid sm:grid-cols-2 gap-3">
-                <div className="rounded-xl border border-[#1E222B] bg-[#0A0D13] p-4">
-                  <div className="font-mono text-[14px] text-[#F2F3F5]">
-                    Propranolol
-                  </div>
-                  <div className="text-[#9AA0AE] text-[14px] mt-1">
-                    {isAr ? "غير انتقائي (β1 و β2)" : "Non-selective (β1 & β2)"}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-[#1E222B] bg-[#0A0D13] p-4">
-                  <div className="font-mono text-[14px] text-[#F2F3F5]">
-                    Metoprolol
-                  </div>
-                  <div className="text-[#9AA0AE] text-[14px] mt-1">
-                    {isAr ? "انتقائي لـ β1" : "Selective β1 blocker"}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Telegram Bot Card */}
-            <motion.div {...rise(1)} className="bf-card p-[22px]">
-              <div className="flex items-center gap-3 pb-4 border-b border-[#1E222B]">
-                <span className="w-[42px] h-[42px] rounded-full bg-[#2AABEE] inline-flex items-center justify-center text-white shrink-0">
-                  <Send className="w-5 h-5" />
-                </span>
-                <div>
-                  <div className="font-semibold text-[#F2F3F5]">
-                    Black Fighters Bot
-                  </div>
-                  <div className="text-[13px] text-[#8A91A0]">
-                    {isAr ? "بوت" : "Bot"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-[18px] p-[16px_18px] rounded-2xl bg-[#15181F] text-[17px] leading-[1.8] text-[#F2F3F5]">
-                {isAr ? "ملخصك جاهز" : "Your summary is ready"}
-                <br />
-                <span className="text-[#9AA0AE] text-[15px]">
-                  {isAr ? "Cardiology · الفصل 4" : "Cardiology · Chapter 4"}
-                </span>
-              </div>
-
-              <div className="grid gap-2 mt-2.5">
-                <Link to={primaryHref} className="bf-tb">
-                  {isAr ? "افتح القارئ" : "Open Reader"}
-                </Link>
-                <Link to={primaryHref} className="bf-tb">
-                  {isAr ? "ابعتلي PDF" : "Send me PDF"}
-                </Link>
-                <Link to={primaryHref} className="bf-tb">
-                  {isAr ? "جاوب كويز" : "Take Quiz"}
-                </Link>
-              </div>
-            </motion.div>
+      <main id="main-content">
+        {/* HERO SECTION */}
+        <section id="hero" className="editorial-section" aria-labelledby="hero-heading">
+          <div className="hero-guides" ref={heroGuidesRef} aria-hidden="true">
+            <div className="hero-guide-line" />
+            <div className="hero-guide-line" />
+            <div className="hero-guide-line" />
+            <div className="hero-guide-line" />
           </div>
-        </Section>
 
-        {/* ─── SECTION 2: STUDY NOW (FLASHCARD + DECLASSIFY + QUIZ — 1:1 نسخة نضيفة داكنة) ─── */}
-        <Section
-          id="study-now"
-          eyebrow="STUDY NOW"
-          title={
-            isAr
-              ? "ذاكر دلوقتي، من غير ما تسيب الصفحة"
-              : "Study Right Now, Without Leaving the Page"
-          }
+          <div className="container hero-content">
+            <div className="hero-meta-row mono">
+              <span>(01)</span>
+              <span>The cognitive study layer for medicine</span>
+              <span>Est. 2024</span>
+            </div>
+
+            <h1 id="hero-heading" className="hero-headline" ref={heroHeadlineRef}>
+              <span className="hero-line-mask">
+                <span className="hero-line-inner">Compress dense textbooks.</span>
+              </span>
+              <span className="hero-line-mask">
+                <span className="hero-line-inner">
+                  Retain <em className="signal-text">everything.</em>
+                </span>
+              </span>
+            </h1>
+
+            <div className="hero-bottom-row">
+              <p className="hero-lede">
+                Black Fighters synthesizes 1,000-page clinical references and raw lecture decks into
+                structured, citation-backed intelligence, active-recall quizzes, and synchronized
+                spaced repetition.
+              </p>
+              <div className="hero-actions">
+                <Link to={authTarget} className="btn-pill" data-magnet>
+                  {user ? 'Go to Dashboard' : 'Start studying free →'}
+                </Link>
+                <a href="#manifesto" className="hero-link">
+                  See the methodology
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* TICKER SECTION */}
+        <div className="ticker-wrap" aria-hidden="true">
+          <div className="ticker-track">
+            <div className="ticker-group">
+              <span className="ticker-item">1,000-Page Textbook Engine</span>
+              <span className="ticker-item">Page-Level Citations</span>
+              <span className="ticker-item">Clinical Dosage Verifier</span>
+              <span className="ticker-item">FSRS Spaced Repetition</span>
+              <span className="ticker-item">Telegram Bot Auto-Sync</span>
+              <span className="ticker-item">Prerequisite Bridges</span>
+              <span className="ticker-item">Credit Ledger Protection</span>
+              <span className="ticker-item">Clinical Reasoning Banks</span>
+            </div>
+            <div className="ticker-group">
+              <span className="ticker-item">1,000-Page Textbook Engine</span>
+              <span className="ticker-item">Page-Level Citations</span>
+              <span className="ticker-item">Clinical Dosage Verifier</span>
+              <span className="ticker-item">FSRS Spaced Repetition</span>
+              <span className="ticker-item">Telegram Bot Auto-Sync</span>
+              <span className="ticker-item">Prerequisite Bridges</span>
+              <span className="ticker-item">Credit Ledger Protection</span>
+              <span className="ticker-item">Clinical Reasoning Banks</span>
+            </div>
+          </div>
+        </div>
+
+        {/* MANIFESTO SECTION */}
+        <section id="manifesto" className="editorial-section" aria-labelledby="manifesto-heading">
+          <div className="container">
+            <div className="manifesto-label mono">(02) THE THESIS</div>
+            <h2 id="manifesto-heading" className="sr-only-hidden">
+              Our Thesis
+            </h2>
+            <p className="manifesto-text" ref={manifestoRef}>
+              Medical students and clinicians do not struggle from a lack of information. They drown
+              in unrefined volume. When every examination demands thousands of complex slides,
+              passive reading is quiet surrender. Black Fighters reconstructs raw syllabi into
+              verifiable, foundational principles, so deep clinical comprehension becomes an{' '}
+              <em className="signal-text">inherent truth.</em> Every claim cited. Every dosage
+              confirmed.
+            </p>
+          </div>
+        </section>
+
+        {/* CAPABILITIES INDEX SECTION */}
+        <section
+          id="work"
+          className="editorial-section reveal-on-scroll"
+          aria-labelledby="capabilities-heading"
         >
-          {/* 6-Day Streak Row */}
-          <div className="flex items-center gap-4 flex-wrap mb-7">
-            <span className="font-semibold text-[#F2F3F5]">
-              {isAr ? "سلسلة 6 أيام" : "6-Day Streak"}
-            </span>
-            <div className="flex gap-2">
-              {[0, 1, 2, 3, 4, 5].map((d) => (
-                <i key={d} className="bf-day-circle">
-                  <Check className="w-4 h-4 stroke-[3]" />
-                </i>
+          <div className="container">
+            <div className="section-header-row">
+              <div className="section-label mono">Capabilities</div>
+              <h2 id="capabilities-heading" className="section-headline">
+                Four pillars, <em className="signal-text">one</em> source of truth.
+              </h2>
+            </div>
+
+            <div className="capabilities-list" role="list">
+              <div className="capability-row" role="listitem" tabIndex={0}>
+                <span className="cap-index mono">01</span>
+                <h3 className="cap-title serif">Textbook & Lecture Synthesis</h3>
+                <p className="cap-desc">
+                  Partition documents up to 1,000 pages into modular chapters with preserved page
+                  numbers and locked medical terminology.
+                </p>
+                <span className="cap-arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </div>
+
+              <div className="capability-row" role="listitem" tabIndex={0}>
+                <span className="cap-index mono">02</span>
+                <h3 className="cap-title serif">Prerequisite Scaffolding</h3>
+                <p className="cap-desc">
+                  The 'Before You Read' protocol explains physiological mechanisms from the ground up
+                  before diving into complex pharmacology.
+                </p>
+                <span className="cap-arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </div>
+
+              <div className="capability-row" role="listitem" tabIndex={0}>
+                <span className="cap-index mono">03</span>
+                <h3 className="cap-title serif">Clinical Active Recall</h3>
+                <p className="cap-desc">
+                  Auto-generate diagnostic case dilemmas, evidence-based reasoning scenarios, and FSRS
+                  spaced repetition cards directly from source pages.
+                </p>
+                <span className="cap-arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </div>
+
+              <div className="capability-row" role="listitem" tabIndex={0}>
+                <span className="cap-index mono">04</span>
+                <h3 className="cap-title serif">Autonomous Telegram Sync</h3>
+                <p className="cap-desc">
+                  Receive formatted briefings, offline high-resolution PDF exports, and interactive
+                  revision quizzes directly in your mobile messaging inbox.
+                </p>
+                <span className="cap-arrow" aria-hidden="true">
+                  ↗
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PROCESS SECTION */}
+        <section id="process" className="editorial-section" aria-labelledby="process-heading">
+          <div className="container">
+            <div className="section-header-row reveal-on-scroll">
+              <div className="section-label mono">Methodology</div>
+              <h2 id="process-heading" className="section-headline">
+                Three steps. <em className="signal-text">Zero cognitive waste.</em>
+              </h2>
+            </div>
+
+            <div className="process-cards-stack">
+              <article className="process-card" aria-label="Step 1: Ingest">
+                <div className="card-top-row mono">
+                  <span>STEP 01</span>
+                  <span>INGEST</span>
+                </div>
+                <h3 className="card-headline">
+                  Upload dense textbooks and slides up to 1,000 pages with{' '}
+                  <em className="signal-text">zero</em> context loss.
+                </h3>
+                <div className="card-bottom-row">
+                  <p className="card-desc">
+                    Our OCR and semantic document engine partitions vast medical syllabi into
+                    coherent modules while locking core clinical terminology and dosage tables.
+                  </p>
+                  <div className="card-tags mono">
+                    <span className="card-tag">1,000-Page Buffer</span>
+                    <span className="card-tag">Semantic Chunking</span>
+                  </div>
+                </div>
+              </article>
+
+              <article className="process-card" aria-label="Step 2: Synthesize">
+                <div className="card-top-row mono">
+                  <span>STEP 02</span>
+                  <span>SYNTHESIZE</span>
+                </div>
+                <h3 className="card-headline">
+                  Our medical reasoning model structures every chapter with verifiable citations and{' '}
+                  <em className="signal-text">grounded</em> facts.
+                </h3>
+                <div className="card-bottom-row">
+                  <p className="card-desc">
+                    Every physiological mechanism, diagnostic criterion, and drug interaction is
+                    linked bi-directionally to its source textbook page.
+                  </p>
+                  <div className="card-tags mono">
+                    <span className="card-tag">Page Citations</span>
+                    <span className="card-tag">Dosage Verifier</span>
+                  </div>
+                </div>
+              </article>
+
+              <article className="process-card" aria-label="Step 3: Retain">
+                <div className="card-top-row mono">
+                  <span>STEP 03</span>
+                  <span>RETAIN</span>
+                </div>
+                <h3 className="card-headline">
+                  Transition from passive reading into active recall across web and Telegram with{' '}
+                  <em className="signal-text">FSRS</em> algorithms.
+                </h3>
+                <div className="card-bottom-row">
+                  <p className="card-desc">
+                    Calculated memory decay intervals schedule your quizzes and flashcards so
+                    high-yield clinical facts survive long past exam day.
+                  </p>
+                  <div className="card-tags mono">
+                    <span className="card-tag">FSRS Spaced Repetition</span>
+                    <span className="card-tag">Telegram Bot Sync</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        {/* NUMBERS SECTION */}
+        <section id="numbers" className="editorial-section" aria-labelledby="numbers-heading">
+          <div className="container">
+            <div className="section-header-row reveal-on-scroll">
+              <div className="section-label mono">Telemetry</div>
+              <h2 id="numbers-heading" className="section-headline">
+                Proven in <em className="signal-text">academic hospitals.</em>
+              </h2>
+            </div>
+
+            <div className="numbers-grid reveal-on-scroll">
+              <div className="stat-cell">
+                <div className="stat-number" data-target="1000" data-suffix="">
+                  0
+                </div>
+                <div className="stat-label mono">Max pages per single textbook upload.</div>
+              </div>
+              <div className="stat-cell">
+                <div className="stat-number" data-target="99" data-suffix="%">
+                  0%
+                </div>
+                <div className="stat-label mono">Citation grounding & factual trace accuracy.</div>
+              </div>
+              <div className="stat-cell">
+                <div className="stat-number" data-target="14" data-suffix="h">
+                  0h
+                </div>
+                <div className="stat-label mono">Average study hours saved weekly per student.</div>
+              </div>
+              <div className="stat-cell">
+                <div className="stat-number" data-target="28" data-suffix="+">
+                  0+
+                </div>
+                <div className="stat-label mono">Clinical specialties and subject modules.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* QUOTE SECTION */}
+        <section
+          id="quote"
+          className="editorial-section reveal-on-scroll"
+          aria-labelledby="quote-heading"
+        >
+          <div className="container">
+            <h2 id="quote-heading" className="sr-only-hidden">
+              Testimonial
+            </h2>
+            <blockquote className="editorial-quote">
+              “We replaced five fragmented study tools and pre-exam all-nighters with one structured
+              system. Now our students understand the physiological reasons, not just the slides,
+              and the <em className="signal-text">evidence</em> remains verifiable at the bedside.”
+            </blockquote>
+            <div className="quote-attribution mono">
+              Prof. K. Mansour — Clinical Education Fellow & Medical Resident Lead
+            </div>
+          </div>
+        </section>
+
+        {/* PRICING SECTION */}
+        <section id="pricing" className="editorial-section" aria-labelledby="pricing-heading">
+          <div className="container">
+            <div className="pricing-header-wrap reveal-on-scroll">
+              <div>
+                <div className="section-label mono">Pricing</div>
+                <h2 id="pricing-heading" className="section-headline">
+                  Plain prices. <em className="signal-text">Guaranteed credits.</em>
+                </h2>
+              </div>
+
+              <div className="pricing-toggle mono" role="radiogroup" aria-label="Billing cycle selector">
+                <button
+                  className={`pricing-toggle-btn ${billingCycle === 'monthly' ? 'active' : ''}`}
+                  onClick={() => handleBillingToggle('monthly')}
+                  type="button"
+                  role="radio"
+                  aria-checked={billingCycle === 'monthly'}
+                >
+                  Monthly
+                </button>
+                <button
+                  className={`pricing-toggle-btn ${billingCycle === 'annual' ? 'active' : ''}`}
+                  onClick={() => handleBillingToggle('annual')}
+                  type="button"
+                  role="radio"
+                  aria-checked={billingCycle === 'annual'}
+                >
+                  Annual (25% Savings)
+                </button>
+              </div>
+            </div>
+
+            <div className="pricing-grid reveal-on-scroll">
+              {/* Starter */}
+              <div className="pricing-card">
+                <div>
+                  <div className="pricing-card-header">
+                    <div className="pricing-tier-name mono">Starter</div>
+                    <div className="pricing-price-wrap">
+                      <span className={`pricing-amount ${pricesUpdating ? 'updating' : ''}`}>
+                        {pricingData[billingCycle].starter}
+                      </span>
+                      <span className="pricing-period mono">/ month</span>
+                    </div>
+                    <p className="pricing-desc">
+                      Essential lecture synthesis and active recall for individual students.
+                    </p>
+                  </div>
+
+                  <ul className="pricing-features">
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Core lecture & slide summaries
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Foundational 'Before You Read' boxes
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Daily FSRS flashcard reviews
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Standard web reader with dark mode
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Community support
+                    </li>
+                  </ul>
+                </div>
+                <Link
+                  to={authTarget}
+                  className="btn-pill btn-pill-outline"
+                >
+                  Start studying free
+                </Link>
+              </div>
+
+              {/* Pro Fighter (Featured Inverted) */}
+              <div className="pricing-card featured">
+                <div>
+                  <div className="pricing-card-header">
+                    <div className="pricing-tier-name mono text-signal">
+                      Pro Fighter · Preferred
+                    </div>
+                    <div className="pricing-price-wrap">
+                      <span className={`pricing-amount ${pricesUpdating ? 'updating' : ''}`}>
+                        {pricingData[billingCycle].pro}
+                      </span>
+                      <span className="pricing-period mono opacity-80">
+                        / month
+                      </span>
+                    </div>
+                    <p className="pricing-desc">
+                      For clinical students and demanding academic semesters.
+                    </p>
+                  </div>
+
+                  <ul className="pricing-features">
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> 900 monthly AI credits
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> 1,000-page textbook engine
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Page-level citations & dosage verifier
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Unlimited PDF, HTML, & Telegram export
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Two-way Telegram bot synchronization
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Clinical reasoning case quizzes
+                    </li>
+                  </ul>
+                </div>
+                <Link to={authTarget} className="btn-pill w-full">
+                  Choose Pro Fighter
+                </Link>
+              </div>
+
+              {/* Supreme Max */}
+              <div className="pricing-card">
+                <div>
+                  <div className="pricing-card-header">
+                    <div className="pricing-tier-name mono">Supreme Max</div>
+                    <div className="pricing-price-wrap">
+                      <span className={`pricing-amount ${pricesUpdating ? 'updating' : ''}`}>
+                        {pricingData[billingCycle].supreme}
+                      </span>
+                      <span className="pricing-period mono">/ month</span>
+                    </div>
+                    <p className="pricing-desc">
+                      For residents, board candidates, and study group leaders.
+                    </p>
+                  </div>
+
+                  <ul className="pricing-features">
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> 2,500 monthly AI credits
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Priority processing queue (zero wait)
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Full Telegram Mini App integration
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Emergency round clinical simulations
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Double-entry ledger credit insurance
+                    </li>
+                    <li className="pricing-feature-item">
+                      <span className="pricing-check" aria-hidden="true">✓</span> Dedicated priority academic support
+                    </li>
+                  </ul>
+                </div>
+                <Link
+                  to={authTarget}
+                  className="btn-pill btn-pill-outline"
+                >
+                  Choose Supreme Max
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* QUESTIONS (FAQ) SECTION */}
+        <section id="faq" className="editorial-section" aria-labelledby="faq-heading">
+          <div className="container">
+            <div className="section-header-row reveal-on-scroll">
+              <div className="section-label mono">Questions</div>
+              <h2 id="faq-heading" className="section-headline">
+                Asked, <em className="signal-text">answered.</em>
+              </h2>
+            </div>
+
+            <div className="faq-list reveal-on-scroll">
+              {[
+                {
+                  idx: '01',
+                  q: 'How does Black Fighters summarize 1,000-page textbooks without losing critical details?',
+                  a: 'Large files are partitioned into coordinated chapters with a locked terminology index. Rather than compressing blindly, our architecture preserves every clinical criterion and links each paragraph directly to its source PDF page.',
+                },
+                {
+                  idx: '02',
+                  q: "What is the 'Before You Read' foundational bridge?",
+                  a: 'Before diving into dense clinical manifestations or pharmacodynamics, each chapter opens with an intuitive prerequisite framework. It clarifies the core physiological mechanism in simple language while preserving exact medical terminology.',
+                },
+                {
+                  idx: '03',
+                  q: 'How does the Telegram bot integrate with my account?',
+                  a: 'You link your Telegram account with one click. Once a lecture or textbook finishes synthesizing, the bot notifies you, delivers offline PDF documents, and generates interactive quizzes you can solve directly in chat.',
+                },
+                {
+                  idx: '04',
+                  q: 'Are credits refunded if a document processing task fails?',
+                  a: 'Yes, completely. All credit transactions use a double-entry ledger. Credits are only reserved when a job begins and are automatically restored to your account if any chapter fails or times out.',
+                },
+                {
+                  idx: '05',
+                  q: 'Can I export my study materials to PDF and flashcard decks?',
+                  a: 'Yes. All summaries can be downloaded as print-ready, high-resolution PDFs, standalone HTML documents, or exported directly into active-recall quizzes and FSRS spaced repetition schedules.',
+                },
+              ].map((item, i) => (
+                <div key={item.idx} className={`faq-item ${openFaqIndex === i ? 'open' : ''}`}>
+                  <button
+                    className="faq-trigger"
+                    onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
+                    aria-expanded={openFaqIndex === i}
+                  >
+                    <span className="faq-index mono">{item.idx}</span>
+                    <span className="faq-question">{item.q}</span>
+                    <span className="faq-icon" aria-hidden="true">
+                      +
+                    </span>
+                  </button>
+                  <div className="faq-answer-grid">
+                    <div className="faq-answer-inner">
+                      <p className="faq-answer-content">{item.a}</p>
+                    </div>
+                  </div>
+                </div>
               ))}
-              <i className="w-8 h-8 rounded-full border border-dashed border-[#3A4050] inline-block" />
+            </div>
+          </div>
+        </section>
+
+        {/* FINAL CTA SECTION */}
+        <section id="cta" className="editorial-section" aria-labelledby="cta-heading">
+          <div className="container reveal-on-scroll">
+            <h2 id="cta-heading" className="cta-big-line">
+              Master medicine with <em className="signal-text">absolute</em> clarity.
+            </h2>
+            <div className="cta-actions">
+              <Link
+                to={authTarget}
+                className="btn-pill btn-pill-lg"
+                data-magnet
+              >
+                {user ? 'Open Dashboard' : 'Start studying with Black Fighters →'}
+              </Link>
+              <span className="cta-microcopy mono">
+                No credit card required · Free credits included · Instant access
+              </span>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer id="site-footer" role="contentinfo">
+        <div className="container">
+          <div className="footer-grid reveal-on-scroll">
+            <div>
+              <div className="footer-col-title mono">Quarterly clinical briefings</div>
+              <p className="mono newsletter-subtext">
+                Selected methodology, research notes, and platform upgrades. No spam.
+              </p>
+              <form className="newsletter-form" onSubmit={handleNewsletterSubmit} noValidate>
+                <div className="newsletter-input-wrap">
+                  <input
+                    type="email"
+                    className="newsletter-input"
+                    placeholder="Your academic email"
+                    value={newsletterEmail}
+                    onChange={(e) => setNewsletterEmail(e.target.value)}
+                    required
+                    aria-label="Academic email address"
+                  />
+                  <button type="submit" className="newsletter-submit mono">
+                    Send
+                  </button>
+                </div>
+                {newsletterStatus.text && (
+                  <div
+                    className={`newsletter-msg mono ${newsletterStatus.type}`}
+                    aria-live="polite"
+                  >
+                    {newsletterStatus.text}
+                  </div>
+                )}
+              </form>
+            </div>
+
+            <div>
+              <div className="footer-col-title mono">Capabilities</div>
+              <ul className="footer-links mono">
+                <li><a href="#work">Textbook Engine</a></li>
+                <li><a href="#work">Citation Trace</a></li>
+                <li><a href="#work">Clinical Quizzes</a></li>
+                <li><a href="#work">FSRS Flashcards</a></li>
+                <li><a href="#work">Telegram Bot</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="footer-col-title mono">Disciplines</div>
+              <ul className="footer-links mono">
+                <li><a href="#work">Internal Medicine</a></li>
+                <li><a href="#work">Pharmacology</a></li>
+                <li><a href="#work">General Surgery</a></li>
+                <li><a href="#work">Physiology</a></li>
+                <li><a href="#work">Pathology</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="footer-col-title mono">Platform</div>
+              <p className="mono footer-direct-desc">
+                Black Fighters organizes your medical curriculum into one quiet, verifiable intelligence surface.
+              </p>
+              <ul className="footer-links mono">
+                <li><a href="#numbers">System Status</a></li>
+                <li><a href="#pricing">Credit Ledger</a></li>
+                <li><a href="/login">Emergency Round</a></li>
+              </ul>
             </div>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[1fr_1.05fr_1fr]">
-            {/* 1) Interactive 3D Flip Flashcard */}
-            <motion.div {...rise(0)} className="bf-card bf-card-hover p-6">
-              <div className="flex justify-between items-center">
-                <span className="bf-k">FLASHCARD</span>
-                <span className="font-mono text-[13px] text-[#8A91A0]">
-                  3 / 38
-                </span>
-              </div>
-
-              <div className="bf-flip-scene mt-3.5">
-                <div
-                  role="button"
-                  tabIndex={0}
-                  data-flipped={cardFlipped ? "true" : "false"}
-                  onClick={() => setCardFlipped((f) => !f)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setCardFlipped((f) => !f);
-                    }
-                  }}
-                  className="bf-flip-inner"
-                >
-                  <span className="bf-flip-front">
-                    <span className="text-[19px] leading-[1.8] font-semibold text-[#F2F3F5]">
-                      {isAr
-                        ? "إيه الفرق بين Beta-blockers الانتقائية وغير الانتقائية؟"
-                        : "What is the difference between selective and non-selective Beta-blockers?"}
-                    </span>
-                    <span className="mt-3 text-[#8A91A0] text-[14px]">
-                      {isAr ? "اضغط عشان تقلب البطاقة" : "Click to flip card"}
-                    </span>
-                  </span>
-                  <span className="bf-flip-back">
-                    <span className="text-[17px] leading-[1.9] text-[#C9F5E1]">
-                      {isAr
-                        ? "الانتقائية (زي Metoprolol) بتستهدف β1 في القلب. غير الانتقائية (زي Propranolol) بتحجب β1 وβ2، فممكن تضيّق القصبات."
-                        : "Selective blockers (e.g. Metoprolol) target cardiac β1. Non-selective blockers (e.g. Propranolol) block β1 and β2, which may cause bronchospasm."}
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 mt-3.5">
-                {[
-                  { ar: "صعب", en: "Hard" },
-                  { ar: "تمام", en: "Good" },
-                  { ar: "سهل", en: "Easy" },
-                ].map((btn, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setCardFlipped((f) => !f)}
-                    className="h-[46px] rounded-[10px] border border-[#262A34] bg-[#0A0D13] text-[#F2F3F5] font-medium text-[15px] hover:border-[#3DDC97] hover:bg-[#0C2219] transition-colors cursor-pointer"
-                  >
-                    {isAr ? btn.ar : btn.en}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* 2) Interactive Declassify Card */}
-            <motion.div {...rise(1)} className="bf-card bf-card-hover p-6 flex flex-col justify-between">
-              <div>
-                <span className="bf-k">DECLASSIFY</span>
-                <p className="mt-3.5 text-[20px] leading-[2.4] text-[#F2F3F5]">
-                  {isAr ? "حاصرات بيتا بتمنع مستقبلات " : "Beta-blockers inhibit "}
-                  <button
-                    type="button"
-                    onClick={() => toggleDeclassify("d1")}
-                    className={cn(
-                      "inline-block rounded-[7px] px-2.5 mx-0.5 font-medium transition-colors duration-300 cursor-pointer",
-                      declassified.d1
-                        ? "bg-[#3DDC97]/15 text-[#7CF0BC]"
-                        : "bg-[#2A2F3A] text-transparent select-none"
-                    )}
-                  >
-                    {isAr ? "بيتا الأدرينالية" : "beta-adrenergic receptors"}
-                  </button>
-                  {isAr ? "، فبتقلل " : ", reducing "}
-                  <button
-                    type="button"
-                    onClick={() => toggleDeclassify("d2")}
-                    className={cn(
-                      "inline-block rounded-[7px] px-2.5 mx-0.5 font-medium transition-colors duration-300 cursor-pointer",
-                      declassified.d2
-                        ? "bg-[#3DDC97]/15 text-[#7CF0BC]"
-                        : "bg-[#2A2F3A] text-transparent select-none"
-                    )}
-                  >
-                    {isAr ? "معدل ضربات القلب" : "heart rate"}
-                  </button>
-                  {isAr ? " و" : " and "}
-                  <button
-                    type="button"
-                    onClick={() => toggleDeclassify("d3")}
-                    className={cn(
-                      "inline-block rounded-[7px] px-2.5 mx-0.5 font-medium transition-colors duration-300 cursor-pointer",
-                      declassified.d3
-                        ? "bg-[#3DDC97]/15 text-[#7CF0BC]"
-                        : "bg-[#2A2F3A] text-transparent select-none"
-                    )}
-                  >
-                    {isAr ? "قوة الانقباض" : "contractility"}
-                  </button>
-                  .
-                </p>
-              </div>
-              <div className="mt-3.5 text-[#8A91A0] text-[14px]">
-                {isAr
-                  ? "اضغط على الشريط عشان تكشفه."
-                  : "Click any redacted bar to reveal it."}
-              </div>
-            </motion.div>
-
-            {/* 3) Interactive Quiz Card */}
-            <motion.div {...rise(2)} className="bf-card bf-card-hover p-6">
-              <span className="bf-k">
-                {isAr ? "QUIZ · 1 من 15" : "QUIZ · 1 OF 15"}
-              </span>
-              <div className="mt-3 text-[19px] leading-[1.7] font-semibold text-[#F2F3F5]">
-                {isAr
-                  ? "أي دواء من دول انتقائي لمستقبلات β1؟"
-                  : "Which of these drugs is selective for β1 receptors?"}
-              </div>
-
-              <div className="grid gap-2.5 mt-[18px]">
-                {[
-                  { id: "o1", label: "Propranolol", ok: false },
-                  { id: "o2", label: "Carvedilol", ok: false },
-                  { id: "o3", label: "Metoprolol", ok: true },
-                ].map((opt) => {
-                  const chosen = selectedQuizOption === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setSelectedQuizOption(opt.id)}
-                      className={cn(
-                        "flex justify-between items-center min-h-[54px] px-[18px] rounded-xl border transition-colors cursor-pointer text-start",
-                        !chosen &&
-                          "border-[#262A34] bg-[#0A0D13] text-[#F2F3F5] hover:border-[#3A4050]",
-                        chosen &&
-                          opt.ok &&
-                          "border-[#3DDC97] bg-[#0C2219] text-[#7CF0BC]",
-                        chosen &&
-                          !opt.ok &&
-                          "border-[#E5484D] bg-[#2A1214] text-[#FF9A9D]"
-                      )}
-                    >
-                      <span className="font-mono">{opt.label}</span>
-                      {chosen && (
-                        <span className="text-sm font-semibold">
-                          {opt.ok
-                            ? isAr
-                              ? "صح"
-                              : "Correct"
-                            : isAr
-                            ? "غلط"
-                            : "Wrong"}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {selectedQuizOption === "o3" && (
-                <div className="mt-3.5 p-[14px_16px] rounded-xl bg-[#0C2219] text-[#9DF2CE] text-[15px] leading-[1.8]">
-                  {isAr
-                    ? "صح. Metoprolol انتقائي لـ β1، فتأثيره على القصبات أقل من غير الانتقائي."
-                    : "Correct. Metoprolol is β1-selective, making it safer on bronchial smooth muscle."}
-                </div>
-              )}
-
-              {(selectedQuizOption === "o1" || selectedQuizOption === "o2") && (
-                <div className="mt-3.5 p-[14px_16px] rounded-xl bg-[#2A1214] text-[#FFB4B7] text-[15px] leading-[1.8]">
-                  {isAr
-                    ? "غلط. Propranolol وCarvedilol غير انتقائيين، يعني بيحجبوا β1 وβ2."
-                    : "Wrong. Propranolol and Carvedilol are non-selective (blocking both β1 and β2)."}
-                </div>
-              )}
-            </motion.div>
+          <div className="footer-giant-wordmark-wrap" aria-hidden="true">
+            <span className="footer-giant-wordmark" ref={footerWordmarkRef}>
+              Black Fighters.
+            </span>
           </div>
-        </Section>
 
-        {/* ─── SECTION 3: HOW IT WORKS (1:1 نسخة نضيفة داكنة) ─── */}
-        <Section
-          id="how"
-          eyebrow="HOW IT WORKS"
-          title={isAr ? "ارفع، لخّص، ذاكر" : "Upload, Summarize, Study"}
-        >
-          <div className="grid gap-5 md:grid-cols-3">
-            {HOW_STEPS.map((s, i) => (
-              <motion.div key={s.num} {...rise(i)} className="bf-card p-7">
-                <div className="font-mono text-[14px] text-[#3DDC97]">
-                  {s.num}
-                </div>
-                <div className="mt-3.5 text-[22px] font-semibold text-[#F2F3F5]">
-                  {isAr ? s.titleAr : s.titleEn}
-                </div>
-                <div className="mt-2.5 text-[#9AA0AE] leading-[1.8] text-[16px]">
-                  {isAr ? s.descAr : s.descEn}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </Section>
-
-        {/* ─── SECTION 4: INTERACTIVE CREDIT CONFIGURATOR & TIMER ─── */}
-        <Section
-          id="configurator"
-          eyebrow="CREDITS CONFIGURATOR"
-          title={
-            isAr
-              ? "أعدّ كمية الكريدتس على قد مذاكرتك"
-              : "Configure the Exact Credit Volume You Need"
-          }
-          subtitle={
-            isAr
-              ? "السعر بيقل تلقائياً كل ما تزود الكمية، والرصيد المخصص مش بينتهي بانتهاء الشهر."
-              : "Unit price drops automatically as your volume grows. Custom credits never expire."
-          }
-        >
-          <motion.div {...rise(0)}>
-            <LVConfigurator
-              locale={locale}
-              onSelectCustomPack={() => navigate("/subscriptions")}
-            />
-          </motion.div>
-        </Section>
-
-        {/* ─── SECTION 5: PRICING PLANS ─── */}
-        <Section
-          id="pricing"
-          eyebrow="PRICING"
-          title={
-            isAr
-              ? "أو اختر باقة فصلية جاهزة"
-              : "Or Pick a Ready Semester Plan"
-          }
-          subtitle={
-            isAr
-              ? "كل الباقات محمية بدفتر القيد المزدوج: لا يُخصم رصيدك أبداً عند أي خطأ."
-              : "All plans are protected by our double-entry ledger: failed jobs auto-refund 100%."
-          }
-        >
-          <div className="grid gap-5 md:grid-cols-3">
-            {PRICING_TIERS.map((plan, i) => (
-              <motion.div key={plan.id} {...rise(i)}>
-                <GlassCard
-                  accent={plan.recommended}
-                  className="flex h-full flex-col p-6"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-lg font-semibold text-[#F2F3F5]">
-                      {isAr ? plan.nameAr : plan.nameEn}
-                    </h3>
-                    {(plan.saveAr || plan.saveEn) && (
-                      <span className="bf-pill py-1 px-3 text-xs">
-                        {isAr ? plan.saveAr : plan.saveEn}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-4">
-                    <AvailabilityBar
-                      available={plan.id === "free" ? 10 : plan.id === "pro" ? 900 : 2500}
-                      max={2500}
-                      sharePct={plan.id === "free" ? 28 : plan.id === "pro" ? 72 : 100}
-                      label={isAr ? "سعة الباقة" : "Available now"}
-                      availableSuffix={isAr ? "نقطة" : "credits"}
-                    />
-                  </div>
-
-                  <ul className="my-5 flex-1 divide-y divide-[#1E222B] text-sm">
-                    {plan.rows.map((row, rIdx) => (
-                      <li
-                        key={rIdx}
-                        className={cn(
-                          "flex items-center justify-between gap-3 py-2.5",
-                          row.highlight &&
-                            "-mx-3 rounded-lg bg-[#0C2219] px-3 text-[#7CF0BC]"
-                        )}
-                      >
-                        <span className="text-[#9AA0AE]">
-                          {isAr ? row.labelAr : row.labelEn}
-                        </span>
-                        <span className="font-mono tabular text-[#F2F3F5]">
-                          {isAr ? row.valueAr : row.valueEn}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    asChild
-                    variant={plan.recommended ? "default" : "outline"}
-                  >
-                    <Link to={plan.href}>
-                      <span>{isAr ? plan.ctaAr : plan.ctaEn}</span>
-                      <ArrowRight className="rtl:rotate-180" />
-                    </Link>
-                  </Button>
-                </GlassCard>
-              </motion.div>
-            ))}
-          </div>
-        </Section>
-
-        {/* ─── SECTION 6: FAQ ─── */}
-        <Section
-          id="faq"
-          eyebrow="FAQ"
-          title={
-            isAr ? "أسئلتك، بإجابات واضحة" : "Your Questions, Answered Clearly"
-          }
-        >
-          <div className="space-y-3 max-w-3xl">
-            {FAQ_ITEMS.map((item, idx) => {
-              const isOpen = openFaq === idx;
-              return (
-                <div key={idx} className="bf-card overflow-hidden">
-                  <button
-                    type="button"
-                    aria-expanded={isOpen}
-                    onClick={() => setOpenFaq(isOpen ? -1 : idx)}
-                    className="group flex w-full items-center justify-between gap-4 px-6 py-4 text-start font-semibold text-[#F2F3F5] hover:text-[#3DDC97] transition-colors cursor-pointer"
-                  >
-                    <span>{isAr ? item.qAr : item.qEn}</span>
-                    <ChevronDown
-                      className={cn(
-                        "size-4 shrink-0 text-[#9AA0AE] transition-transform duration-200",
-                        isOpen && "rotate-180 text-[#3DDC97]"
-                      )}
-                    />
-                  </button>
-                  {isOpen && (
-                    <div className="px-6 pb-5 text-[15px] leading-[1.8] text-[#9AA0AE]">
-                      {isAr ? item.aAr : item.aEn}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-      </main>
-
-      {/* ─── FOOTER ─── */}
-      <footer className="border-t border-[#151922] bg-[#07080C]">
-        <div className="mx-auto flex flex-col sm:flex-row max-w-[1280px] items-center justify-between gap-4 px-5 sm:px-11 py-8 text-sm text-[#8A91A0]">
-          <LVLogo to="/" label="Black Fighters" />
-          <div className="flex flex-wrap items-center gap-6">
-            <a href="#summary" className="hover:text-[#F2F3F5]">
-              {isAr ? "المكتبة" : "Library"}
-            </a>
-            <a href="#study-now" className="hover:text-[#F2F3F5]">
-              {isAr ? "ذاكر دلوقتي" : "Study Now"}
-            </a>
-            <a href="#pricing" className="hover:text-[#F2F3F5]">
-              {isAr ? "الأسعار" : "Pricing"}
-            </a>
-            <Link to="/subscriptions" className="hover:text-[#F2F3F5]">
-              {isAr ? "الاشتراكات" : "Subscriptions"}
-            </Link>
-            <Link to="/help" className="hover:text-[#F2F3F5]">
-              {isAr ? "المساعدة" : "Help"}
-            </Link>
-          </div>
-          <div>
-            © {new Date().getFullYear()} Black Fighters
+          <div className="footer-meta-bottom mono">
+            <span>© 2026 Black Fighters · All rights reserved</span>
+            <span>
+              <a href="#manifesto" className="footer-privacy-link">Privacy</a>
+              <a href="#manifesto">Terms</a>
+            </span>
           </div>
         </div>
       </footer>

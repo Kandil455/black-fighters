@@ -7,8 +7,15 @@ import { motion } from "framer-motion";
 import LeaderboardRow from "@/components/leaderboard/LeaderboardRow";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import AnimatedTitle from "@/components/profile/AnimatedTitle";
-import { LottieTrophy } from "@/components/ui/LottieIcons";
+import { TrophyIcon } from "@/components/ui/icons";
 import { useLocale } from "@/lib/LocaleContext";
+import { isOwnerEmail, OWNER_EMAILS } from "@/lib/permissions";
+
+// The founder account is excluded from every competitive list by uid as well as
+// by role/email: those doc fields are not reliably persisted, so relying on them
+// alone let the owner rank as a normal student.
+const FOUNDER_UID = "up3y6pub7IgB1PpEMTcMASO2ei33";
+const OWNER_EMAIL = OWNER_EMAILS[0];
 
 export default function Leaderboard() {
   const { locale, dir } = useLocale();
@@ -23,34 +30,38 @@ export default function Leaderboard() {
       ]);
       const userList = Array.isArray(users) ? users : [];
 
-      // Find Admin (Alpha) profile or fallback to me/default
-      const foundAdmin = userList.find((u) => u?.role === "admin" || u?.email === "ibrahimkandil000@gmail.com");
-      const admin = foundAdmin || (me?.role === "admin" ? me : {
+      // ONE predicate for "this is the platform owner, not a competitor".
+      //
+      // The old check relied on `role === 'admin'` / an exact email match, neither
+      // of which is reliably persisted (the create rule pins role to 'user', and
+      // `email` is not self-writable), so the owner's own document could slip
+      // through, sort to the top and render as rank #0 with a crown.
+      const isFounder = (u) => Boolean(u) && (
+        u.id === FOUNDER_UID ||
+        String(u.role || "").toLowerCase() === "admin" ||
+        isOwnerEmail(u.email)
+      );
+
+      const foundAdmin = userList.find(isFounder);
+      const admin = foundAdmin || (isFounder(me) ? me : {
         id: "admin_alpha",
         full_name: "Ibrahim Kandil (Alpha 👑)",
-        email: "ibrahimkandil000@gmail.com",
+        email: OWNER_EMAIL,
         role: "admin",
         profile_frame: "spartanApex",
         profile_title_key: "owner",
-        avatar_url: me?.avatar_url || null,
-        avatar_is_video: me?.avatar_is_video || false,
+        avatar_url: null,
+        avatar_is_video: false,
         total_xp: 99999,
         total_correct: 999,
         total_answered: 999,
       });
 
-      if (me?.email === "ibrahimkandil000@gmail.com" || me?.role === "admin") {
-        Object.assign(admin, {
-          avatar_url: me.avatar_url || admin.avatar_url,
-          avatar_is_video: typeof me.avatar_is_video !== "undefined" ? me.avatar_is_video : admin.avatar_is_video,
-          profile_frame: me.profile_frame || admin.profile_frame,
-          profile_title_key: me.profile_title_key || admin.profile_title_key,
-        });
-      }
-
-      // Filter out admin from competitive student ranking so students have fair competition
+      // Never dress the founder card in the VIEWER's cosmetics: that made the card
+      // show the viewer's own photo/frame whenever the owner had none, and in dev
+      // it rewrote the owner's identity for every visitor.
       const ranked = userList
-        .filter((u) => u?.email !== "ibrahimkandil000@gmail.com" && u?.role !== "admin")
+        .filter((u) => !isFounder(u))
         .filter((u) => (u?.total_answered || 0) > 0 || (u?.total_xp || 0) > 0)
         .sort((a, b) => (b.total_xp || b.total_correct || 0) - (a.total_xp || a.total_correct || 0));
 
@@ -76,7 +87,7 @@ export default function Leaderboard() {
     <div dir={dir} className="max-w-3xl mx-auto space-y-6">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-2">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-[#3DDC97]/10 border border-[#3DDC97]/30 mx-auto mb-2">
-          <LottieTrophy className="w-14 h-14" />
+          <TrophyIcon className="w-14 h-14" />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-gradient">
           {isEn ? "Hall of Fame & Leaderboard" : "لوحة الشرف والتحديات"}
@@ -166,7 +177,7 @@ export default function Leaderboard() {
       {ranked.length > 0 && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-8 mb-10 rounded-3xl glass border border-[#3DDC97]/35 p-6 text-center relative overflow-hidden">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-[#3DDC97]/15 border border-[#3DDC97]/30 px-3 py-1 text-[#3DDC97] text-xs font-bold uppercase mb-4">
-            <LottieTrophy className="w-4 h-4" />
+            <TrophyIcon className="w-4 h-4" />
             {isEn ? "Weekly Student Champion" : "بطل الطلاب الأسبوعي"}
           </div>
           
@@ -237,6 +248,9 @@ export default function Leaderboard() {
               answered={u.total_answered || 0}
               isMe={u.id === me.id}
               xp={u.total_xp || 0}
+              avatar={u.avatar_url || ""}
+              isVideo={Boolean(u.avatar_is_video)}
+              frame={u.profile_frame || u.active_frame || "none"}
             />
           ))}
         </div>

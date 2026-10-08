@@ -75,26 +75,26 @@ export function SwitchShowcase() {
           </div>
         </div>
 
-        {/* Style 3: Lottie Morph Switch */}
+        {/* Style 3: Transform-only Motion Switch */}
         <div className="p-5 rounded-2xl bg-white/[0.02] border border-amber-500/20 hover:border-amber-500/40 transition-colors flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-amber-300">3. Lottie Animated</span>
+              <span className="text-xs font-bold text-amber-300">3. Motion (CSS)</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold">
                 {isEn ? "Alpha's Switch 🥋" : "زر Alpha 🥋"}
               </span>
             </div>
             <p className="text-[11px] text-white/50 leading-relaxed">
-              {isEn 
-                ? "Hardware-accelerated Lottie vector animation with elastic physics and responsive spring dynamics."
-                : "المتحرك بملف Lottie JSON الخاص الذي أرفقته في الشات، مع انزلاق سلس بالـ Keyframes الفيزيائية."}
+              {isEn
+                ? "Compositor-only transform transition: no animation JSON to download, no per-frame repaint."
+                : "حركة CSS على الـtransform فقط: مفيش ملف أنيميشن يتحمّل، ومفيش إعادة رسم كل فريم."}
             </p>
           </div>
           <div className="flex items-center justify-between pt-2 border-t border-white/5">
             <span className="text-xs font-mono text-amber-300/80">
               {s3 ? (isEn ? "Active" : "نشط") : (isEn ? "Standby" : "متوقف")}
             </span>
-            <Switch variant="lottie" checked={s3} onCheckedChange={setS3} />
+            <Switch variant="default" checked={s3} onCheckedChange={setS3} />
           </div>
         </div>
       </div>

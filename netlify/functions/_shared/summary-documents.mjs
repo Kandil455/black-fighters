@@ -3,6 +3,11 @@ import { adminDb, FieldValue } from "./firebase-admin.mjs";
 import { ALLOWED_MEDIA_LICENSES, validateAllowedMediaUrl } from "./media-security.mjs";
 
 const SAFE_TEMPLATE_IDS = new Set([
+  // Atlas V5 defaults — MUST stay in sync with SUMMARY_TEMPLATE_REGISTRY
+  // (src/lib/summaryV3/registry.js). While they were missing here, safeJobConfig
+  // silently coerced the user's template choice to bilingual_lecture.
+  "foundational_bilingual",
+  "atlas_cram",
   "bilingual_lecture",
   "complete_study_guide",
   "exam_revision_sheet",

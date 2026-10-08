@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Languages, BookOpen, ListChecks, Table2, CircleHelp, Sigma, Sparkles, Zap } from "lucide-react";
-import { CreditCoin3D } from "@/components/ui/Custom3DIcons";
+import { PaymentIcon } from "@/components/ui/icons";
 
 const LANGUAGE_OPTIONS = [
   { value: "ar", label: "عربي فقط", desc: "كل الملخص بالعربي حتى لو الملف إنجليزي" },
@@ -30,7 +30,7 @@ export default function GenerationOptionsPanel({ languageMode, setLanguageMode, 
           <h3 className="font-black text-lg truncate">{fileName || "النص اللي دخلته"}</h3>
         </div>
         <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1 text-xs font-black text-yellow-400">
-          <CreditCoin3D size={16} /> التكلفة {cost} كريدت
+          <PaymentIcon size={16} /> التكلفة {cost} كريدت
         </span>
       </div>
 

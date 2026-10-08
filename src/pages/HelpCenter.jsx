@@ -237,50 +237,105 @@ export default function HelpCenter() {
         }
       />
 
-      {/* Search & Category Filter */}
+      {/* Start here — the page used to open straight into nine numbered chips
+          with long Arabic labels plus nine stacked sections, so a student landing
+          here had no idea what to read first. Three concrete actions answer
+          "what do I do now?" before any documentation does. */}
       <LVCard className="p-5 space-y-4">
-        <div className="relative">
-          <Search className="w-4 h-4 text-[#9AA0AE] absolute top-1/2 -translate-y-1/2 right-3.5 pointer-events-none" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={
-              isEn
-                ? 'Search any feature, shortcut, FSRS rule, or Telegram limit...'
-                : 'ابحث في الدليل (يتجاهل التشكيل والهمزات تلقائياً: مثلاً اكتب "جرعات"، "FSRS"، "تيليجرام")...'
-            }
-            className="w-full h-11 pr-10 pl-4 rounded-xl bg-[#07080C] border border-[#1E222B] text-sm text-[#F2F3F5] placeholder:text-[#9AA0AE] focus:outline-none focus:border-[#3DDC97]"
-          />
+        <div>
+          <h2 className="text-sm font-black text-[#F2F3F5]">
+            {isEn ? 'Start here' : 'ابدأ من هنا'}
+          </h2>
+          <p className="mt-1 text-xs leading-6 text-[#9AA0AE]">
+            {isEn
+              ? 'Three steps cover 90% of what students need.'
+              : 'تلات خطوات بتغطي ٩٠٪ من اللي الطلبة محتاجينه.'}
+          </p>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid gap-2 sm:grid-cols-3">
+          {[
+            { to: '/create', step: '1', labelAr: 'ارفع المحاضرة', labelEn: 'Upload a lecture', hintAr: 'PDF أو صور → ملخص كامل', hintEn: 'PDF or images → full summary' },
+            { to: '/quizzes', step: '2', labelAr: 'اعمل كويز', labelEn: 'Make a quiz', hintAr: 'أسئلة على محاضرتك', hintEn: 'Questions on your lecture' },
+            { to: '/settings', step: '3', labelAr: 'اربط تيليجرام', labelEn: 'Link Telegram', hintAr: 'ذاكر من موبايلك', hintEn: 'Study from your phone' },
+          ].map((action) => (
+            <Link
+              key={action.to}
+              to={action.to}
+              className="group flex items-center gap-3 rounded-2xl border border-[#1E222B] bg-[#07080C] px-3.5 py-3 transition-colors hover:border-[#3DDC97]/40"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#3DDC97]/15 font-mono text-[12px] font-black text-[#3DDC97]">
+                {action.step}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-bold text-[#F2F3F5]">
+                  {isEn ? action.labelEn : action.labelAr}
+                </span>
+                <span className="mt-0.5 block truncate text-[11px] text-[#9AA0AE]">
+                  {isEn ? action.hintEn : action.hintAr}
+                </span>
+              </span>
+              <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-[#9AA0AE] transition-transform group-hover:-translate-x-0.5" />
+            </Link>
+          ))}
+        </div>
+
+        <div className="border-t border-[#1E222B] pt-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9AA0AE]" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                isEn
+                  ? 'Search any feature, shortcut, FSRS rule, or Telegram limit...'
+                  : 'ابحث في الدليل (بيتجاهل التشكيل والهمزات: اكتب "جرعات"، "FSRS"، "تيليجرام")...'
+              }
+              className="h-11 w-full rounded-xl border border-[#1E222B] bg-[#07080C] pl-4 pr-10 text-sm text-[#F2F3F5] placeholder:text-[#9AA0AE] focus:border-[#3DDC97] focus:outline-none"
+            />
+          </div>
+        </div>
+      </LVCard>
+
+      {/* Contents — a readable list instead of a chip cloud. */}
+      <LVCard className="p-5">
+        <h2 className="mb-3 text-sm font-black text-[#F2F3F5]">
+          {isEn ? `Contents (${HELP_SECTIONS.length})` : `المحتويات (${HELP_SECTIONS.length})`}
+        </h2>
+        <div className="grid gap-1.5 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => setActiveCategory('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-start text-[12.5px] font-bold transition-colors ${
               activeCategory === 'all'
-                ? 'bg-[#3DDC97] text-[#07080C] border-[#3DDC97]'
-                : 'bg-[#07080C] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]'
+                ? 'border-[#3DDC97]/50 bg-[#3DDC97]/10 text-[#3DDC97]'
+                : 'border-[#1E222B] text-[#9AA0AE] hover:text-[#F2F3F5]'
             }`}
           >
-            {isEn ? 'All 9 Sections' : 'كل الأقسام (9)'}
+            <Layers className="h-3.5 w-3.5 shrink-0" />
+            {isEn ? 'Show everything' : 'اعرض كل حاجة'}
           </button>
-          {HELP_SECTIONS.map((sec) => (
-            <button
-              key={sec.id}
-              type="button"
-              onClick={() => setActiveCategory(sec.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                activeCategory === sec.id
-                  ? 'bg-[#3DDC97] text-[#07080C] border-[#3DDC97]'
-                  : 'bg-[#07080C] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]'
-              }`}
-            >
-              <span className="font-mono ml-1">{sec.number}.</span>
-              {isEn ? sec.titleEn : sec.titleAr}
-            </button>
-          ))}
+          {HELP_SECTIONS.map((sec) => {
+            const Icon = sec.icon;
+            const selected = activeCategory === sec.id;
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => setActiveCategory(sec.id)}
+                className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-start text-[12.5px] transition-colors ${
+                  selected
+                    ? 'border-[#3DDC97]/50 bg-[#3DDC97]/10 text-[#3DDC97]'
+                    : 'border-[#1E222B] text-[#9AA0AE] hover:text-[#F2F3F5]'
+                }`}
+              >
+                <span className="font-mono text-[11px] opacity-70">{sec.number}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 truncate font-bold">{isEn ? sec.titleEn : sec.titleAr}</span>
+              </button>
+            );
+          })}
         </div>
       </LVCard>
 

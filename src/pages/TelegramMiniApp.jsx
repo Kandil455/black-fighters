@@ -1,9 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { signInWithCustomToken } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import AtlasSummaryReader from '@/components/atlas/AtlasSummaryReader';
 import DailyOrderSheet from '@/components/atlas/DailyOrderSheet';
 import { scheduleFsrsReview, createReviewItem, FSRS_RATINGS } from '@/lib/summaryV5/fsrsEngine';
 import { LVCard, LVBadge } from '@/components/ui/linevault';
+import { LoaderIcon, LightningIcon } from '@/components/ui/icons';
+import {
+  applyTelegramChrome,
+  bootstrapTelegramSession,
+  haptic,
+  isInsideTelegram,
+  loadTelegramSdk,
+  openPlatform,
+} from '@/lib/telegramMiniApp';
 
 const STARTAPP_REGEX = /^[A-Za-z0-9_-]{1,512}$/;
 
@@ -47,7 +58,34 @@ const MINI_APP_QUIZ_ITEMS = [
 
 export default function TelegramMiniApp() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tgWebApp = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
+
+  // Real session state. Before this, /tg rendered demo content for everyone and
+  // never talked to the server, so "signed in inside Telegram" did not exist.
+  const [session, setSession] = useState({ status: isInsideTelegram() ? 'checking' : 'not-in-telegram' });
+
+  useEffect(() => {
+    let cancelled = false;
+    // The SDK loads first: the CSP allows telegram.org only on /tg, and without it
+    // there is no `initData` to verify.
+    (async () => {
+      await loadTelegramSdk();
+      if (cancelled) return;
+      applyTelegramChrome();
+      if (!isInsideTelegram()) {
+        setSession({ status: 'not-in-telegram' });
+        return;
+      }
+      try {
+        const result = await bootstrapTelegramSession({ signInWithCustomToken, auth });
+        if (!cancelled) setSession(result);
+      } catch (err) {
+        if (!cancelled) setSession({ status: 'error', error: err?.message });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const startParamRaw =
     searchParams.get('startapp') ||
@@ -86,15 +124,9 @@ export default function TelegramMiniApp() {
     }
   }, [tgWebApp, parsedStart.docId]);
 
-  const triggerHaptic = (type = 'light') => {
-    try {
-      tgWebApp?.HapticFeedback?.impactOccurred?.(type);
-    } catch {
-      // Ignore outside Telegram
-    }
-  };
+  const triggerHaptic = (type = 'light') => haptic(type);
 
-  const handleSaveCloudProgress = (label) => {
+  const handleSaveCloudProgress = useCallback((label) => {
     setCloudPosition(label);
     triggerHaptic('light');
     try {
@@ -102,7 +134,7 @@ export default function TelegramMiniApp() {
     } catch {
       // Ignore
     }
-  };
+  }, [tgWebApp, parsedStart.docId]);
 
   const handleGradeSrs = (rating) => {
     triggerHaptic('medium');
@@ -113,6 +145,53 @@ export default function TelegramMiniApp() {
 
   return (
     <main dir="rtl" className="min-h-dvh bg-[#07080C] text-[#F2F3F5] p-4 max-w-3xl mx-auto space-y-4">
+      {/* Session state — honest about whether this is the real account session */}
+      {session.status === 'checking' && (
+        <div className="flex items-center gap-2 rounded-xl border border-[#1E222B] bg-[#0E1117] px-3 py-2 text-[11px] text-[#9AA0AE]">
+          <LoaderIcon size={14} className="text-[#3DDC97]" />
+          بنتحقق من حسابك على تيليجرام…
+        </div>
+      )}
+      {session.status === 'authenticated' && (
+        <div className="flex items-center gap-2 rounded-xl border border-[#3DDC97]/30 bg-[#3DDC97]/5 px-3 py-2 text-[11px] text-[#3DDC97]">
+          <LightningIcon size={14} />
+          متصل بحسابك الحقيقي على المنصة — كل حاجة بتتحفظ في مكانها.
+        </div>
+      )}
+      {session.status === 'unlinked' && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2">
+          <p className="text-[11px] leading-relaxed text-amber-200">
+            فتحت التطبيق من تيليجرام لكن معندناش حساب مرتبط بالحساب ده لسه. اربط من المنصة عشان نتزامن تقدمك.
+          </p>
+          <button
+            type="button"
+            onClick={() => openPlatform('/settings')}
+            className="rounded-lg bg-[#3DDC97] px-3 py-1.5 text-[11px] font-black text-[#03150c]"
+          >
+            افتح إعدادات الربط
+          </button>
+        </div>
+      )}
+      {session.status === 'error' && (
+        <div className="rounded-xl border border-[#E5484D]/30 bg-[#E5484D]/5 px-3 py-2.5 space-y-2">
+          <p className="text-[11px] leading-relaxed text-[#E5484D]">
+            تعذر التحقق من حسابك على تيليجرام ({session.error}).
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(0)}
+            className="rounded-lg border border-[#1E222B] px-3 py-1.5 text-[11px] font-bold text-[#F2F3F5]"
+          >
+            جرّب تاني
+          </button>
+        </div>
+      )}
+      {session.status === 'not-in-telegram' && (
+        <div className="rounded-xl border border-[#1E222B] bg-[#0E1117] px-3 py-2 text-[11px] text-[#9AA0AE]">
+          دي صفحة تطبيق تيليجرام المصغر — تقدر تفتحها من جوه البوت. اللي بتشوفه هنا معاينة.
+        </div>
+      )}
+
       {/* Compact Telegram Mini App Header */}
       <header className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#1E222B]">
         <div>
