@@ -54,7 +54,7 @@ export const PLANS = [
     tokens: 0,
     tier: "starter",
     features: [
-      "الوصول الحصري لبوت التيليجرام (@black_fighters_bot) 🤖",
+      "الوصول الحصري لبوت التيليجرام (@Black_Fighters_FREE_bot) 🤖",
       "امتحان كويزات النظري (EBE) والعملي (OSPE) بالتيليجرام",
       "٢٥٠ كريدت شهرياً لكافة العمليات ⚡",
       "محركات AI متقدمة لتلخيص المحاضرات والكتب واليوتيوب",
@@ -62,7 +62,7 @@ export const PLANS = [
       "بدون قيود على عدد العمليات اليومية"
     ],
     featuresEn: [
-      "Exclusive Telegram Bot Access (@black_fighters_bot) 🤖",
+      "Exclusive Telegram Bot Access (@Black_Fighters_FREE_bot) 🤖",
       "Take EBE Theory & OSPE Quizzes inside Telegram",
       "250 credits / month ⚡",
       "Advanced AI engines for lectures, books & YouTube",
@@ -82,7 +82,7 @@ export const PLANS = [
     discountPercent: 15,
     popular: true,
     features: [
-      "الوصول الحصري لبوت التيليجرام (@black_fighters_bot) 🤖",
+      "الوصول الحصري لبوت التيليجرام (@Black_Fighters_FREE_bot) 🤖",
       "امتحان كويزات النظري (EBE) والعملي (OSPE) بالتيليجرام",
       "٦٠٠ كريدت شهرياً ⚡",
       "محركات AI فائقة الذكاء للاختبارات والأسئلة المعقدة ⭐",
@@ -91,7 +91,7 @@ export const PLANS = [
       "تصدير PDF و Word واستخراج الصور التوضيحية"
     ],
     featuresEn: [
-      "Exclusive Telegram Bot Access (@black_fighters_bot) 🤖",
+      "Exclusive Telegram Bot Access (@Black_Fighters_FREE_bot) 🤖",
       "Take EBE Theory & OSPE Quizzes inside Telegram",
       "600 credits / month ⚡",
       "Ultra-smart AI engines for exams & complex reasoning ⭐",
@@ -111,7 +111,7 @@ export const PLANS = [
     isElite: true,
     discountPercent: 30,
     features: [
-      "الوصول الحصري لبوت التيليجرام (@black_fighters_bot) 🤖",
+      "الوصول الحصري لبوت التيليجرام (@Black_Fighters_FREE_bot) 🤖",
       "امتحان كويزات النظري (EBE) والعملي (OSPE) بالتيليجرام",
       "١,٥٠٠ كريدت شهرياً ⚡",
       "أقصى قدرة معالجة وسرعة استجابة غير محدودة 👑",
@@ -120,7 +120,7 @@ export const PLANS = [
       "أولوية قصوى في سيرفرات التوليد ودعم VIP مباشر"
     ],
     featuresEn: [
-      "Exclusive Telegram Bot Access (@black_fighters_bot) 🤖",
+      "Exclusive Telegram Bot Access (@Black_Fighters_FREE_bot) 🤖",
       "Take EBE Theory & OSPE Quizzes inside Telegram",
       "1,500 credits / month ⚡",
       "Maximum processing throughput & unlocked generation speed 👑",
@@ -142,7 +142,7 @@ export const PLANS = [
       "🚨 وصول كامل لقسم راوند الطوارئ بالموقع وبوت التيليجرام",
       "📄 ملفات وملازم حصرية تُعرض بصيغة HTML أو PDF تفاعلي",
       "📝 كويزات الطوارئ وبنوك الأسئلة المعدّة حصرياً بواسطة Alpha",
-      "🤖 حل كويزات الطوارئ تفاعلياً بداخل بوت التيليجرام (@black_fighters_bot)",
+      "🤖 حل كويزات الطوارئ تفاعلياً بداخل بوت التيليجرام (@Black_Fighters_FREE_bot)",
       "⚡ ١٠٠ كريدت شهرياً لكافة أدوات الذكاء الاصطناعي بالمنصة",
       "🔔 إشعارات وتنبيهات فورية عند رفع أي محتوى طوارئ جديد"
     ],
@@ -150,7 +150,7 @@ export const PLANS = [
       "🚨 Full exclusive access to Emergency Round hub & Telegram bot",
       "📄 Exclusive study files rendered as responsive HTML or interactive PDF",
       "📝 Alpha's verified Emergency quizzes & exam question banks",
-      "🤖 Interactive Telegram bot quiz polls (@black_fighters_bot)",
+      "🤖 Interactive Telegram bot quiz polls (@Black_Fighters_FREE_bot)",
       "⚡ 100 monthly credits for all platform AI features",
       "🔔 Instant push alerts whenever new emergency material is published"
     ],

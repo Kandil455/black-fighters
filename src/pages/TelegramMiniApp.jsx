@@ -227,7 +227,7 @@ export default function TelegramMiniApp() {
       {session.status === "not-in-telegram" && (
         <div className="rounded-xl border border-white/[0.07] glass px-3.5 py-2.5 text-[11px] text-[#9aa4b2] flex items-center justify-between gap-2">
           <span>
-            تطبيق تيليجرام المصغر (@black_fighters_bot) — يمكنك فتحه من داخل البوت أو تجربته هنا مباشرة.
+            تطبيق تيليجرام المصغر (@Black_Fighters_FREE_bot) — يمكنك فتحه من داخل البوت أو تجربته هنا مباشرة.
           </span>
           <LVBadge variant="accent" mono>
             /tg

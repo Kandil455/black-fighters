@@ -258,7 +258,7 @@ export default function TelegramPanel() {
                 )}
               </div>
               <p className="text-xs font-mono text-[#9aa4b2] mt-0.5">
-                {commands?.botUsername ? `@${commands.botUsername}` : "@black_fighters_bot"} ·{" "}
+                {commands?.botUsername ? `@${commands.botUsername}` : "@Black_Fighters_FREE_bot"} ·{" "}
                 {commands?.botConfigured
                   ? isEn
                     ? "Bot API Token Ready"

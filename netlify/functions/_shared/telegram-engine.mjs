@@ -40,8 +40,8 @@ export function getAppBaseUrl() {
 
 /** Public bot handle used to build deep links (not a secret). */
 export function getBotUsername() {
-  const raw = String(process.env.TELEGRAM_BOT_USERNAME || "black_fighters_bot").trim().replace(/^@/, "");
-  return /^[A-Za-z0-9_]{5,32}$/.test(raw) ? raw : "black_fighters_bot";
+  const raw = String(process.env.TELEGRAM_BOT_USERNAME || "Black_Fighters_FREE_bot").trim().replace(/^@/, "");
+  return /^[A-Za-z0-9_]{5,32}$/.test(raw) ? raw : "Black_Fighters_FREE_bot";
 }
 
 /**
@@ -1560,7 +1560,7 @@ function buildLinkWelcome(userObj, isAdminUser, chatId) {
 👑 <b>أهلاً بك يا قائدنا ومولانا Alpha في غرفة القيادة السيادية!</b> ⚡
 ━━━━━━━━━━━━━━━━━━━━
 تم ربط وتوثيق حساب التيليجرام الخاص بك (ID: <code>${chatId}</code>) بحساب الإدارة الأعلى للمنصة! 🦾
-البوت الأكاديمي <code>@black_fighters_bot</code> تحت سيطرتك الكاملة الآن.
+البوت الأكاديمي <code>@Black_Fighters_FREE_bot</code> تحت سيطرتك الكاملة الآن.
       `.trim(),
       keyboard: {
         inline_keyboard: [
@@ -2589,7 +2589,7 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
         const welcome = `
 👑 <b>أهلاً بك يا قائدنا ومولانا Alpha في غرفة القيادة السيادية!</b> ⚡
 ━━━━━━━━━━━━━━━━━━━━
-البوت الأكاديمي <code>@black_fighters_bot</code> متصل بالسيرفر المركزي وقاعدة بيانات Firestore بنجاح.
+البوت الأكاديمي <code>@Black_Fighters_FREE_bot</code> متصل بالسيرفر المركزي وقاعدة بيانات Firestore بنجاح.
 
 <b>تحكمك المباشر:</b>
 • استقبال إشعارات الدفع والتحويل لحظة بلحظة مع خيارات التفعيل المباشر

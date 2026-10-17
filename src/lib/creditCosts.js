@@ -9,6 +9,7 @@ export const CREDIT_COSTS = {
   practical_quiz_step: 1, // 1 كريدت لكل 5 أسئلة في الكويز العملي (منصف ومنطقي)
   ai_summary_edit: 3,     // تعديل حقيقي على ملف التلخيص بواسطة الـ AI (شات مجاني)
   ai_quiz_from_summary: 1, // إنشاء كويز حقيقي من الملخص (1 كريدت لكل 5 أسئلة)
+  ai_quiz_review: 1,      // مراجعة وتدقيق الأسئلة بالـ AI عند الطلب (1 كريدت لكل 10 أسئلة)
 };
 
 // تكلفة تعديل الـ AI على ملف التلخيص — ثابتة ومعلنة للمستخدم قبل التنفيذ
@@ -26,6 +27,16 @@ export const SUMMARY_CREDIT_COST = CREDIT_COSTS.summary;
 export function getQuizCost(count, extractMode) {
   if (extractMode) return CREDIT_COSTS.quiz_extract;
   return Math.max(1, Math.ceil((Number(count) || 10) / 5));
+}
+
+/**
+ * حساب تكلفة مراجعة وتصحيح الكويز بالـ AI (AI Review):
+ * 1 كريدت لكل 10 أسئلة (بحد أدنى 1 كريدت).
+ * لا تُخصم عند توليد الكويز، وإنما تُعرض للمستخدم وتُخصم فقط إذا ضغط على زر مراجعة الـ AI.
+ */
+export function getQuizAuditCost(questionCount = 10) {
+  const count = Math.max(1, Number(questionCount) || 10);
+  return Math.max(1, Math.ceil(count / 10));
 }
 
 /**

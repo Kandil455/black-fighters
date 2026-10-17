@@ -36,9 +36,9 @@ export default function QuizExportButton({ quiz, variant = "icon", className = "
       toast.error("الكويز غير متاح للربط بالتيليجرام");
       return;
     }
-    const url = `https://t.me/black_fighters_bot?start=quiz_${quiz.id}`;
+    const url = `https://t.me/Black_Fighters_FREE_bot?start=quiz_${quiz.id}`;
     window.open(url, "_blank");
-    toast.success("🚀 تم فتح الكويز على بوت التيليجرام (@black_fighters_bot)!");
+    toast.success("🚀 تم فتح الكويز على بوت التيليجرام (@Black_Fighters_FREE_bot)!");
   };
 
   return (
@@ -60,7 +60,7 @@ export default function QuizExportButton({ quiz, variant = "icon", className = "
           <Bot className="w-4 h-4 text-primary animate-pulse" />
           <div>
             <p className="font-bold text-sm">امتحان الكويز على التليجرام 🤖</p>
-            <p className="text-[11px] text-muted-foreground">تشغيل تفاعلي على @black_fighters_bot</p>
+            <p className="text-[11px] text-muted-foreground">تشغيل تفاعلي على @Black_Fighters_FREE_bot</p>
           </div>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleExport(false)} className="gap-2 cursor-pointer">

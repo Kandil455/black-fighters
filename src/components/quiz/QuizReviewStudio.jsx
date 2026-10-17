@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { getAiConfig } from "@/api/index";
 import { base44 } from "@/api/base44Client";
 import { callAI } from "@/lib/ai";
-import { checkDistractorSymmetry, reconcileQuestionAnswer } from "@/lib/quizQuality";
+import { checkDistractorSymmetry, reconcileQuestionAnswer, verifyAndPrepareQuizQuestions } from "@/lib/quizQuality";
+import { getQuizAuditCost } from "@/lib/creditCosts";
 import { playClick, playSuccess } from "@/lib/sounds";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -31,14 +32,15 @@ export function QuizReviewStudio({
   const isEn = locale === "en";
   const [title, setTitle] = useState(quizTitle || (isEn ? "New Study Quiz" : "كويز دراسي جديد"));
   const [questions, setQuestions] = useState(() =>
-    initialQuestions.map((q, idx) => ({
-      ...reconcileQuestionAnswer(q),
+    verifyAndPrepareQuizQuestions(initialQuestions, sourceText).map((q, idx) => ({
+      ...q,
       id: q.id || `q_${Date.now()}_${idx}`,
       isEditing: false,
     }))
   );
   const [filterMode, setFilterMode] = useState(() => {
-    if (initialQuestions.some((q) => q.needs_review || q.correct_index === -1)) {
+    const preVerified = verifyAndPrepareQuizQuestions(initialQuestions, sourceText);
+    if (preVerified.some((q) => q.needs_review || q.correct_index === -1)) {
       return "needs_review";
     }
     return "all";
@@ -46,6 +48,8 @@ export function QuizReviewStudio({
   const [regeneratingId, setRegeneratingId] = useState(null);
   const [auditingAll, setAuditingAll] = useState(false);
   const [directPublish, setDirectPublish] = useState(false);
+
+  const aiReviewCost = getQuizAuditCost(questions.length);
 
   // Update a field in a specific question
   const handleUpdateQuestion = (id, updates) => {
@@ -64,17 +68,29 @@ export function QuizReviewStudio({
     );
   };
 
-  // Multi-Agent AI Audit & Auto-Fix for all questions in the studio
+  // Multi-Agent AI Audit & Auto-Fix for all questions in the studio (Charged ONLY when clicked)
   const handleAuditAllWithAI = async () => {
     if (!questions.length || auditingAll) return;
     playClick();
     setAuditingAll(true);
+    let chargedJob = null;
     const toastId = toast.loading(
       isEn
-        ? `Multi-Agent AI is auditing and verifying ${questions.length} questions... 🧠⚡`
-        : `جاري فحص وتصحيح الـ ${questions.length} سؤال بالـ Multi-Agent AI... 🧠⚡`
+        ? `Charging ${aiReviewCost} Cr & auditing ${questions.length} questions with Multi-Agent AI... 🧠⚡`
+        : `جاري فحص وتصحيح الـ ${questions.length} سؤال بالـ AI (${aiReviewCost} كريدت)... 🧠⚡`
     );
     try {
+      const jobKey = `quiz_audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const charge = await base44.functions.invoke("chargeAiJob", {
+        action: "charge",
+        jobKey,
+        task: "quiz_audit",
+        cost: aiReviewCost,
+        amount: aiReviewCost,
+        questionCount: questions.length,
+      });
+      chargedJob = { jobKey, cost: charge?.data?.cost ?? aiReviewCost };
+
       const res = await base44.functions.invoke("generateStudyContent", {
         task: "quiz_audit",
         questions,
@@ -85,6 +101,8 @@ export function QuizReviewStudio({
         ? result.questions
         : questions.map(reconcileQuestionAnswer);
       const fixedCount = Number(result?.correctedCount) || 0;
+
+      await base44.functions.invoke("chargeAiJob", { action: "finalize", jobKey }).catch(() => {});
 
       setQuestions((prev) =>
         prev.map((oldQ, i) => {
@@ -107,19 +125,22 @@ export function QuizReviewStudio({
       if (fixedCount > 0) {
         toast.success(
           isEn
-            ? `Multi-Agent AI audited all questions and corrected ${fixedCount} answer(s)! 🧠✅`
-            : `تم تدقيق الكويز وتصحيح إجابات ${fixedCount} سؤال بدقة 100%! 🧠✅`
+            ? `Multi-Agent AI audited all questions and corrected ${fixedCount} answer(s) (${aiReviewCost} Cr deducted)! 🧠✅`
+            : `تم تدقيق الكويز وتصحيح إجابات ${fixedCount} سؤال بدقة 100% (تم خصم ${aiReviewCost} كريدت)! 🧠✅`
         );
       } else {
         toast.success(
           isEn
-            ? `All ${questions.length} questions verified 100% accurate by Multi-Agent AI! ✅⚡`
-            : `تم فحص جميع الـ ${questions.length} سؤال — كل الإجابات والشروحات صحيحة 100%! ✅⚡`
+            ? `All ${questions.length} questions verified 100% accurate by Multi-Agent AI (${aiReviewCost} Cr deducted)! ✅⚡`
+            : `تم فحص جميع الـ ${questions.length} سؤال — كل الإجابات والشروحات صحيحة 100% (تم خصم ${aiReviewCost} كريدت)! ✅⚡`
         );
       }
     } catch (err) {
+      if (chargedJob) {
+        await base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }).catch(() => {});
+      }
       toast.dismiss(toastId);
-      toast.error(err?.message || (isEn ? "AI Audit failed" : "حدث خطأ أثناء الفحص بالـ AI"));
+      toast.error(err?.message || (isEn ? "AI Audit failed — no credits deducted" : "حدث خطأ أثناء الفحص بالـ AI — لم يتم خصم أي كريدت"));
     } finally {
       setAuditingAll(false);
     }
@@ -267,9 +288,12 @@ ${(sourceText || "").slice(0, 4000) || targetQ.question}`;
       {/* Top Header */}
       <div className="p-6 rounded-3xl bg-[#0a0b12] border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
         <div className="space-y-1.5 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-primary/10 text-cyan-400 border border-primary/30">
               {isEn ? "P1.1 • Quality Review Studio" : "P1.1 • استوديو مراجعة وضبط الجودة"}
+            </span>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+              {isEn ? "✓ Pre-verified automatically (0 Cr)" : "✓ تم فحص وتأكيد الأسئلة تلقائياً (0 كريدت)"}
             </span>
             {sourceType === "offline_parser" && (
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
@@ -289,8 +313,8 @@ ${(sourceText || "").slice(0, 4000) || targetQ.question}`;
 
           <p className="text-xs text-white/50">
             {isEn 
-              ? "Review questions, refine options and explanations, and balance distractors before saving to your quiz bank."
-              : "راجع الأسئلة، عدّل الخيارات والشروحات، واستبعد أي سؤال غير متكافئ قبل الحفظ في بنك الكويزات."}
+              ? `Questions & answers are already verified automatically. Optional AI deep review costs ${aiReviewCost} Credit(s) — deducted only if you click it.`
+              : `تم التأكد من إجابات وتكافؤ خيارات الأسئلة تلقائياً قبل العرض. مراجعة الـ AI الإضافية اختيارية (${aiReviewCost} كريدت — تُخصم فقط لو ضغطت عليها).`}
           </p>
         </div>
 
@@ -302,10 +326,15 @@ ${(sourceText || "").slice(0, 4000) || targetQ.question}`;
             size="sm"
             disabled={auditingAll || !questions.length}
             onClick={handleAuditAllWithAI}
+            title={isEn ? `Optional: Deducts ${aiReviewCost} credit(s) only when clicked` : `اختياري: يخصم ${aiReviewCost} كريدت فقط عند الضغط`}
             className="h-11 px-4 rounded-xl text-xs font-bold border-purple-500/40 bg-purple-500/15 text-purple-300 hover:bg-purple-500/25 gap-1.5"
           >
             {auditingAll ? <Loader2 className="w-4 h-4 animate-spin text-purple-300" /> : <Sparkles className="w-4 h-4 text-purple-300" />}
-            <span>{isEn ? "🧠 AI Review & Fix Answers" : "🧠 مراجعة وتصحيح بالـ AI"}</span>
+            <span>
+              {isEn
+                ? `🧠 AI Review (${aiReviewCost} Cr)`
+                : `🧠 مراجعة وتصحيح بالـ AI (${aiReviewCost} كريدت)`}
+            </span>
           </Button>
 
           <Button

@@ -99,13 +99,26 @@ class PracticalQuizJobManager {
                 api_key: chosenKey,
               };
 
-              const questions = await generateImageQuiz(
+              let questions = await generateImageQuiz(
                 item.img,
                 { numQuestions: item.count, difficulty, customExplanation: item.img.contextText, language },
                 rotatedConfig
               );
+              if (!questions || questions.length === 0) {
+                // Retry once so no approved image is ever dropped
+                questions = await generateImageQuiz(
+                  item.img,
+                  { numQuestions: item.count, difficulty, customExplanation: item.img.contextText, language },
+                  baseAiConfig
+                );
+              }
               if (questions && questions.length > 0) {
-                quizzesMap[item.img.id] = questions;
+                try {
+                  const { verifyAndPrepareQuizQuestions } = await import("./quizQuality");
+                  quizzesMap[item.img.id] = verifyAndPrepareQuizQuestions(questions, item.img.contextText || "");
+                } catch {
+                  quizzesMap[item.img.id] = questions;
+                }
               }
             } catch (qErr) {
               console.warn(`[practicalQuizJob] Failed for image ${item.img.id}:`, qErr);

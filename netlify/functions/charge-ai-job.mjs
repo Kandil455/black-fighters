@@ -6,7 +6,9 @@ function quotedCost(body) {
   if (body.task === "image_ocr") return Math.max(1, Math.ceil((Number(body.imageCount) || 1) / 5));
   if (body.task === "ocr") return calculateOcrCost(body.pageCount);
   if (body.task === "quiz") return Math.max(1, Math.ceil((Number(body.questionCount) || 10) / 5));
+  if (body.task === "quiz_audit") return Math.max(1, Math.ceil((Number(body.questionCount) || 10) / 10));
   if (body.task === "flashcards") return Math.max(1, Math.min(10, Math.ceil((Number(body.charCount) || 1) / 40_000)));
+  if (Number(body.cost ?? body.amount) > 0) return Number(body.cost ?? body.amount);
   return calculateSummaryCost(body.charCount);
 }
 

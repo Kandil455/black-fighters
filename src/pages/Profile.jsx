@@ -343,8 +343,8 @@ export default function Profile() {
             </div>
             <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
               {isEn
-                ? "Connect with @black_fighters_bot to take interactive EBE & OSPE quizzes right inside Telegram!"
-                : "اربط حسابك مع بوت @black_fighters_bot لتمتحن كويزات النظري (EBE) والعملي (OSPE) مباشرة من التيليجرام!"}
+                ? "Connect with @Black_Fighters_FREE_bot to take interactive EBE & OSPE quizzes right inside Telegram!"
+                : "اربط حسابك مع بوت @Black_Fighters_FREE_bot لتمتحن كويزات النظري (EBE) والعملي (OSPE) مباشرة من التيليجرام!"}
             </p>
             <TelegramLinkAction
               linked={Boolean(user?.telegram_chat_id)}

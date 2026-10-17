@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { playClick, playSuccess } from "@/lib/sounds";
 import { base44 } from "@/api/base44Client";
 import { reconcileQuestionAnswer } from "@/lib/quizQuality";
+import { getQuizAuditCost } from "@/lib/creditCosts";
 import { toast } from "sonner";
 
 export function ImageQuizPlayer({
@@ -42,7 +43,7 @@ export function ImageQuizPlayer({
 
   // Flatten all questions with their corresponding parent image & auto-reconcile
   const allItems = [];
-  imagesWithQuizzes.forEach((img) => {
+  imagesWithQuizzes.forEach((img, stationIdx) => {
     if (Array.isArray(img.quiz)) {
       img.quiz.forEach((q, qIdx) => {
         const flatIdx = allItems.length;
@@ -59,6 +60,7 @@ export function ImageQuizPlayer({
           correct_index: finalCorrect,
           explanation: override?.explanation || reconciled.explanation || q.explanation,
           parentImage: img,
+          stationNumber: stationIdx + 1,
           questionIndex: qIdx,
         });
       });
@@ -71,16 +73,30 @@ export function ImageQuizPlayer({
   const [isFinished, setIsFinished] = useState(false);
   const [previewZoom, setPreviewZoom] = useState(false);
 
+  const aiReviewCost = getQuizAuditCost(allItems.length);
+
   const handleAuditWithAI = async () => {
     if (!allItems.length || auditing) return;
     playClick();
     setAuditing(true);
+    let chargedJob = null;
     const toastId = toast.loading(
       isEn
-        ? `Multi-Agent AI is auditing ${allItems.length} practical questions... 🧠⚡`
-        : `جاري فحص وتصحيح الـ ${allItems.length} سؤال عملي بالـ AI... 🧠⚡`
+        ? `Charging ${aiReviewCost} Cr & auditing ${allItems.length} OSCE questions... 🧠⚡`
+        : `جاري فحص وتصحيح الـ ${allItems.length} سؤال عملي بالـ AI (${aiReviewCost} كريدت)... 🧠⚡`
     );
     try {
+      const jobKey = `osce_audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const charge = await base44.functions.invoke("chargeAiJob", {
+        action: "charge",
+        jobKey,
+        task: "quiz_audit",
+        cost: aiReviewCost,
+        amount: aiReviewCost,
+        questionCount: allItems.length,
+      });
+      chargedJob = { jobKey, cost: charge?.data?.cost ?? aiReviewCost };
+
       const res = await base44.functions.invoke("generateStudyContent", {
         task: "quiz_audit",
         questions: allItems.map((item) => ({
@@ -109,17 +125,21 @@ export function ImageQuizPlayer({
           }
         }
       });
+      await base44.functions.invoke("chargeAiJob", { action: "finalize", jobKey }).catch(() => {});
       setAuditedOverrides(nextOverrides);
       toast.dismiss(toastId);
       playSuccess();
       toast.success(
         fixed > 0
-          ? (isEn ? `AI Audit fixed ${fixed} question(s)! 🧠✅` : `تم فحص الكويز العملي وتصحيح إجابات ${fixed} سؤال! 🧠✅`)
-          : (isEn ? "All answers verified 100% accurate! ✅⚡" : "تم فحص جميع الأسئلة — كل الإجابات صحيحة 100%! ✅⚡")
+          ? (isEn ? `AI Audit fixed ${fixed} question(s) (${aiReviewCost} Cr)! 🧠✅` : `تم فحص الكويز العملي وتصحيح إجابات ${fixed} سؤال (${aiReviewCost} كريدت)! 🧠✅`)
+          : (isEn ? `All answers verified 100% accurate (${aiReviewCost} Cr)! ✅⚡` : `تم فحص جميع الأسئلة — كل الإجابات صحيحة 100% (${aiReviewCost} كريدت)! ✅⚡`)
       );
     } catch (err) {
+      if (chargedJob) {
+        await base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }).catch(() => {});
+      }
       toast.dismiss(toastId);
-      toast.error(err?.message || (isEn ? "AI Audit failed" : "حدث خطأ أثناء الفحص بالـ AI"));
+      toast.error(err?.message || (isEn ? "AI Audit failed — no credits deducted" : "حدث خطأ أثناء الفحص بالـ AI — لم يتم خصم أي كريدت"));
     } finally {
       setAuditing(false);
     }
@@ -195,8 +215,10 @@ export function ImageQuizPlayer({
                 <span className="text-xs font-bold text-white block">
                   {isEn ? `Question ${currentIndex + 1} of ${totalQuestions}` : `السؤال ${currentIndex + 1} من ${totalQuestions}`}
                 </span>
-                <span className="text-[10px] text-white/50 font-mono">
-                  {isEn ? `Page / Slide ${currentItem.parentImage.pageOrSlideNumber}` : `صفحة / سلايد ${currentItem.parentImage.pageOrSlideNumber}`}
+                <span className="text-[10px] text-primary/80 font-mono">
+                  {isEn
+                    ? `OSCE Station #${currentItem.stationNumber || 1} • Slide ${currentItem.parentImage.pageOrSlideNumber}`
+                    : `محطة أوسكي #${currentItem.stationNumber || 1} • شريحة ${currentItem.parentImage.pageOrSlideNumber}`}
                 </span>
               </div>
             </div>
@@ -235,10 +257,11 @@ export function ImageQuizPlayer({
                 type="button"
                 onClick={handleAuditWithAI}
                 disabled={auditing}
+                title={isEn ? "Charged only when clicked" : "تُخصم فقط عند الضغط على الزر"}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-500/15 border border-purple-500/35 text-purple-300 text-xs font-bold hover:bg-purple-500/25 transition-colors disabled:opacity-50"
               >
                 {auditing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-purple-400" />}
-                <span>{isEn ? "AI Review 🧠" : "مراجعة بالـ AI 🧠"}</span>
+                <span>{isEn ? `AI Review (${aiReviewCost} Cr) 🧠` : `مراجعة بالـ AI (${aiReviewCost} كريدت) 🧠`}</span>
               </button>
               <span className="text-xs font-mono font-bold text-cyan-400">
                 {isEn ? `Accuracy: ${correctCount}/${Object.keys(selectedAnswers).length}` : `دقة الإجابات: ${correctCount}/${Object.keys(selectedAnswers).length}`}
@@ -286,6 +309,12 @@ export function ImageQuizPlayer({
             {/* Right: Question Stem and Choices */}
             <div className="lg:col-span-7 space-y-4">
               <div className="p-6 rounded-3xl bg-[#0a0b12] border border-white/15 shadow-xl space-y-5">
+                {currentItem.visualFinding && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-[11px] font-bold text-cyan-300">
+                    <Eye className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <span>{currentItem.visualFinding}</span>
+                  </div>
+                )}
                 {/* Question Stem */}
                 <h4
                   className="text-base sm:text-lg font-bold text-white leading-relaxed font-heading"

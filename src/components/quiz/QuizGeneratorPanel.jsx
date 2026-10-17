@@ -20,6 +20,7 @@ import {
   runQuizChunkPool,
   detectLanguage,
   getRecommendedQuizLanguage,
+  verifyAndPrepareQuizQuestions,
 } from "@/lib/quizQuality";
 import { tryOfflineExtraction } from "@/lib/offlineExamParser";
 import { extractTextFromFile } from "@/lib/fileProcessing";
@@ -208,8 +209,8 @@ export default function QuizGeneratorPanel() {
           defaultSourceRef: chunk.sourceRef,
         });
       }, {
-        concurrency: 2,
-        retries: 1,
+        concurrency: 4,
+        retries: 2,
         shouldCancel: () => cancelRequestedRef.current,
         onProgress: ({ completed, total, index }) => setGenerationProgress({
           completed,
@@ -239,8 +240,8 @@ export default function QuizGeneratorPanel() {
         requireExplanation: showExplanations,
         sourceText: text,
       });
-      const questions = finalQuality.questions;
-      if (!questions.length) throw new Error("NO_QUESTIONS");
+      const verifiedQuestions = verifyAndPrepareQuizQuestions(finalQuality.questions, text);
+      if (!verifiedQuestions.length) throw new Error("NO_QUESTIONS");
       const qualityStats = {
         ...finalQuality.stats,
         chunk_attempts: chunkTasks.length,
@@ -249,19 +250,19 @@ export default function QuizGeneratorPanel() {
         source_sampled: chunkBuild.sampled,
         first_pass_stats: totalStats,
         evidence_coverage_rate: finalQuality.stats.evidence_coverage_rate,
-        needs_review: finalQuality.stats.needs_review,
+        needs_review: verifiedQuestions.filter((q) => q.needs_review).length,
       };
 
       if (chargedJob) {
         await base44.functions.invoke("chargeAiJob", { action: "finalize", jobKey }).catch(() => {});
       }
 
-      // P1.1 Governing rule: Pass through QuizReviewStudio before publishing
+      // P1.1 Governing rule: Pre-verify and pass through QuizReviewStudio before publishing
       if (!skipReview) {
-        setReviewQuestions(questions);
+        setReviewQuestions(verifiedQuestions);
         setReviewSourceType(selectedMode === "extract" ? "ai_extracted" : "ai_generated");
         setReviewOpen(true);
-        toast.success(`تم إنشاء وتدقيق ${questions.length} سؤال · جاري فتح استوديو المراجعة`);
+        toast.success(`تم توليد والتحقق من ${verifiedQuestions.length} سؤال بنجاح ✓ جاري فتح استوديو المراجعة`);
         return;
       }
 
@@ -269,7 +270,7 @@ export default function QuizGeneratorPanel() {
         title: title.trim(),
         owner_id: me.id,
         owner_name: me.full_name || me.email,
-        questions,
+        questions: verifiedQuestions,
         is_public: true,
         show_explanations: showExplanations,
         quiz_mode: selectedMode,
@@ -279,8 +280,8 @@ export default function QuizGeneratorPanel() {
       });
       toast.success(
         qualityStats.needs_review
-          ? `تم إنشاء ${questions.length} سؤال · ${qualityStats.needs_review} يحتاج مراجعة`
-          : `تم إنشاء ${questions.length} سؤال · جودة ${qualityStats.quality_score}%`,
+          ? `تم إنشاء ${verifiedQuestions.length} سؤال · ${qualityStats.needs_review} يحتاج مراجعة`
+          : `تم إنشاء وتأكيد ${verifiedQuestions.length} سؤال · جودة ${qualityStats.quality_score}%`,
       );
       navigate(`/q/${quiz.id}`);
     } catch (err) {
@@ -301,21 +302,54 @@ export default function QuizGeneratorPanel() {
   const handleRunUniversalParser = async () => {
     if (!text || text.trim().length < 25) return toast.error("المحتوى قليل جداً للاستخراج؛ الصق نصاً كافياً أو ارفع ملفاً");
     setLoading(true);
-    setGenerationProgress({ completed: 0, total: 1, label: "جاري تحليل النص واستخراج الأسئلة بالبارسر الخارق..." });
     try {
-      const response = await base44.functions.invoke("generateStudyContent", {
-        task: "text_exam_parser",
-        text: text.slice(0, 35000),
-      });
-      const remote = response?.data?.result || response?.data;
-      const parsed = normalizeUniversalParsedQuiz(remote, text);
-      if (!parsed.questions.length) {
+      // Split large exam banks into 28k-char chunks so unlimited questions are parsed with zero truncation
+      const CHUNK_LIMIT = 28000;
+      const chunks = [];
+      let cursor = 0;
+      while (cursor < text.length) {
+        let end = Math.min(text.length, cursor + CHUNK_LIMIT);
+        if (end < text.length) {
+          const breakIdx = text.lastIndexOf("\n\n", end);
+          if (breakIdx > cursor + CHUNK_LIMIT * 0.6) end = breakIdx + 2;
+        }
+        const slice = text.slice(cursor, end).trim();
+        if (slice) chunks.push(slice);
+        cursor = end;
+      }
+
+      setGenerationProgress({ completed: 0, total: chunks.length, label: "جاري تحليل النص واستخراج كل الأسئلة بالبارسر الخارق..." });
+      const pool = await runQuizChunkPool(
+        chunks,
+        async (chunkText) => {
+          const response = await base44.functions.invoke("generateStudyContent", {
+            task: "text_exam_parser",
+            text: chunkText,
+          });
+          const remote = response?.data?.result || response?.data;
+          return normalizeUniversalParsedQuiz(remote, chunkText).questions;
+        },
+        {
+          concurrency: 4,
+          retries: 1,
+          onProgress: ({ completed, total }) =>
+            setGenerationProgress({
+              completed,
+              total,
+              label: `جاري استخراج الأسئلة (${completed}/${total})...`,
+            }),
+        }
+      );
+
+      const mergedQuestions = pool.values.flatMap((qList) => qList || []);
+      const verified = verifyAndPrepareQuizQuestions(mergedQuestions, text);
+      if (!verified.length) {
         throw new Error("لم يتم العثور على أسئلة نصية واضحة في النص");
       }
-      setReviewQuestions(parsed.questions);
+      setReviewQuestions(verified);
       setReviewSourceType("universal_text_parser");
       setReviewOpen(true);
-      toast.success(`تم استخراج ${parsed.questions.length} سؤال بنجاح!`);
+      toast.success(`تم استخراج وتأكيد ${verified.length} سؤال بنجاح! ✓`);
     } catch (err) {
       toast.error(err.message || "فشل استخراج الأسئلة بالبارسر");
     } finally {

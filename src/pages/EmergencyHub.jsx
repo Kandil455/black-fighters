@@ -131,7 +131,7 @@ export default function EmergencyHub() {
               { title: "ملفات HTML تفاعلية 📄", desc: "شروحات مركزة وملازم مصممة للعرض السريع على الموبايل والكمبيوتر" },
               { title: "ملازم PDF كاملة 📥", desc: "سلايدات وبنوك أسئلة منتقاة لليالي الامتحان بضغطة زر واحدة" },
               { title: "كويزات طوارئ Alpha ⚡", desc: "امتحانات تفاعلية مع تصحيح ذكي لشرح كل إجابة بدقة جراحية" },
-              { title: "بوت التيليجرام VIP 🤖", desc: "حل الكويزات واستلام التنبيهات المباشرة على بوت @black_fighters_bot" },
+              { title: "بوت التيليجرام VIP 🤖", desc: "حل الكويزات واستلام التنبيهات المباشرة على بوت @Black_Fighters_FREE_bot" },
             ].map((b, i) => (
               <div key={i} className="p-4 rounded-2xl bg-card/60 border border-border/50 space-y-1">
                 <div className="text-xs font-bold text-foreground">{b.title}</div>
@@ -189,7 +189,7 @@ export default function EmergencyHub() {
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <a
-              href="https://t.me/black_fighters_bot"
+              href="https://t.me/Black_Fighters_FREE_bot"
               target="_blank"
               rel="noopener noreferrer"
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-bold transition-colors"

@@ -51,17 +51,22 @@ export default function AssistantLanguagePopup({
   const [selectedStyle, setSelectedStyle] = useState("foundational_bilingual");
   const [subjectType, setSubjectType] = useState("auto");
   const [maxPages, setMaxPages] = useState(12);
-  const [includeImages, setIncludeImages] = useState(false);
 
   useEffect(() => {
     if (!analysis) return;
     if (analysis.language) setSelectedLang(analysis.language);
     const rec = analysis.recommendation || {};
     const styleCandidate = rec.templateId || analysis.recommendedStyle || "foundational_bilingual";
-    setSelectedStyle(styleCandidate);
+    setSelectedStyle(
+      styleCandidate === "exam_revision_sheet" || styleCandidate === "atlas_cram"
+        ? "atlas_cram"
+        : styleCandidate === "comparison_classification"
+          ? "comparison_classification"
+          : "foundational_bilingual"
+    );
     setSubjectType(rec.subjectType || analysis.subjectType || "auto");
     const estPages = Number(rec.suggestedMaxPages || analysis.estimatedPages || analysis.pages || 12);
-    setMaxPages(Math.max(4, Math.min(60, Math.ceil(estPages * 0.4) * 2 || 12)));
+    setMaxPages(Math.max(6, Math.min(80, Math.ceil(estPages * 0.45) * 2 || 12)));
   }, [analysis]);
 
   const handleStart = () => {
@@ -71,11 +76,21 @@ export default function AssistantLanguagePopup({
       subjectType,
       colorLevel: "none",
       maxPages,
-      includeImages,
+      includeImages: true,
     });
   };
 
   const detectedPages = analysis?.estimatedPages || analysis?.pages || 0;
+  const subjectNames = {
+    medical: "طبي وسريري",
+    engineering: "هندسي وعلمي",
+    law: "قانوني",
+    business: "إدارة وأعمال",
+    languages: "لغات",
+    humanities: "نظري وأدبي",
+    auto: "أكاديمي شامل",
+  };
+  const autoSubjectLabel = subjectNames[subjectType] || "أكاديمي شامل";
 
   const content = (
     <div
@@ -91,17 +106,20 @@ export default function AssistantLanguagePopup({
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="min-w-0 flex-1">
             <h2 className="text-lg sm:text-xl font-black text-foreground">
-              نافذة التلخيص الموحدة
+              إعداد التلخيص الذكي (خطوتين فقط ⚡)
             </h2>
             {fileName && (
-              <div className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground max-w-full">
+              <div className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground max-w-full flex-wrap">
                 <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
                 <span className="truncate font-semibold text-foreground/90">{fileName}</span>
                 {detectedPages > 0 && (
                   <span className="shrink-0 text-[11px] text-muted-foreground">
-                    (~{detectedPages} صفحة)
+                    (~{detectedPages} صفحة مصدر)
                   </span>
                 )}
+                <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                  ضبط تلقائي: {autoSubjectLabel} • ~{maxPages} صفحة ملخص
+                </span>
               </div>
             )}
           </div>
@@ -124,14 +142,14 @@ export default function AssistantLanguagePopup({
         </div>
       </div>
 
-      {/* Unified Single Body — No duplicate curtains or coloring pickers */}
+      {/* Unified Single Body — Only 2 clear questions */}
       <div className={inline ? "p-5 space-y-5" : "flex-1 overflow-y-auto overscroll-contain p-5 space-y-5"}>
         {/* 1. Language Selection */}
         <div>
           <p className="text-xs font-black text-muted-foreground mb-2.5">
-            ١. لغة الملخص:
+            ١. اختر لغة الملخص:
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             {LANG_OPTIONS.map((opt) => {
               const Icon = opt.icon;
               const active = selectedLang === opt.id;
@@ -140,14 +158,14 @@ export default function AssistantLanguagePopup({
                   key={opt.id}
                   type="button"
                   onClick={() => setSelectedLang(opt.id)}
-                  className={`text-right p-3 rounded-2xl border transition-colors flex flex-col gap-1 cursor-pointer ${
+                  className={`text-right p-3.5 rounded-2xl border transition-colors flex flex-col gap-1 cursor-pointer ${
                     active
                       ? "border-primary bg-primary/10"
                       : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-black text-foreground flex items-center gap-1.5">
+                    <span className="text-xs sm:text-sm font-black text-foreground flex items-center gap-1.5">
                       <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
                       {opt.title}
                     </span>
@@ -161,16 +179,10 @@ export default function AssistantLanguagePopup({
           </div>
         </div>
 
-        {/* 2. Unified Template & Page Target Selector */}
+        {/* 2. Summary Focus (3 clear options) */}
         <SummaryTemplateSelector
           value={selectedStyle}
           onChange={setSelectedStyle}
-          subjectType={subjectType}
-          onSubjectTypeChange={setSubjectType}
-          maxPages={maxPages}
-          onMaxPagesChange={setMaxPages}
-          includeImages={includeImages}
-          onIncludeImagesChange={setIncludeImages}
         />
       </div>
 

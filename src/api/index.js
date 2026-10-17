@@ -562,9 +562,11 @@ export const functions = {
 
           const quoted = payload.task === "quiz"
             ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 5))
-            : payload.task === "flashcards"
-              ? Math.max(1, Math.min(10, Math.ceil((Number(payload.charCount) || 1) / 40_000)))
-              : calculateSummaryCost(payload.charCount || 0);
+            : payload.task === "quiz_audit"
+              ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 10))
+              : payload.task === "flashcards"
+                ? Math.max(1, Math.min(10, Math.ceil((Number(payload.charCount) || 1) / 40_000)))
+                : calculateSummaryCost(payload.charCount || 0);
           const cost = Number(payload.cost ?? payload.amount) || quoted;
 
           if (payload.action === "refund") {

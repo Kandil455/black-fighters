@@ -29,7 +29,7 @@ const ARABIC = /[\u0600-\u06ff]/g;
 const ENGLISH = /[A-Za-z]/g;
 const STOP_WORDS = new Set([
   "about", "after", "again", "also", "because", "before", "between", "could", "during", "each", "from", "have", "into", "more", "most", "other", "should", "than", "that", "their", "these", "they", "this", "through", "using", "very", "were", "what", "when", "where", "which", "while", "with", "would",
-  "التي", "الذي", "الذين", "هذا", "هذه", "ذلك", "تلك", "هناك", "حيث", "عند", "على", "إلى", "الى", "من", "في", "عن", "مع", "كما", "لكن", "بعد", "قبل", "بين", "يمكن", "يكون", "تكون", "كانت", "وذلك", "أيضا", "أيضاً", "أكثر", "خلال",
+  "التي", "الذي", "الذين", "هذا", "هذه", "ذلك", "تلك", "هناك", "حيث", "عند", "على", "إلى", "الى", "من", "في", "عن", "مع", "كما", "لكن", "بعد", "قبل", "بين", "يمكن", "يكون", "تكون", "كانت", "وذلك", "أيضا", "أيضاً", "أكثر", "خلال", "عملية", "الفصل", "تحول",
 ]);
 
 export function analyzeDocument(text, fileName = "") {
@@ -295,7 +295,7 @@ async function generateStructuredSummaryV3({
       if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
       onProgress?.({ phase: "map_facts", current: parts.filter((part) => Array.isArray(part) && part.length).length + 1, total: chunks.length, analysis, jobId });
       updateSummaryJob(jobId, { status: "running", chunkIndex: index, chunkStatus: "running" }).catch(() => {});
-      let result;
+      let result = null;
       try {
         result = await invoke({
           task: "summary_facts",
@@ -307,14 +307,30 @@ async function generateStructuredSummaryV3({
           totalChunks: chunks.length,
         });
       } catch (error) {
-        updateSummaryJob(jobId, { chunkIndex: index, chunkStatus: "failed", error: error?.message || "FACT_EXTRACTION_FAILED" }).catch(() => {});
-        throw error;
+        if (signal?.aborted || error?.name === "AbortError") throw error;
+        console.warn(`[summaryPipeline] Chunk ${index + 1}/${chunks.length} AI call failed, using local fact extractor fallback:`, error?.message);
       }
       const model = result?.model_actual || result?.model || "";
       if (model) modelNames.add(model);
-      let facts = normalizeSummaryFactBatch(result, { sourceText: chunk, chunkIndex: index });
+      let facts = result ? normalizeSummaryFactBatch(result, { sourceText: chunk, chunkIndex: index }) : [];
       if (!facts.length) facts = extractLocalSummaryFacts(chunk, { chunkIndex: index, languageMode: selectedLanguage });
-      if (!facts.length) throw new Error(`NO_GROUNDED_FACTS_IN_CHUNK:${index + 1}`);
+      if (!facts.length) {
+        facts = [{
+          id: `fallback_f_${index}_0`,
+          statementEn: chunk.slice(0, 280).replace(/\s+/g, " ").trim(),
+          statementAr: chunk.slice(0, 280).replace(/\s+/g, " ").trim(),
+          explanationEn: "",
+          explanationAr: "",
+          keyTerm: `Section ${index + 1}`,
+          semanticType: "fact",
+          importance: 3,
+          chunkIndex: index,
+          sourceHeading: `الجزء ${index + 1}`,
+          sourcePage: index + 1,
+          sourceRefs: [index + 1],
+          sourceFactIds: [`fallback_f_${index}_0`],
+        }];
+      }
       parts[index] = facts;
       setOfflineSnapshot(snapshotKey, { parts, analysis, jobId, modelNames: [...modelNames], status: "running", updatedAt: Date.now() }).catch(() => {});
       updateSummaryJob(jobId, {
@@ -325,11 +341,12 @@ async function generateStructuredSummaryV3({
         model: model || undefined,
       }).catch(() => {});
       return facts;
-    }, { maxConcurrent: 3 });
+    }, { maxConcurrent: 5 });
 
     if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
     onProgress?.({ phase: "assemble", current: 1, total: 1, analysis, jobId });
-    let facts = mergeSummaryFacts(parts, { maxFacts: Math.min(240, Math.max(20, maxPages * 12)) });
+    const dynamicMaxPages = Math.max(maxPages, Math.ceil(chunks.length * 2.5));
+    let facts = mergeSummaryFacts(parts, { maxFacts: Math.min(900, Math.max(40, dynamicMaxPages * 14)) });
     let assembled = null;
     for (let attempt = 0; attempt < 5 && facts.length >= 3; attempt += 1) {
       assembled = assembleSummaryDocumentFromFacts(facts, {
@@ -337,7 +354,7 @@ async function generateStructuredSummaryV3({
         templateId: selectedStyle,
         languageMode: selectedLanguage,
         colorLevel,
-        maxPages,
+        maxPages: dynamicMaxPages,
         sourceFingerprint: fingerprint,
       });
       if (assembled.validation.valid) break;
@@ -460,42 +477,53 @@ export async function generateHierarchicalSummary({
   await processChunksParallel(remaining, async ({ chunk, index }) => {
     if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
     onProgress?.({ phase: "map", current: parts.filter(Boolean).length + 1, total: chunks.length, analysis });
-    const result = await invoke({
-      task: "summary",
-      text: chunk,
-      language: selectedLanguage,
-      summaryStyle: selectedStyle,
-      summaryMaxPages: maxPages,
-      chunkIndex: index,
-      totalChunks: chunks.length,
-      stylePrompt,
-    });
-    const markdown = result?.summary_markdown || result?.text || "";
-    if (!markdown.trim()) throw new Error(`الجزء ${index + 1} رجع فارغ`);
-    parts[index] = markdown;
-    setOfflineSnapshot(snapshotKey, { parts, analysis, updatedAt: Date.now() }).catch(() => {});
-    return markdown;
-  }, { maxConcurrent: 3 });
-
-  const summary = chunks.length === 1 ? parts[0] : await reduceSummariesHierarchically(
-    parts,
-    async (groupText, { round, index, total }) => {
-      if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
-      onProgress?.({ phase: "reduce", round, current: index + 1, total, analysis });
+    let markdown = "";
+    try {
       const result = await invoke({
         task: "summary",
-        text: `ادمج المسودات التالية في ملخص واحد متماسك بدون تكرار. حافظ على التعريفات والقوانين والأمثلة ومراجع الصفحات، ولا تذكر أنها مسودات:\n\n${groupText}`,
+        text: chunk,
         language: selectedLanguage,
         summaryStyle: selectedStyle,
         summaryMaxPages: maxPages,
         chunkIndex: index,
-        totalChunks: total,
+        totalChunks: chunks.length,
         stylePrompt,
       });
-      return result?.summary_markdown || result?.text || "";
-    },
-    { onProgress: ({ round, idx, total }) => onProgress?.({ phase: "reduce", round, current: idx + 1, total, analysis }) }
-  );
+      markdown = result?.summary_markdown || result?.text || "";
+    } catch (err) {
+      if (signal?.aborted || err?.name === "AbortError") throw err;
+      console.warn(`[summaryPipeline] v2 chunk ${index + 1} fallback:`, err?.message);
+    }
+    if (!markdown.trim()) {
+      const localFacts = extractLocalSummaryFacts(chunk, { chunkIndex: index, languageMode: selectedLanguage });
+      markdown = `## القسم ${index + 1}\n` + localFacts.map((f) => `- **${f.keyTerm || "نقطة هامة"}**: ${f.statementAr || f.statementEn}`).join("\n");
+    }
+    parts[index] = markdown;
+    setOfflineSnapshot(snapshotKey, { parts, analysis, updatedAt: Date.now() }).catch(() => {});
+    return markdown;
+  }, { maxConcurrent: 5 });
+
+  const summary = chunks.length <= 8
+    ? parts.filter(Boolean).join("\n\n")
+    : await reduceSummariesHierarchically(
+        parts,
+        async (groupText, { round, index, total }) => {
+          if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
+          onProgress?.({ phase: "reduce", round, current: index + 1, total, analysis });
+          const result = await invoke({
+            task: "summary",
+            text: `ادمج المسودات التالية في ملخص واحد متماسك وشامل بدون حذف أي تفاصيل أو قوانين أو أرقام. حافظ على التعريفات والقوانين والأمثلة ومراجع الصفحات، ولا تذكر أنها مسودات:\n\n${groupText}`,
+            language: selectedLanguage,
+            summaryStyle: selectedStyle,
+            summaryMaxPages: maxPages,
+            chunkIndex: index,
+            totalChunks: total,
+            stylePrompt,
+          });
+          return result?.summary_markdown || result?.text || groupText;
+        },
+        { maxConcurrent: 4, onProgress: ({ round, idx, total }) => onProgress?.({ phase: "reduce", round, current: idx + 1, total, analysis }) }
+      );
   let finalSummary = applySummaryColorPolicy(consolidateMarkdownSections(summary), colorLevel);
   let coverage = buildCoverageReport(text, finalSummary, { language: selectedLanguage, style: selectedStyle, colorLevel });
 

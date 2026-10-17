@@ -171,7 +171,7 @@ export default function SharedQuiz() {
               <Button
                 variant="outline"
                 className="gap-2 font-bold border-cyan-500/40 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20"
-                onClick={() => window.open(`https://t.me/black_fighters_bot?start=quiz_${quiz.id}`, "_blank")}
+                onClick={() => window.open(`https://t.me/Black_Fighters_FREE_bot?start=quiz_${quiz.id}`, "_blank")}
               >
                 <Bot className="w-4 h-4 text-cyan-400 animate-pulse" />
                 {isEn ? "Solve on Telegram" : "امتحان الكويز على التليجرام 🤖"}

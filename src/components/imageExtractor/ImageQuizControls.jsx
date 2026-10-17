@@ -62,7 +62,7 @@ export function ImageQuizControls({
     playClick();
     const effectiveLang = quizLanguage === "auto" ? recommendedLang : quizLanguage;
     onGenerateQuiz({
-      totalQuestions: Math.max(1, Math.min(100, Number(totalQuestions) || 10)),
+      totalQuestions: Math.max(1, Math.min(250, Number(totalQuestions) || 10)),
       difficulty,
       language: effectiveLang,
     });
@@ -135,7 +135,22 @@ export function ImageQuizControls({
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {[5, 10, 15, 20, 30, 50, 75, 100].map((count) => (
+              {imageCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTotalQuestions(Math.min(250, imageCount))}
+                  disabled={isGenerating}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border",
+                    Number(totalQuestions) === Math.min(250, imageCount)
+                      ? "bg-emerald-500 text-black border-emerald-400 font-black shadow-md"
+                      : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20"
+                  )}
+                >
+                  {isEn ? `All Slides (${imageCount})` : `كل الصور (${imageCount})`}
+                </button>
+              )}
+              {[10, 15, 25, 40, 60, 100, 150].map((count) => (
                 <button
                   key={count}
                   type="button"
@@ -155,9 +170,9 @@ export function ImageQuizControls({
                 <Input
                   type="number"
                   min={1}
-                  max={100}
+                  max={250}
                   value={totalQuestions}
-                  onChange={(e) => setTotalQuestions(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+                  onChange={(e) => setTotalQuestions(Math.max(1, Math.min(250, Number(e.target.value) || 1)))}
                   disabled={isGenerating}
                   className="w-20 h-8 bg-white/[0.03] border-white/20 text-white font-mono font-bold text-xs rounded-lg"
                 />
@@ -166,7 +181,7 @@ export function ImageQuizControls({
             </div>
             <p className="text-[11px] text-white/50 leading-relaxed">
               {isEn
-                ? `AI will prioritize the most clinically critical visuals among the ${imageCount} approved slides, linking each question directly to visible findings.`
+                ? `AI will prioritize clinically critical visuals among the ${imageCount} approved slides, linking each question directly to visible findings.`
                 : `يقوم الذكاء الاصطناعي بتحليل الـ ${imageCount} صورة واختيار الصور الأكثر أهمية عيادياً وامتحانياً (كالأشعة والباثولوجي ورسم القلب) وربط كل سؤال بما تظهره الصورة بدقة.`}
             </p>
           </div>

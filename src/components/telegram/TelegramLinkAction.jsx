@@ -107,7 +107,7 @@ export default function TelegramLinkAction({
         <div className="rounded-xl border border-[#19f08c]/35 bg-[#19f08c]/[0.06] p-3.5 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-bold text-[#9aa4b2]">
-              {isEn ? "Send this code to @black_fighters_bot" : "ابعت الكود ده لبوت @black_fighters_bot"}
+              {isEn ? "Send this code to @Black_Fighters_FREE_bot" : "ابعت الكود ده لبوت @Black_Fighters_FREE_bot"}
             </span>
             {secondsLeft > 0 && (
               <span className="font-mono text-[11px] text-[#19f08c] tabular">

@@ -140,7 +140,7 @@ export function ImageExportPanel({
               <Bot className="w-5 h-5" />
             </div>
             <h4 className="text-sm font-black text-white font-heading">
-              {isEn ? "Interactive Telegram Bot Quiz 🤖" : "كويز تفاعلي على بوت التيليجرام (@black_fighters_bot) 🤖"}
+              {isEn ? "Interactive Telegram Bot Quiz 🤖" : "كويز تفاعلي على بوت التيليجرام (@Black_Fighters_FREE_bot) 🤖"}
             </h4>
             <p className="text-xs text-white/55 leading-relaxed">
               {isEn
@@ -157,7 +157,7 @@ export function ImageExportPanel({
             className="w-full h-10 rounded-xl text-xs font-bold border-[#0088cc]/40 text-[#0088cc] hover:bg-[#0088cc]/15 gap-2"
           >
             {exportingType === "telegram" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            <span>{isEn ? "Export to Telegram Bot 🤖" : "تصدير للبوت (@black_fighters_bot) 🤖"}</span>
+            <span>{isEn ? "Export to Telegram Bot 🤖" : "تصدير للبوت (@Black_Fighters_FREE_bot) 🤖"}</span>
           </Button>
         </div>
 

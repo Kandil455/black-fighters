@@ -265,7 +265,7 @@ export default function ImageExtractor() {
       return;
     }
 
-    const targetTotal = Math.max(1, Math.min(100, Number(totalQuestions) || 10));
+    const targetTotal = Math.max(1, Math.min(250, Number(totalQuestions) || 10));
 
     // Rank images by clinical importance & context density
     const scoredImages = keptList.map((img) => {
@@ -490,7 +490,7 @@ export default function ImageExtractor() {
     }
   };
 
-  // ── 4c. Export Quiz to Telegram Bot (@black_fighters_bot) ────────────────────
+  // ── 4c. Export Quiz to Telegram Bot (@Black_Fighters_FREE_bot) ────────────────────
   const handleExportTelegram = async () => {
     const keptList = images.filter((img) => img.status !== "rejected" && Array.isArray(img.quiz) && img.quiz.length > 0);
     if (!keptList.length) {
@@ -578,7 +578,7 @@ export default function ImageExtractor() {
           action: currentQuiz?.id
             ? {
                 label: "فتح البوت",
-                onClick: () => window.open(`https://t.me/black_fighters_bot?start=quiz_${currentQuiz.id}`, "_blank"),
+                onClick: () => window.open(`https://t.me/Black_Fighters_FREE_bot?start=quiz_${currentQuiz.id}`, "_blank"),
               }
             : undefined,
         });

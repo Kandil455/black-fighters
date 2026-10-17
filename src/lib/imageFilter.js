@@ -182,28 +182,35 @@ export async function filterImagesHeuristics(
   } = options;
 
   const total = images.length;
-  const processed = [];
+  const processed = new Array(total);
+  const BATCH_SIZE = 8;
+  let completed = 0;
 
-  // Step 1: Pixel analysis on all images
-  for (let i = 0; i < total; i++) {
-    const item = images[i];
-    onProgress({
-      stage: "heuristic_analysis",
-      current: i + 1,
-      total,
-      percent: Math.round(((i + 1) / total) * 100),
-    });
-
-    const analysis = await analyzeImagePixels(item.thumbnailDataUrl);
-    processed.push({
-      ...item,
-      width: analysis.width || item.width,
-      height: analysis.height || item.height,
-      aspectRatio: analysis.aspectRatio,
-      isLowVariance: analysis.isLowVariance,
-      isHighTransparency: analysis.isHighTransparency,
-      perceptualHash: analysis.hash,
-    });
+  // Step 1: Parallel pixel analysis in batches of 8 for high speed on large decks
+  for (let start = 0; start < total; start += BATCH_SIZE) {
+    const batch = images.slice(start, start + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (item, offset) => {
+        const idx = start + offset;
+        const analysis = await analyzeImagePixels(item.thumbnailDataUrl);
+        processed[idx] = {
+          ...item,
+          width: analysis.width || item.width,
+          height: analysis.height || item.height,
+          aspectRatio: analysis.aspectRatio,
+          isLowVariance: analysis.isLowVariance,
+          isHighTransparency: analysis.isHighTransparency,
+          perceptualHash: analysis.hash,
+        };
+        completed++;
+        onProgress({
+          stage: "heuristic_analysis",
+          current: completed,
+          total,
+          percent: Math.round((completed / total) * 100),
+        });
+      })
+    );
   }
 
   // Step 2: Calculate cross-page hash frequencies
@@ -710,6 +717,7 @@ Return STRICT JSON only (no markdown, no backticks, no preamble):
 {
   "questions": [
     {
+      "visualFinding": "Short 3-7 word description of the exact visual clue/arrow/sign seen in the image",
       "question": "Clear, concise clinical question referencing the visual...",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "explanation": "Detailed clinical rationale referencing visual hallmarks and why alternative options are excluded.",
@@ -741,6 +749,7 @@ ${effectiveContext}`
 {
   "questions": [
     {
+      "visualFinding": "وصف مختصر (3-7 كلمات) للعلامة البصرية أو السهم الظاهر في الصورة",
       "question": "نص السؤال المرتبط بالصورة المرفقة...",
       "options": ["الخيار الأول", "الخيار الثاني", "الخيار الثالث", "الخيار الرابع"],
       "explanation": "الشرح التعليمي المستند لما تظهره الصورة...",
@@ -757,7 +766,7 @@ ${effectiveContext}`;
     const raw = await generateMultimodal(
       prompt,
       [{ inlineData: { data: parts.data, mimeType: parts.mimeType } }],
-      { ...aiConfig, model: aiConfig?.model || "gemini-3.5-flash-lite", max_tokens: 1500, temperature: 0.15 }
+      { ...aiConfig, model: aiConfig?.model || "gemini-3.5-flash-lite", max_tokens: 1800, temperature: 0.15 }
     );
 
     const parsed = parseAiJson(raw);
@@ -797,6 +806,7 @@ ${effectiveContext}`;
 
         return {
           id: `q_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+          visualFinding: cleanContextText(String(q.visualFinding || q.visual_finding || "")).slice(0, 90),
           question: cleanQuestion,
           options: rawOptions,
           correctIndex: finalCorrect,

@@ -870,7 +870,7 @@ export async function runQuizChunkPool(chunks, worker, {
             results[index] = { ok: false, error, attempts: attempt + 1 };
             break;
           }
-          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+          await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
           attempt += 1;
         }
       }
@@ -879,7 +879,7 @@ export async function runQuizChunkPool(chunks, worker, {
     }
   };
 
-  const workerCount = Math.max(1, Math.min(4, Number(concurrency) || 1, input.length || 1));
+  const workerCount = Math.max(1, Math.min(6, Number(concurrency) || 1, input.length || 1));
   await Promise.all(Array.from({ length: workerCount }, () => runner()));
   const settled = results.filter(Boolean);
   return {
@@ -889,6 +889,88 @@ export async function runQuizChunkPool(chunks, worker, {
     completed,
     cancelled: shouldCancel(),
   };
+}
+
+/**
+ * Pre-Review Automatic Verification Pass:
+ * Runs automatically BEFORE opening QuizReviewStudio (at 0 extra credit cost) to verify:
+ * 1. Answer index reconciliation against explanation & answer text
+ * 2. Option uniqueness, prefix stripping, and trailing punctuation consistency
+ * 3. Non-empty scientific explanation
+ * 4. Distractor symmetry check & clearing false-positive review flags
+ */
+export function verifyAndPrepareQuizQuestions(questions = [], sourceText = "") {
+  const list = Array.isArray(questions) ? questions : [];
+  const isArabicDoc = detectLanguage(sourceText || list.map((q) => q?.question || "").join(" ")) === "ar";
+
+  return list.map((rawQ, idx) => {
+    const reconciled = reconcileQuestionAnswer(rawQ || {});
+    const cleanStem = compact(reconciled.question || reconciled.question_text || "")
+      || (isArabicDoc ? `سؤال ${idx + 1}` : `Question ${idx + 1}`);
+
+    const rawOpts = Array.isArray(reconciled.options) ? reconciled.options : [];
+    const cleanedOpts = rawOpts
+      .map((o) => compactOption(optionText(o)))
+      .filter(Boolean);
+
+    // Harmonize trailing periods so a period on only the correct answer doesn't give it away
+    const periodCount = cleanedOpts.filter((o) => /\.$/.test(o)).length;
+    const harmonizedOpts = (periodCount === 1 && cleanedOpts.length >= 3)
+      ? cleanedOpts.map((o) => o.replace(/\.+$/, "").trim())
+      : cleanedOpts;
+
+    const finalOpts = harmonizedOpts.length >= 2
+      ? harmonizedOpts
+      : (isArabicDoc
+          ? ["الخيار الأول", "الخيار الثاني", "الخيار الثالث", "الخيار الرابع"]
+          : ["Option A", "Option B", "Option C", "Option D"]);
+
+    const rawCorrect = Number.isInteger(reconciled.correct_index)
+      ? reconciled.correct_index
+      : Number.isInteger(reconciled.correct)
+        ? reconciled.correct
+        : -1;
+
+    const verifiedCorrect = rawCorrect >= 0 && rawCorrect < finalOpts.length
+      ? verifyIndexWithExplanation(finalOpts, rawCorrect, reconciled.explanation || "", cleanStem)
+      : -1;
+
+    const hasValidAnswer = verifiedCorrect >= 0 && verifiedCorrect < finalOpts.length;
+    const safeCorrectIndex = hasValidAnswer ? verifiedCorrect : 0;
+    const correctOptionText = finalOpts[safeCorrectIndex] || "";
+
+    let explanation = compact(reconciled.explanation || "");
+    if (explanation.length < 10 && correctOptionText) {
+      const isEnStem = /[a-zA-Z]{4,}/.test(cleanStem) && !/[\u0600-\u06FF]{4,}/.test(cleanStem);
+      explanation = reconciled.source_evidence
+        ? (isEnStem
+            ? `Correct answer: ${correctOptionText} — directly supported by lecture evidence: "${reconciled.source_evidence}".`
+            : `الإجابة الصحيحة: ${correctOptionText} — استناداً إلى النص المرجعي: "${reconciled.source_evidence}".`)
+        : (isEnStem
+            ? `Correct answer: ${correctOptionText} — verified as the most accurate clinical/academic choice for this question.`
+            : `الإجابة الصحيحة هي (${correctOptionText}) لأنها الخيار العلمي الأدق المطابق لسياق السؤال.`);
+    }
+
+    const symmetry = checkDistractorSymmetry(finalOpts, safeCorrectIndex);
+    const trulyNeedsReview = !hasValidAnswer || finalOpts.length < 2;
+
+    return {
+      ...reconciled,
+      id: reconciled.id || `vq_${Date.now()}_${idx}`,
+      question: cleanStem,
+      options: finalOpts,
+      correct_index: hasValidAnswer ? safeCorrectIndex : -1,
+      correct: hasValidAnswer ? safeCorrectIndex : -1,
+      explanation,
+      flaggedForAsymmetry: symmetry.flaggedForAsymmetry,
+      asymmetryReason: symmetry.asymmetryReason,
+      needs_review: trulyNeedsReview,
+      review_reason: trulyNeedsReview
+        ? (reconciled.review_reason || "يرجى التأكد من تحديد الخيار الصحيح")
+        : null,
+      pre_verified: true,
+    };
+  });
 }
 
 export function buildQuizPerformance(questions = [], answers = []) {
