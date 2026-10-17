@@ -1,0 +1,58 @@
+/* icon-motion.css — motion for every icon wrapped by components/ui/animatedIcons.jsx.
+   Rules: transform and opacity only, hover effects only on fine pointers,
+   everything disabled for prefers-reduced-motion. */
+
+.bf-ico {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.45s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.3s ease;
+}
+
+/* loaders keep turning (they signal work in progress) */
+.bf-ico--spin { animation: bf-spin 1s linear infinite; }
+
+/* one-time entrance for status icons (check, info, alert) */
+.bf-ico--pop { animation: bf-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.bf-ico--twinkle { animation: bf-twinkle 0.6s ease-out 1; }
+
+@media (hover: hover) and (pointer: fine) {
+  .bf-ico--lift:hover { transform: translateY(-2px) scale(1.08); }
+  .bf-ico--pop:hover { transform: scale(1.12); }
+  .bf-ico--pulse:hover { animation: bf-pulse 0.9s ease-in-out infinite; }
+  .bf-ico--flicker:hover { animation: bf-flicker 0.6s ease-in-out infinite; }
+  .bf-ico--zap:hover { animation: bf-zap 0.5s ease-out 1; }
+  .bf-ico--twinkle:hover { transform: rotate(18deg) scale(1.1); }
+  .bf-ico--bob:hover { animation: bf-bob 0.9s ease-in-out infinite; }
+  .bf-ico--ring:hover { animation: bf-ring 0.8s ease-in-out 1; }
+  .bf-ico--lens:hover { transform: translate(1px, -1px) scale(1.06); }
+  .bf-ico--up:hover { transform: translateY(-3px); }
+  .bf-ico--down:hover { transform: translateY(3px); }
+  .bf-ico--nudgeR:hover { transform: translateX(3px); }
+  .bf-ico--nudgeL:hover { transform: translateX(-3px); }
+  .bf-ico--nudgeU:hover { transform: translateY(-3px); }
+  .bf-ico--wobble:hover { animation: bf-wobble 0.5s ease-in-out 1; }
+  .bf-ico--tilt:hover { transform: rotate(-8deg) scale(1.06); }
+  .bf-ico--float:hover { animation: bf-float 1.6s ease-in-out infinite; }
+  .bf-ico--tick:hover { animation: bf-tick 1.2s ease-in-out infinite; }
+  .bf-ico--fly:hover { transform: translate(2px, -2px); }
+  .bf-ico--spinOnce:hover { transform: rotate(90deg); }
+  .bf-ico--sway:hover { transform: rotate(-20deg); }
+  .bf-ico--turn:hover { transform: rotate(-180deg); }
+  .bf-ico--spinHover:hover { transform: rotate(180deg); }
+}
+
+@keyframes bf-spin { to { transform: rotate(360deg); } }
+@keyframes bf-pulse { 50% { transform: scale(1.12); } }
+@keyframes bf-flicker { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08) rotate(-3deg); } }
+@keyframes bf-zap { 0% { transform: scale(1); } 30% { transform: scale(1.2); } 60% { transform: scale(0.95); } 100% { transform: scale(1); } }
+@keyframes bf-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes bf-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+@keyframes bf-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+@keyframes bf-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes bf-tick { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+@keyframes bf-pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes bf-twinkle { 0% { transform: scale(1) rotate(0); } 50% { transform: scale(1.18) rotate(12deg); } 100% { transform: scale(1) rotate(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bf-ico, .bf-ico * { animation: none !important; transition: none !important; }
+}

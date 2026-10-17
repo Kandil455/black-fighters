@@ -1,0 +1,234 @@
+import React, { forwardRef } from "react";
+import * as L from "lucide-react";
+import { cn } from "@/lib/utils";
+import "@/design/icon-motion.css";
+
+/**
+ * animatedIcons.jsx — every icon in the app, animated.
+ *
+ * Each export has the same name and props as its lucide-react counterpart,
+ * so swapping the import source is the only change needed in a file:
+ *   import { Search } from "lucide-react"  ->  import { Search } from "@/components/ui/animatedIcons"
+ *
+ * Motion is transform/opacity only and is disabled for prefers-reduced-motion.
+ * Hover effects apply only on hover-capable pointers.
+ */
+function wrap(Base, variant) {
+  const Comp = forwardRef(function AnimatedIcon({ className, animated, ...props }, ref) {
+    // `animated` is a wrapper-level flag from ui/icons.jsx; keep it off the lucide
+    // SVG so React doesn't warn about a non-boolean DOM attribute.
+    return (
+      <Base
+        ref={ref}
+        className={cn("bf-ico", `bf-ico--${variant}`, className)}
+        {...props}
+      />
+    );
+  });
+  Comp.displayName = `Animated(${variant})`;
+  return Comp;
+}
+
+export const Activity = wrap(L.Activity ?? L.Circle, "lift");
+export const AlertCircle = wrap(L.AlertCircle ?? L.Circle, "pop");
+export const AlertTriangle = wrap(L.AlertTriangle ?? L.Circle, "pop");
+export const AlignJustify = wrap(L.AlignJustify ?? L.Circle, "lift");
+export const Archive = wrap(L.Archive ?? L.Circle, "lift");
+export const ArrowDown = wrap(L.ArrowDown ?? L.Circle, "down");
+export const ArrowLeft = wrap(L.ArrowLeft ?? L.Circle, "nudgeL");
+export const ArrowRight = wrap(L.ArrowRight ?? L.Circle, "nudgeR");
+export const ArrowUp = wrap(L.ArrowUp ?? L.Circle, "up");
+export const ArrowUpLeft = wrap(L.ArrowUpLeft ?? L.ArrowLeft ?? L.Circle, "nudgeL");
+export const ArrowUpRight = wrap(L.ArrowUpRight ?? L.ArrowRight ?? L.Circle, "nudgeR");
+export const ArrowUpDown = wrap(L.ArrowUpDown ?? L.Circle, "lift");
+export const Award = wrap(L.Award ?? L.Circle, "bob");
+export const BarChart3 = wrap(L.BarChart3 ?? L.Circle, "lift");
+export const BatteryCharging = wrap(L.BatteryCharging ?? L.Circle, "zap");
+export const Bell = wrap(L.Bell ?? L.Circle, "ring");
+export const BellOff = wrap(L.BellOff ?? L.Circle, "ring");
+export const BellPlus = wrap(L.BellPlus ?? L.Circle, "ring");
+export const BellRing = wrap(L.BellRing ?? L.Circle, "ring");
+export const Bold = wrap(L.Bold ?? L.Circle, "lift");
+export const Bolt = wrap(L.Bolt ?? L.Circle, "zap");
+export const BookMarked = wrap(L.BookMarked ?? L.Circle, "lift");
+export const BookOpen = wrap(L.BookOpen ?? L.Circle, "lift");
+export const BookOpenCheck = wrap(L.BookOpenCheck ?? L.Circle, "lift");
+export const BookmarkPlus = wrap(L.BookmarkPlus ?? L.Circle, "lift");
+export const Bot = wrap(L.Bot ?? L.Circle, "float");
+export const Boxes = wrap(L.Boxes ?? L.Circle, "lift");
+export const Brain = wrap(L.Brain ?? L.Circle, "float");
+export const BrainCircuit = wrap(L.BrainCircuit ?? L.Circle, "float");
+export const Calculator = wrap(L.Calculator ?? L.Circle, "lift");
+export const Calendar = wrap(L.Calendar ?? L.Circle, "tick");
+export const CalendarCheck = wrap(L.CalendarCheck ?? L.Circle, "tick");
+export const CalendarDays = wrap(L.CalendarDays ?? L.Circle, "tick");
+export const CalendarPlus = wrap(L.CalendarPlus ?? L.Circle, "tick");
+export const Check = wrap(L.Check ?? L.Circle, "pop");
+export const CheckCheck = wrap(L.CheckCheck ?? L.Circle, "pop");
+export const CheckCircle2 = wrap(L.CheckCircle2 ?? L.Circle, "pop");
+export const CheckSquare = wrap(L.CheckSquare ?? L.Circle, "pop");
+export const ChevronDown = wrap(L.ChevronDown ?? L.Circle, "down");
+export const ChevronLeft = wrap(L.ChevronLeft ?? L.Circle, "nudgeL");
+export const ChevronRight = wrap(L.ChevronRight ?? L.Circle, "nudgeR");
+export const ChevronUp = wrap(L.ChevronUp ?? L.Circle, "nudgeU");
+export const Circle = wrap(L.Circle ?? L.Circle, "pop");
+export const CircleCheck = wrap(L.CircleCheck ?? L.Circle, "pop");
+export const CircleDot = wrap(L.CircleDot ?? L.Circle, "pop");
+export const CircleHelp = wrap(L.CircleHelp ?? L.Circle, "pop");
+export const ClipboardCheck = wrap(L.ClipboardCheck ?? L.Circle, "pop");
+export const ClipboardPaste = wrap(L.ClipboardPaste ?? L.Circle, "lift");
+export const ClipboardType = wrap(L.ClipboardType ?? L.Circle, "lift");
+export const Clock = wrap(L.Clock ?? L.Circle, "tick");
+export const Clock3 = wrap(L.Clock3 ?? L.Circle, "tick");
+export const CloudUpload = wrap(L.CloudUpload ?? L.Circle, "up");
+export const Code2 = wrap(L.Code2 ?? L.Circle, "lift");
+export const Coffee = wrap(L.Coffee ?? L.Circle, "lift");
+export const Coins = wrap(L.Coins ?? L.Circle, "lift");
+export const Combine = wrap(L.Combine ?? L.Circle, "lift");
+export const Copy = wrap(L.Copy ?? L.Circle, "lift");
+export const CreditCard = wrap(L.CreditCard ?? L.Circle, "lift");
+export const Crop = wrap(L.Crop ?? L.Circle, "lift");
+export const Crown = wrap(L.Crown ?? L.Circle, "bob");
+export const Download = wrap(L.Download ?? L.Circle, "down");
+export const Edit3 = wrap(L.Edit3 ?? L.Circle, "lift");
+export const ExternalLink = wrap(L.ExternalLink ?? L.Circle, "nudgeR");
+export const Eye = wrap(L.Eye ?? L.Circle, "lens");
+export const EyeOff = wrap(L.EyeOff ?? L.Circle, "lens");
+export const FileCheck2 = wrap(L.FileCheck2 ?? L.Circle, "pop");
+export const FileCode = wrap(L.FileCode ?? L.Circle, "lift");
+export const FileCog = wrap(L.FileCog ?? L.Circle, "lift");
+export const FileDown = wrap(L.FileDown ?? L.Circle, "down");
+export const FileQuestion = wrap(L.FileQuestion ?? L.Circle, "lift");
+export const FileText = wrap(L.FileText ?? L.Circle, "lift");
+export const Filter = wrap(L.Filter ?? L.Circle, "lift");
+export const Fingerprint = wrap(L.Fingerprint ?? L.Circle, "tilt");
+export const Flag = wrap(L.Flag ?? L.Circle, "lift");
+export const Flame = wrap(L.Flame ?? L.Circle, "flicker");
+export const Folder = wrap(L.Folder ?? L.Circle, "lift");
+export const FolderClock = wrap(L.FolderClock ?? L.Circle, "tick");
+export const FolderKanban = wrap(L.FolderKanban ?? L.Circle, "lift");
+export const FolderOpen = wrap(L.FolderOpen ?? L.Circle, "lift");
+export const Gauge = wrap(L.Gauge ?? L.Circle, "lift");
+export const Gift = wrap(L.Gift ?? L.Circle, "bob");
+export const Globe = wrap(L.Globe ?? L.Circle, "lift");
+export const GraduationCap = wrap(L.GraduationCap ?? L.Circle, "float");
+export const GripVertical = wrap(L.GripVertical ?? L.Circle, "lift");
+export const HardDrive = wrap(L.HardDrive ?? L.Circle, "down");
+export const HardDriveDownload = wrap(L.HardDriveDownload ?? L.Circle, "down");
+export const Hash = wrap(L.Hash ?? L.Circle, "lift");
+export const Heading2 = wrap(L.Heading2 ?? L.Circle, "lift");
+export const Headphones = wrap(L.Headphones ?? L.Circle, "pulse");
+export const Heart = wrap(L.Heart ?? L.Circle, "lift");
+export const HelpCircle = wrap(L.HelpCircle ?? L.Circle, "pop");
+export const Highlighter = wrap(L.Highlighter ?? L.Circle, "lift");
+export const History = wrap(L.History ?? L.Circle, "tick");
+export const Home = wrap(L.Home ?? L.Circle, "lift");
+export const Image = wrap(L.Image ?? L.Circle, "lift");
+export const ImageIcon = wrap(L.ImageIcon ?? L.Circle, "lift");
+export const ImagePlus = wrap(L.ImagePlus ?? L.Circle, "up");
+export const Images = wrap(L.Images ?? L.Circle, "lift");
+export const Info = wrap(L.Info ?? L.Circle, "pop");
+export const Key = wrap(L.Key ?? L.Circle, "tilt");
+export const Keyboard = wrap(L.Keyboard ?? L.Circle, "lift");
+export const Languages = wrap(L.Languages ?? L.Circle, "float");
+export const Layers = wrap(L.Layers ?? L.Circle, "lift");
+export const LayoutDashboard = wrap(L.LayoutDashboard ?? L.Circle, "lift");
+export const LayoutGrid = wrap(L.LayoutGrid ?? L.Circle, "lift");
+export const Lightbulb = wrap(L.Lightbulb ?? L.Circle, "twinkle");
+export const LineChart = wrap(L.LineChart ?? L.Circle, "lift");
+export const Link2Off = wrap(L.Link2Off ?? L.Circle, "lift");
+export const List = wrap(L.List ?? L.Circle, "lift");
+export const ListChecks = wrap(L.ListChecks ?? L.Circle, "lift");
+export const Loader2 = wrap(L.Loader2 ?? L.Circle, "spin");
+export const LoaderCircle = wrap(L.LoaderCircle ?? L.Circle, "spin");
+export const Lock = wrap(L.Lock ?? L.Circle, "tilt");
+export const LogIn = wrap(L.LogIn ?? L.Circle, "tilt");
+export const LogOut = wrap(L.LogOut ?? L.Circle, "tilt");
+export const Mail = wrap(L.Mail ?? L.Circle, "fly");
+export const MailCheck = wrap(L.MailCheck ?? L.Circle, "pop");
+export const Maximize2 = wrap(L.Maximize2 ?? L.Circle, "lift");
+export const Medal = wrap(L.Medal ?? L.Circle, "bob");
+export const Menu = wrap(L.Menu ?? L.Circle, "lift");
+export const MessageCircle = wrap(L.MessageCircle ?? L.Circle, "fly");
+export const MessageSquare = wrap(L.MessageSquare ?? L.Circle, "fly");
+export const Mic = wrap(L.Mic ?? L.Circle, "pulse");
+export const Microscope = wrap(L.Microscope ?? L.Circle, "float");
+export const Minimize2 = wrap(L.Minimize2 ?? L.Circle, "lift");
+export const Minus = wrap(L.Minus ?? L.Circle, "spinOnce");
+export const Moon = wrap(L.Moon ?? L.Circle, "sway");
+export const MoreHorizontal = wrap(L.MoreHorizontal ?? L.Circle, "lift");
+export const NotebookText = wrap(L.NotebookText ?? L.Circle, "lift");
+export const Palette = wrap(L.Palette ?? L.Circle, "sway");
+export const PanelLeft = wrap(L.PanelLeft ?? L.Circle, "lift");
+export const PartyPopper = wrap(L.PartyPopper ?? L.Circle, "twinkle");
+export const Pause = wrap(L.Pause ?? L.Circle, "pulse");
+export const PenLine = wrap(L.PenLine ?? L.Circle, "lift");
+export const Pencil = wrap(L.Pencil ?? L.Circle, "lift");
+export const Percent = wrap(L.Percent ?? L.Circle, "lift");
+export const Play = wrap(L.Play ?? L.Circle, "pulse");
+export const PlayCircle = wrap(L.PlayCircle ?? L.Circle, "pulse");
+export const Plus = wrap(L.Plus ?? L.Circle, "spinOnce");
+export const Presentation = wrap(L.Presentation ?? L.Circle, "lift");
+export const Printer = wrap(L.Printer ?? L.Circle, "lift");
+export const Quote = wrap(L.Quote ?? L.Circle, "lift");
+export const Radar = wrap(L.Radar ?? L.Circle, "flicker");
+export const Receipt = wrap(L.Receipt ?? L.Circle, "lift");
+export const Redo2 = wrap(L.Redo2 ?? L.Circle, "spinHover");
+export const RefreshCw = wrap(L.RefreshCw ?? L.Circle, "spinHover");
+export const Rocket = wrap(L.Rocket ?? L.Circle, "flicker");
+export const RotateCcw = wrap(L.RotateCcw ?? L.Circle, "turn");
+export const RotateCw = wrap(L.RotateCw ?? L.Circle, "turn");
+export const Rows3 = wrap(L.Rows3 ?? L.Circle, "lift");
+export const Save = wrap(L.Save ?? L.Circle, "pop");
+export const ScanText = wrap(L.ScanText ?? L.Circle, "lens");
+export const Scissors = wrap(L.Scissors ?? L.Circle, "lift");
+export const Search = wrap(L.Search ?? L.Circle, "lens");
+export const SearchX = wrap(L.SearchX ?? L.Circle, "lens");
+export const Send = wrap(L.Send ?? L.Circle, "fly");
+export const Settings = wrap(L.Settings ?? L.Circle, "lift");
+export const Settings2 = wrap(L.Settings2 ?? L.Circle, "lift");
+export const Share2 = wrap(L.Share2 ?? L.Circle, "nudgeR");
+export const Shield = wrap(L.Shield ?? L.Circle, "tilt");
+export const ShieldAlert = wrap(L.ShieldAlert ?? L.Circle, "tilt");
+export const ShieldCheck = wrap(L.ShieldCheck ?? L.Circle, "tilt");
+export const Shirt = wrap(L.Shirt ?? L.Circle, "lift");
+export const Shuffle = wrap(L.Shuffle ?? L.Circle, "lift");
+export const Sigma = wrap(L.Sigma ?? L.Circle, "lift");
+export const Slack = wrap(L.Slack ?? L.Circle, "lift");
+export const Sliders = wrap(L.Sliders ?? L.Circle, "lift");
+export const Sparkles = wrap(L.Sparkles ?? L.Circle, "twinkle");
+export const Square = wrap(L.Square ?? L.Circle, "pop");
+export const Star = wrap(L.Star ?? L.Circle, "twinkle");
+export const StickyNote = wrap(L.StickyNote ?? L.Circle, "lift");
+export const Sun = wrap(L.Sun ?? L.Circle, "sway");
+export const Swords = wrap(L.Swords ?? L.Circle, "lift");
+export const Table2 = wrap(L.Table2 ?? L.Circle, "lift");
+export const Target = wrap(L.Target ?? L.Circle, "lift");
+export const Ticket = wrap(L.Ticket ?? L.Circle, "bob");
+export const Timer = wrap(L.Timer ?? L.Circle, "tick");
+export const TimerReset = wrap(L.TimerReset ?? L.Circle, "tick");
+export const Trash2 = wrap(L.Trash2 ?? L.Circle, "wobble");
+export const TrendingDown = wrap(L.TrendingDown ?? L.Circle, "lift");
+export const TrendingUp = wrap(L.TrendingUp ?? L.Circle, "lift");
+export const Trophy = wrap(L.Trophy ?? L.Circle, "bob");
+export const Twitter = wrap(L.Twitter ?? L.Circle, "lift");
+export const Undo2 = wrap(L.Undo2 ?? L.Circle, "spinHover");
+export const Unlock = wrap(L.Unlock ?? L.Circle, "tilt");
+export const Upload = wrap(L.Upload ?? L.Circle, "up");
+export const User = wrap(L.User ?? L.Circle, "lift");
+export const UserCheck = wrap(L.UserCheck ?? L.Circle, "pop");
+export const UserPlus = wrap(L.UserPlus ?? L.Circle, "lift");
+export const UserX = wrap(L.UserX ?? L.Circle, "lift");
+export const Users = wrap(L.Users ?? L.Circle, "lift");
+export const UsersRound = wrap(L.UsersRound ?? L.Circle, "lift");
+export const Video = wrap(L.Video ?? L.Circle, "pulse");
+export const Volume2 = wrap(L.Volume2 ?? L.Circle, "pulse");
+export const VolumeX = wrap(L.VolumeX ?? L.Circle, "pulse");
+export const Wallet = wrap(L.Wallet ?? L.Circle, "lift");
+export const Wand2 = wrap(L.Wand2 ?? L.Circle, "twinkle");
+export const X = wrap(L.X ?? L.Circle, "spinOnce");
+export const XCircle = wrap(L.XCircle ?? L.Circle, "spinOnce");
+export const Youtube = wrap(L.Youtube ?? L.Circle, "pulse");
+export const Zap = wrap(L.Zap ?? L.Circle, "zap");
+export const ZoomIn = wrap(L.ZoomIn ?? L.Circle, "lift");
+export const ZoomOut = wrap(L.ZoomOut ?? L.Circle, "lift");

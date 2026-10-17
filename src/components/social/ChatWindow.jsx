@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { threadKey, aiThreadKey } from "@/lib/social";
+import { pushNotification } from "@/lib/notifications";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { useLocale } from "@/lib/LocaleContext";
 

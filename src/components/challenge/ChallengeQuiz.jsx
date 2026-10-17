@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocale } from "@/lib/LocaleContext";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,38 @@ import { cn } from "@/lib/utils";
 function fmt(s) {
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function getOptionText(opt) {
+  if (opt && typeof opt === "object") return String(opt.text || opt.label || "");
+  return String(opt ?? "");
+}
+
+function resolveCorrectIndex(q) {
+  if (!q || typeof q !== "object") return 0;
+  const options = Array.isArray(q.options) ? q.options.map(getOptionText) : [];
+  const candidates = [q.correct_index, q.correctIndex, q.correct, q.correctOption];
+  for (const c of candidates) {
+    if (typeof c === "number" && Number.isInteger(c) && c >= 0 && (!options.length || c < options.length)) {
+      return c;
+    }
+    if (typeof c === "string" && /^\d+$/.test(c.trim())) {
+      const n = parseInt(c.trim(), 10);
+      if (n >= 0 && (!options.length || n < options.length)) return n;
+    }
+  }
+  const ans = String(q.correct_answer ?? q.answer ?? "").trim();
+  if (/^[A-Fa-f]$/.test(ans)) {
+    const idx = ans.toUpperCase().charCodeAt(0) - 65;
+    if (idx >= 0 && (!options.length || idx < options.length)) return idx;
+  }
+  if (ans && options.length) {
+    const found = options.findIndex(
+      (o) => o.trim().toLowerCase() === ans.toLowerCase() || o.trim().toLowerCase().includes(ans.toLowerCase())
+    );
+    if (found >= 0) return found;
+  }
+  return 0;
 }
 
 export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
@@ -27,6 +59,20 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
   const answersRef = useRef([]);
   const finishedRef = useRef(false);
 
+  const finish = useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    setSubmitting(true);
+    const spent = Math.max(1, Math.min(totalSeconds, Math.floor((Date.now() - startedAt) / 1000)));
+    const computedScore = answersRef.current.filter((a) => a.correct).length;
+    onFinish({
+      score: Math.max(score, computedScore),
+      total: questions.length || 1,
+      time_spent_seconds: spent,
+      answers: answersRef.current,
+    });
+  }, [onFinish, questions.length, score, startedAt, totalSeconds]);
+
   // shared countdown based on started_at
   useEffect(() => {
     const tick = () => {
@@ -38,29 +84,16 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
     tick();
     const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
-  }, [startedAt, totalSeconds]);
-
-  const finish = () => {
-    if (finishedRef.current) return;
-    finishedRef.current = true;
-    setSubmitting(true);
-    const spent = Math.min(totalSeconds, Math.floor((Date.now() - startedAt) / 1000));
-    onFinish({
-      score,
-      total: questions.length || 1,
-      time_spent_seconds: spent,
-      answers: answersRef.current,
-    });
-  };
+  }, [startedAt, totalSeconds, finish]);
 
   const handleSelect = (idx) => {
     if (answered) return;
     setSelected(idx);
     setAnswered(true);
     const q = questions[current];
-    const isCorrect = idx === q.correct_index;
-    const newScore = isCorrect ? score + 1 : score;
-    if (isCorrect) setScore(newScore);
+    const correctIdx = resolveCorrectIndex(q);
+    const isCorrect = idx === correctIdx;
+    if (isCorrect) setScore((prev) => prev + 1);
     answersRef.current.push({ question_index: current, selected: idx, correct: isCorrect });
   };
 
@@ -103,6 +136,7 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
 
   const lowTime = remaining <= 30;
   const q = questions[current] || {};
+  const correctIdx = resolveCorrectIndex(q);
 
   return (
     <div dir={dir} className="max-w-2xl mx-auto">
@@ -128,10 +162,10 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className="glass-card rounded-3xl p-6 sm:p-8 border border-border"
         >
-          <h3 className="text-lg sm:text-xl font-bold mb-6 leading-relaxed">{q.question}</h3>
+          <h3 className="text-lg sm:text-xl font-bold mb-6 leading-relaxed">{q.question || q.q || q.question_text}</h3>
           <div className="space-y-3">
             {(q.options || []).map((opt, i) => {
-              const isCorrect = i === q.correct_index;
+              const isCorrect = i === correctIdx;
               const isSelected = i === selected;
               return (
                 <motion.button
@@ -148,7 +182,7 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
                     answered && !isCorrect && !isSelected && "border-border opacity-50"
                   )}
                 >
-                  <span>{opt}</span>
+                  <span>{getOptionText(opt)}</span>
                   {answered && isCorrect && <Check className="w-5 h-5 shrink-0" />}
                   {answered && isSelected && !isCorrect && <X className="w-5 h-5 shrink-0" />}
                 </motion.button>

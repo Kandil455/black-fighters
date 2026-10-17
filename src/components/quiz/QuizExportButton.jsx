@@ -6,9 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, FileCheck2, FileQuestion, Loader2, Bot } from "lucide-react";
+import { Download, FileCheck2, FileQuestion, Loader2, Bot, Send } from "lucide-react";
 import { toast } from "sonner";
 import { exportQuizPdf } from "@/lib/quizPdf";
+import { invokeSecureFunction } from "@/lib/secureFunctions";
+import { openTelegramLinkWithCode } from "@/lib/telegramClient";
 
 export default function QuizExportButton({ quiz, variant = "icon", className = "" }) {
   const [busy, setBusy] = useState(false);
@@ -25,6 +27,53 @@ export default function QuizExportButton({ quiz, variant = "icon", className = "
       toast.success("تم تحميل الـ PDF ✅", { id: t });
     } catch (e) {
       toast.error("حصل خطأ في التصدير", { id: t });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSendToTelegram = async (e) => {
+    e.stopPropagation();
+    if (!quiz?.questions?.length) {
+      toast.error("الكويز مفيهوش أسئلة لإرسالها للتيليجرام");
+      return;
+    }
+    setBusy(true);
+    const t = toast.loading("بنبعت الكويز واستطلاعات Quiz Polls لبوت التيليجرام... 🤖");
+    try {
+      const res = await invokeSecureFunction("export-to-telegram", {
+        title: quiz.title || "كويز Black Fighters",
+        type: "quiz",
+        questions: quiz.questions,
+        quizId: quiz.id || null,
+        deliveryMode: "both",
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message || "تم إرسال الكويز للتيليجرام بنجاح! 🎯", { id: t });
+      } else if (res.data?.error === "NO_TELEGRAM_LINKED") {
+        toast.error(res.data.message || "حسابك غير مربوط بالتيليجرام", {
+          id: t,
+          action: {
+            label: "ربط البوت",
+            onClick: () => openTelegramLinkWithCode().catch((err) => toast.error(err?.message || "تعذر إنشاء كود الربط")),
+          },
+        });
+      } else {
+        toast.error(res.data?.message || "فشل إرسال الكويز للتيليجرام", { id: t });
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "";
+      if (msg.includes("غير مربوط") || msg.includes("NO_TELEGRAM_LINKED")) {
+        toast.error("حسابك غير مربوط بالتيليجرام! اربطه الأول 🤖", {
+          id: t,
+          action: {
+            label: "ربط البوت",
+            onClick: () => openTelegramLinkWithCode().catch((e2) => toast.error(e2?.message || "تعذر إنشاء كود الربط")),
+          },
+        });
+      } else {
+        toast.error(msg || "حصل خطأ في التصدير للتيليجرام", { id: t });
+      }
     } finally {
       setBusy(false);
     }
@@ -56,13 +105,22 @@ export default function QuizExportButton({ quiz, variant = "icon", className = "
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenuItem onClick={handleOpenTelegram} className="gap-2 cursor-pointer bg-primary/10 text-primary focus:bg-primary/20">
-          <Bot className="w-4 h-4 text-primary animate-pulse" />
+        <DropdownMenuItem onClick={handleSendToTelegram} className="gap-2 cursor-pointer bg-primary/10 text-primary focus:bg-primary/20">
+          <Send className="w-4 h-4 text-primary" />
           <div>
-            <p className="font-bold text-sm">امتحان الكويز على التليجرام 🤖</p>
-            <p className="text-[11px] text-muted-foreground">تشغيل تفاعلي على @Black_Fighters_FREE_bot</p>
+            <p className="font-bold text-sm">إرسال الكويز للتيليجرام 🤖</p>
+            <p className="text-[11px] text-muted-foreground">إرسال استطلاعات Quiz Polls للشات</p>
           </div>
         </DropdownMenuItem>
+        {quiz?.id && (
+          <DropdownMenuItem onClick={handleOpenTelegram} className="gap-2 cursor-pointer">
+            <Bot className="w-4 h-4 text-emerald-400" />
+            <div>
+              <p className="font-bold text-sm">فتح الكويز في البوت مباشر 🚀</p>
+              <p className="text-[11px] text-muted-foreground">تشغيل على @Black_Fighters_FREE_bot</p>
+            </div>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => handleExport(false)} className="gap-2 cursor-pointer">
           <FileQuestion className="w-4 h-4 text-accent" />
           <div>

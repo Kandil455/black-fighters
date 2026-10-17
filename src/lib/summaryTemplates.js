@@ -93,7 +93,12 @@ export function getSummaryTemplate(value) {
   const aliases = {
     atlas_foundational: "foundational_bilingual",
     foundational: "foundational_bilingual",
+    standard: "foundational_bilingual",
+    detailed: "complete_study_guide",
+    condensed: "atlas_cram",
+    exam_capsules: "atlas_cram",
     cram_sheet: "atlas_cram",
+    comparisons: "comparison_classification",
     lecture_exact: "complete_study_guide", complete: "complete_study_guide", organized_original: "complete_study_guide", format_only: "complete_study_guide", simple_overview: "complete_study_guide",
     revision_sheet: "exam_revision_sheet", key_points: "exam_revision_sheet", compact: "exam_revision_sheet",
     comparison_tables: "comparison_classification", qa_notes: "qa_tutor",

@@ -87,7 +87,15 @@ export default function ChallengeRoom() {
             }
             if (!q) {
               const content = await base44.entities.GeneratedContent.get(ch.quiz_id, "quiz");
-              if (content) q = content;
+              if (content) {
+                const raw = content.content || content.data || content;
+                const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+                q = {
+                  id: ch.quiz_id,
+                  title: ch.quiz_title || "كويز التحدي",
+                  questions: parsed?.questions || (Array.isArray(parsed) ? parsed : []),
+                };
+              }
             }
           } catch (quizErr) {
             console.warn("Quiz load error in challenge:", quizErr);
@@ -105,7 +113,7 @@ export default function ChallengeRoom() {
               user_id: meData.id,
               user_name: meData.full_name || meData.email || "منافس",
               score: 0,
-              total: 0,
+              total: q?.questions?.length || ch.quiz_questions?.length || 0,
               percentage: 0,
               time_spent_seconds: 0,
               finished: false,
@@ -113,9 +121,9 @@ export default function ChallengeRoom() {
           ];
           ch = { ...ch, participants: updated };
           if (db) {
-            updateDoc(doc(db, "challenges", id), { participants: updated }).catch(() => {});
+            updateDoc(doc(db, "challenges", id), { participants: updated, updated_at: new Date().toISOString() }).catch(() => {});
           } else {
-            base44.entities.Challenge.update(id, { participants: updated }).catch(() => {});
+            base44.entities.Challenge.update(id, { participants: updated, updated_at: new Date().toISOString() }).catch(() => {});
           }
         }
 
@@ -156,22 +164,24 @@ export default function ChallengeRoom() {
   }, [id, isAuthenticated]);
 
   const handleSetTime = useCallback(async (minutes) => {
-    setChallenge((c) => (c ? { ...c, time_limit_minutes: minutes } : c));
+    const patch = { time_limit_minutes: minutes, updated_at: new Date().toISOString() };
+    setChallenge((c) => (c ? { ...c, ...patch } : c));
     if (db) {
-      await updateDoc(doc(db, "challenges", id), { time_limit_minutes: minutes }).catch(() => {});
+      await updateDoc(doc(db, "challenges", id), patch).catch(() => {});
     } else {
-      await base44.entities.Challenge.update(id, { time_limit_minutes: minutes });
+      await base44.entities.Challenge.update(id, patch).catch(() => {});
     }
   }, [id]);
 
   const handleStart = useCallback(async () => {
     setStarting(true);
-    const startData = { status: "active", started_at: new Date().toISOString() };
+    const nowIso = new Date().toISOString();
+    const startData = { status: "active", started_at: nowIso, updated_at: nowIso };
     setChallenge((c) => (c ? { ...c, ...startData } : c));
     if (db) {
       await updateDoc(doc(db, "challenges", id), startData).catch(() => {});
     } else {
-      await base44.entities.Challenge.update(id, startData);
+      await base44.entities.Challenge.update(id, startData).catch(() => {});
     }
     setStarting(false);
   }, [id]);
@@ -208,13 +218,30 @@ export default function ChallengeRoom() {
         : p
     );
     const allDone = participants.length >= 1 && participants.every((p) => p.finished);
-    const updateData = { participants, ...(allDone ? { status: "finished" } : {}) };
+    const nowIso = new Date().toISOString();
+    let winnerId = null;
+    if (allDone && participants.length >= 2) {
+      const sorted = [...participants].sort(
+        (a, b) => (b.score || 0) - (a.score || 0) || (a.time_spent_seconds || 9999) - (b.time_spent_seconds || 9999)
+      );
+      if ((sorted[0]?.score || 0) !== (sorted[1]?.score || 0) || (sorted[0]?.time_spent_seconds || 0) !== (sorted[1]?.time_spent_seconds || 0)) {
+        winnerId = sorted[0]?.user_id || null;
+      }
+    } else if (allDone && participants.length === 1) {
+      winnerId = participants[0]?.user_id || null;
+    }
+
+    const updateData = {
+      participants,
+      updated_at: nowIso,
+      ...(allDone ? { status: "finished", finished_at: nowIso, ...(winnerId ? { winner_id: winnerId } : {}) } : {}),
+    };
 
     setChallenge((c) => (c ? { ...c, ...updateData } : c));
     if (db) {
       await updateDoc(doc(db, "challenges", id), updateData).catch(() => {});
     } else {
-      await base44.entities.Challenge.update(id, updateData);
+      await base44.entities.Challenge.update(id, updateData).catch(() => {});
     }
   }, [id, me, challenge, quiz]);
 

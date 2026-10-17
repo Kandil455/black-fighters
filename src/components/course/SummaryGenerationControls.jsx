@@ -45,9 +45,9 @@ export const SUMMARY_STYLE_LIST = [
 
 export function estimateSmartPages(textLength = 0, style = "standard") {
   const chars = Math.max(800, Number(textLength) || 2400);
-  const base = Math.max(2, Math.min(80, Math.round(chars / 2000)));
-  if (style === "condensed" || style === "exam_capsules") return Math.max(2, Math.round(base * 0.7));
-  if (style === "detailed") return Math.min(100, Math.round(base * 1.35));
+  const base = Math.max(6, Math.min(140, Math.round(chars / 1200)));
+  if (style === "condensed" || style === "exam_capsules") return Math.max(4, Math.round(base * 0.75));
+  if (style === "detailed") return Math.min(160, Math.round(base * 1.4));
   return base;
 }
 

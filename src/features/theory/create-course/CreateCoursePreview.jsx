@@ -1,9 +1,14 @@
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, CheckCircle2, Loader2, RotateCcw, Sparkles, Zap } from 'lucide-react';
+import { Check, CheckCircle2, Loader2, RotateCcw, Send, Sparkles, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import StudyContent from '@/components/course/StudyContent';
 import ChapterCardBrowser from '@/components/course/ChapterCardBrowser';
 import CreditCostBadge from '@/components/CreditCostBadge';
+import { invokeSecureFunction } from '@/lib/secureFunctions';
+import { openTelegramLinkWithCode } from '@/lib/telegramClient';
+import { renderStudyGuideHtml } from '@/lib/summaryStudyGuide';
+import { toast } from 'sonner';
 
 export default function CreateCoursePreview({
   preview,
@@ -18,11 +23,60 @@ export default function CreateCoursePreview({
   onPreviewChange,
   onEditingChaptersChange,
 }) {
+  const [sendingTg, setSendingTg] = useState(false);
+
   const updateChapter = (index, field, value) => {
     const chapters = (preview.chapters || []).map((chapter, chapterIndex) => (
       chapterIndex === index ? { ...chapter, [field]: value } : chapter
     ));
     onPreviewChange({ ...preview, chapters });
+  };
+
+  const handleExportToTelegram = async () => {
+    setSendingTg(true);
+    try {
+      const summaryText = preview.summary_markdown
+        || (preview.chapters || []).map((ch) => `## ${ch.title || ''}\n${ch.content || ''}`).join('\n\n');
+      const summaryHtml = renderStudyGuideHtml({
+        document: preview.summary_document_v3 || undefined,
+        markdown: summaryText,
+        title: preview.title || 'ملخص دراسي',
+        forExport: true,
+      });
+      const res = await invokeSecureFunction('export-to-telegram', {
+        title: preview.title || 'ملخص دراسي',
+        type: 'summary',
+        summaryText,
+        summaryHtml,
+        deliveryMode: 'both',
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message || 'تم تصدير الملخص إلى التيليجرام بنجاح! 🤖');
+      } else if (res.data?.error === 'NO_TELEGRAM_LINKED') {
+        toast.error(res.data.message || 'حسابك غير مربوط بالتيليجرام', {
+          action: {
+            label: 'ربط البوت',
+            onClick: () => openTelegramLinkWithCode().catch((e) => toast.error(e?.message || 'تعذر إنشاء كود الربط')),
+          },
+        });
+      } else {
+        toast.error(res.data?.message || 'فشل تصدير الملخص للتيليجرام');
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || '';
+      if (msg.includes('غير مربوط') || msg.includes('NO_TELEGRAM_LINKED')) {
+        toast.error('حسابك غير مربوط بالتيليجرام! اربطه الأول 🤖', {
+          action: {
+            label: 'ربط البوت',
+            onClick: () => openTelegramLinkWithCode().catch((e) => toast.error(e?.message || 'تعذر إنشاء كود الربط')),
+          },
+        });
+      } else {
+        toast.error(msg || 'حصل خطأ في التصدير للتيليجرام');
+      }
+    } finally {
+      setSendingTg(false);
+    }
   };
 
   return (
@@ -53,7 +107,7 @@ export default function CreateCoursePreview({
       )}
 
       <div className="mb-6 rounded-3xl border border-primary/20 p-6 glass-card">
-        <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-black">{preview.title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{preview.description}</p>
@@ -69,7 +123,17 @@ export default function CreateCoursePreview({
               )}
             </div>
           </div>
-          <div className="shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportToTelegram}
+              disabled={sendingTg}
+              className="gap-1.5 border-[#38bdf8]/40 bg-[#38bdf8]/10 text-[#38bdf8] hover:bg-[#38bdf8]/20 font-bold"
+            >
+              {sendingTg ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {isEn ? 'Telegram 🤖' : 'تصدير للتيليجرام 🤖'}
+            </Button>
             <Button onClick={onSave} disabled={saving} className={`gap-2 font-bold ${savedCourseId ? 'bg-emerald-600 text-white hover:bg-emerald-500' : ''}`}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               {saving ? (isEn ? 'Saving...' : 'جاري الحفظ...') : savedCourseId ? (isEn ? 'Saved — Open Summary 📖' : 'تم الحفظ — اضغط لفتحه 📖') : (isEn ? 'Save Summary' : 'احفظ الملخص')}
@@ -97,7 +161,18 @@ export default function CreateCoursePreview({
         )}
       />
 
-      <div className="mt-6 text-center">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={handleExportToTelegram}
+          disabled={sendingTg}
+          className="gap-2 px-6 font-bold border-[#38bdf8]/40 bg-[#38bdf8]/10 text-[#38bdf8] hover:bg-[#38bdf8]/20"
+        >
+          {sendingTg ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          {isEn ? 'Export to Telegram 🤖' : 'تصدير للتيليجرام 🤖'}
+        </Button>
         <Button onClick={onSave} disabled={saving} size="lg" className="gap-2 px-8 font-bold">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           {saving ? (isEn ? 'Saving...' : 'جاري الحفظ...') : (isEn ? 'Save Summary 🎉' : 'احفظ الملخص 🎉')}

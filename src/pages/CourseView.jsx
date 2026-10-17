@@ -659,26 +659,41 @@ function summaryToTelegramText(summaryRow) {
     try {
       const summaryItem = contents.find((c) => c.content_type === "summary") || contents.find((c) => c.type === "summary");
       const quizItem = contents.find((c) => c.content_type === "quiz") || contents.find((c) => c.type === "quiz");
-      const activeType = customType || (quizItem ? "quiz" : "summary");
+      const activeType = customType || "summary";
 
       let questions = [];
-      if (activeType === "quiz" && quizItem) {
-        try {
-          const parsed = JSON.parse(quizItem.content);
-          questions = Array.isArray(parsed) ? parsed : parsed.questions || [];
-        } catch {}
+      if (activeType === "quiz") {
+        if (quizItem) {
+          try {
+            const parsed = typeof quizItem.content === "string" ? JSON.parse(quizItem.content) : quizItem.content;
+            questions = Array.isArray(parsed) ? parsed : parsed?.questions || [];
+          } catch {}
+        }
+        if (!questions.length && id) {
+          try {
+            const standaloneList = await base44.entities.StandaloneQuiz.filter({ course_id: id });
+            if (standaloneList?.[0]?.questions?.length) {
+              questions = standaloneList[0].questions;
+            }
+          } catch {}
+        }
       }
 
-      // Send the REAL summary: the designed study-guide file AND its text.
+      // Send the REAL summary: the designed study-guide file AND its text (falling back to course.chapters when needed).
       let summaryText = "";
       let summaryHtml = "";
-      if (activeType === "summary" && summaryItem) {
-        summaryText = summaryToTelegramText(summaryItem);
-        const parsed = safeParseContent(summaryItem.content);
+      if (activeType === "summary") {
+        if (summaryItem) {
+          summaryText = summaryToTelegramText(summaryItem);
+        }
+        if (!summaryText.trim() && course?.chapters?.length) {
+          summaryText = courseToMarkdown(course);
+        }
+        const parsed = summaryItem ? safeParseContent(summaryItem.content) : null;
         const doc = parsed ? getSummaryDocumentV3(parsed) : null;
-        if (doc) {
+        if (doc || summaryText.trim()) {
           summaryHtml = renderStudyGuideHtml({
-            document: doc,
+            document: doc || undefined,
             markdown: summaryText,
             title: course?.title || "الملخص",
             templateId: readGuideTemplate(),

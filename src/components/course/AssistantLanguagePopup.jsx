@@ -65,8 +65,8 @@ export default function AssistantLanguagePopup({
           : "foundational_bilingual"
     );
     setSubjectType(rec.subjectType || analysis.subjectType || "auto");
-    const estPages = Number(rec.suggestedMaxPages || analysis.estimatedPages || analysis.pages || 12);
-    setMaxPages(Math.max(6, Math.min(80, Math.ceil(estPages * 0.45) * 2 || 12)));
+    const estPages = Number(rec.suggestedMaxPages || analysis.estimatedPages || analysis.pages || 16);
+    setMaxPages(Math.max(10, Math.min(150, Math.ceil(estPages * 0.85) || 16)));
   }, [analysis]);
 
   const handleStart = () => {

@@ -296,19 +296,24 @@ async function generateStructuredSummaryV3({
       onProgress?.({ phase: "map_facts", current: parts.filter((part) => Array.isArray(part) && part.length).length + 1, total: chunks.length, analysis, jobId });
       updateSummaryJob(jobId, { status: "running", chunkIndex: index, chunkStatus: "running" }).catch(() => {});
       let result = null;
-      try {
-        result = await invoke({
-          task: "summary_facts",
-          text: chunk,
-          language: selectedLanguage,
-          summaryStyle: selectedStyle,
-          summaryMaxPages: maxPages,
-          chunkIndex: index,
-          totalChunks: chunks.length,
-        });
-      } catch (error) {
-        if (signal?.aborted || error?.name === "AbortError") throw error;
-        console.warn(`[summaryPipeline] Chunk ${index + 1}/${chunks.length} AI call failed, using local fact extractor fallback:`, error?.message);
+      for (let aiAttempt = 1; aiAttempt <= 2; aiAttempt += 1) {
+        try {
+          result = await invoke({
+            task: "summary_facts",
+            text: chunk,
+            language: selectedLanguage,
+            summaryStyle: selectedStyle,
+            summaryMaxPages: maxPages,
+            chunkIndex: index,
+            totalChunks: chunks.length,
+          });
+          break;
+        } catch (error) {
+          if (signal?.aborted || error?.name === "AbortError") throw error;
+          if (aiAttempt === 2) {
+            console.warn(`[summaryPipeline] Chunk ${index + 1}/${chunks.length} AI call failed, using local fact extractor fallback:`, error?.message);
+          }
+        }
       }
       const model = result?.model_actual || result?.model || "";
       if (model) modelNames.add(model);
@@ -345,8 +350,8 @@ async function generateStructuredSummaryV3({
 
     if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
     onProgress?.({ phase: "assemble", current: 1, total: 1, analysis, jobId });
-    const dynamicMaxPages = Math.max(maxPages, Math.ceil(chunks.length * 2.5));
-    let facts = mergeSummaryFacts(parts, { maxFacts: Math.min(900, Math.max(40, dynamicMaxPages * 14)) });
+    const dynamicMaxPages = Math.max(maxPages, Math.ceil(chunks.length * 4), Math.ceil((analysis?.estimatedPages || 12) * 0.85));
+    let facts = mergeSummaryFacts(parts, { maxFacts: Math.min(1200, Math.max(60, dynamicMaxPages * 18)) });
     let assembled = null;
     for (let attempt = 0; attempt < 5 && facts.length >= 3; attempt += 1) {
       assembled = assembleSummaryDocumentFromFacts(facts, {
@@ -362,7 +367,7 @@ async function generateStructuredSummaryV3({
       if (!budgetOnly) break;
       facts = [...facts]
         .sort((a, b) => b.importance - a.importance || a.chunkIndex - b.chunkIndex)
-        .slice(0, Math.max(3, Math.floor(facts.length * 0.82)))
+        .slice(0, Math.max(3, Math.floor(facts.length * 0.9)))
         .sort((a, b) => a.chunkIndex - b.chunkIndex);
     }
     if (!assembled?.validation?.valid) {
@@ -436,7 +441,7 @@ export async function generateHierarchicalSummary({
   language,
   style,
   stylePrompt = "",
-  maxPages = 12,
+  maxPages = 16,
   colorLevel = "none",
   onProgress,
   signal,

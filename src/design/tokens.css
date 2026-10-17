@@ -1,0 +1,116 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BLACK FIGHTERS — MODERN HIGH-CRAFT DESIGN TOKENS (DARK & LIGHT)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root,
+.dark,
+[data-theme="dark"] {
+  /* Core Surfaces — Deep Obsidian & Glassmorphic Slate */
+  --bg: #070A10;
+  --surface: #0D121C;
+  --surface-2: #131B29;
+  --text: #F3F6FC;
+  --text-2: #94A3B8;
+  --border: rgba(148, 163, 184, 0.14);
+  --accent: #10B981;
+  --accent-hover: #34D399;
+  --accent-foreground: #03150C;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+
+  /* Shadcn / Tailwind HSL Variables (Rich Dark Obsidian + Emerald/Cyan Accent) */
+  --background: 220 39% 5%;
+  --foreground: 216 50% 97%;
+  --card: 220 36% 8%;
+  --card-foreground: 216 50% 97%;
+  --popover: 220 36% 8%;
+  --popover-foreground: 216 50% 97%;
+  --primary: 160 84% 43%;
+  --primary-foreground: 156 80% 5%;
+  --secondary: 218 32% 12%;
+  --secondary-foreground: 216 50% 97%;
+  --muted: 218 32% 12%;
+  --muted-foreground: 215 20% 65%;
+  --accent-hsl: 192 91% 43%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border-hsl: 217 26% 16%;
+  --input-hsl: 217 26% 16%;
+  --ring: 160 84% 43%;
+  --radius: 0.9rem;
+
+  /* Legacy Variable Mapping */
+  --bf-navy: #10B981;
+  --bf-navy-deep: #059669;
+  --bf-teal: #38BDF8;
+  --bf-teal-soft: rgba(56, 189, 248, 0.12);
+  --bf-paper: #070A10;
+  --bf-paper-2: #0D121C;
+  --bf-ink: #F3F6FC;
+  --bf-ink-muted: #94A3B8;
+  --bf-line: rgba(148, 163, 184, 0.14);
+  --bf-white: #0D121C;
+
+  --paper: var(--bg);
+  --paper-2: var(--surface);
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --rule: var(--border);
+  --stamp: var(--accent);
+}
+
+.light,
+.theme-light,
+[data-theme="light"] {
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-2: #F1F5F9;
+  --text: #0F172A;
+  --text-2: #475569;
+  --border: rgba(15, 23, 42, 0.1);
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-foreground: #FFFFFF;
+  --success: #059669;
+  --warning: #D97706;
+  --danger: #DC2626;
+
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 161 94% 30%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 95%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 95%;
+  --muted-foreground: 215 16% 42%;
+  --accent-hsl: 199 89% 38%;
+  --destructive: 0 84% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border-hsl: 214 32% 88%;
+  --input-hsl: 214 32% 88%;
+  --ring: 161 94% 30%;
+  --radius: 0.9rem;
+
+  --bf-navy: #0F172A;
+  --bf-navy-deep: #020617;
+  --bf-teal: #0284C7;
+  --bf-teal-soft: #E0F2FE;
+  --bf-paper: #F8FAFC;
+  --bf-paper-2: #F1F5F9;
+  --bf-ink: #0F172A;
+  --bf-ink-muted: #475569;
+  --bf-line: #E2E8F0;
+  --bf-white: #FFFFFF;
+
+  --paper: var(--bg);
+  --paper-2: var(--surface);
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --rule: var(--border);
+  --stamp: var(--accent);
+}

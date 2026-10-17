@@ -1,7 +1,7 @@
 // ─── Smart Course Chunking v2 ────────────────────────────────────────────────
 // Handles huge PDFs, bilingual content, and parallel AI processing
 
-export const SUMMARY_CHUNK_SIZE = 18000;
+export const SUMMARY_CHUNK_SIZE = 12000;
 const DEFAULT_CHUNK_SIZE = SUMMARY_CHUNK_SIZE;
 
 /**

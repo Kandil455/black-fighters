@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageCircle, ArrowRight, UserX } from "lucide-react";
+import { Loader2, MessageCircle, ArrowRight, UserX, Swords } from "lucide-react";
 import { useLocale } from "@/lib/LocaleContext";
 import ProfileCard from "@/components/profile/ProfileCard";
 
@@ -55,13 +55,21 @@ export default function PublicProfile() {
       <ProfileCard user={user} />
 
       {!isMe && (
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button
             size="lg"
             className="h-12 px-8 font-bold gap-2 neon-glow-cyan"
             onClick={() => navigate(`/friends?chat=${user.id}`)}
           >
             <MessageCircle className="w-5 h-5" /> {isEn ? "Message / Chat" : "تواصل / راسل"}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-12 px-6 font-bold gap-2 border-accent/40 text-accent hover:bg-accent/10"
+            onClick={() => navigate("/quizzes")}
+          >
+            <Swords className="w-5 h-5" /> {isEn ? "Challenge in a Quiz ⚔️" : "تحدّى في كويز ⚔️"}
           </Button>
         </div>
       )}

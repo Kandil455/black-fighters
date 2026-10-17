@@ -185,7 +185,7 @@ export default function CreateCourse() {
           language: lang,
           style,
           stylePrompt: fullStylePrompt,
-          maxPages: Math.max(4, Math.min(120, Number(choices.maxPages) || Math.ceil(stats.estimatedPages * 0.25) || 12)),
+          maxPages: Math.max(10, Math.min(160, Number(choices.maxPages) || Math.ceil(stats.estimatedPages * 0.75) || 20)),
           colorLevel: "none",
           signal: { get aborted() { return abortRef.current; } },
           onProgress: ({ phase, current = 1, total = 1, round = 1 }) => {

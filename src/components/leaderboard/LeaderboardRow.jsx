@@ -87,7 +87,7 @@ export default function LeaderboardRow({
         <AnimatedAvatar
           src={avatar}
           isVideo={isVideo}
-          frame={frame !== "none" ? frame : rank === 0 ? "spartanApex" : rank === 1 ? "blazingAura" : rank === 2 ? "emeraldGlow" : "none"}
+          frame={frame !== "none" ? frame : rank === 0 ? "spartanApex" : rank === 1 ? "blazingAura" : rank === 2 ? "emeraldTech" : "none"}
           size={44}
           fallback={(name || "?").trim().charAt(0).toUpperCase() || "؟"}
           animate={rank < 3}
