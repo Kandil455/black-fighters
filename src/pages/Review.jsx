@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from '@/api/base44Client';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck } from "@/components/ui/animatedIcons";
 import ReviewSession from "@/components/review/ReviewSession";
 import { FlameIcon, SuccessIcon } from "@/components/ui/icons";
 import { useLocale } from "@/lib/LocaleContext";
@@ -30,21 +30,23 @@ export default function Review() {
 
   if (finished !== null) {
     return (
-      <div dir={dir} className="max-w-xl mx-auto glass rounded-3xl p-12 text-center border border-[#3DDC97]/30">
-        <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
-          <SuccessIcon className="w-16 h-16" />
+      <div dir={dir} className="max-w-xl mx-auto card text-center p-8" style={{ gap: 14 }}>
+        <div className="w-16 h-16 mx-auto flex items-center justify-center">
+          <SuccessIcon className="w-12 h-12" />
         </div>
-        <h2 className="text-2xl font-bold mb-2 text-gradient">
+        <h2 className="serif" style={{ fontSize: "1.8rem" }}>
           {isEn ? `You reviewed ${finished} cards successfully!` : `راجعت ${finished} بطاقة بنجاح!`}
         </h2>
-        <p className="text-white/60 mb-6 text-sm">
+        <p style={{ color: "var(--mute)", fontSize: "0.9rem" }}>
           {isEn 
             ? "Cards will return on spaced repetition intervals based on your mastery level."
-            : "البطاقات هترجعلك في مواعيد التكرار المتباعد حسب مستوى إتقانك"}
+            : "البطاقات هترجعلك في مواعيد التكرار المتباعد حسب مستوى إتقانك."}
         </p>
-        <Button onClick={() => { setFinished(null); setDemoSprint(null); queryClient.invalidateQueries({ queryKey: ["review-due"] }); }} className="btn-primary-glow font-bold rounded-full px-6">
-          {isEn ? "Done" : "تمام"}
-        </Button>
+        <div style={{ marginTop: 8 }}>
+          <Button onClick={() => { setFinished(null); setDemoSprint(null); queryClient.invalidateQueries({ queryKey: ["review-due"] }); }} className="btn sm">
+            {isEn ? "Done" : "تمام"}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -54,30 +56,28 @@ export default function Review() {
   if (!activeCards?.length) {
     return (
       <div dir={dir} className="max-w-xl mx-auto space-y-6">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#3DDC97] border border-[#3DDC97]/30 font-mono mb-3">
-            <span className="pulse-dot w-1.5 h-1.5" />
-            <span>SPACED REPETITION ENGINE · FSRS v4.5</span>
-          </div>
-          <h1 className="text-3xl font-bold text-gradient mb-1">
-            {isEn ? "Smart Spaced Review" : "المراجعة والتثبيت الذكي"}
+        <div className="bf-hd">
+          <span className="mono">SPACED REPETITION · FSRS v4.5</span>
+          <h1 className="serif">
+            {isEn ? "Smart Spaced " : "المراجعة والتثبيت "}
+            <em style={{ color: "var(--sig)" }}>{isEn ? "Review." : "الذكي."}</em>
           </h1>
-          <p className="text-sm text-white/60">
+          <p style={{ color: "var(--mute)", fontSize: "0.92rem" }}>
             {isEn 
-              ? "Spaced repetition system to lock complex concepts and high-yield facts into long-term memory."
-              : "نظام تكرار متباعد لتثبيت المفاهيم العلمية والمعلومات المعقدة في الذاكرة طويلة المدى"}
+              ? "Spaced repetition system to lock complex concepts into long-term memory."
+              : "نظام تكرار متباعد لتثبيت المفاهيم العلمية والمعلومات في الذاكرة طويلة المدى."}
           </p>
         </div>
 
-        <div className="glass rounded-3xl p-12 text-center border border-white/10 space-y-5">
-          <CalendarCheck className="w-12 h-12 text-[#3DDC97] mx-auto mb-2 opacity-90" />
-          <h3 className="text-lg font-bold mb-2 text-white">
+        <div className="card text-center p-8" style={{ gap: 14 }}>
+          <CalendarCheck className="w-12 h-12 text-[var(--sig)] mx-auto opacity-90" />
+          <h3 className="serif" style={{ fontSize: "1.3rem" }}>
             {isEn ? "No cards due for review today" : "لا توجد بطاقات للمراجعة حالياً"}
           </h3>
-          <p className="text-white/60 text-xs max-w-md mx-auto leading-relaxed">
+          <p style={{ color: "var(--mute)", fontSize: "0.85rem", maxWidth: 460, margin: "0 auto" }}>
             {isEn 
-              ? "Convert cards from any lecture or practice active recall directly with Atlas V5 Declassify bars."
-              : "حوّل بطاقات أي مذكرة للمراجعة الذكية (FSRS v4.5)، أو ابدأ جلسة استدعاء نشط فورية عبر شرائط فك التعتيم في الأطلس V5."}
+              ? "Convert cards from any lecture or start a quick practice session."
+              : "حوّل بطاقات أي مذكرة للمراجعة الذكية، أو ابدأ تدريباً سريعاً من النماذج التجريبية."}
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Button
@@ -119,7 +119,7 @@ export default function Review() {
   return (
     <div dir={dir} className="max-w-2xl mx-auto space-y-6">
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#3DDC97] border border-[#3DDC97]/30 font-mono">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-primary border-primary/30 font-mono">
           <FlameIcon className="w-4 h-4 inline" />
           <span>DAILY FLASHCARD SPRINT · FSRS v4.5</span>
         </div>

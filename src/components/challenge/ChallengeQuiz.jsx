@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useLocale } from "@/lib/LocaleContext";
-import { Button } from "@/components/ui/button";
-import { Check, X, ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Check, X, Loader2 } from "@/components/ui/animatedIcons";
 
 function fmt(s) {
   const m = Math.floor(s / 60);
@@ -27,7 +24,6 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
   const answersRef = useRef([]);
   const finishedRef = useRef(false);
 
-  // shared countdown based on started_at
   useEffect(() => {
     const tick = () => {
       const elapsed = Math.floor((Date.now() - startedAt) / 1000);
@@ -76,10 +72,10 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
 
   if (submitting) {
     return (
-      <div className="text-center py-20" dir={dir}>
-        <Loader2 className="w-10 h-10 animate-spin text-accent mx-auto mb-4" />
-        <p className="font-bold">{isEn ? "You're done! 🎯" : "خلّصت! 🎯"}</p>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="card text-center py-20 max-w-md mx-auto" dir={dir}>
+        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: "var(--sig)" }} animated={false} />
+        <h2 className="serif text-2xl font-normal">{isEn ? "You're done! 🎯" : "خلّصت! 🎯"}</h2>
+        <p className="text-sm mt-1" style={{ color: "var(--mute)" }}>
           {otherFinished
             ? (isEn ? "Calculating results..." : "بنحسب النتيجة...")
             : (isEn ? "Waiting for the other player to finish..." : "في انتظار اللاعب التاني يخلّص...")}
@@ -90,80 +86,69 @@ export default function ChallengeQuiz({ challenge, onFinish, otherFinished }) {
 
   if (!questions || questions.length === 0) {
     return (
-      <div className="text-center py-20 max-w-md mx-auto" dir={dir}>
-        <div className="glass-card rounded-3xl p-8 border border-destructive/20">
-          <p className="font-bold text-lg mb-2">{isEn ? "No questions found in this quiz" : "لم يتم العثور على أسئلة لهذا الكويز"}</p>
-          <Button onClick={() => window.history.back()} className="mt-4 font-bold">
-            {isEn ? "Go Back" : "رجوع"}
-          </Button>
-        </div>
+      <div className="card text-center py-16 max-w-md mx-auto" dir={dir}>
+        <span className="mono mb-2">تنبيه</span>
+        <p className="font-bold text-lg mb-4">{isEn ? "No questions found in this quiz" : "لم يتم العثور على أسئلة لهذا الكويز"}</p>
+        <button onClick={() => window.history.back()} className="btn sm">
+          {isEn ? "Go Back" : "رجوع"}
+        </button>
       </div>
     );
   }
 
-  const lowTime = remaining <= 30;
   const q = questions[current] || {};
+  const progressPct = totalSeconds > 0 ? (remaining / totalSeconds) * 100 : 100;
 
   return (
-    <div dir={dir} className="max-w-2xl mx-auto">
-      {/* Timer bar */}
-      <div className="flex items-center justify-between mb-3">
-        <div className={cn("flex items-center gap-1.5 font-black text-lg px-3 py-1.5 rounded-xl border", lowTime ? "text-destructive border-destructive/40 bg-destructive/10 animate-pulse" : "text-primary border-primary/30 bg-primary/5")}>
-          <Clock className="w-5 h-5" /> {fmt(remaining)}
-        </div>
-        <span className="text-sm font-bold text-muted-foreground">
-          {isEn ? `Question ${current + 1}/${questions.length}` : `سؤال ${current + 1}/${questions.length}`}
+    <div dir={dir} className="max-w-2xl mx-auto space-y-4">
+      {/* Editorial Header & Timer */}
+      <div className="hd text-center">
+        <span className="mono">
+          {isEn ? `Question ${current + 1} of ${questions.length}` : `سؤال ${current + 1} من ${questions.length}`}
         </span>
-      </div>
-      <div className="h-2 bg-secondary rounded-full mb-6 overflow-hidden">
-        <motion.div className="h-full bg-gradient-to-l from-accent to-primary" animate={{ clipPath: `inset(0% ${100 - (remaining / totalSeconds) * 100}% 0% 0%)` }} transition={{ duration: 1, ease: "linear" }} />
+        <div className="timer">{fmt(remaining)}</div>
+        <div className="bar my-2">
+          <i style={{ width: `${progressPct}%` }} />
+        </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={current}
-          initial={{ opacity: 0, x: 40, scale: 0.97 }}
-          animate={{ opacity: 1, x: 0, scale: 1 }}
-          exit={{ opacity: 0, x: -40, scale: 0.97 }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="glass-card rounded-3xl p-6 sm:p-8 border border-border"
-        >
-          <h3 className="text-lg sm:text-xl font-bold mb-6 leading-relaxed">{q.question}</h3>
-          <div className="space-y-3">
-            {(q.options || []).map((opt, i) => {
-              const isCorrect = i === q.correct_index;
-              const isSelected = i === selected;
-              return (
-                <motion.button
-                  key={i}
-                  onClick={() => handleSelect(i)}
-                  disabled={answered}
-                  whileHover={!answered ? { scale: 1.015 } : {}}
-                  whileTap={!answered ? { scale: 0.98 } : {}}
-                  className={cn(
-                    "w-full text-start rounded-2xl border font-semibold px-4 py-3.5 text-sm transition-colors flex items-center justify-between gap-3",
-                    !answered && "border-border hover:border-accent/40 hover:bg-accent/5",
-                    answered && isCorrect && "border-green-500/60 bg-green-500/10 text-green-400 neon-glow-green",
-                    answered && isSelected && !isCorrect && "border-destructive/60 bg-destructive/10 text-destructive",
-                    answered && !isCorrect && !isSelected && "border-border opacity-50"
-                  )}
-                >
-                  <span>{opt}</span>
-                  {answered && isCorrect && <Check className="w-5 h-5 shrink-0" />}
-                  {answered && isSelected && !isCorrect && <X className="w-5 h-5 shrink-0" />}
-                </motion.button>
-              );
-            })}
-          </div>
+      {/* Question Card */}
+      <div className="card">
+        <b className="text-lg leading-relaxed block">{q.question}</b>
 
-          {answered && (
-            <Button onClick={handleNext} className="w-full mt-6 h-11 font-bold gap-2">
-              {current + 1 >= questions.length ? (isEn ? "Finish" : "إنهاء") : (isEn ? "Next" : "التالي")}
-              {isEn ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-            </Button>
-          )}
-        </motion.div>
-      </AnimatePresence>
+        <div style={{ display: "grid", gap: 8 }} className="mt-3">
+          {(q.options || []).map((opt, i) => {
+            const isCorrect = i === q.correct_index;
+            const isSelected = i === selected;
+            let optClass = "opt";
+            if (answered) {
+              if (isCorrect) optClass += " ok";
+              else if (isSelected && !isCorrect) optClass += " bad";
+            }
+
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleSelect(i)}
+                disabled={answered}
+                className={optClass}
+                style={{ opacity: answered && !isCorrect && !isSelected ? 0.45 : 1 }}
+              >
+                <span className="grow text-start">{opt}</span>
+                {answered && isCorrect && <Check className="w-4 h-4 shrink-0" style={{ color: "var(--ok)" }} animated={false} />}
+                {answered && isSelected && !isCorrect && <X className="w-4 h-4 shrink-0" style={{ color: "var(--bad)" }} animated={false} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {answered && (
+          <button onClick={handleNext} className="btn w-full mt-4">
+            {current + 1 >= questions.length ? (isEn ? "Finish" : "إنهاء") : (isEn ? "Next" : "التالي")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

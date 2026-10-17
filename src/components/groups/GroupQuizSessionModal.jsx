@@ -4,7 +4,7 @@ import { db } from "@/lib/firebaseDb";
 import { doc, onSnapshot } from "firebase/firestore";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, Play, Users, Clock, Trophy } from "lucide-react";
+import { Loader2, Play, Users, Clock, Trophy } from "@/components/ui/animatedIcons";
 import { motion } from "framer-motion";
 import GroupQuizLeaderboard from "@/components/groups/GroupQuizLeaderboard";
 import SyncedQuizBody from "@/components/groups/SyncedQuizBody";

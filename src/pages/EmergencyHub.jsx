@@ -15,7 +15,7 @@ import {
   RefreshCw,
   Send,
   Zap,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { useAuth } from "@/lib/AuthContext";
 import { hasEmergencyAccess } from "@/lib/emergencyAccess";
 import { invokeSecureFunction } from "@/lib/secureFunctions";

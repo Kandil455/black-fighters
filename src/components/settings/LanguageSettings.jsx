@@ -1,5 +1,5 @@
 import React from "react";
-import { Languages } from "lucide-react";
+import { Languages } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 
 export default function LanguageSettings() {

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useLocale } from "@/lib/LocaleContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, MailCheck, ArrowRight } from "lucide-react";
+import { Loader2, MailCheck, ArrowRight } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 
 export default function OtpVerify({ email, onVerify, onResend, onBack }) {

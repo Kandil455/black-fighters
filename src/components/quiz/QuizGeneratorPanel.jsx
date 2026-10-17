@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Upload, FileText, Loader2, Sparkles, ClipboardCheck, AlertTriangle, ClipboardPaste, Languages } from "lucide-react";
+import { Upload, FileText, Loader2, Sparkles, ClipboardCheck, AlertTriangle, ClipboardPaste, Languages } from "@/components/ui/animatedIcons";
 import { getQuizCost } from "@/lib/creditCosts";
 import {
   allocateQuizQuestions,

@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   TrendingDown,
   X,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

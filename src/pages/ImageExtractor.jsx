@@ -3,8 +3,7 @@ import { motion } from "framer-motion";
 import { 
   Upload, Layers, Settings2, Download, 
   BookOpen, RotateCcw, Play 
-} from "lucide-react";
-import { PracticalQuizIcon } from "@/components/ui/icons";
+} from "@/components/ui/animatedIcons";
 import { ImageExtractorUpload } from "@/components/imageExtractor/ImageExtractorUpload";
 import { ImageReviewGrid } from "@/components/imageExtractor/ImageReviewGrid";
 import { ImageQuizControls } from "@/components/imageExtractor/ImageQuizControls";
@@ -634,33 +633,34 @@ export default function ImageExtractor() {
           bar), which read as a control room rather than a task. Now: one title,
           and a numbered 3-step flow where later steps stay dimmed until they can
           actually do something. */}
+      {/* Editorial Header */}
       <header className="space-y-5">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-[#0E1117] text-primary">
-            <PracticalQuizIcon size={26} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl">
-              {isEn ? "Practical quiz (OSCE / OSPE)" : "كويز العملي (أوسكي / أوسبي)"}
-            </h1>
-            <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
-              {isEn
-                ? "Upload the lecture, review the extracted figures, then take the quiz."
-                : "ارفع المحاضرة، راجع الصور المستخرجة، وبعدين ابدأ الكويز."}
-            </p>
-          </div>
-          <div className="hidden shrink-0 items-center gap-2 sm:flex">
-            <button
-              type="button"
-              onClick={handleStartNewSession}
-              title={isEn ? "Start a new session" : "جلسة جديدة"}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-bold text-muted-foreground transition-colors hover:border-rose-400/40 hover:text-rose-300"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              {isEn ? "New session" : "جلسة جديدة"}
-            </button>
-          </div>
+        <div className="hd mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+          <span className="mono">{isEn ? "Practical Quiz from Images" : "كويز عملي من صور"}</span>
+          <h1 className="serif">
+            {isEn ? "Extract questions from " : "استخرج الأسئلة من "}
+            <em style={{ color: "var(--sig)" }}>{isEn ? "images." : "الصور."}</em>
+          </h1>
+          <p style={{ color: "var(--mute)" }}>
+            {isEn
+              ? "Upload lecture slides or exams. Black Fighters extracts questions and lets you test yourself."
+              : "ارفع صور الشرايح أو الامتحانات القديمة، والمنصة بتستخرج الأسئلة وتسيبك تراجعها وتحلها."}
+          </p>
         </div>
+
+        <div className="hidden shrink-0 items-center gap-2 sm:flex">
+          <button
+            type="button"
+            onClick={handleStartNewSession}
+            title={isEn ? "Start a new session" : "جلسة جديدة"}
+            className="btn sm line"
+          >
+            <RotateCcw className="h-3.5 w-3.5" animated={false} />
+            {isEn ? "New session" : "جلسة جديدة"}
+          </button>
+        </div>
+      </div>
 
         {/* The flow: 1 upload → 2 review → 3 quiz, with live counts. */}
         <nav aria-label={isEn ? "Quiz steps" : "خطوات الكويز"} className="grid gap-2 sm:grid-cols-3">

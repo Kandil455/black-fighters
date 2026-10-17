@@ -8,7 +8,7 @@ import {
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, ArrowRight, ArrowLeft, Loader2, Bot, Sparkles, Target, X, GraduationCap } from "lucide-react";
+import { Send, ArrowRight, ArrowLeft, Loader2, Bot, Sparkles, Target, X, GraduationCap } from "@/components/ui/animatedIcons";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import AnimatedAvatar from "@/components/AnimatedAvatar";

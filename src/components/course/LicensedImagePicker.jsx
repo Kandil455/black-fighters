@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ExternalLink, ImagePlus, Loader2, Search, ShieldCheck, X } from "lucide-react";
+import { ExternalLink, ImagePlus, Loader2, Search, ShieldCheck, X } from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { searchLicensedImages } from "@/lib/summaryJobs";
 

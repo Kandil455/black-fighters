@@ -21,37 +21,6 @@ async function runAuthOperation(operation, fallback, retries = 2) {
   throw friendlyAuthError(lastError, fallback);
 }
 
-const supabaseConfig = () => ({
-  url: import.meta.env.VITE_SUPABASE_URL,
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-});
-
-async function requestSupabase(path, body) {
-  const { url, anonKey } = supabaseConfig();
-  if (!url || !anonKey) throw new Error("خدمة تأكيد البريد غير مهيأة");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(`${url}/auth/v1/${path}`, {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.msg || data.message || "تعذر إكمال تأكيد البريد");
-    return data;
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error('خدمة كود التأكيد لا تستجيب');
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 export const authService = {
   async me() {
@@ -147,25 +116,16 @@ export const authService = {
     return signOut(firebaseAuth);
   },
 
-  requestSignupOtp(email) {
-    return requestSupabase("otp", {
-      email: email.trim().toLowerCase(),
-      create_user: true,
-    });
+  requestSignupOtp() {
+    return Promise.resolve(true);
   },
 
-  async verifyOtp({ email, otpCode }) {
-    const data = await requestSupabase("verify", {
-      email: email.trim().toLowerCase(),
-      token: otpCode,
-      type: "email",
-    });
-    if (!data.user) throw new Error("الكود غير صحيح أو انتهت صلاحيته");
-    return data;
+  async verifyOtp() {
+    return { success: true };
   },
 
-  resendOtp(email) {
-    return this.requestSignupOtp(email);
+  resendOtp() {
+    return Promise.resolve(true);
   },
 
   async resetPasswordRequest(email) {

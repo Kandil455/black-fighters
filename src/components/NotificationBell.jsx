@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CheckCheck, BellOff } from "lucide-react";
+import { Bell, CheckCheck, BellOff } from "@/components/ui/animatedIcons";
 import { useAuth } from "@/lib/AuthContext";
 import {
   listNotifications, getUnreadCount, markRead, markAllRead, generateAutoNotifications,

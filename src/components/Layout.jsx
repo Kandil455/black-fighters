@@ -15,7 +15,7 @@ import {
   User,
   CreditCard,
   HelpCircle,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { hasEmergencyAccess } from "@/lib/emergencyAccess";
 
 import PageTransition from "@/components/PageTransition";
@@ -38,7 +38,6 @@ import {
   FriendsIcon,
   StudyGroupIcon,
 } from "@/components/ui/icons";
-import { LVLogo } from "@/components/ui/linevault";
 import { useLocale } from "@/lib/LocaleContext";
 import { useSmoothScroll } from "@/lib/useSmoothScroll";
 import { cn } from "@/lib/utils";
@@ -144,9 +143,11 @@ export default function Layout() {
   ];
 
   const sidebar = (
-    <div className="flex flex-col h-full select-none bg-white">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-[#D5DEE7]">
-        <LVLogo to="/dashboard" label="Black Fighters" />
+    <div className="flex flex-col h-full select-none bg-[var(--paper)] text-[var(--ink)]">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--line)]">
+        <Link to="/dashboard" className="bf-brand text-xl tracking-tight text-[var(--ink)] select-none">
+          Black Fighters<span style={{ color: "var(--sig)" }}>.</span>
+        </Link>
         <NotificationBell />
       </div>
 
@@ -154,26 +155,26 @@ export default function Layout() {
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="w-full bg-[#F6F8FA] hover:bg-[#EEF2F5] border border-[#D5DEE7] hover:border-[#B8CBD6] rounded-md px-3 py-2 text-start flex items-center justify-between text-xs text-[#5A6B7D] hover:text-[#0B1F33] transition-colors duration-150"
+          className="w-full bg-[var(--paper2)] hover:bg-[var(--paper2)]/80 border border-[var(--line)] rounded px-3 py-2 text-start flex items-center justify-between text-xs text-[var(--mute)] hover:text-[var(--ink)] transition-colors duration-150"
         >
           <span className="flex items-center gap-2 truncate">
-            <Search className="w-3.5 h-3.5 shrink-0 text-[#5A6B7D]" />
+            <Search className="w-3.5 h-3.5 shrink-0 text-[var(--mute)]" />
             <span className="font-medium truncate">{t("search")}</span>
           </span>
-          <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] text-[#5A6B7D] font-mono border border-[#D5DEE7]">
+          <kbd className="px-1.5 py-0.5 rounded bg-[var(--paper)] text-[10px] text-[var(--mute)] font-mono border border-[var(--line)]">
             ⌘K
           </kbd>
         </button>
 
-        <div className="bg-[#F6F8FA] p-0.5 rounded-md border border-[#D5DEE7] flex items-center text-xs font-medium">
+        <div className="bg-[var(--paper2)] p-0.5 rounded border border-[var(--line)] flex items-center text-xs font-medium">
           <button
             type="button"
             onClick={() => setLocale("ar")}
             className={cn(
-              "flex-1 py-1.5 px-2 rounded-[5px] flex items-center justify-center transition-colors duration-150",
+              "flex-1 py-1 px-2 rounded flex items-center justify-center transition-colors duration-150",
               locale === "ar"
-                ? "bg-white text-[#0B1F33] font-semibold shadow-sm"
-                : "text-[#5A6B7D] hover:text-[#0B1F33]"
+                ? "bg-[var(--paper)] text-[var(--ink)] font-semibold shadow-sm"
+                : "text-[var(--mute)] hover:text-[var(--ink)]"
             )}
           >
             <span>العربية</span>
@@ -182,10 +183,10 @@ export default function Layout() {
             type="button"
             onClick={() => setLocale("en")}
             className={cn(
-              "flex-1 py-1.5 px-2 rounded-[5px] font-mono flex items-center justify-center transition-colors duration-150",
+              "flex-1 py-1 px-2 rounded font-mono flex items-center justify-center transition-colors duration-150",
               locale === "en"
-                ? "bg-white text-[#0B1F33] font-semibold shadow-sm"
-                : "text-[#5A6B7D] hover:text-[#0B1F33]"
+                ? "bg-[var(--paper)] text-[var(--ink)] font-semibold shadow-sm"
+                : "text-[var(--mute)] hover:text-[var(--ink)]"
             )}
           >
             <span>EN</span>
@@ -196,7 +197,7 @@ export default function Layout() {
       <nav className="flex-1 px-3 py-3 space-y-5 overflow-y-auto scrollbar-none overscroll-contain">
         {PRIMARY_HUBS.map((hub) => (
           <div key={hub.title} className="space-y-1">
-            <p className="px-3 text-[11px] font-medium uppercase tracking-wider text-[#8A97A8]">
+            <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--mute)] font-mono">
               {hub.title}
             </p>
             <div className="space-y-0.5">
@@ -227,25 +228,25 @@ export default function Layout() {
                     }}
                     title={item.label}
                     className={cn(
-                      "group relative flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors duration-150",
+                      "group relative flex items-center justify-between px-3 py-2 rounded text-xs font-medium transition-colors duration-150",
                       active
-                        ? "bg-[#E6F3F6] text-[#0B1F33] font-semibold border border-[#C5D9E0]"
-                        : "text-[#5A6B7D] hover:text-[#0B1F33] hover:bg-[#F6F8FA] border border-transparent"
+                        ? "bg-[var(--paper2)] text-[var(--ink)] font-bold shadow-[inset_0_0_0_1px_var(--line)]"
+                        : "text-[var(--mute)] hover:text-[var(--ink)] hover:bg-[var(--paper2)] border border-transparent"
                     )}
                   >
                     {active && (
                       <span
                         aria-hidden="true"
-                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[#2B8A9E]"
+                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[var(--sig)]"
                       />
                     )}
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
                         className={cn(
-                          "w-6 h-6 rounded-md flex items-center justify-center transition-colors duration-150",
+                          "w-5 h-5 rounded flex items-center justify-center transition-colors duration-150",
                           active
-                            ? "text-[#2B8A9E]"
-                            : "text-[#8A97A8] group-hover:text-[#0B1F33]"
+                            ? "text-[var(--sig)]"
+                            : "text-[var(--mute)] group-hover:text-[var(--ink)]"
                         )}
                       >
                         <Icon className="w-4 h-4" size={16} animated={false} />
@@ -260,16 +261,16 @@ export default function Layout() {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-[#D5DEE7] bg-white space-y-2">
+      <div className="p-3 border-t border-border bg-card space-y-2">
         <div className="hidden" aria-hidden="true">
           <DocumentIcon size={14} animated={false} />
         </div>
 
-        <div className="rounded-md bg-[#F6F8FA] border border-[#D5DEE7] p-2.5 space-y-2">
+        <div className="rounded-md bg-muted/50 border border-border p-2.5 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-3.5 h-3.5 text-[#2B8A9E] shrink-0" />
-              <span className="text-xs font-semibold text-[#0B1F33] truncate">
+              <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+              <span className="text-xs font-semibold text-foreground truncate">
                 {isPro
                   ? profile?.subscription_plan_name || (locale === "en" ? "Pro Plan" : "باقة برو نشطة")
                   : locale === "en"
@@ -280,7 +281,7 @@ export default function Layout() {
             <Link
               to="/subscriptions"
               onClick={() => setMobileOpen(false)}
-              className="px-2.5 py-1 rounded-md bg-[#0B1F33] text-white text-[11px] font-semibold hover:bg-[#071624] transition-colors shrink-0"
+              className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold hover:opacity-90 transition-opacity shrink-0"
             >
               {isPro
                 ? locale === "en"
@@ -292,12 +293,12 @@ export default function Layout() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-1.5 pt-1 border-t border-[#D5DEE7]">
+          <div className="flex items-center gap-1.5 pt-1 border-t border-border">
             <a
               href="https://wa.me/201009275685"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#5A6B7D] hover:text-[#0B1F33] hover:bg-white transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Headphones className="w-3 h-3" />
               <span>{locale === "en" ? "Support" : "الدعم الفني"}</span>
@@ -306,7 +307,7 @@ export default function Layout() {
               <Link
                 to="/admin"
                 onClick={() => setMobileOpen(false)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#2B8A9E] hover:bg-white transition-colors font-semibold"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-primary hover:bg-muted transition-colors font-semibold"
               >
                 <span>{locale === "en" ? "Admin" : "الإدارة"}</span>
               </Link>
@@ -331,13 +332,13 @@ export default function Layout() {
                   (profile?.full_name || authUser?.email || "?")[0].toUpperCase()
                 }
               />
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#2B8A9E] border border-white" />
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-primary border border-background" />
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-[#0B1F33] truncate">
+              <div className="text-xs font-semibold text-foreground truncate">
                 {profile?.displayName || profile?.full_name || t("studentDefault")}
               </div>
-              <div className="text-[11px] font-mono tabular text-[#5A6B7D] truncate" dir="ltr">
+              <div className="text-[11px] font-mono tabular text-muted-foreground truncate" dir="ltr">
                 {Number(profile?.credits ?? 10).toLocaleString()} cr · {profile?.xp || 0} XP
               </div>
             </div>
@@ -345,7 +346,7 @@ export default function Layout() {
           <button
             type="button"
             onClick={logout}
-            className="text-[#5A6B7D] hover:text-[#B42318] p-1.5 rounded-md hover:bg-[#FCECEF] transition-colors shrink-0"
+            className="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition-colors shrink-0"
             title={t("logout")}
           >
             <LogOut className="w-4 h-4" />
@@ -359,33 +360,35 @@ export default function Layout() {
     <MotionConfig reducedMotion="user">
       <div
         dir={dir}
-        className="min-h-screen bg-[#F6F8FA] text-[#0B1F33] relative selection:bg-[#2B8A9E]/20"
+        className="min-h-screen bg-[var(--paper)] text-[var(--ink)] relative selection:bg-primary/20"
       >
         <NeonBackground />
 
         <aside
           className={`hidden md:flex fixed inset-y-0 start-0 ${
             dir === "rtl" ? "border-e" : "border-s"
-          } w-64 lg:w-64 border-[#D5DEE7] bg-white z-30 flex-col shadow-[0_0_0_1px_rgba(11,31,51,0.02)]`}
+          } w-64 lg:w-64 border-[var(--line)] bg-[var(--paper)] z-30 flex-col shadow-[0_0_0_1px_rgba(0,0,0,0.04)]`}
         >
           {sidebar}
         </aside>
 
-        <header className="md:hidden sticky top-0 z-40 bg-white/95 border-b border-[#D5DEE7] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
-          <LVLogo to="/dashboard" label="Black Fighters" />
+        <header className="md:hidden sticky top-0 z-40 bg-[var(--paper)]/95 border-b border-[var(--line)] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
+          <Link to="/dashboard" className="bf-brand text-xl tracking-tight text-[var(--ink)]">
+            Black Fighters<span style={{ color: "var(--sig)" }}>.</span>
+          </Link>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
               aria-label="بحث"
-              className="tap-target w-8 h-8 rounded-md flex items-center justify-center text-[#5A6B7D] hover:text-[#0B1F33] bg-[#F6F8FA] border border-[#D5DEE7]"
+              className="tap-target w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground bg-muted/60 border border-border"
             >
               <Search className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
-              className="w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-xs font-mono font-semibold text-[#2B8A9E]"
+              className="w-8 h-8 rounded-md flex items-center justify-center bg-muted/60 border border-border text-xs font-mono font-semibold text-primary"
             >
               {locale === "ar" ? "EN" : "ع"}
             </button>
@@ -394,7 +397,7 @@ export default function Layout() {
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"}
-              className="tap-target w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-[#0B1F33]"
+              className="tap-target w-8 h-8 rounded-md flex items-center justify-center bg-muted/60 border border-border text-foreground"
             >
               {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -403,23 +406,23 @@ export default function Layout() {
 
         {mobileOpen && (
           <div
-            className="md:hidden fixed inset-0 z-50 bg-[#0B1F33]/35"
+            className="md:hidden fixed inset-0 z-50 bg-black/60"
             onClick={() => setMobileOpen(false)}
           >
             <aside
-              className={`absolute inset-y-0 start-0 w-72 bg-white ${
+              className={`absolute inset-y-0 start-0 w-72 bg-card ${
                 dir === "rtl" ? "border-s" : "border-e"
-              } border-[#D5DEE7] flex flex-col shadow-xl`}
+              } border-border flex flex-col shadow-xl`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-3 border-b border-[#D5DEE7] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#5A6B7D]">
+              <div className="p-3 border-b border-border flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">
                   {locale === "ar" ? "القائمة الرئيسية" : "Navigation"}
                 </span>
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-[#5A6B7D] hover:text-[#0B1F33]"
+                  className="w-8 h-8 rounded-md flex items-center justify-center bg-muted/60 border border-border text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-4 h-4" />
                 </button>

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { 
   Upload, Sliders, 
   CheckCircle2, Loader2, Zap, ShieldCheck 
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/lib/LocaleContext";

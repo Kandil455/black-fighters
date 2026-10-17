@@ -3,7 +3,7 @@ import {
   FileText, Presentation, Archive, Code2, 
   CheckCircle2, Download, Loader2, HardDrive,
   Sparkles, Bot, Send
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { playClick, playSuccess } from "@/lib/sounds";
 import { useLocale } from "@/lib/LocaleContext";

@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { FileText, Table2, Highlighter, Layers, Award, TrendingUp } from "lucide-react";
+import { FileText, Table2, Highlighter, Layers, Award, TrendingUp } from "@/components/ui/animatedIcons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { computeSummaryStats } from "@/lib/summaryStats";
 

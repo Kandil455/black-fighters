@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardType, Sparkles } from "lucide-react";
+import { ClipboardType, Sparkles } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 
 export default function TextPastePanel({ onSubmit }) {

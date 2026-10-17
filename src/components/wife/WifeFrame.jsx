@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Heart } from "lucide-react";
+import { Heart } from "@/components/ui/animatedIcons";
 
 /**
  * إطار بروفايل بريميوم حصري لدور "زوجتي" — حلقة نيون وردية دوّارة + قلوب على المدار + توهّج نابض.

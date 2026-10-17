@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Check, Download, Printer } from "lucide-react";
+import { Check, Download, Printer } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { renderStudyGuideHtml, STUDY_GUIDE_TEMPLATES } from "@/lib/summaryStudyGuide";
 import { useLocale } from "@/lib/LocaleContext";

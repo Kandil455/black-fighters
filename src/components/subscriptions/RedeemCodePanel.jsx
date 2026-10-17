@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Ticket, Loader2, CheckCircle2 } from "lucide-react";
+import { Ticket, Loader2, CheckCircle2 } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 import { useAuth } from "@/lib/AuthContext";

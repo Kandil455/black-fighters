@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { 
   Check, X, Eye, Edit3, Sparkles, Filter, CheckCheck, 
   Layers, AlertTriangle, ScanText, Palette, Loader2, EyeOff, Zap
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";

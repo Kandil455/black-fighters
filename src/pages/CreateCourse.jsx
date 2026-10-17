@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { AlertCircle, ClipboardType } from "lucide-react";
+import { AlertCircle, ClipboardType } from "@/components/ui/animatedIcons";
+import { cn } from "@/lib/utils";
 import { YoutubeIcon } from "@/components/ui/icons";
 import PremiumUploadDropzone from "@/components/course/PremiumUploadDropzone";
 import TextPastePanel from "@/components/course/TextPastePanel";
@@ -442,22 +443,24 @@ export default function CreateCourse() {
             all rendered at once, which made the primary path (upload a lecture →
             get a summary) look like a form to fill in. */}
         {step === 0 && (
-          <motion.div key="upload" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+          <motion.div key="upload" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
             {errorMsg && (
-              <div className="mb-4 flex items-start gap-3 glass-card rounded-2xl p-4 border border-destructive/30 bg-destructive/5">
-                <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                <p className="text-sm text-destructive font-medium">{errorMsg}</p>
+              <div className="card" style={{ borderColor: "var(--bad)", background: "color-mix(in srgb, var(--bad) 8%, var(--paper2))" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <AlertCircle className="w-4 h-4 text-[var(--bad)] shrink-0" />
+                  <p style={{ fontSize: "0.88rem", color: "var(--bad)", margin: 0 }}>{errorMsg}</p>
+                </div>
               </div>
             )}
 
             <PremiumUploadDropzone onFile={handleFile} maxSize={MAX_FILE_SIZE} />
 
             <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="h-px flex-1 bg-[var(--line)]" />
+              <span className="mono font-bold">
                 {isEn ? "or" : "أو"}
               </span>
-              <span className="h-px flex-1 bg-border" />
+              <span className="h-px flex-1 bg-[var(--line)]" />
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2">
@@ -465,9 +468,18 @@ export default function CreateCourse() {
                 type="button"
                 aria-expanded={altMode === "text"}
                 onClick={() => setAltMode(altMode === "text" ? null : "text")}
-                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
-                  altMode === "text" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
-                }`}
+                className={cn(
+                  "btn line",
+                  altMode === "text" && "on"
+                )}
+                style={{
+                  minHeight: 46,
+                  borderRadius: 4,
+                  fontSize: "0.88rem",
+                  background: altMode === "text" ? "var(--paper2)" : "transparent",
+                  borderColor: altMode === "text" ? "var(--sig)" : "var(--line)",
+                  color: "var(--ink)",
+                }}
               >
                 <ClipboardType className="h-4 w-4" />
                 {isEn ? "Paste lecture text" : "الصق نص المحاضرة"}
@@ -476,9 +488,18 @@ export default function CreateCourse() {
                 type="button"
                 aria-expanded={altMode === "youtube"}
                 onClick={() => setAltMode(altMode === "youtube" ? null : "youtube")}
-                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
-                  altMode === "youtube" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
-                }`}
+                className={cn(
+                  "btn line",
+                  altMode === "youtube" && "on"
+                )}
+                style={{
+                  minHeight: 46,
+                  borderRadius: 4,
+                  fontSize: "0.88rem",
+                  background: altMode === "youtube" ? "var(--paper2)" : "transparent",
+                  borderColor: altMode === "youtube" ? "var(--sig)" : "var(--line)",
+                  color: "var(--ink)",
+                }}
               >
                 <YoutubeIcon size={16} />
                 {isEn ? "Summarise a YouTube lecture" : "لخّص محاضرة من يوتيوب"}

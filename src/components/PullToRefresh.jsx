@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2, ArrowDown } from "lucide-react";
+import { Loader2, ArrowDown } from "@/components/ui/animatedIcons";
 import usePullToRefresh from "@/hooks/usePullToRefresh";
 
 /**

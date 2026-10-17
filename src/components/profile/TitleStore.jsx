@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Check, Coins, Loader2, Crown } from "lucide-react";
+import { Lock, Check, Coins, Loader2, Crown } from "@/components/ui/animatedIcons";
 import { motion } from "framer-motion";
 import { PROFILE_TITLES, TIER_LABELS, ownsTitle } from "@/lib/avatars";
 import AnimatedTitle from "@/components/profile/AnimatedTitle";

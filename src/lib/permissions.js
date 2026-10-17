@@ -1,6 +1,11 @@
-export const OWNER_EMAILS = [
+const envAdmins = (typeof import.meta !== "undefined" && import.meta.env?.VITE_ADMIN_EMAILS
+  ? import.meta.env.VITE_ADMIN_EMAILS.split(",").map(e => e.trim().toLowerCase()).filter(Boolean)
+  : []);
+
+export const OWNER_EMAILS = Array.from(new Set([
+  ...envAdmins,
   'ibrahimkandil000@gmail.com'
-];
+]));
 
 export function normalizeEmail(email = '') {
   return String(email || '').trim().toLowerCase();

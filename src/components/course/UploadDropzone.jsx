@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { motion } from "framer-motion";
-import { Upload, FileText, ShieldCheck, Zap } from "lucide-react";
+import { Upload, FileText, ShieldCheck, Zap } from "@/components/ui/animatedIcons";
 
 const FEATURES = [
   { icon: FileText, label: "PDF / Word / PPT / TXT" },

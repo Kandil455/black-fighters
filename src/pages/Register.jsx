@@ -2,11 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { BrandLogo } from "@/components/ui/BrandLogo";
-import { LVCard } from "@/components/ui/linevault";
-import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react";
+import { Loader2, Eye, EyeOff, MailCheck } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/authErrors";
 import OtpVerify from "@/components/auth/OtpVerify";
@@ -87,201 +83,162 @@ export default function Register() {
 
   return (
     <div
-      className="min-h-screen bg-[#07080C] flex items-center justify-center px-4 py-10"
+      className="min-h-screen flex flex-col items-center justify-center p-4"
+      style={{ backgroundColor: "var(--paper)", color: "var(--ink)" }}
       dir={dir}
     >
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex justify-center">
-          <BrandLogo size={32} linkTo="/" />
-        </div>
+      {/* Editorial Header */}
+      <div className="hd text-center mb-6">
+        <span className="mono">{isEn ? "ACCOUNT" : "الحساب"}</span>
+        <h1 className="serif">
+          {isEn ? "Join & " : "سجل "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "Get Started." : "وابدأ."}</em>
+        </h1>
+      </div>
 
-        <LVCard padding="p-6 sm:p-8">
-          {otpStep && verificationMode === "link" ? (
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-[#131720] border border-[#1E222B]">
-                <MailCheck className="w-6 h-6 text-[#3DDC97]" />
-              </div>
-              <h1 className="text-xl font-bold text-[#F2F3F5]">
-                {isEn ? "Confirm Your Email" : "أكد بريدك الإلكتروني"}
-              </h1>
-              <p className="text-xs text-[#9AA0AE] mt-2 mb-6 leading-relaxed">
-                {isEn ? (
-                  <>
-                    We sent a confirmation link to{" "}
-                    <span className="text-[#F2F3F5] font-mono font-semibold" dir="ltr">
-                      {email}
-                    </span>
-                    . Open the email, click the link, then sign in.
-                  </>
-                ) : (
-                  <>
-                    أرسلنا رابط تأكيد إلى{" "}
-                    <span className="text-[#F2F3F5] font-mono font-semibold" dir="ltr">
-                      {email}
-                    </span>
-                    . افتح الرسالة واضغط على الرابط، ثم سجل دخولك.
-                  </>
-                )}
-              </p>
-              <Button asChild className="w-full h-11 font-bold mb-2.5">
-                <Link to="/login">
-                  {isEn ? "Go to Sign In" : "الذهاب لتسجيل الدخول"}
-                </Link>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full h-11"
-                onClick={async () => {
-                  try {
-                    const result = await resendVerificationLink(email, password);
-                    toast.success(
-                      result?.alreadyVerified
-                        ? isEn
-                          ? "Email already verified — please sign in"
-                          : "البريد مؤكد بالفعل — سجل دخولك"
-                        : isEn
-                        ? "New link sent"
-                        : "تم إرسال رابط جديد"
-                    );
-                  } catch (error) {
-                    toast.error(
-                      error.message ||
-                        (isEn ? "Could not resend link" : "تعذر إعادة الإرسال")
-                    );
-                  }
-                }}
-              >
-                {isEn ? "Resend Link" : "إعادة إرسال الرابط"}
-              </Button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOtpStep(false);
-                  setVerificationMode(null);
-                }}
-                className="mt-4 text-xs text-[#9AA0AE] hover:text-[#F2F3F5] font-medium"
-              >
-                {isEn ? "← Edit information" : "← تعديل البيانات"}
+      {/* Auth Card */}
+      <div className="card w-full max-w-md p-6 sm:p-8">
+        {otpStep && verificationMode === "link" ? (
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center bg-[color-mix(in_srgb,var(--sig)_15%,transparent)] border border-[var(--sig)]">
+              <MailCheck className="w-6 h-6" style={{ color: "var(--sig)" }} animated={false} />
+            </div>
+            <h2 className="serif text-2xl font-bold mb-2">
+              {isEn ? "Confirm Your Email" : "أكد بريدك الإلكتروني"}
+            </h2>
+            <p className="text-xs mb-6 leading-relaxed" style={{ color: "var(--mute)" }}>
+              {isEn ? (
+                <>
+                  We sent a confirmation link to{" "}
+                  <span className="mono font-semibold" dir="ltr" style={{ color: "var(--ink)" }}>
+                    {email}
+                  </span>
+                  . Open the email and click the link.
+                </>
+              ) : (
+                <>
+                  أرسلنا رابط تأكيد إلى{" "}
+                  <span className="mono font-semibold" dir="ltr" style={{ color: "var(--ink)" }}>
+                    {email}
+                  </span>
+                  . افتح الرسالة واضغط على الرابط، ثم سجل دخولك.
+                </>
+              )}
+            </p>
+
+            <Link to="/login" className="btn w-full mb-3 block text-center">
+              {isEn ? "Go to Sign In" : "الذهاب لتسجيل الدخول"}
+            </Link>
+
+            <button
+              type="button"
+              className="btn line sm w-full"
+              onClick={async () => {
+                try {
+                  const result = await resendVerificationLink(email, password);
+                  toast.success(
+                    result?.alreadyVerified
+                      ? isEn
+                        ? "Email already verified — please sign in"
+                        : "البريد مؤكد بالفعل — سجل دخولك"
+                      : isEn
+                      ? "New link sent"
+                      : "تم إرسال رابط جديد"
+                  );
+                } catch (error) {
+                  toast.error(error.message || (isEn ? "Could not resend link" : "تعذر إعادة الإرسال"));
+                }
+              }}
+            >
+              {isEn ? "Resend Link" : "إعادة إرسال الرابط"}
+            </button>
+          </div>
+        ) : otpStep ? (
+          <OtpVerify
+            email={email}
+            onVerify={handleVerify}
+            onResend={() => resendOtp(email)}
+            onBack={() => {
+              setOtpStep(false);
+              setVerificationMode(null);
+            }}
+          />
+        ) : (
+          <>
+            {/* Auth Mode Switch */}
+            <div className="tabs justify-center mb-4">
+              <Link to="/login" className="text-muted-foreground hover:text-foreground">
+                <button aria-selected="false">
+                  {isEn ? "Sign In" : "تسجيل الدخول"}
+                </button>
+              </Link>
+              <button aria-selected="true" className="font-bold">
+                {isEn ? "New Account" : "حساب جديد"}
               </button>
             </div>
-          ) : otpStep ? (
-            <OtpVerify
-              email={email}
-              onVerify={handleVerify}
-              onResend={() => resendOtp(email)}
-              onBack={() => {
-                setOtpStep(false);
-                setVerificationMode(null);
-              }}
-            />
-          ) : (
-            <>
-              <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-[#F2F3F5]">
-                  {isEn ? "Create Account" : "إنشاء حساب جديد"}
-                </h1>
-                <p className="text-xs text-[#9AA0AE] mt-1">
-                  {isEn
-                    ? "Start organizing your lectures and summaries"
-                    : "ابدأ تنظيم محاضراتك وملخصاتك في مكان واحد"}
-                </p>
+
+            <form onSubmit={handleRegister} style={{ display: "grid", gap: 12 }}>
+              <div className="comp">
+                <input
+                  name="fullName"
+                  placeholder={isEn ? "Full Name" : "الاسم الكامل"}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
 
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
-                    {isEn ? "Full Name" : "الاسم الكامل"}
-                  </label>
-                  <Input
-                    name="fullName"
-                    placeholder={isEn ? "Your full name" : "اسمك الكامل"}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
-                  />
-                </div>
+              <div className="comp">
+                <input
+                  name="email"
+                  dir="ltr"
+                  type="email"
+                  placeholder={isEn ? "Email Address" : "البريد الإلكتروني"}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </div>
 
-                <div>
-                  <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
-                    {isEn ? "Email Address" : "البريد الإلكتروني"}
-                  </label>
-                  <Input
-                    name="email"
-                    dir="ltr"
-                    type="email"
-                    placeholder="example@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
-                    {isEn ? "Password" : "كلمة المرور"}
-                  </label>
-                  <div className="relative">
-                    <Input
-                      name="password"
-                      dir="ltr"
-                      type={showPass ? "text" : "password"}
-                      placeholder={
-                        isEn ? "At least 8 characters" : "8 حروف على الأقل"
-                      }
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className={`h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5] ${
-                        isEn ? "pr-11" : "pl-11"
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      aria-label={
-                        showPass
-                          ? isEn
-                            ? "Hide password"
-                            : "إخفاء كلمة المرور"
-                          : isEn
-                          ? "Show password"
-                          : "إظهار كلمة المرور"
-                      }
-                      onClick={() => setShowPass(!showPass)}
-                      className={`absolute top-0 h-11 w-11 flex items-center justify-center text-[#9AA0AE] hover:text-[#F2F3F5] transition-colors ${
-                        isEn ? "right-0" : "left-0"
-                      }`}
-                    >
-                      {showPass ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-11 font-bold text-sm gap-2 mt-2"
+              <div className="comp">
+                <input
+                  name="password"
+                  dir="ltr"
+                  type={showPass ? "text" : "password"}
+                  placeholder={isEn ? "Password (min 8 chars)" : "كلمة السر (8 حروف على الأقل)"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="p-2"
+                  style={{ color: "var(--mute)" }}
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  {isEn ? "Create Account" : "إنشاء الحساب"}
-                </Button>
-              </form>
+                  {showPass ? <EyeOff className="w-4 h-4" animated={false} /> : <Eye className="w-4 h-4" animated={false} />}
+                </button>
+              </div>
 
-              <p className="text-center text-xs text-[#9AA0AE] mt-6">
-                {isEn ? "Already have an account? " : "لديك حساب بالفعل؟ "}
-                <Link
-                  to="/login"
-                  className="text-[#3DDC97] font-semibold hover:underline"
-                >
-                  {isEn ? "Sign In" : "تسجيل الدخول"}
-                </Link>
-              </p>
-            </>
-          )}
-        </LVCard>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn w-full mt-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" animated={false} /> : (isEn ? "Create Account" : "تسجيل حساب")}
+              </button>
+            </form>
+
+            <p className="text-center text-xs mt-4" style={{ color: "var(--mute)" }}>
+              {isEn ? "Already have an account? " : "عندك حساب بالفعل؟ "}
+              <Link to="/login" className="font-bold underline" style={{ color: "var(--sig)" }}>
+                {isEn ? "Sign In" : "تسجيل الدخول"}
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

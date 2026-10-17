@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { recordStudy, awardBadge } from "@/lib/gamification";
 import { awardXP } from "@/lib/xpSystem";
-import { RotateCcw, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Shuffle, Trophy } from "lucide-react";
+import { RotateCcw, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Shuffle, Trophy } from "@/components/ui/animatedIcons";
 import confetti from "canvas-confetti";
 import { getOfflineSnapshot, setOfflineSnapshot } from "@/lib/offlineDb";
 

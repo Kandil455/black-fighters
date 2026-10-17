@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Sparkles, TrendingUp, Flame } from "lucide-react";
+import { Sparkles, TrendingUp, Flame } from "@/components/ui/animatedIcons";
 
 export default function TojiCoach({ course, generatedCount = 0 }) {
   const progress = Math.round((Math.min(generatedCount, 3) / 3) * 100);

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Check, Coins, Loader2 } from "lucide-react";
+import { Lock, Check, Coins, Loader2 } from "@/components/ui/animatedIcons";
 import { motion } from "framer-motion";
 import { PROFILE_BANNERS, ownsBanner } from "@/lib/avatars";
 import { toast } from "sonner";

@@ -5,7 +5,6 @@ import { getOfflineSnapshot, setOfflineSnapshot } from '@/lib/offlineDb';
 import { applyOwnerPrivileges, isOwnerEmail } from '@/lib/permissions';
 
 const AuthContext = createContext(null);
-const USE_SUPABASE_OTP = import.meta.env.VITE_SUPABASE_EMAIL_OTP === 'true';
 
 function createBootstrapProfile(firebaseUser) {
   return {
@@ -203,14 +202,8 @@ export const AuthProvider = ({ children }) => {
     } catch (err) { setAuthError(err); throw err; }
   };
 
-  const verifyOtp = async (args = {}) => {
-    const { email, otpCode } = args;
-    if (import.meta.env.VITE_SUPABASE_EMAIL_OTP === 'true' && email && otpCode) {
-      return authService.verifyOtp({ email, otpCode });
-    }
-    return true;
-  };
-  const resendOtp = async (email) => { if (email) return authService.resendOtp(email); };
+  const verifyOtp = async () => true;
+  const resendOtp = async () => true;
   const resendVerificationLink = async () => {
     try { await authService.sendVerificationEmail(); return { sent: true }; }
     catch (e) { return { sent: false, error: e.message }; }

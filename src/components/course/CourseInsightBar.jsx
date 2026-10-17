@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, CheckCircle2, GraduationCap, Globe } from "lucide-react";
+import { BookOpen, CheckCircle2, GraduationCap, Globe } from "@/components/ui/animatedIcons";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 

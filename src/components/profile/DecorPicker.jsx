@@ -1,5 +1,5 @@
 import React from "react";
-import { Check } from "lucide-react";
+import { Check } from "@/components/ui/animatedIcons";
 import { Switch } from "@/components/ui/switch";
 import { PROFILE_COLORS } from "@/lib/avatars";
 import TitleStore from "@/components/profile/TitleStore";

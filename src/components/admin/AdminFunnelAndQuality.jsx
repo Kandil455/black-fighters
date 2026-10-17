@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { 
   Filter, Flag, CheckCircle2, ArrowDown, 
   Trash2, User
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { base44 } from "@/api/base44Client";
 import { fetchFunnelMetrics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";

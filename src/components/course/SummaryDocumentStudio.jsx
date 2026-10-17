@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useCallback, useDeferredValue, useEffect, useMem
 import {
   Bold, Check, Code2, Eye, Heading2, Highlighter, History,
   ImagePlus, List, Loader2, Redo2, RotateCcw, Undo2,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { FileSaveIcon } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";

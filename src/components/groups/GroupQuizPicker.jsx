@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Play, Clock } from "lucide-react";
+import { Loader2, Play, Clock } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 import { invokeSecureFunction } from "@/lib/secureFunctions";

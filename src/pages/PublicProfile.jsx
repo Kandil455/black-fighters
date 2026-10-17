@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Loader2, MessageCircle, ArrowRight, UserX } from "lucide-react";
+import { Loader2, MessageCircle, ArrowRight, UserX } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import ProfileCard from "@/components/profile/ProfileCard";
 

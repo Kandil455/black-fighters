@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX } from "@/components/ui/animatedIcons";
 
 /**
  * زر نطق رد المساعد بالصوت (Text-to-Speech) باستخدام Web Speech API المدمج في المتصفح.

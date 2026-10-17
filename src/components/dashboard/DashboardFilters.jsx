@@ -1,6 +1,6 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
-import { Search, X } from "lucide-react";
+import { Search, X } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/LocaleContext";
 

@@ -26,7 +26,7 @@ export const auth = {
   me: async () => {
     try {
       if (!isReady || !firebaseAuth) {
-        return { id: 'guest', email: 'guest@example.com', full_name: 'زائر', role: 'user', subscription_plan: 'free' };
+        return null;
       }
       const doc = await Users.me();
       if (!doc || !firebaseAuth.currentUser) return null;
@@ -342,21 +342,18 @@ const DEFAULT_MODELS = {
   openrouter: 'openrouter/free',
 };
 
-// SECURITY: no hardcoded provider keys in client code. Client-side AI is for BYO-key users
-// (their own UserSettings key or AdminConfig); everyone else goes through /api/ai server-side.
-const DEFAULT_GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
-const DEFAULT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+// SECURITY: no hardcoded provider keys in client code.
+// Platform AI runs server-side (/api/ai). Client-side keys are strictly for BYO-key users.
 
 /**
  * AI config priority:
  * 1. User's personal key (UserSettings) — if they set their own key
  * 2. Admin's active config (AdminConfig collection — multi-provider)
- * 3. Environment Variables (VITE_GROQ_API_KEY / VITE_GEMINI_API_KEY)
- * 4. Ultra-Fast Platform default: Groq LPU (~700ms response time)
+ * 3. Default: server proxy mode (keys never reach client bundle)
  */
 export async function getAiConfig() {
   try {
-    // 1️⃣ User's own key (premium users can set their own)
+    // 1️⃣ User's own key (users can set their own BYO key)
     const userSettings = await UserSettings.get().catch(() => null);
     if (userSettings?.api_key && !userSettings.api_key.includes("•")) {
       const p = userSettings.provider || "groq";
@@ -383,26 +380,11 @@ export async function getAiConfig() {
     }
   } catch {}
 
-  // 3️⃣ Client-accessible Environment Variables Fallback (Fastest first)
-  const viteEnv = import.meta.env || {};
-  if (viteEnv.VITE_GROQ_API_KEY) {
-    return { provider: "groq", api_key: viteEnv.VITE_GROQ_API_KEY, model: "openai/gpt-oss-120b" };
-  }
-  if (viteEnv.VITE_GEMINI_API_KEY) {
-    return { provider: "gemini", api_key: viteEnv.VITE_GEMINI_API_KEY, model: "gemini-3.5-flash-lite" };
-  }
-  if (viteEnv.VITE_APMIX_KEY) {
-    return { provider: "apmix", api_key: viteEnv.VITE_APMIX_KEY, model: "claude-sonnet-4-6-free" };
-  }
-  if (viteEnv.VITE_OPENROUTER_API_KEY) {
-    return { provider: "openrouter", api_key: viteEnv.VITE_OPENROUTER_API_KEY, model: "openrouter/free" };
-  }
-
-  // 4️⃣ Ultra-Fast Platform Flagship Default: Groq (sub-second response ~700ms)
+  // 3️⃣ Secure Platform Default: server proxy (/api/ai)
   return {
-    provider: "groq",
-    api_key:  DEFAULT_GROQ_KEY,
-    model:    "openai/gpt-oss-120b",
+    provider: "server",
+    api_key:  "",
+    model:    "gemini-3.5-flash-lite",
   };
 }
 
@@ -413,10 +395,6 @@ export const functions = {
       submitPayment: ["submit-payment", payload],
       purchaseCosmetic: ["purchase-cosmetic", payload],
       redeemActivationCode: ["redeem-code", payload],
-      // Admin-only, and `activationCodes` is `allow write: if false` in the rules
-      // (correctly — codes are value-bearing). Without this entry the call fell
-      // through to a client-side addDoc and the admin saw "Missing or
-      // insufficient permissions." while the Admin-SDK function sat unused.
       generateActivationCodes: ["generate-activation-codes", payload],
       chargeAiJob: ["charge-ai-job", {
         ...payload,
@@ -432,15 +410,8 @@ export const functions = {
         adminNote: payload.admin_note || payload.adminNote || "",
       }],
     };
-    // Secure server calls run in ALL environments — the dev server serves the
-    // same functions via the dev-api middleware, so credits are always atomic server-side.
     if (secureCalls[name]) {
       const [endpoint, body] = secureCalls[name];
-      // A *rejected* server call (401/403/400, a business rule like
-      // "تمت مراجعة الطلب من قبل", or a permissions problem) must surface as-is:
-      // silently retrying it client-side wrote straight into server-only
-      // collections and replaced the real reason with "Missing or insufficient
-      // permissions." Only genuine transport/5xx failures may fall back.
       try {
         return await invokeSecureFunction(endpoint, body);
       } catch (secErr) {
@@ -449,24 +420,23 @@ export const functions = {
       }
     }
     // Heavy AI runs on the server (credit metering + provider keys never reach the client).
-    const SERVER_AI_FNS = ["courseAssistant", "aiGenerate", "generateStudyContent", "generateText"];
+    const SERVER_AI_FNS = ["aiChat", "courseAssistant", "aiGenerate", "generateStudyContent", "generateText"];
+    let aiConfig = null;
+    let ai = null;
+
     if (SERVER_AI_FNS.includes(name)) {
       try {
         const response = await invokeSecureFunction("ai", { name, payload });
         return name === "generateText" ? response.data.text : response;
       } catch (secErr) {
-        console.warn("[API] Serverless AI call failed, falling back to client-side router:", secErr.message);
+        aiConfig = await getAiConfig();
+        if (aiConfig?.api_key && aiConfig.provider !== "server") {
+          console.warn("[API] Serverless AI call failed, falling back to BYO key router:", secErr.message);
+          ai = await import('@/lib/ai');
+        } else {
+          throw secErr;
+        }
       }
-    }
-    const ALL_AI_FNS = ["aiChat", ...SERVER_AI_FNS];
-    let aiConfig = null;
-    let ai = null;
-
-    if (ALL_AI_FNS.includes(name)) {
-      [aiConfig, ai] = await Promise.all([getAiConfig(), import('@/lib/ai')]);
-      // aiChat must NOT hard-throw without a BYO key: it falls through to the
-      // ai.js server-proxy branch below (free users have no local key).
-      if (!aiConfig.api_key && name !== "aiChat") throw new Error("NO_API_KEY");
     }
 
     try {

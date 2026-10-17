@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { RotateCw, Flame, BrainCircuit, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "@/components/ui/animatedIcons";
 import { base44 } from '@/api/base44Client';
 import { nextReviewState, recordStudy } from "@/lib/gamification";
 import { awardProgress } from "@/lib/xpSystem";
@@ -102,90 +100,136 @@ export default function ReviewSession({ cards, onDone }) {
 
   if (!card) return null;
 
-  const progress = (idx / cards.length) * 100;
+  const progress = Math.round(((idx + 1) / cards.length) * 100);
+
+  const rateIntervals = [
+    { rating: FSRS_RATINGS.AGAIN, labelAr: "تاني", labelEn: "Again", subAr: "10 د", subEn: "10m", shortcut: "1" },
+    { rating: FSRS_RATINGS.HARD, labelAr: "صعب", labelEn: "Hard", subAr: "يوم", subEn: "1d", shortcut: "2" },
+    { rating: FSRS_RATINGS.GOOD, labelAr: "جيد", labelEn: "Good", subAr: "3 أيام", subEn: "3d", shortcut: "3" },
+    { rating: FSRS_RATINGS.EASY, labelAr: "سهل", labelEn: "Easy", subAr: "أسبوع", subEn: "7d", shortcut: "4" },
+  ];
 
   return (
-    <div className="max-w-xl mx-auto" dir={dir}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3 text-sm">
-        <span className="text-muted-foreground font-mono">{idx + 1} / {cards.length} · FSRS v4.5</span>
-        <span className="text-primary font-bold truncate max-w-[200px]">{card.course_title || "أطلس المراجعة"}</span>
-        <div className="flex items-center gap-1 text-[hsl(152,100%,50%)] font-bold text-sm">
-          <Flame className="w-4 h-4" /> {correctCount}
-        </div>
+    <div className="max-w-4xl mx-auto space-y-6" dir={dir}>
+      <div className="bf-hd">
+        <span className="mono">
+          {card.course_title || (isEn ? "REVIEW · FSRS v4.5" : "المراجعة · FSRS")}
+        </span>
+        <h1 className="serif">
+          {isEn ? "Review at the " : "راجع "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "Right Moment." : "في الميعاد."}</em>
+        </h1>
+        <p style={{ color: "var(--mute)", fontSize: "0.92rem" }}>
+          {isEn
+            ? "Cards return right before you are likely to forget. Rate your recall honestly."
+            : "البطاقة بترجع في الوقت اللي تقريباً هتنساها فيه. قيّم نفسك بصدق."}
+        </p>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-2 bg-secondary rounded-full mb-6 overflow-hidden">
-        <motion.div
-          className="h-full rounded-full bg-gradient-to-l from-primary via-accent to-[hsl(152,100%,50%)]"
-          animate={{ clipPath: `inset(0% ${100 - progress}% 0% 0%)` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-
-      {/* Leech remediation banner if lapses >= 5 */}
       {leechAlert && (
-        <div className="mb-4 flex items-center gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>{leechAlert}</span>
+        <div className="card" style={{ borderColor: "var(--sig)", background: "color-mix(in srgb, var(--sig) 8%, var(--paper2))" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <AlertTriangle className="w-5 h-5 text-[var(--sig)] shrink-0" />
+            <span style={{ fontSize: "0.85rem" }}>{leechAlert}</span>
+          </div>
         </div>
       )}
 
-      {/* Box & Stability indicator */}
-      <div className="flex items-center justify-center gap-1.5 mb-4">
-        {[1,2,3,4,5].map((box) => (
-          <div key={box} className={cn("w-6 h-1.5 rounded-full transition-colors", (card.box || 1) >= box ? "bg-primary" : "bg-secondary")} />
-        ))}
-        <span className="text-xs text-muted-foreground mx-1 font-mono">
-          {isEn ? `Box ${card.box || 1}` : `صندوق ${card.box || 1}`}
-          {card.stability ? ` · S=${Number(card.stability).toFixed(1)}d` : ""}
-        </span>
-      </div>
-
-      {/* Card flip */}
-      <div style={{ perspective: 1200 }} className="mb-6">
-        <motion.div
-          onClick={() => setFlipped((f) => !f)}
-          animate={{ rotateY: flipped ? 180 : 0 }}
-          transition={{ duration: 0.32, ease: "easeOut" }}
-          style={{ transformStyle: "preserve-3d" }}
-          className="relative w-full h-64 cursor-pointer"
-        >
-          {/* Front */}
-          <div style={{ backfaceVisibility: "hidden" }} className="absolute inset-0 glass-card neon-glow-cyan rounded-3xl border border-primary/30 flex flex-col items-center justify-center p-8 text-center">
-            <BrainCircuit className="w-6 h-6 text-primary mb-3 opacity-60" />
-            <p className="text-xl font-bold leading-relaxed">{card.front}</p>
-            <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1">
-              <RotateCw className="w-3 h-3" /> {isEn ? "Tap or press Space to flip" : "اضغط أو مسطرة المسافة (Space) لقلب البطاقة"}
-            </p>
+      <div className="two">
+        <div style={{ display: "grid", gap: 14 }}>
+          {/* FLIP CARD */}
+          <div
+            className={cn("flip", flipped && "on")}
+            onClick={() => setFlipped((f) => !f)}
+            role="button"
+            tabIndex={0}
+            aria-label={isEn ? "Flip Card" : "اقلب البطاقة"}
+          >
+            <div className="flip-i">
+              <div className="face">
+                <div>
+                  <span className="mono">{isEn ? "QUESTION" : "السؤال"}</span>
+                  <br />
+                  <b style={{ fontSize: "1.25rem", lineHeight: 1.6, display: "block", marginTop: 8 }}>
+                    {card.front}
+                  </b>
+                  <span className="mono" style={{ display: "block", marginTop: 16 }}>
+                    {isEn ? "Press Space or click to flip" : "اضغط للمسافة أو انقر للقلب"}
+                  </span>
+                </div>
+              </div>
+              <div className="face b">
+                <div>
+                  <span className="mono">{isEn ? "ANSWER" : "الإجابة"}</span>
+                  <br />
+                  <div style={{ fontSize: "1.1rem", lineHeight: 1.7, marginTop: 8 }}>
+                    {card.back}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          {/* Back */}
-          <div style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }} className="absolute inset-0 glass-card neon-glow-purple rounded-3xl border border-accent/30 flex items-center justify-center p-8 text-center">
-            <p className="text-lg leading-relaxed">{card.back}</p>
-          </div>
-        </motion.div>
-      </div>
 
-      {/* Actions */}
-      <AnimatePresence mode="wait">
-        {!flipped ? (
-          <motion.div key="flip" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Button onClick={() => setFlipped(true)} variant="outline" className="w-full gap-2 h-12">
-              <RotateCw className="w-4 h-4" /> {isEn ? "Flip Card (Space)" : "اقلب البطاقة (Space)"}
-            </Button>
-          </motion.div>
-        ) : (
-          <motion.div key="grade" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {FSRS_DIFFICULTY_BUTTONS.map((btn) => (
-              <Button key={btn.shortcut} onClick={() => grade(btn)} variant="outline" className={cn("h-12 flex-col gap-0.5 text-xs font-bold", btn.cls)}>
-                <span className="text-lg">{btn.emoji}</span>
-                {isEn ? btn.labelEn : btn.labelAr}
-              </Button>
+          {/* RATING BUTTONS */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 8,
+            }}
+          >
+            {rateIntervals.map((btn) => (
+              <button
+                key={btn.shortcut}
+                type="button"
+                onClick={() => {
+                  if (!flipped) setFlipped(true);
+                  else grade(btn);
+                }}
+                className="opt"
+                style={{
+                  display: "grid",
+                  gap: 2,
+                  padding: "12px 4px",
+                  border: "1px solid var(--line)",
+                  background: "var(--paper)",
+                  minHeight: 64,
+                  textAlign: "center",
+                  justifyItems: "center",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                }}
+              >
+                <b style={{ fontSize: "0.95rem" }}>{isEn ? btn.labelEn : btn.labelAr}</b>
+                <small className="mono" style={{ fontSize: "0.7rem", color: "var(--mute)" }}>
+                  {isEn ? btn.subEn : btn.subAr}
+                </small>
+              </button>
             ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+
+        {/* RIGHT CARD: SESSION PROGRESS */}
+        <div className="card">
+          <span className="mono">{isEn ? "SESSION PROGRESS" : "تقدم الجلسة"}</span>
+          <div className="big">
+            {idx + 1} / {cards.length}
+          </div>
+          <div className="bar">
+            <i style={{ width: `${progress}%` }}></i>
+          </div>
+          <div className="mono" style={{ display: "grid", gap: 4 }}>
+            <span>
+              {isEn ? `Box ${card.box || 1}` : `صندوق ${card.box || 1}`} · {correctCount} {isEn ? "correct" : "إجابة صحيحة"}
+            </span>
+            {card.stability ? (
+              <span>
+                {isEn ? `Stability: ${Number(card.stability).toFixed(1)} days` : `معدل الثبات: ${Number(card.stability).toFixed(1)} يوم`}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

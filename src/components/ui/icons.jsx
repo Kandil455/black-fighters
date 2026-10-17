@@ -27,7 +27,7 @@ import {
   UsersRound,
   Youtube,
   Zap,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 
 /**

@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { UserPlus, Loader2 } from "lucide-react";
+import { Loader2 } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 import { pushNotification } from "@/lib/notifications";
@@ -24,7 +22,6 @@ export default function AddFriend({ me, onAdded }) {
       const friend = found?.[0];
       if (!friend) return toast.error(isEn ? "No user found with this ID" : "مفيش حد بالـ ID ده");
 
-      // Check existing connection
       const existing = await base44.entities.Friendship.filter({ participant_ids: { $all: [me.id, friend.id] } });
       if (existing?.length) return toast.error(isEn ? "A friendship or request already exists" : "في طلب/صداقة بينكم بالفعل");
 
@@ -56,23 +53,19 @@ export default function AddFriend({ me, onAdded }) {
   };
 
   return (
-    <div className="glass-card rounded-2xl p-5 border border-accent/30" dir={dir}>
-      <div className="flex items-center gap-2 mb-3 text-accent">
-        <UserPlus className="w-5 h-5" />
-        <span className="font-bold text-sm">{isEn ? "Add Friend" : "إضافة صديق"}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Input
+    <div className="card" dir={dir}>
+      <span className="mono">{isEn ? "ADD A FRIEND" : "إضافة صديق جديد"}</span>
+      <div className="comp">
+        <input
           value={fid}
           onChange={(e) => setFid(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="BF-XXXX-XXXX"
-          className="font-mono"
+          className="font-mono text-sm uppercase"
         />
-        <Button onClick={send} disabled={loading || !fid.trim()} className="gap-1.5 font-bold shrink-0">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-          {isEn ? "Add" : "إضافة"}
-        </Button>
+        <button onClick={send} disabled={loading || !fid.trim()} className="btn sm">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" animated={false} /> : (isEn ? "Add" : "إضافة")}
+        </button>
       </div>
     </div>
   );

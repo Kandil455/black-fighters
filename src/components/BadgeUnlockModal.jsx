@@ -15,7 +15,7 @@ import {
   Target,
   Trophy,
   X,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { BADGES } from "@/lib/gamification";
 import { usePerformanceMode } from "@/lib/PerformanceContext";
 

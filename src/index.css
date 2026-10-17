@@ -1,4 +1,6 @@
 @import "./design/atlas-tokens.css";
+@import "./design/tokens.css";
+@import "./design/editorial-theme.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -150,6 +152,7 @@ html[data-tier="lite"] .lite-cv-auto {
     --font-body:     'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
     --font-display:  'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
     --font-mono:     'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+    --font-serif:    'Instrument Serif', Georgia, serif;
   }
 
   .dark {

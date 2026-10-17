@@ -5,7 +5,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import { Loader2, TrendingUp, Coins, Crown, Trophy, BookOpen } from "lucide-react";
+import { Loader2, TrendingUp, Coins, Crown, Trophy, BookOpen } from "@/components/ui/animatedIcons";
 
 const CY = "hsl(184 100% 50%)";
 const PU = "hsl(270 100% 68%)";

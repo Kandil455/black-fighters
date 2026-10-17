@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   CheckCircle2, XCircle, HelpCircle, ArrowRight, ArrowLeft, 
   RotateCcw, Sparkles, Eye, Trophy, Download, Bot, Loader2
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/LocaleContext";
 import { cn } from "@/lib/utils";

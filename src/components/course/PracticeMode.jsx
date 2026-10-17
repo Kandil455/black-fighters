@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle, RotateCcw, Target, ArrowRight, Timer } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCcw, Target, ArrowRight, Timer } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 
 const QUESTION_TIME = 30;

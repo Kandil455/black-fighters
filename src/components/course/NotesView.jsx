@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { entities } from '@/api/index';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, StickyNote, Trash2, Eye, Edit3 } from "lucide-react";
+import { Loader2, StickyNote, Trash2, Eye, Edit3 } from "@/components/ui/animatedIcons";
 import { FileSaveIcon } from "@/components/ui/icons";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";

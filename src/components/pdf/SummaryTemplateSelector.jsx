@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { StudyGuidePreview } from "@/components/course/StudyGuideViewer";
-import { ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye } from "@/components/ui/animatedIcons";
 import { SUMMARY_TEMPLATES, SUBJECT_TYPES, COLOR_LEVELS } from "@/lib/summaryTemplates";
 import { useLocale } from "@/lib/LocaleContext";
 

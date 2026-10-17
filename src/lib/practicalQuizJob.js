@@ -2,8 +2,6 @@ import { generateImageQuiz } from "./imageFilter";
 import { saveExtractionSession } from "./imageExtractorDb";
 import { getPracticalQuizCost } from "./creditCosts";
 import { base44 } from "@/api/base44Client";
-import { getAiConfig } from "@/api/index";
-import { GEMINI_KEYS_POOL } from "./ai";
 import { playSuccess } from "./sounds";
 import { toast } from "sonner";
 
@@ -68,10 +66,9 @@ class PracticalQuizJobManager {
     const estimatedCredits = getPracticalQuizCost(targetTotal);
 
     try {
-      const baseAiConfig = await getAiConfig();
       const quizzesMap = {};
 
-      // ── Process in parallel batches of 5 with rotated keys for maximum throughput ──
+      // ── Process in parallel batches of 5 for maximum throughput ──
       const CONCURRENCY = 5;
       let completedCount = 0;
 
@@ -79,30 +76,11 @@ class PracticalQuizJobManager {
         const batch = allocation.slice(i, i + CONCURRENCY);
 
         await Promise.all(
-          batch.map(async (item, batchIdx) => {
+          batch.map(async (item) => {
             try {
-              // Safely select Gemini key or leave blank for secure server proxy
-              const isCandidateGeminiKey = (k) => {
-                if (!k || typeof k !== "string") return false;
-                const clean = k.replace(/^["']|["']$/g, "").trim();
-                return clean.length >= 15 && !clean.startsWith("gsk_") && !clean.startsWith("sk-or-") && !clean.startsWith("apx_") && clean !== "none";
-              };
-              const validGeminiPool = (GEMINI_KEYS_POOL || []).filter(isCandidateGeminiKey);
-              const userKeyIsGemini = isCandidateGeminiKey(baseAiConfig?.api_key);
-              const keyIndex = validGeminiPool.length > 0 ? ((i + batchIdx) % validGeminiPool.length) : 0;
-              const chosenKey = validGeminiPool[keyIndex] || (userKeyIsGemini ? baseAiConfig.api_key : "");
-
-              const rotatedConfig = {
-                ...baseAiConfig,
-                provider: "gemini",
-                model: "gemini-3.5-flash-lite",
-                api_key: chosenKey,
-              };
-
               const questions = await generateImageQuiz(
                 item.img,
-                { numQuestions: item.count, difficulty, customExplanation: item.img.contextText, language },
-                rotatedConfig
+                { numQuestions: item.count, difficulty, customExplanation: item.img.contextText, language }
               );
               if (questions && questions.length > 0) {
                 quizzesMap[item.img.id] = questions;

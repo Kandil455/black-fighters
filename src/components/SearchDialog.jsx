@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Search, X, BookOpen, FileText } from "lucide-react";
+import { Search, X, BookOpen, FileText } from "@/components/ui/animatedIcons";
 import { useQuery } from "@tanstack/react-query";
 
 export default function SearchDialog({ open, onClose }) {

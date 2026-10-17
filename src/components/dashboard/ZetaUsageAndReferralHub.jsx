@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Gift, Copy, Check, Users, Activity } from "lucide-react";
+import { Gift, Copy, Check, Users, Activity } from "@/components/ui/animatedIcons";
 import { PaymentIcon } from "@/components/ui/icons";
 import { getReferralLink, shareReferralLink } from "@/lib/referralService";
 import { REFERRAL_REWARDS } from "@/lib/plans";

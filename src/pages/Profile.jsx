@@ -12,10 +12,9 @@ import {
   Loader2,
   Palette,
   RotateCcw,
-  Sparkles,
   Zap,
   Gift,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { getReferralLink, shareReferralLink } from "@/lib/referralService";
 import { PaymentIcon } from "@/components/ui/icons";
 import { toast } from "sonner";
@@ -190,19 +189,19 @@ export default function Profile() {
 
   return (
     <div className="mx-auto max-w-6xl pb-28" dir={dir}>
-      <header className="mb-7">
-        <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-primary">
-          <Sparkles className="h-4 w-4" /> {isEn ? "Profile" : "الملف الشخصي"}
-        </div>
-        <h1 className="text-3xl font-black sm:text-4xl">
-          {isEn ? "Your profile" : "ملفك الشخصي"}
+      {/* Editorial Header */}
+      <div className="hd mb-6">
+        <span className="mono">{isEn ? "Profile & Identity" : "الملف والإعدادات"}</span>
+        <h1 className="serif">
+          {isEn ? "This is " : "أنت "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "You." : "كده."}</em>
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+        <p style={{ color: "var(--mute)" }}>
           {isEn
-            ? "Update your photo, name, frame and accent colour — changes appear everywhere in the app."
+            ? "Update your photo, name, frame and cosmetics — changes appear everywhere."
             : "عدّل صورتك واسمك وإطارك ولونك — التغييرات بتظهر في كل المنصة فورًا."}
         </p>
-      </header>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
         <aside className="space-y-4 lg:sticky lg:top-6">

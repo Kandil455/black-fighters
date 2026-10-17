@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
-import { Loader2, Brain, LogIn, AlertTriangle, Swords, Bot, Sparkles } from "lucide-react";
+import { Loader2, Brain, LogIn, AlertTriangle, Swords, Bot, Sparkles } from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import NeonBackground from "@/components/NeonBackground";
 import PageLoader from "@/components/PageLoader";

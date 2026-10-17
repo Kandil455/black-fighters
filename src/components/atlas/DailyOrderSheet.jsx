@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { generateDailyOrderSheet } from "@/lib/summaryV5/learnerModel";
 import { canTriggerSessionStamp, consumeSessionStamp } from "@/design/atlasMotion";
-import { Check, Clock, ArrowRight } from "lucide-react";
+import { Check, Clock, ArrowRight } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { LVCard, LVBadge } from "@/components/ui/linevault";
 import { Button } from "@/components/ui/button";

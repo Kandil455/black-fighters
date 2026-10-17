@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Loader2 } from "lucide-react";
+import { X, Sparkles, Loader2 } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 
 const AssistantChat = lazy(() => import("./AssistantChat"));

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { BrainCircuit, ChevronLeft, Flame, Sparkles, Target } from "lucide-react";
+import { BrainCircuit, ChevronLeft, Flame, Sparkles, Target } from "@/components/ui/animatedIcons";
 
 export default function SmartMissionPanel({ courses }) {
   const totalChapters = courses.reduce((sum, c) => sum + (c.chapters?.length || 0), 0);

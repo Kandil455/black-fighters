@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Flame } from "lucide-react";
+import { Flame } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 
 const VIDEO_URL = "https://media.base44.com/videos/public/6a2aa7216a5767b90e98bdea/d803c9476_generated_video.mp4";

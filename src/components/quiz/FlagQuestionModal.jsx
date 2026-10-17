@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Flag, X, AlertTriangle } from "lucide-react";
+import { Flag, X, AlertTriangle } from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { base44 } from "@/api/base44Client";

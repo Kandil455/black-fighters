@@ -1,9 +1,7 @@
 import React from "react";
-import { Check, Coins, ArrowRight } from "lucide-react";
+import { Check, Coins, ArrowRight } from "@/components/ui/animatedIcons";
 import { planCredits, yearlyPrice, yearlyMonthlyEquivalent } from "@/lib/plans";
 import { useLocale } from "@/lib/LocaleContext";
-import { GlassCard, LVBadge } from "@/components/ui/linevault";
-import { Button } from "@/components/ui/button";
 
 export default function PlanCard({
   plan,
@@ -28,40 +26,43 @@ export default function PlanCard({
   const isHighlighted = selected || plan.popular;
 
   return (
-    <GlassCard
+    <div
       dir={dir}
-      accent={isHighlighted}
-      interactive
       onClick={() => onSelect(plan)}
-      className="flex flex-col justify-between h-full p-6"
+      className={`plan cursor-pointer flex flex-col justify-between ${isHighlighted ? "hot" : ""}`}
+      style={{
+        borderColor: isHighlighted ? "var(--sig)" : "var(--line)",
+        backgroundColor: "var(--paper2)",
+        borderRadius: "4px",
+      }}
     >
       <div>
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
           <div>
-            <h3 className="text-lg font-semibold text-[#F2F3F5]">
+            <b className="text-base block">
               {plan.nameAr && !isEn ? `${plan.name} (${plan.nameAr})` : plan.name}
-            </h3>
+            </b>
             {isCurrentPlan && (
-              <span className="text-xs font-medium text-[#3DDC97] block mt-0.5">
+              <span className="mono text-[0.7rem] block mt-0.5" style={{ color: "var(--sig)" }}>
                 {isEn ? "Current Active Plan" : "باقتك الحالية"}
               </span>
             )}
           </div>
 
           {plan.popular && (
-            <LVBadge variant="accent">
+            <span className="tag on text-[0.68rem]">
               {isEn ? "Recommended" : "موصى بها"}
-            </LVBadge>
+            </span>
           )}
         </div>
 
-        <div className="my-4 pb-4 border-b border-[#1E222B]">
+        <div className="my-3 pb-3 border-b border-[var(--line)]">
           <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-semibold font-mono tabular text-[#F2F3F5]">
+            <span className="serif text-3xl font-bold" style={{ color: isHighlighted ? "var(--sig)" : "var(--ink)" }}>
               {price === 0 ? (isEn ? "Free" : "مجاناً") : price}
             </span>
             {price > 0 && (
-              <span className="text-xs text-[#9AA0AE]">
+              <span className="mono text-[0.7rem]">
                 {isEn
                   ? `EGP / ${isYearly ? "year" : "month"}`
                   : `ج.م / ${isYearly ? "سنة" : "شهر"}`}
@@ -70,7 +71,7 @@ export default function PlanCard({
           </div>
 
           {isYearly && price > 0 && (
-            <p className="text-xs text-[#3DDC97] font-mono tabular mt-1">
+            <p className="mono text-[0.7rem] mt-1" style={{ color: "var(--sig)" }}>
               {isEn
                 ? `≈ ${perMonth} EGP/mo · 2 months free`
                 : `≈ ${perMonth} ج.م شهرياً · شهرين مجاناً`}
@@ -78,8 +79,8 @@ export default function PlanCard({
           )}
 
           {credits > 0 && (
-            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#3DDC97]/10 border border-[#3DDC97]/30 text-xs font-mono tabular text-[#3DDC97]">
-              <Coins className="w-3.5 h-3.5" />
+            <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 border border-[var(--line)] text-xs font-mono">
+              <Coins className="w-3.5 h-3.5" style={{ color: "var(--sig)" }} animated={false} />
               <span>
                 {credits.toLocaleString()} {isEn ? "Credits" : "نقطة كريدت"}
               </span>
@@ -87,22 +88,19 @@ export default function PlanCard({
           )}
         </div>
 
-        <ul className="divide-y divide-[#1E222B] text-sm mb-6 list-none p-0 m-0">
+        <ul className="text-sm mb-4 list-none p-0 m-0 space-y-2">
           {features.map((f, i) => (
-            <li key={i} className="flex items-center justify-between gap-2.5 py-2.5">
-              <span className="text-[#F2F3F5]/90 text-xs sm:text-sm leading-relaxed">
-                {f}
-              </span>
-              <Check className="w-4 h-4 text-[#3DDC97] shrink-0" />
+            <li key={i} className="flex items-center justify-between gap-2 text-xs">
+              <span style={{ color: "var(--ink)" }}>{f}</span>
+              <Check className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--sig)" }} animated={false} />
             </li>
           ))}
         </ul>
       </div>
 
-      <Button
+      <button
         type="button"
-        variant={isHighlighted ? "default" : "secondary"}
-        className="w-full"
+        className={`btn sm w-full ${isHighlighted ? "" : "line"}`}
         onClick={(e) => {
           e.stopPropagation();
           onSelect(plan);
@@ -110,7 +108,7 @@ export default function PlanCard({
       >
         {selected ? (
           <>
-            <Check className="w-4 h-4 stroke-[2.5]" />
+            <Check className="w-3.5 h-3.5" animated={false} />
             <span>{isEn ? "Selected" : "الباقة المحددة"}</span>
           </>
         ) : isCurrentPlan ? (
@@ -118,10 +116,10 @@ export default function PlanCard({
         ) : (
           <>
             <span>{isEn ? "Select Plan" : "اختر الباقة"}</span>
-            <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+            <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" animated={false} />
           </>
         )}
-      </Button>
-    </GlassCard>
+      </button>
+    </div>
   );
 }

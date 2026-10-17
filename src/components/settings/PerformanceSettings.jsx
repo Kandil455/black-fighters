@@ -1,5 +1,5 @@
 import React from "react";
-import { BatteryCharging, Boxes, Gauge, Sparkles } from "lucide-react";
+import { BatteryCharging, Boxes, Gauge, Sparkles } from "@/components/ui/animatedIcons";
 import { usePerformanceMode } from "@/lib/PerformanceContext";
 import { useLocale } from "@/lib/LocaleContext";
 

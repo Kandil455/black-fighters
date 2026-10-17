@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { THEME_LIST, applyTheme } from "@/lib/themes";
-import { Palette, Check, Loader2 } from "lucide-react";
+import { Palette, Check, Loader2 } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 

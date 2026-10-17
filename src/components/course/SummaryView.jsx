@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen, Check, ChevronDown, ChevronUp, Copy, FileDown, Loader2, MoreHorizontal,
   Pause, Pencil, Play, Presentation, Square, ZoomIn, ZoomOut,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import SummaryDocumentRenderer from "@/components/course/SummaryDocumentRenderer";

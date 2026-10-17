@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AuthMascot from "@/components/auth/AuthMascot";
 import SummaryTemplateSelector from "@/components/pdf/SummaryTemplateSelector";
-import { ArrowRight, Coins, Languages, Sparkles, Image as ImageIcon, FileText, ShieldCheck } from "lucide-react";
+import { ArrowRight, Coins, Languages, Sparkles, Image as ImageIcon, FileText, ShieldCheck } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import { estimateDocumentJob } from "@/lib/summaryV5/hierarchicalPipeline";
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText } from "@/components/ui/animatedIcons";
 import { Input } from "@/components/ui/input";
 import { useLocale } from "@/lib/LocaleContext";
 

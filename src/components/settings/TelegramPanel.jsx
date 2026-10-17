@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Bot, BellRing, BellOff, ExternalLink, LoaderCircle, RefreshCw } from "lucide-react";
+import { Bot, BellRing, BellOff, ExternalLink, LoaderCircle, RefreshCw } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import TelegramLinkAction from "@/components/telegram/TelegramLinkAction";
 import { LVCard, LVBadge } from "@/components/ui/linevault";

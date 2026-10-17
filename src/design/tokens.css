@@ -1,0 +1,95 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BLACK FIGHTERS — SEMANTIC DESIGN TOKENS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="light"],
+html:not([data-theme="dark"]) {
+  /* Semantic Core Tokens */
+  --bg: #F4F2EC;
+  --surface: #FFFFFF;
+  --surface-2: #ECE9E0;
+  --text: #111110;
+  --text-2: #66645C;
+  --border: rgba(17, 17, 16, 0.12);
+  --accent: #E8462A;
+  --accent-hover: #D4381C;
+  --accent-foreground: #FFFFFF;
+  --success: #0F5934;
+  --warning: #D97706;
+  --danger: #DC2626;
+
+  /* Shadcn variables compatibility (HSL) */
+  --background: 43 19% 94%;
+  --foreground: 60 3% 6%;
+  --card: 0 0% 100%;
+  --card-foreground: 60 3% 6%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 60 3% 6%;
+  --primary: 9 79% 54%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 43 19% 90%;
+  --secondary-foreground: 60 3% 6%;
+  --muted: 43 19% 90%;
+  --muted-foreground: 47 5% 38%;
+  --accent-hsl: 9 79% 54%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border-hsl: 60 3% 6% / 0.12;
+  --input-hsl: 60 3% 6% / 0.12;
+  --ring: 9 79% 54%;
+  --radius: 0.75rem;
+
+  /* Atlas Compatibility */
+  --paper: var(--bg);
+  --paper-2: var(--surface);
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --rule: var(--border);
+  --stamp: var(--accent);
+}
+
+[data-theme="dark"],
+.dark {
+  /* Semantic Core Tokens */
+  --bg: #0C0C0B;
+  --surface: #151513;
+  --surface-2: #1D1C19;
+  --text: #F1EFE9;
+  --text-2: #A09D94;
+  --border: rgba(241, 239, 233, 0.12);
+  --accent: #FF6A4D;
+  --accent-hover: #FF8166;
+  --accent-foreground: #0C0C0B;
+  --success: #34D399;
+  --warning: #FBBF24;
+  --danger: #F87171;
+
+  /* Shadcn variables compatibility (HSL) */
+  --background: 60 5% 5%;
+  --foreground: 43 17% 93%;
+  --card: 60 6% 8%;
+  --card-foreground: 43 17% 93%;
+  --popover: 60 6% 8%;
+  --popover-foreground: 43 17% 93%;
+  --primary: 10 100% 65%;
+  --primary-foreground: 60 5% 5%;
+  --secondary: 45 8% 11%;
+  --secondary-foreground: 43 17% 93%;
+  --muted: 45 8% 11%;
+  --muted-foreground: 43 6% 61%;
+  --accent-hsl: 10 100% 65%;
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 0 0% 98%;
+  --border-hsl: 43 17% 93% / 0.12;
+  --input-hsl: 43 17% 93% / 0.12;
+  --ring: 10 100% 65%;
+
+  /* Atlas Compatibility */
+  --paper: var(--bg);
+  --paper-2: var(--surface);
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --rule: var(--border);
+  --stamp: var(--accent);
+}

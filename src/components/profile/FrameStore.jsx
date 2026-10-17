@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lock, Check, Coins, Loader2 } from "lucide-react";
+import { Lock, Check, Coins, Loader2 } from "@/components/ui/animatedIcons";
 import { motion } from "framer-motion";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { AVATAR_FRAMES, ownsFrame } from "@/lib/avatars";

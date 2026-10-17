@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, CheckCircle2, Loader2, RotateCcw, Sparkles, Zap } from 'lucide-react';
+import { Check, CheckCircle2, Loader2, RotateCcw, Sparkles, Zap } from '@/components/ui/animatedIcons';
 import { Button } from '@/components/ui/button';
 import StudyContent from '@/components/course/StudyContent';
 import ChapterCardBrowser from '@/components/course/ChapterCardBrowser';

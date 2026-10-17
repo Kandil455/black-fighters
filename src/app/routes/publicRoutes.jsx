@@ -13,7 +13,6 @@ const SharedQuiz = lazyWithRetry(() => import('@/pages/SharedQuiz'));
 const ChallengeNew = lazyWithRetry(() => import('@/pages/ChallengeNew'));
 const ChallengeRoom = lazyWithRetry(() => import('@/pages/ChallengeRoom'));
 const TelegramMiniApp = lazyWithRetry(() => import('@/pages/TelegramMiniApp'));
-const AtlasPrototypes = lazyWithRetry(() => import('@/pages/AtlasPrototypes'));
 const HelpCenter = lazyWithRetry(() => import('@/pages/HelpCenter'));
 
 function HybridLayoutRoute() {
@@ -39,10 +38,14 @@ export const publicRoutes = (
     <Route element={<HybridLayoutRoute />}>
       <Route path="/tg" element={<TelegramMiniApp />} />
       <Route path="/tg/*" element={<TelegramMiniApp />} />
-      <Route path="/atlas" element={<AtlasPrototypes />} />
       <Route path="/help" element={<HelpCenter />} />
     </Route>
     <Route path="/youtube-studio" element={<Navigate to="/youtube-ai" replace />} />
     <Route path="/image-extractor" element={<Navigate to="/practical" replace />} />
+    <Route path="/plan" element={<Navigate to="/subscriptions" replace />} />
+    <Route path="/boost" element={<Navigate to="/subscriptions" replace />} />
+    <Route path="/grill-me" element={<Navigate to="/quizzes" replace />} />
+    <Route path="/teamwork-preview" element={<Navigate to="/groups" replace />} />
+    <Route path="/browser" element={<Navigate to="/tools" replace />} />
   </>
 );

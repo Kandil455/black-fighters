@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { playClick } from "@/lib/sounds";
 

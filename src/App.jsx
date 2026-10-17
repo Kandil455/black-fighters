@@ -43,7 +43,7 @@ export default function App() {
         <PremiumUpgradeHost />
         <AppRoutes />
       </Router>
-      <SonnerToaster theme="dark" position="bottom-center" richColors closeButton />
+      <SonnerToaster theme="system" position="bottom-center" richColors closeButton />
     </AppProviders>
   );
 }

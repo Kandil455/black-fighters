@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PAYMENT_INFO } from "@/lib/paymentInfo";
 import { planPrice } from "@/lib/plans";
 import { optimizeImageToDataUrl } from "@/lib/storage";
-import { Copy, Check, Loader2, Send, Upload, CheckCircle2, Wallet, ShieldCheck, Zap, Headphones } from "lucide-react";
+import { Copy, Check, Loader2, Send, Upload, CheckCircle2, Wallet, ShieldCheck, Zap, Headphones } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 

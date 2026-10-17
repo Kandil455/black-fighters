@@ -1,5 +1,5 @@
 import React from "react";
-import { Crown, Sparkles, Zap, Trophy } from "lucide-react";
+import { Crown, Sparkles, Zap, Trophy } from "@/components/ui/animatedIcons";
 import { motion } from "framer-motion";
 import { getLevelInfo } from "@/lib/xpSystem";
 

@@ -6,7 +6,18 @@
  * Stage 3: Context-aware Multimodal AI Quiz generation
  */
 
-import { generateMultimodal } from "./ai.js";
+import { invokeSecureFunction } from "./secureFunctions.js";
+
+async function runMultimodalVision(prompt, mediaParts) {
+  const res = await invokeSecureFunction("ai", {
+    name: "generateText",
+    payload: {
+      prompt,
+      mediaParts,
+    },
+  });
+  return res?.data?.text || res?.data?.reply || "";
+}
 
 /**
  * Compute 64-bit Average Hash (aHash) for fast perceptual duplicate matching
@@ -398,10 +409,9 @@ export async function classifyImageWithAI(image, aiConfig) {
 اعتبرها true لو فيها معلومة تعليمية أو توضيحية واضحة: رسم توضيحي، جدول بيانات، رسم بياني، صورة مجهرية أو فوتوغرافية شارحة، مخطط هيكلي، أو شكل علمي.`;
 
   try {
-    const raw = await generateMultimodal(
+    const raw = await runMultimodalVision(
       prompt,
-      [{ inlineData: { data: parts.data, mimeType: parts.mimeType } }],
-      { ...aiConfig, max_tokens: 500, temperature: 0.1 }
+      [{ inlineData: { data: parts.data, mimeType: parts.mimeType } }]
     );
     const parsed = parseAiJson(raw);
     if (!parsed) {
@@ -506,10 +516,9 @@ export async function ocrImageWithVisionAI(image, aiConfig = {}) {
 
 اكتب النص المستخرج فقط بشكل مرتب وواضح ومباشر، بدون مقدمات أو خاتمة وبدون اختراع معلومات غير موجودة في الصورة.`;
 
-  const raw = await generateMultimodal(
+  const raw = await runMultimodalVision(
     prompt,
-    [{ inlineData: { data: parts.data, mimeType: parts.mimeType } }],
-    { ...aiConfig, model: aiConfig?.model || "gemini-3.5-flash-lite", max_tokens: 1500, temperature: 0.1 }
+    [{ inlineData: { data: parts.data, mimeType: parts.mimeType } }]
   );
 
   const cleaned = cleanContextText(raw);
@@ -754,10 +763,9 @@ ${effectiveContext}`
 ${effectiveContext}`;
 
   try {
-    const raw = await generateMultimodal(
+    const raw = await runMultimodalVision(
       prompt,
-      [{ inlineData: { data: parts.data, mimeType: parts.mimeType } }],
-      { ...aiConfig, model: aiConfig?.model || "gemini-3.5-flash-lite", max_tokens: 1500, temperature: 0.15 }
+      [{ inlineData: { data: parts.data, mimeType: parts.mimeType } }]
     );
 
     const parsed = parseAiJson(raw);

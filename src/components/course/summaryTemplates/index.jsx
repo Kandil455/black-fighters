@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpenCheck, GraduationCap, ListChecks, Microscope, Target, Trophy } from "lucide-react";
+import { BookOpenCheck, GraduationCap, ListChecks, Microscope, Target, Trophy } from "@/components/ui/animatedIcons";
 import { Block, BlockList, Bidi, Rich, SectionNumber } from "./primitives";
 
 /**

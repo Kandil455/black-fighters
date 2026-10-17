@@ -8,7 +8,8 @@ class SoundSynthesizer {
   constructor() {
     this.ctx = null;
     this.enabled = true;
-    this.volume = 0.35; // Gentle default volume
+    this.hasGesture = false;
+    this.volume = 0.35;
     this.initSettings();
     this.registerGestureUnlock();
   }
@@ -25,6 +26,8 @@ class SoundSynthesizer {
 
   getAudioContext() {
     if (typeof window === "undefined") return null;
+    const isUnlocked = this.hasGesture || (typeof navigator !== "undefined" && Boolean(navigator.userActivation?.hasBeenActive));
+    if (!isUnlocked) return null;
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
@@ -55,7 +58,17 @@ class SoundSynthesizer {
   registerGestureUnlock() {
     if (typeof window === "undefined") return;
     const unlock = () => {
-      this.getAudioContext();
+      this.hasGesture = true;
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          try {
+            this.ctx = new AudioCtx();
+          } catch {
+            this.ctx = null;
+          }
+        }
+      }
       if (this.ctx && this.ctx.state === "suspended") {
         this.ctx.resume().catch(() => {});
       }

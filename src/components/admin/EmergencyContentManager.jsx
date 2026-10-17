@@ -14,7 +14,7 @@ import {
   ExternalLink,
   Loader2,
   Check
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { uploadMedia } from "@/lib/mediaUpload";
 import { toast } from "sonner";

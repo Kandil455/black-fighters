@@ -31,7 +31,7 @@ function sendRateLimit(uid) {
 
 function cleanText(value, maxChars, fieldName) {
   const text = String(value ?? "")
-    // eslint-disable-next-line no-control-regex
+     
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, " ")
     .trim();
   if (!text) throw new Error(`INVALID_${fieldName}`);

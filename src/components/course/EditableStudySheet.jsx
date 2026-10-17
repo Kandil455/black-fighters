@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { entities } from '@/api/index';
 import { Button } from "@/components/ui/button";
-import { Download, Highlighter, Bold, FileCode } from "lucide-react";
+import { Download, Highlighter, Bold, FileCode } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 
 const LOGO_URL = "/icons/black-fighters-192.png";

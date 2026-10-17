@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import BottomSheetSelect from "@/components/ui/BottomSheetSelect";
-import { Ticket, Loader2, Copy, RefreshCw } from "lucide-react";
+import { Ticket, Loader2, Copy, RefreshCw } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { PLANS } from "@/lib/plans";
 

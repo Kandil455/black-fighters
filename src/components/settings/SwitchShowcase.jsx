@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Switch } from "@/components/ui/switch";
-import { Sliders, ShieldCheck } from "lucide-react";
+import { Sliders, ShieldCheck } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 
 export function SwitchShowcase() {

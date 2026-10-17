@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import {
   BookOpen, Languages, List, Calculator,
   AlignJustify, FileText, Zap, CheckCircle2, Palette,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { SUMMARY_CHUNK_SIZE } from "@/lib/courseChunking";
 
 const COLOR_LEVELS = [

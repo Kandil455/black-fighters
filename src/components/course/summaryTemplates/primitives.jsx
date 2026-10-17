@@ -1,7 +1,7 @@
 import React from "react";
 import { detectTextDirection, normalizeSummaryBlockType, summaryBlockText } from "@/lib/summaryDocument";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Calculator, Info, Lightbulb, Quote } from "lucide-react";
+import { AlertTriangle, Calculator, Info, Lightbulb, Quote } from "@/components/ui/animatedIcons";
 
 /**
  * primitives.jsx — the shared, design-system-grade renderer for summary templates.

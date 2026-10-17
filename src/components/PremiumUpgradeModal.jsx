@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Crown, Sparkles, CheckCircle2 } from "lucide-react";
+import { Crown, Sparkles, CheckCircle2 } from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";

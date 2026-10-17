@@ -8,7 +8,6 @@ import PlanCard from "@/components/subscriptions/PlanCard";
 import RedeemCodePanel from "@/components/subscriptions/RedeemCodePanel";
 import MyPaymentRequests from "@/components/subscriptions/MyPaymentRequests";
 import {
-  PageHeader,
   LVCard,
   LVBadge,
   AnimatedNumber,
@@ -33,7 +32,7 @@ import {
   ArrowRight,
   ArrowLeft,
   RotateCcw,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 import { useAuth } from "@/lib/AuthContext";
@@ -332,60 +331,82 @@ export default function Subscriptions() {
 
   return (
     <div
-      className="space-y-10 pb-24 lg:pb-12"
+      className="space-y-10 pb-24 lg:pb-12 max-w-5xl mx-auto"
       dir={dir || (isEn ? "ltr" : "rtl")}
     >
-      <PageHeader
-        badge={
-          isEn
-            ? "Double-Entry Credit Ledger · Instant Quote"
-            : "دفتر رصيد مزدوج القيد · تسعير شفاف حسب الكمية"
-        }
-        title={isEn ? "Plans & Credit Configurator" : "الرصيد والباقات"}
-        description={
-          isEn
-            ? "Pick a semester plan or configure your exact credit volume. Credits are reserved safely and refunded 100% if any job fails."
-            : "اختر باقة فصلية جاهزة أو أعدّ كمية الكريدتس التي تحتاجها بالضبط. الرصيد محمي بالكامل ولا ينتهي."
-        }
-        action={
-          <div className="glass inline-flex items-center gap-1 p-1 rounded-xl">
+      {/* Editorial Header */}
+      <div className="hd mb-6">
+        <span className="mono">{isEn ? "Wallet & Plans" : "المحفظة"}</span>
+        <h1 className="serif">
+          {isEn ? "Your Balance is " : "رصيدك "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "Clear." : "واضح."}</em>
+        </h1>
+        <p style={{ color: "var(--mute)" }}>
+          {isEn
+            ? "Transparent credit balance and subscriptions without hidden costs."
+            : "رصيدك واضح، وتفاصيل باقتك واشتراكك واضحة بدون تعقيد."}
+        </p>
+      </div>
+
+      {/* Prototype s-wallet Top Section */}
+      <div className="two mb-8">
+        <div className="card">
+          <span className="mono">{isEn ? "CURRENT BALANCE" : "الرصيد الحالي"}</span>
+          <div className="big" style={{ fontSize: "3.2rem" }}>
+            {currentAccount?.credits ?? 12}
+          </div>
+          <span className="mono">
+            {isEn ? "Credits · Active Plan: " : "كريدت · الباقة الحالية: "}
+            <b style={{ color: "var(--sig)" }}>{activePlanKey}</b>
+          </span>
+          <div className="ledger mt-3">
+            <div>
+              <span>{isEn ? "Daily Bonus" : "المكافأة اليومية"}</span>
+              <b style={{ color: "var(--ok)" }}>+2</b>
+            </div>
+            <div>
+              <span>{isEn ? "Current Plan Status" : "حالة الاشتراك"}</span>
+              <b>{isSubscribed ? (isEn ? "Active" : "مفعّل") : (isEn ? "Free Tier" : "مجاني")}</b>
+            </div>
+            <div>
+              <span>{isEn ? "Friend Referral Reward" : "مكافأة دعوة الأصدقاء"}</span>
+              <b style={{ color: "var(--ok)" }}>+5</b>
+            </div>
+          </div>
+        </div>
+
+        <div className="card justify-between">
+          <div>
+            <span className="mono">{isEn ? "BILLING CYCLE" : "دورة الدفع"}</span>
+            <h3 className="serif text-2xl mt-1 mb-2">
+              {billing === "yearly"
+                ? (isEn ? "Annual Subscription" : "اشتراك سنوي (خصم شهرين)")
+                : (isEn ? "Monthly Subscription" : "اشتراك شهري")}
+            </h3>
+            <p className="text-xs" style={{ color: "var(--mute)" }}>
+              {isEn
+                ? "Switch billing cycles or choose your plan below"
+                : "تقدر تبدل بين الدفع الشهري والسنوي أو تشحن باقات كريدت إضافية"}
+            </p>
+          </div>
+          <div className="flex gap-2 mt-4">
             <button
               type="button"
               onClick={() => setBilling("monthly")}
-              className={cn(
-                "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors",
-                billing === "monthly"
-                  ? "bg-[#3DDC97] text-[#03150c]"
-                  : "text-[#9AA0AE] hover:text-[#F2F3F5]"
-              )}
+              className={`btn sm ${billing === "monthly" ? "" : "line"}`}
             >
               {isEn ? "Monthly" : "شهري"}
             </button>
             <button
               type="button"
               onClick={() => setBilling("yearly")}
-              className={cn(
-                "px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors",
-                billing === "yearly"
-                  ? "bg-[#3DDC97] text-[#03150c]"
-                  : "text-[#9AA0AE] hover:text-[#F2F3F5]"
-              )}
+              className={`btn sm ${billing === "yearly" ? "" : "line"}`}
             >
-              <span>{isEn ? "Yearly" : "سنوي"}</span>
-              <span
-                className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded font-mono",
-                  billing === "yearly"
-                    ? "bg-[#03150c]/20 text-[#03150c]"
-                    : "bg-[#3DDC97]/15 text-[#3DDC97]"
-                )}
-              >
-                {isEn ? "2 mo free" : "شهرين مجاناً"}
-              </span>
+              {isEn ? "Yearly (2 mo free)" : "سنوي (شهرين مجاناً)"}
             </button>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       {/* ─── 1) LineVault Interactive Volume Configurator (configurator.tsx) ─── */}
       <section className="space-y-4">

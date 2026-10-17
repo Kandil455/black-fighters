@@ -1,26 +1,11 @@
 import React, { lazy, Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Users } from "lucide-react";
+import { Loader2 } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import { useAuth } from "@/lib/AuthContext";
 import GroupsList from "@/components/groups/GroupsList";
 
-/**
- * Study Groups.
- *
- * PERFORMANCE (this page used to take seconds to open):
- *  1. It awaited `auth.me()` — a full extra getDoc — before issuing ANY query.
- *     The profile is already in AuthContext, so we read it from there and let the
- *     queries start immediately.
- *  2. The friends list (a friendships query + N user reads) was loaded BEFORE
- *     first paint even though only CreateGroupDialog consumes it, and it held the
- *     full-page spinner. It is now fetched lazily, only when that dialog opens.
- *  3. Every navigation re-ran the whole waterfall. react-query caches it
- *     (staleTime 5 min / no refetch on mount, configured in lib/query-client.js).
- *  4. The chat window, quiz picker and session modal were statically imported into
- *     this route's chunk; they are now lazy and only fetched when used.
- */
 const GroupChatWindow = lazy(() => import("@/components/groups/GroupChatWindow"));
 const CreateGroupDialog = lazy(() => import("@/components/groups/CreateGroupDialog"));
 const GroupQuizPicker = lazy(() => import("@/components/groups/GroupQuizPicker"));
@@ -28,8 +13,8 @@ const GroupQuizSessionModal = lazy(() => import("@/components/groups/GroupQuizSe
 
 function PaneFallback() {
   return (
-    <div className="h-[70vh] glass-card rounded-2xl border border-border/50 flex items-center justify-center">
-      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+    <div className="card h-[75vh] flex items-center justify-center">
+      <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--sig)" }} animated={false} />
     </div>
   );
 }
@@ -51,7 +36,6 @@ export default function Groups() {
     queryFn: async () => (await base44.entities.StudyGroup.listForUser(me.id, 100)) || [],
   });
 
-  // Only needed by CreateGroupDialog — fetched when that dialog actually opens.
   const { data: friends = [] } = useQuery({
     queryKey: ["group-friends", me?.id],
     enabled: Boolean(me?.id && showCreate),
@@ -70,19 +54,32 @@ export default function Groups() {
   });
 
   if (!me || isLoading) {
-    return <div className="flex justify-center py-32"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="flex justify-center py-32">
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--sig)" }} animated={false} />
+      </div>
+    );
   }
 
   return (
     <div className="max-w-5xl mx-auto pb-12" dir={dir}>
-      <div className="flex items-center gap-2 mb-6">
-        <Users className="w-6 h-6 text-primary" />
-        <h1 className="text-3xl font-black">{isEn ? "Study Groups" : "جروبات المذاكرة"}</h1>
+      {/* Editorial Header */}
+      <div className="hd mb-6">
+        <span className="mono">{isEn ? "Batch Groups" : "جروبات الدفعة"}</span>
+        <h1 className="serif">
+          {isEn ? "Study with your " : "ذاكر مع "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "batch." : "دفعتك."}</em>
+        </h1>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_1.6fr] gap-5">
+      <div className="two">
         <div className={`${active ? "hidden lg:block" : ""}`}>
-          <GroupsList groups={groups} activeId={active?.id} onSelect={setActive} onCreate={() => setShowCreate(true)} />
+          <GroupsList
+            groups={groups}
+            activeId={active?.id}
+            onSelect={setActive}
+            onCreate={() => setShowCreate(true)}
+          />
         </div>
 
         <div className={`${active ? "" : "hidden lg:block"}`}>
@@ -97,9 +94,16 @@ export default function Groups() {
               />
             </Suspense>
           ) : (
-            <div className="h-[70vh] glass-card rounded-2xl border border-border/50 flex flex-col items-center justify-center text-muted-foreground">
-              <Users className="w-14 h-14 mb-3 opacity-30" />
-              <p className="font-bold">{isEn ? "Select a group or create a new one 💬" : "اختار جروب أو اعمل واحد جديد 💬"}</p>
+            <div className="card h-[75vh] flex flex-col items-center justify-center text-center p-8">
+              <span className="mono mb-2">{isEn ? "NO ACTIVE GROUP" : "مفيش جروب محدد"}</span>
+              <h2 className="serif text-3xl mb-2">
+                {isEn ? "Select a group to start" : "اختار جروب عشان تبدأ"}
+              </h2>
+              <p style={{ color: "var(--mute)" }} className="text-sm max-w-sm">
+                {isEn
+                  ? "Or create a new group to study with your classmates 💬"
+                  : "أو اعمل جروب جديد وذاكروا مع بعض وشاركوا الملخصات 💬"}
+              </p>
             </div>
           )}
         </div>

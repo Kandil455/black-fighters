@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Copy, Download, FileDown, Loader2 } from "lucide-react";
+import { Copy, Download, FileDown, Loader2 } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { downloadSummaryPdf } from "@/lib/summaryPdf";
 import StudyContent from "@/components/course/StudyContent";

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/LocaleContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, BookOpen, Brain, FileText, Layers, Sparkles, Loader2, Trash2, StickyNote, Download, CalendarPlus, BellPlus, Target, Share2, Coins, Send, Swords } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, FileText, Layers, Sparkles, Loader2, Trash2, StickyNote, Download, CalendarPlus, BellPlus, Target, Share2, Coins, Send, Swords } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import QuizView from "@/components/course/QuizView";
 import EditableStudySheet from "@/components/course/EditableStudySheet";
@@ -27,7 +27,7 @@ import AiChatAssistant from "@/components/course/AiChatAssistant";
 import PracticeMode from "@/components/course/PracticeMode";
 import StudyMode from "@/components/course/StudyMode";
 import CourseShareCard from "@/components/course/CourseShareCard";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap } from "@/components/ui/animatedIcons";
 import { GoogleDriveIcon } from "@/components/ui/icons";
 import { saveIntegrationSettings, requestDriveToken, uploadTextToDrive, courseToMarkdown } from "@/lib/integrations";
 import { getSummaryDocumentV3, getLegacySummaryMarkdown, summaryDocumentToMarkdown } from "@/lib/summaryDocument";
@@ -562,11 +562,11 @@ export default function CourseView() {
         onClick={() => generate(type)}
         disabled={!!generating}
         variant="outline"
-        className="gap-2 border-[#3DDC97]/35 hover:border-[#3DDC97] hover:bg-[#3DDC97]/10"
+        className="gap-2 border-primary/35 hover:border-primary hover:bg-primary/10"
       >
         {isThisGenerating
           ? <Loader2 className="w-4 h-4 animate-spin" />
-          : <Icon className="w-4 h-4 text-[#3DDC97]" />}
+          : <Icon className="w-4 h-4 text-primary" />}
         {isThisGenerating
           ? (isEn ? `Generating${chunkLabel}...` : `جاري التوليد${chunkLabel}...`)
           : getContent(type)
@@ -693,56 +693,63 @@ function summaryToTelegramText(summaryRow) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6" dir={dir}>
-      <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-semibold text-white/55 hover:text-[#3DDC97] mb-2 transition-colors font-mono uppercase tracking-wider">
+      <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--mute)] hover:text-[var(--ink)] mb-1 transition-colors font-mono uppercase tracking-wider">
         <ArrowRight className={isEn ? "w-4 h-4 rotate-180" : "w-4 h-4"} /> {isEn ? "Back to Lectures & Notes" : "رجوع للمحاضرات والمذكرات"}
       </Link>
 
-      <div className="relative glass rounded-3xl p-6 sm:p-8 border border-white/10 mb-6 overflow-hidden">
-        <div className="relative z-10 flex items-start justify-between gap-4">
+      <div className="card" style={{ gap: 16 }}>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gradient">{course.title}</h1>
-            <p className="text-xs sm:text-sm text-white/60 max-w-xl">{course.description}</p>
-            <Button onClick={generateAll} disabled={!!generating} size="sm" className="mt-4 gap-2 font-bold btn-primary-glow h-10 px-5 rounded-full">
-              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {isEn ? "Generate All Content (All AI)" : "توليد المحتوى بالكامل (All AI)"}
-            </Button>
-          </div>
-          <div className="flex flex-col gap-1 shrink-0">
-            <div className="flex items-center gap-1">
-              <button onClick={() => setReviewReminderOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={isEn ? "Review Alert" : "تنبيه مراجعة"}>
-                <BellPlus className="w-4 h-4" />
-              </button>
-              <button onClick={() => setReminderOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={isEn ? "Google Calendar Reminder" : "تذكير Google Calendar"}>
-                <CalendarPlus className="w-4 h-4" />
-              </button>
-              <button
-                onClick={saveToDrive}
-                disabled={savingDrive}
-                className="p-2 rounded-xl text-muted-foreground hover:text-[#4285F4] hover:bg-[#4285F4]/10 transition-colors disabled:opacity-50"
-                title={isEn ? "Save to Google Drive" : "حفظ على Google Drive"}
-              >
-                {savingDrive ? <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" /> : <GoogleDriveIcon size={18} />}
-              </button>
-              <button
-                onClick={() => exportToTelegramBot()}
-                disabled={exportingTelegram}
-                className="p-2 rounded-xl text-muted-foreground hover:text-[#0088cc] hover:bg-[#0088cc]/10 transition-colors disabled:opacity-50"
-                title={isEn ? "Export to Telegram Bot 🤖" : "تصدير إلى التيليجرام 🤖"}
-              >
-                {exportingTelegram ? <Loader2 className="w-4 h-4 animate-spin text-[#0088cc]" /> : <Send className="w-4 h-4 text-[#0088cc]" />}
-              </button>
-              <button
-                onClick={exportPdf}
-                disabled={exporting}
-                className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
-                title={isEn ? "Export PDF" : "تصدير PDF"}
-              >
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              </button>
-              <button onClick={deleteCourse} className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={isEn ? "Delete Course" : "حذف المذكرة"}>
-                <Trash2 className="w-4 h-4" />
-              </button>
+            <span className="mono">
+              {course.subject || (isEn ? "COURSE" : "مقرر دراسي")} · {course.chapters?.length || 1} {isEn ? "Units" : "وحدات"}
+            </span>
+            <h1 className="serif" style={{ fontSize: "clamp(1.8rem, 4vw, 2.6rem)" }}>
+              {course.title}
+            </h1>
+            <p style={{ color: "var(--mute)", maxWidth: "60ch", fontSize: "0.92rem", lineHeight: 1.6 }}>
+              {course.description}
+            </p>
+            <div className="pt-2">
+              <Button onClick={generateAll} disabled={!!generating} size="sm" className="btn sm">
+                {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {isEn ? "Generate All Materials (AI)" : "توليد المحتوى بالكامل (AI)"}
+              </Button>
             </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0 p-1 bg-[var(--paper)] border border-[var(--line)] rounded">
+            <button onClick={() => setReviewReminderOpen(true)} className="p-2 rounded text-[var(--mute)] hover:text-[var(--ink)] transition-colors" title={isEn ? "Review Alert" : "تنبيه مراجعة"}>
+              <BellPlus className="w-4 h-4" />
+            </button>
+            <button onClick={() => setReminderOpen(true)} className="p-2 rounded text-[var(--mute)] hover:text-[var(--ink)] transition-colors" title={isEn ? "Google Calendar Reminder" : "تذكير Google Calendar"}>
+              <CalendarPlus className="w-4 h-4" />
+            </button>
+            <button
+              onClick={saveToDrive}
+              disabled={savingDrive}
+              className="p-2 rounded text-[var(--mute)] hover:text-[#4285F4] transition-colors disabled:opacity-50"
+              title={isEn ? "Save to Google Drive" : "حفظ على Google Drive"}
+            >
+              {savingDrive ? <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" /> : <GoogleDriveIcon size={18} />}
+            </button>
+            <button
+              onClick={() => exportToTelegramBot()}
+              disabled={exportingTelegram}
+              className="p-2 rounded text-[var(--mute)] hover:text-[#0088cc] transition-colors disabled:opacity-50"
+              title={isEn ? "Export to Telegram Bot 🤖" : "تصدير إلى التيليجرام 🤖"}
+            >
+              {exportingTelegram ? <Loader2 className="w-4 h-4 animate-spin text-[#0088cc]" /> : <Send className="w-4 h-4 text-[#0088cc]" />}
+            </button>
+            <button
+              onClick={exportPdf}
+              disabled={exporting}
+              className="p-2 rounded text-[var(--mute)] hover:text-[var(--ink)] transition-colors disabled:opacity-50"
+              title={isEn ? "Export PDF" : "تصدير PDF"}
+            >
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            </button>
+            <button onClick={deleteCourse} className="p-2 rounded text-[var(--mute)] hover:text-[var(--bad)] transition-colors" title={isEn ? "Delete Course" : "حذف المذكرة"}>
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -751,15 +758,15 @@ function summaryToTelegramText(summaryRow) {
       <CourseInsightBar course={course} generatedCount={contents.filter((c) => ["quiz", "summary", "flashcards"].includes(c.type)).length} />
 
       <Tabs defaultValue="content" dir={dir}>
-        <TabsList className="glass border border-white/10 w-full justify-start h-auto p-1.5 flex-wrap rounded-2xl">
-          <TabsTrigger value="content" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><BookOpen className="w-4 h-4" /> {isEn ? "Study Content" : "المحتوى الدراسي"}</TabsTrigger>
-          <TabsTrigger value="quiz" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Brain className="w-4 h-4" /> {isEn ? "Quizzes" : "الكويزات"}</TabsTrigger>
-          <TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><FileText className="w-4 h-4" /> {isEn ? "Summaries" : "التلخيصات"}</TabsTrigger>
-          <TabsTrigger value="flashcards" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Layers className="w-4 h-4" /> {isEn ? "Flashcards" : "البطاقات التعليمية"}</TabsTrigger>
-          <TabsTrigger value="notes" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><StickyNote className="w-4 h-4" /> {isEn ? "Notes" : "الملاحظات"}</TabsTrigger>
-          <TabsTrigger value="study" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><GraduationCap className="w-4 h-4" /> {isEn ? "Study Mode" : "وضع المذاكرة"}</TabsTrigger>
-          <TabsTrigger value="practice" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Target className="w-4 h-4" /> {isEn ? "Practice" : "تدريب"}</TabsTrigger>
-          <TabsTrigger value="share" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Share2 className="w-4 h-4" /> {isEn ? "Share" : "مشاركة"}</TabsTrigger>
+        <TabsList className="bg-[var(--paper2)] border border-[var(--line)] w-full justify-start h-auto p-1.5 flex-wrap rounded">
+          <TabsTrigger value="content" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><BookOpen className="w-4 h-4" /> {isEn ? "Study Content" : "المحتوى الدراسي"}</TabsTrigger>
+          <TabsTrigger value="quiz" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><Brain className="w-4 h-4" /> {isEn ? "Quizzes" : "الكويزات"}</TabsTrigger>
+          <TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><FileText className="w-4 h-4" /> {isEn ? "Summaries" : "التلخيصات"}</TabsTrigger>
+          <TabsTrigger value="flashcards" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><Layers className="w-4 h-4" /> {isEn ? "Flashcards" : "البطاقات التعليمية"}</TabsTrigger>
+          <TabsTrigger value="notes" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><StickyNote className="w-4 h-4" /> {isEn ? "Notes" : "الملاحظات"}</TabsTrigger>
+          <TabsTrigger value="study" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><GraduationCap className="w-4 h-4" /> {isEn ? "Study Mode" : "وضع المذاكرة"}</TabsTrigger>
+          <TabsTrigger value="practice" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><Target className="w-4 h-4" /> {isEn ? "Practice" : "تدريب"}</TabsTrigger>
+          <TabsTrigger value="share" className="gap-2 data-[state=active]:bg-[var(--paper)] data-[state=active]:text-[var(--ink)] data-[state=active]:font-bold data-[state=active]:shadow-sm text-[var(--mute)]"><Share2 className="w-4 h-4" /> {isEn ? "Share" : "مشاركة"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="content" className="mt-6">
@@ -884,9 +891,9 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
   ];
   return (
     <div className="glass rounded-2xl p-4 border border-white/10 mb-4 space-y-4">
-      <div className="flex items-start gap-2 rounded-xl bg-[#3DDC97]/5 border border-[#3DDC97]/20 p-3">
+      <div className="flex items-start gap-2 rounded-xl bg-primary/5 border border-primary/20 p-3">
         <span className="text-base">💡</span>
-        <p className="text-xs text-white/65 leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {isEn
             ? "Black Fighters automatically analyzes content: extracts existing question banks, generates new questions from explanations, and eliminates duplicates."
             : "Black Fighters يحلل المحتوى تلقائياً: لو لقى بنك أسئلة هيستخرجها، ولو المحتوى شرح هيولّد أسئلة جديدة، ولو مختلط هيعمل الاتنين مع حذف التكرار."}
@@ -896,7 +903,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
         <p className="text-sm font-semibold mb-2">{isEn ? "Number of Questions — up to 100" : "عدد الأسئلة — لحد 100 سؤال"}</p>
         <div className="flex flex-wrap items-center gap-2">
           {counts.map((n) => (
-            <button key={n} onClick={() => setQuizCount(n)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${quizCount === n ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{n}</button>
+            <button key={n} onClick={() => setQuizCount(n)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${quizCount === n ? "border-primary text-primary bg-primary/10" : "border-white/10 text-white/60"}`}>{n}</button>
           ))}
           <input
             type="number"
@@ -904,7 +911,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             max="100"
             value={quizCount}
             onChange={(e) => setQuizCount(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-            className="w-24 bg-[#07080C] border border-white/10 rounded-xl px-3 py-2 text-sm font-bold"
+            className="w-24 bg-card border border-border rounded-xl px-3 py-2 text-sm font-bold"
           />
         </div>
       </div>
@@ -916,7 +923,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             ["mixed", isEn ? "Mixed ⚖️" : "متنوع ⚖️"],
             ["hard", isEn ? "Hard 🔥" : "صعب 🔥"]
           ].map(([v, l]) => (
-            <button key={v} onClick={() => setDifficulty(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${difficulty === v ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{l}</button>
+            <button key={v} onClick={() => setDifficulty(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${difficulty === v ? "border-primary text-primary bg-primary/10" : "border-white/10 text-white/60"}`}>{l}</button>
           ))}
         </div>
       </div>
@@ -927,7 +934,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             <button
               key={profile.id}
               onClick={() => setQuizProfile(profile.id)}
-              className={`rounded-xl border px-2 py-2 text-center transition-colors ${quizProfile === profile.id ? "border-[#3DDC97] bg-[#3DDC97]/10 text-[#3DDC97]" : "border-white/10 bg-white/[0.02] text-white/60"}`}
+              className={`rounded-xl border px-2 py-2 text-center transition-colors ${quizProfile === profile.id ? "border-primary bg-primary/10 text-primary" : "border-white/10 bg-white/[0.02] text-white/60"}`}
             >
               <span className="block text-xs font-bold">{profile.label}</span>
               <span className="block text-[10px] opacity-75">{profile.hint}</span>
@@ -942,7 +949,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
             [true, isEn ? "Show explanations after answering ✅" : "اعرض الشرح بعد الإجابة ✅"],
             [false, isEn ? "Without explanations ✋" : "بدون شرح ✋"]
           ].map(([v, l]) => (
-            <button key={String(v)} onClick={() => setShowExplanations(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${showExplanations === v ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{l}</button>
+            <button key={String(v)} onClick={() => setShowExplanations(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${showExplanations === v ? "border-primary text-primary bg-primary/10" : "border-white/10 text-white/60"}`}>{l}</button>
           ))}
         </div>
       </div>
@@ -954,7 +961,7 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
 function EmptyGen({ label, desc, button }) {
   return (
     <div className="glass rounded-3xl p-14 text-center border border-white/10">
-      <Sparkles className="w-12 h-12 text-[#3DDC97] mx-auto mb-4 opacity-80" />
+      <Sparkles className="w-12 h-12 text-primary mx-auto mb-4 opacity-80" />
       <h3 className="text-xl font-bold mb-2 text-white">{label}</h3>
       <p className="text-white/60 mb-6">{desc}</p>
       {button}

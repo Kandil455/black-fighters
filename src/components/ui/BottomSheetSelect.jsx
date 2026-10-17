@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/LocaleContext";
 

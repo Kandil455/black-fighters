@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import ClassicQuizView from "./ClassicQuizView";
 import ModernQuizView from "./ModernQuizView";
 import { Switch } from "@/components/ui/switch";
-import { Sparkles } from "lucide-react";
+import { Sparkles } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 
 export default function QuizView(props) {

@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { FileText, Loader2, X, Clock3 } from "lucide-react";
+import { FileText, Loader2, X, Clock3 } from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 
 export default function CourseGenerationLoader({ fileName, statusText, progress, onCancel }) {

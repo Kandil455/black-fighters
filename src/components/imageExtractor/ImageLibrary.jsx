@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { 
   FolderClock, HardDrive, Trash2, Image as ImageIcon, 
   HelpCircle, Calendar, Sparkles, Loader2 
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/LocaleContext";
 import { listExtractionHistory, getExtractionSession, deleteExtractionSession } from "@/lib/imageExtractorDb";

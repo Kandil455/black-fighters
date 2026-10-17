@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, BookOpen, Clock, Coins, Brain, FileText, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, Clock, Coins, Brain, FileText, Zap } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { SmartFileIcon } from "@/components/ui/FileTypeIcons";
 import { LVBadge } from "@/components/ui/linevault";

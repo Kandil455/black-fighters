@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from '@/api/base44Client';
 import { Button } from "@/components/ui/button";
-import { Sparkles, Clock, ChevronRight, Loader2, Brain } from "lucide-react";
+import { Sparkles, Clock, ChevronRight, Loader2, Brain } from "@/components/ui/animatedIcons";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 

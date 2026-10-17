@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Loader2, FileText, Highlighter, Table2, ListChecks } from "lucide-react";
+import { CheckCircle2, Loader2, FileText, Highlighter, Table2, ListChecks } from "@/components/ui/animatedIcons";
 
 export const AGENTS = [
   { key: "summarizer", icon: FileText, label: "وكيل التلخيص المحترف", desc: "بيستخرج الجوهر ويكتب ملخص منظم" },

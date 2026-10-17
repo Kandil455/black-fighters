@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, LayoutGrid, List, Rows3, Upload } from "lucide-react";
+import { FolderOpen, LayoutGrid, List, Rows3, Upload } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/LocaleContext";
 import { usePerformanceMode } from "@/lib/PerformanceContext";

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX } from "@/components/ui/animatedIcons";
 
 // فيديو الأفاتار — يشتغل تلقائي (مكتوم لازم للمتصفح) مع زر صغير لتشغيل الصوت وعزل كامل للطبقة
 export default function AvatarVideo({ src }) {

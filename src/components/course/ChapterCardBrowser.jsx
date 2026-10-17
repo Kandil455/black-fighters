@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Search, ChevronDown, ChevronUp, Table2, Highlighter, FileText, X } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, Table2, Highlighter, FileText, X } from "@/components/ui/animatedIcons";
 import { Input } from "@/components/ui/input";
 import StudyContent from "@/components/course/StudyContent";
 import { prefersReducedMotion } from "@/lib/webglQuality";

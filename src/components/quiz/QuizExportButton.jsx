@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, FileCheck2, FileQuestion, Loader2, Bot } from "lucide-react";
+import { Download, FileCheck2, FileQuestion, Loader2, Bot } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { exportQuizPdf } from "@/lib/quizPdf";
 

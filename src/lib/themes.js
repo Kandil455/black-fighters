@@ -301,12 +301,15 @@ export function applyTheme(key) {
   const theme = THEMES[key] || THEMES.clinical;
   const root = document.documentElement;
   Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v));
+  const mode = theme.isLight ? "light" : "dark";
+  root.dataset.theme = mode;
   if (theme.atlasTheme) {
-    root.dataset.theme = theme.atlasTheme;
-  } else {
-    root.dataset.theme = theme.isLight ? "focus" : "night";
+    root.dataset.atlasTheme = theme.atlasTheme;
   }
   root.classList.toggle("theme-light", !!theme.isLight);
   root.classList.toggle("dark", !theme.isLight);
+  try {
+    localStorage.setItem("bf_theme", mode);
+  } catch {}
   return theme;
 }

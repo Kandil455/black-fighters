@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { X, Check, ArrowRight, PartyPopper } from "lucide-react";
+import { X, Check, ArrowRight, PartyPopper } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/LocaleContext";
 

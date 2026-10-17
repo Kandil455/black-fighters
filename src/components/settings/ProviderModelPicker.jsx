@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { PROVIDERS, COLOR_CLASSES, getDefaultModel, TIERS, TIER_INFO, canUserAccessModel } from "@/lib/models";
-import { CheckCircle2, ExternalLink, Lock } from "lucide-react";
+import { CheckCircle2, ExternalLink, Lock } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/AuthContext";
 

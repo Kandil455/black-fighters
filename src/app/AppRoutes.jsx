@@ -10,8 +10,7 @@ import { assessmentRoutes } from '@/app/routes/assessmentRoutes';
 import { communityRoutes } from '@/app/routes/communityRoutes';
 import { accountRoutes } from '@/app/routes/accountRoutes';
 import { systemRoutes } from '@/app/routes/systemRoutes';
-import { mockupRoutes } from '@/app/routes/mockupRoutes';
 
 export default function AppRoutes() {
-  return <Suspense fallback={<PageLoader />}><Routes>{mockupRoutes}{publicRoutes}<Route element={<ProtectedRoute />}><Route element={<Layout />}>{theoryRoutes}{practicalRoutes}{assessmentRoutes}{communityRoutes}{accountRoutes}{systemRoutes}</Route></Route><Route path="*" element={<Navigate to="/" replace />} /></Routes></Suspense>;
+  return <Suspense fallback={<PageLoader />}><Routes>{publicRoutes}<Route element={<ProtectedRoute />}><Route element={<Layout />}>{theoryRoutes}{practicalRoutes}{assessmentRoutes}{communityRoutes}{accountRoutes}{systemRoutes}</Route></Route><Route path="*" element={<Navigate to="/" replace />} /></Routes></Suspense>;
 }

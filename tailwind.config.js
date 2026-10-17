@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-    darkMode: ["class"],
+    darkMode: ["selector", '[data-theme="dark"], .dark'],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
@@ -10,6 +10,15 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			bg: 'var(--bg)',
+  			surface: {
+  				DEFAULT: 'var(--surface)',
+  				2: 'var(--surface-2)',
+  			},
+  			'text-token': {
+  				DEFAULT: 'var(--text)',
+  				2: 'var(--text-2)',
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle } from "@/components/ui/animatedIcons";
 import { motionTokens, useReducedMotionPreference } from "@/lib/motionTokens";
 import { cn } from "@/lib/utils";
 import { FlameIcon } from "@/components/ui/icons";

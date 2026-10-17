@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Coins, Check, Lock, X, Sparkles, Gift, Percent } from "lucide-react";
+import { Coins, Check, Lock, X, Sparkles, Gift, Percent } from "@/components/ui/animatedIcons";
 import { MASCOT_SKINS, TIER_LABELS } from "@/lib/mascotSkins";
 import MascotSkin from "@/components/course/MascotSkin";
 import { cn } from "@/lib/utils";

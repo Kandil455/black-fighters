@@ -1,8 +1,6 @@
 import React, { useState, useRef } from "react";
-import { motion } from "framer-motion";
 import { functions } from '@/api/index';
-import { Button } from "@/components/ui/button";
-import { Scissors, Minimize2, Wand2, Loader2, Download, FileText, Trash2, ScanText, Combine, RotateCw, Image, BookOpen, ArrowUpDown, Hash, Images } from "lucide-react";
+import { Scissors, Minimize2, Wand2, Loader2, Download, FileText, Trash2, ScanText, Combine, RotateCw, Image, BookOpen, ArrowUpDown, Hash, Images } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import PdfToolCard from "@/components/pdf/PdfToolCard";
 import PdfUploadPanel from "@/components/pdf/PdfUploadPanel";
@@ -12,7 +10,6 @@ import { extractTextFromFile, runPdfOperation, downloadBytes } from "@/lib/fileP
 import { generateHierarchicalSummary } from "@/lib/summaryPipeline";
 import { recognizeFile } from "@/lib/ocr";
 import { SUMMARY_TEMPLATES, SUBJECT_TYPES } from "@/lib/summaryTemplates";
-import { KineticHeading, KineticParagraph } from "@/components/ui/KineticTextReveal";
 import { useLocale } from "@/lib/LocaleContext";
 
 const RAW_TOOLS = [
@@ -197,32 +194,32 @@ export default function PdfTools() {
 
   return (
     <div dir={dir} className="max-w-7xl mx-auto">
-      <div className="mb-8 space-y-1.5">
-        <KineticHeading 
-          text={isEn ? "PDF & Document Studio 🛠️" : "لوحة أدوات ومستندات PDF 🛠️"} 
-          className="text-3xl md:text-4xl font-black heading-display studio-headline-gradient" 
-          highlightWords={['PDF', '🛠️', 'Studio']} 
-        />
-        <KineticParagraph className="text-sm text-muted-foreground">
-          {isEn 
-            ? "Summarize, OCR, merge, split, compress, and convert documents in one unified studio"
-            : "تلخيص، استخراج نص، دمج، تقسيم، ضغط وتحويل ملفات في مكان واحد"}
-        </KineticParagraph>
+      {/* Editorial Header */}
+      <div className="hd mb-6">
+        <span className="mono">{isEn ? "PDF Studio" : "أدوات PDF"}</span>
+        <h1 className="serif">
+          {isEn ? "All file tools " : "كل أدوات الملفات "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "in one place." : "في مكان واحد."}</em>
+        </h1>
+        <p style={{ color: "var(--mute)" }}>
+          {isEn
+            ? "Choose a tool, upload your file, and keep your library organized."
+            : "اختار الأداة، وارفع الملف، والنتيجة بتتحفظ في مكتبتك فوراً."}
+        </p>
       </div>
 
-      <div className="grid lg:grid-cols-[1.2fr_.8fr] gap-6 items-start">
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {TOOLS.map((item, i) => (
-            <PdfToolCard key={item.id} tool={item} active={toolId === item.id} index={i} onSelect={selectTool} />
+      <div className="grid lg:grid-cols-[1.3fr_.9fr] gap-6 items-start">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {TOOLS.map((item) => (
+            <PdfToolCard key={item.id} tool={item} active={toolId === item.id} onSelect={selectTool} />
           ))}
         </div>
 
-        <motion.div key={toolId} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} className="glass-card rounded-3xl p-6 border border-primary/30 lg:sticky lg:top-6">
-          <div className="flex items-start gap-3 mb-5">
-            <tool.icon className={`w-7 h-7 ${tool.color}`} />
+        <div key={toolId} className="card lg:sticky lg:top-6">
+          <div className="flex items-start gap-3 pb-3 border-b border-[var(--line)]">
             <div>
-              <h2 className="text-xl font-black">{tool.label}</h2>
-              <p className="text-sm text-muted-foreground">{tool.desc}</p>
+              <h2 className="text-lg font-bold">{tool.label}</h2>
+              <p className="text-xs" style={{ color: "var(--mute)" }}>{tool.desc}</p>
             </div>
           </div>
 
@@ -255,10 +252,10 @@ export default function PdfTools() {
             />
           )}
 
-          <Button onClick={run} disabled={working} className="w-full h-12 font-bold gap-2 mt-5">
-            {working ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            {working ? (isEn ? "Processing..." : "شغالين عليه...") : (isEn ? "Execute Tool" : "نفّذ الأداة")}
-          </Button>
+          <button onClick={run} disabled={working} className="btn w-full mt-4">
+            {working ? <Loader2 className="w-4 h-4 animate-spin" animated={false} /> : <Download className="w-4 h-4" animated={false} />}
+            {working ? (isEn ? "Processing..." : "شغالين عليه...") : (isEn ? "Execute Tool" : "نفّذ")}
+          </button>
           {working && workProgress && (
             <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-3">
               <div className="flex items-center justify-between gap-3 text-xs font-bold">
@@ -283,7 +280,7 @@ export default function PdfTools() {
               </button>
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
 
       <PdfTextResult

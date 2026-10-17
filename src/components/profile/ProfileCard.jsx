@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Zap, Flame, Shield } from "lucide-react";
+import { Zap, Flame, Shield } from "@/components/ui/animatedIcons";
 import { PaymentIcon } from "@/components/ui/icons";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import Avatar3DOrbit from "@/components/profile/Avatar3DOrbit";

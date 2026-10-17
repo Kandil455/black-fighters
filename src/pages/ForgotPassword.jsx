@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { LVCard } from "@/components/ui/linevault";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2, Mail } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 
 export default function ForgotPassword() {

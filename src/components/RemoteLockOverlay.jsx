@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldAlert, RefreshCw } from "lucide-react";
+import { ShieldAlert, RefreshCw } from "@/components/ui/animatedIcons";
 import { subscribeToLockdown } from "@/lib/securityGuard";
 import { useLocale } from "@/lib/LocaleContext";
 import { Button } from "@/components/ui/button";

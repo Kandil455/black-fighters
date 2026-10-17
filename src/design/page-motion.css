@@ -1,0 +1,12 @@
+/* page-motion.css — a light fade-in when a route renders.
+   Opacity and transform only. Disabled for prefers-reduced-motion. */
+.bf-page {
+  animation: bf-page-in 0.35s cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+@keyframes bf-page-in {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bf-page { animation: none; }
+}

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { BrainCircuit, CreditCard, FileCog, Plus, Sparkles, Trophy } from "lucide-react";
+import { BrainCircuit, CreditCard, FileCog, Plus, Sparkles, Trophy } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 
 const ACTIONS = [

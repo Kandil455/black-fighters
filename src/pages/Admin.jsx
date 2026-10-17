@@ -11,10 +11,10 @@ import {
   Crown, Key, Search, ChevronDown, ChevronUp, Lock, Unlock,
   BarChart3, RefreshCw, Calendar, Zap, Wand2, Coins, Copy, Ticket, Wallet,
   Filter, Flag, ShieldAlert, ArrowRight,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { PROVIDERS } from "@/lib/models";
-import { testAiKey } from "@/lib/ai";
+import { testAiKey } from "@/lib/testAiKey";
 import ProviderModelPicker from "@/components/settings/ProviderModelPicker";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import ActivationCodesManager from "@/components/admin/ActivationCodesManager";
@@ -22,7 +22,7 @@ import PaymentRequestsManager from "@/components/admin/PaymentRequestsManager";
 import EmergencyContentManager from "@/components/admin/EmergencyContentManager";
 import { AdminFunnelView, AdminFlaggedQuestionsView } from "@/components/admin/AdminFunnelAndQuality";
 import BottomSheetSelect from "@/components/ui/BottomSheetSelect";
-import { LineChart, ExternalLink } from "lucide-react";
+import { LineChart, ExternalLink } from "@/components/ui/animatedIcons";
 import { db } from "@/lib/firebaseDb";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 
@@ -545,36 +545,40 @@ export default function Admin() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-[#0E1117] text-primary">
-            <Shield className="h-6 w-6" />
-          </span>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-black sm:text-3xl">لوحة الأدمن</h1>
-            <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{profile?.email}</p>
-          </div>
+    <div className="max-w-5xl mx-auto pb-16">
+      {/* Editorial Header */}
+      <div className="hd mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <span className="mono">لوحة الإدارة والتحكم</span>
+          <h1 className="serif">
+            راجع <em style={{ color: "var(--sig)" }}>الطلبات والمؤشرات.</em>
+          </h1>
+          <p style={{ color: "var(--mute)" }}>
+            {profile?.email} · إدارة الحسابات، طلبات الدفع، الأكواد، ومفاتيح الذكاء الاصطناعي
+          </p>
         </div>
 
-        {/* Things that need a decision, surfaced instead of buried in a tab. */}
         <div className="flex flex-wrap items-center gap-2">
           {pendingPaymentsCount > 0 && (
             <button
               type="button"
               onClick={() => setTab("payments")}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-orange-400/40 bg-orange-400/10 px-3 py-2 text-xs font-bold text-orange-300"
+              className="btn sm"
             >
-              <Wallet className="h-3.5 w-3.5" />
+              <Wallet className="h-3.5 w-3.5" animated={false} />
               {pendingPaymentsCount} طلب دفع محتاج مراجعة
             </button>
           )}
-          <Button size="sm" variant="outline" onClick={() => refetchUsers()} className="gap-1.5">
-            <RefreshCw className={`h-3.5 w-3.5 ${usersLoading ? "animate-spin" : ""}`} />
+          <button
+            type="button"
+            onClick={() => refetchUsers()}
+            className="btn sm line"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${usersLoading ? "animate-spin" : ""}`} animated={false} />
             تحديث
-          </Button>
+          </button>
         </div>
-      </header>
+      </div>
 
       <nav aria-label="أقسام لوحة الأدمن" className="mb-7 space-y-3">
         {ADMIN_GROUPS.map((group) => (

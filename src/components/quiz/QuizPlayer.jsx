@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Check, X, ChevronLeft, RotateCcw, Trophy, Maximize2, Minimize2, ListChecks, Target, Flag, Sparkles, Loader2 } from "lucide-react";
+import { Check, X, ChevronLeft, RotateCcw, Trophy, Maximize2, Minimize2, ListChecks, Target, Flag, Sparkles, Loader2 } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import MistakesReview from "@/components/quiz/MistakesReview";
 import FlagQuestionModal from "@/components/quiz/FlagQuestionModal";

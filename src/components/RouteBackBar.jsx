@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/components/ui/animatedIcons";
 
 // Top-level tab roots — no back button needed on these
 const ROOT_PATHS = ["/dashboard", "/quizzes", "/friends", "/leaderboard", "/create"];

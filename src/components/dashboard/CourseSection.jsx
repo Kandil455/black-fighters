@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Folder } from "lucide-react";
+import { Folder } from "@/components/ui/animatedIcons";
 import CourseCard from "@/components/CourseCard";
 
 export default function CourseSection({ title, courses, contentMap = {} }) {

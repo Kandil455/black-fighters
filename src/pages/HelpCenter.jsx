@@ -13,10 +13,10 @@ import {
   ArrowLeft,
   Keyboard,
   CheckCircle2,
-} from 'lucide-react';
+} from '@/components/ui/animatedIcons';
 import { useLocale } from '@/lib/LocaleContext';
 import { normalizeArabicForSearch } from '@/lib/summaryV5/arabicNormalize';
-import { PageHeader, LVCard, LVBadge } from '@/components/ui/linevault';
+import { LVCard, LVBadge } from '@/components/ui/linevault';
 
 const HELP_SECTIONS = [
   {
@@ -218,24 +218,71 @@ export default function HelpCenter() {
 
   return (
     <div dir={dir} className="max-w-5xl mx-auto space-y-6 pb-12">
-      <PageHeader
-        badge="HELP CENTER · الدليل الإرشادي"
-        title={isEn ? 'Knowledge & Help Center' : 'مركز المساعدة والدليل الشامل'}
-        description={
-          isEn
-            ? 'Complete guide to Foundational Bilingual summaries, Active Recall, FSRS v4.5 scheduling, Telegram Mini App (/tg), and page credits.'
-            : 'كل ما تحتاجه لإتقان المذاكرة بقالب «شرح من الأساس»، الاستدعاء النشط، خوارزمية FSRS v4.5، وتطبيق تيليجرام المصغر.'
-        }
-        actions={
-          <Link
-            to="/dashboard"
-            className="h-10 px-4 rounded-xl bg-[#3DDC97] text-[#07080C] hover:bg-[#1CC978] text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-          >
-            <span>{isEn ? 'Dashboard' : 'لوحة التحكم'}</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+      {/* Editorial Header */}
+      <div className="hd mb-6">
+        <span className="mono">{isEn ? "Help & Emergency" : "المساعدة والطوارئ"}</span>
+        <h1 className="serif">
+          {isEn ? "Need " : "محتاج "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "Help?" : "مساعدة؟"}</em>
+        </h1>
+        <p style={{ color: "var(--mute)" }}>
+          {isEn
+            ? "Frequently asked questions, guides, and emergency exam revision sprints."
+            : "كل ما تحتاجه لإتقان التلخيص والاستدعاء النشط وخوارزمية FSRS وراوند الطوارئ."}
+        </p>
+      </div>
+
+      {/* Prototype s-help Two Column Top Section */}
+      <div className="two mb-6">
+        <div className="card">
+          <h2 className="text-base font-bold">{isEn ? "Quick FAQ" : "أسئلة شائعة"}</h2>
+          <div style={{ gap: 0 }}>
+            <div className="row">
+              <span className="grow text-sm font-semibold">إزاي أرفع ملف بحجم كبير حتى 500 صفحة؟</span>
+              <span className="mono text-xs">+</span>
+            </div>
+            <div className="row">
+              <span className="grow text-sm font-semibold">الكريدت اتخصم وفشلت العملية، أعمل إيه؟</span>
+              <span className="mono text-xs">+</span>
+            </div>
+            <div className="row">
+              <span className="grow text-sm font-semibold">إزاي أطلب الاشتراك وأفعل باقتي؟</span>
+              <span className="mono text-xs">+</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="card justify-between">
+          <div>
+            <span className="mono">{isEn ? "EMERGENCY ROUND" : "راوند الطوارئ"}</span>
+            <h2 className="serif text-2xl mt-1 mb-2">
+              {isEn ? "Exam Tomorrow? 10 Key Points" : "امتحان بكرة؟ راجع أهم 10 نقط"}
+            </h2>
+            <p className="text-xs" style={{ color: "var(--mute)" }}>
+              {isEn
+                ? "Focused high-yield quiz on concepts you missed before, done in minutes."
+                : "كويز مركز من أكتر الموضوعات اللي غلطت فيها، بوقت قصير وبأعلى تركيز."}
+            </p>
+          </div>
+          <Link to="/quizzes" className="btn sm mt-4 self-start">
+            {isEn ? "Start Emergency Round" : "ابدأ راوند الطوارئ"}
           </Link>
-        }
-      />
+        </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="comp mb-6">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={isEn ? "Search help center..." : "ابحث في الأسئلة والدليل الشامل..."}
+        />
+        {query && (
+          <button onClick={() => setQuery('')} className="btn sm line">
+            مسح
+          </button>
+        )}
+      </div>
 
       {/* Start here — the page used to open straight into nine numbered chips
           with long Arabic labels plus nine stacked sections, so a student landing

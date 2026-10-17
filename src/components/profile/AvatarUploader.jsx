@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Upload, Check, Loader2, Image as ImageIcon, Video, Palette } from "lucide-react";
+import { Upload, Check, Loader2, Image as ImageIcon, Video, Palette } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { AVATAR_STYLES } from "@/lib/avatars";

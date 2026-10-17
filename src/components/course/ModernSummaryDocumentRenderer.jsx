@@ -1,4 +1,4 @@
-import { Eye, Layers, Flag, ChevronDown, Zap } from "lucide-react";
+import { Eye, Layers, Flag, ChevronDown, Zap } from "@/components/ui/animatedIcons";
 
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";

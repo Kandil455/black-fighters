@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Check, Coins, Loader2, Lock, X } from "lucide-react";
+import { Check, Coins, Loader2, Lock, X } from "@/components/ui/animatedIcons";
 import { base44 } from "@/api/base44Client";
 import { ORBIT_EFFECTS, ownsOrbitEffect } from "@/lib/avatars";
 import { toast } from "sonner";

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Crown, Check, Loader2, Palette, Lock, Coins, ExternalLink } from "lucide-react";
+import { Crown, Check, Loader2, Palette, Lock, Coins, ExternalLink } from "@/components/ui/animatedIcons";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";

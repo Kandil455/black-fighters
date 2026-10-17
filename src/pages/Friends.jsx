@@ -3,27 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { ensureFriendId } from "@/lib/social";
-import { Loader2, Users } from "lucide-react";
+import { Loader2 } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import FriendIdCard from "@/components/social/FriendIdCard";
 import AddFriend from "@/components/social/AddFriend";
 import FriendRequests from "@/components/social/FriendRequests";
 import FriendsList from "@/components/social/FriendsList";
 
-/**
- * Friends & social chat.
- *
- * PERFORMANCE (this page used to be noticeably slow):
- *  1. It awaited `auth.me()` (an extra getDoc) AND `ensureFriendId` (a possible
- *     WRITE) before any data query could start. The profile comes from
- *     AuthContext now, and the friend-id repair runs alongside the queries instead
- *     of in front of them.
- *  2. `refreshProfile()` fired on every mount — a second `me()` read plus an
- *     IndexedDB write — purely for cosmetics. Removed.
- *  3. Every navigation re-ran the whole waterfall. react-query caches it now.
- *  4. ChatWindow was statically imported into this route's chunk although it only
- *     renders after picking a peer; it is lazy now.
- */
 const ChatWindow = lazy(() => import("@/components/social/ChatWindow"));
 
 export default function Friends() {
@@ -37,12 +23,10 @@ export default function Friends() {
     typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("chat") : null,
   );
 
-  // Keep the local copy fresh when AuthContext loads/repairs the profile.
   useEffect(() => {
     if (profile?.id) setMe((prev) => ({ ...profile, ...prev, id: profile.id }));
   }, [profile]);
 
-  // Repair the shareable friend id in the background — it must never gate the list.
   useEffect(() => {
     if (!me?.id) return;
     if (me.friend_id) return;
@@ -62,7 +46,6 @@ export default function Friends() {
       const requests = safeLinks.filter((l) => l.status === "pending" && l.addressee_id === me.id);
       const accepted = safeLinks.filter((l) => l.status === "accepted");
       const friendIds = accepted.map((l) => (l.requester_id === me.id ? l.addressee_id : l.requester_id));
-      // One bounded batched read for every friend, not one request per friend.
       const users = friendIds.length ? await base44.entities.User.filter({ id: { $in: friendIds } }) : [];
       const friends = users.map((fu) => ({
         id: fu.id,
@@ -88,7 +71,6 @@ export default function Friends() {
     },
   });
 
-  // Deep link (?chat=<id>) opens that conversation once the data is in.
   useEffect(() => {
     if (social?.requestedPeer && !peer) setPeer(social.requestedPeer);
   }, [social?.requestedPeer, peer]);
@@ -102,17 +84,25 @@ export default function Friends() {
   );
 
   if (!me?.id || isLoading) {
-    return <div className="flex justify-center py-32"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    return (
+      <div className="flex justify-center py-32">
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--sig)" }} animated={false} />
+      </div>
+    );
   }
 
   return (
     <div className="max-w-5xl mx-auto pb-12" dir={dir}>
-      <div className="flex items-center gap-2 mb-6">
-        <Users className="w-6 h-6 text-primary" />
-        <h1 className="text-3xl font-black">{isEn ? "Friends & Social Chat" : "الأصدقاء والدردشة"}</h1>
+      {/* Editorial Header */}
+      <div className="hd mb-6">
+        <span className="mono">{isEn ? "Friends & Referrals" : "الأصدقاء والإحالات"}</span>
+        <h1 className="serif">
+          {isEn ? "Invite peers and " : "ادعو زمايلك "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "win together." : "واكسبوا مع بعض."}</em>
+        </h1>
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_1.4fr] gap-5">
+      <div className="two">
         <div className={`space-y-4 ${peer ? "hidden lg:block" : ""}`}>
           <FriendIdCard friendId={me?.friend_id} />
           <AddFriend me={me} onAdded={refreshSocial} />
@@ -126,13 +116,20 @@ export default function Friends() {
 
         <div className={`${peer ? "" : "hidden lg:block"}`}>
           {peer ? (
-            <Suspense fallback={<div className="h-[70vh] glass-card rounded-2xl border border-border/50 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <Suspense fallback={<div className="card h-[70vh] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--sig)" }} animated={false} /></div>}>
               <ChatWindow me={me} peer={peer} onBack={() => setPeer(null)} />
             </Suspense>
           ) : (
-            <div className="h-[70vh] glass-card rounded-2xl border border-border/50 flex flex-col items-center justify-center text-muted-foreground">
-              <Users className="w-14 h-14 mb-3 opacity-30" />
-              <p className="font-bold">{isEn ? "Select a friend or Black Fighters AI to start chatting 💬" : "اختار صاحب أو بلاك فايترز AI عشان تبدأ الدردشة 💬"}</p>
+            <div className="card h-[70vh] flex flex-col items-center justify-center text-center p-8">
+              <span className="mono mb-2">{isEn ? "SELECT CONVERSATION" : "مفيش محادثة مفتوحة"}</span>
+              <h2 className="serif text-3xl mb-2">
+                {isEn ? "Select a friend to chat" : "اختار صاحب عشان تدردش"}
+              </h2>
+              <p style={{ color: "var(--mute)" }} className="text-sm max-w-sm">
+                {isEn
+                  ? "Select a friend from the list or start a conversation with Black Fighters AI 💬"
+                  : "اختار صاحب من القائمة أو اتكلم مع مساعد بلاك فايترز الذكي 💬"}
+              </p>
             </div>
           )}
         </div>

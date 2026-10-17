@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { getLevelInfo } from "@/lib/xpSystem";
-import { Star, Zap } from "lucide-react";
+import { Star, Zap } from "@/components/ui/animatedIcons";
 
 export default function XpLevelCard({ xp = 0 }) {
   const { current, next, progress } = getLevelInfo(xp);

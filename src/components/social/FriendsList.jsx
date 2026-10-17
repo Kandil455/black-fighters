@@ -1,5 +1,5 @@
 import React from "react";
-import { Bot, MessageCircle, Users, Sparkles } from "lucide-react";
+import { Bot, Users } from "@/components/ui/animatedIcons";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { useLocale } from "@/lib/LocaleContext";
 
@@ -8,53 +8,65 @@ export default function FriendsList({ friends, activePeerId, onSelect }) {
   const isEn = locale === "en";
 
   return (
-    <div className="glass-card rounded-2xl border border-border/50 overflow-hidden" dir={dir}>
-      {/* AI partner header */}
+    <div className="card" style={{ gap: 0 }} dir={dir}>
+      {/* AI partner header as top row */}
       <button
         onClick={() => onSelect({ isAi: true, name: isEn ? "Black Fighters AI" : "بلاك فايترز AI" })}
-        className={`w-full flex items-center gap-3 p-3 transition-colors border-b border-border/50 ${
-          activePeerId === "ai" ? "bg-accent/15" : "hover:bg-secondary/40"
-        }`}
+        className="row px-2 py-3 hover:bg-[var(--paper)] transition-colors text-start"
+        style={{
+          backgroundColor: activePeerId === "ai" ? "color-mix(in srgb, var(--sig) 8%, var(--paper2))" : undefined,
+          borderInlineStart: activePeerId === "ai" ? "3px solid var(--sig)" : undefined,
+        }}
       >
-        <div className="w-11 h-11 rounded-full bg-accent/20 border border-accent/40 flex items-center justify-center shrink-0">
-          <Bot className="w-5 h-5 text-accent" />
-        </div>
-        <div className="flex-1 text-start min-w-0">
-          <p className="font-bold text-sm flex items-center gap-1">
-            {isEn ? "Black Fighters AI" : "بلاك فايترز AI"} <Sparkles className="w-3.5 h-3.5 text-accent" />
-          </p>
-          <p className="text-xs text-muted-foreground truncate">
-            {isEn ? "Smart AI Study Assistant" : "مساعدك الدراسي الذكي"}
-          </p>
-        </div>
+        <span className="av me">
+          <Bot className="w-4 h-4" animated={false} />
+        </span>
+        <span className="grow">
+          <b className="text-sm block">{isEn ? "Black Fighters AI" : "بلاك فايترز AI"}</b>
+          <small className="mono text-[0.7rem] block">
+            {isEn ? "Smart Study Assistant" : "المساعد الدراسي الذكي"}
+          </small>
+        </span>
+        <span className="tag on text-[0.7rem]">AI</span>
       </button>
 
       {/* Friends list */}
       <div className="max-h-[55vh] overflow-y-auto scrollbar-none">
         {friends.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
+          <div className="py-10 text-center" style={{ color: "var(--mute)" }}>
+            <Users className="w-8 h-8 mx-auto mb-2 opacity-40" animated={false} />
             <p className="text-sm">
               {isEn ? "No friends yet — add someone with their ID 👆" : "لسه مفيش أصحاب — ضيف حد بالـ ID 👆"}
             </p>
           </div>
         ) : (
-          friends.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => onSelect(f)}
-              className={`w-full flex items-center gap-3 p-3 transition-colors ${
-                activePeerId === f.id ? "bg-primary/15" : "hover:bg-secondary/40"
-              }`}
-            >
-              <AnimatedAvatar animate={false} src={f.avatar_url} frame={f.profile_frame} size={44} fallback="🎓" />
-              <div className="flex-1 text-start min-w-0">
-                <p className="font-bold text-sm truncate">{f.name}</p>
-                <p className="text-xs text-muted-foreground truncate font-mono">{f.friend_id || ""}</p>
-              </div>
-              <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-            </button>
-          ))
+          friends.map((f) => {
+            const isActive = activePeerId === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => onSelect(f)}
+                className="row px-2 py-3 hover:bg-[var(--paper)] transition-colors text-start"
+                style={{
+                  backgroundColor: isActive ? "color-mix(in srgb, var(--sig) 8%, var(--paper2))" : undefined,
+                  borderInlineStart: isActive ? "3px solid var(--sig)" : undefined,
+                }}
+              >
+                <div className="shrink-0">
+                  <AnimatedAvatar animate={false} src={f.avatar_url} frame={f.profile_frame} size={38} fallback="🎓" />
+                </div>
+                <span className="grow min-w-0">
+                  <b className="text-sm block truncate">{f.name}</b>
+                  <small className="mono text-[0.7rem] block">
+                    {f.friend_id || (isEn ? "Friend" : "صديق")}
+                  </small>
+                </span>
+                <span className="btn sm line">
+                  {isEn ? "Chat" : "شات"}
+                </span>
+              </button>
+            );
+          })
         )}
       </div>
     </div>

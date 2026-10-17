@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Brain, Share2, Trash2, Users, Check, Swords, CheckSquare, Square, Play, Bot } from "lucide-react";
+import { Brain, Share2, Trash2, Users, Check, Swords, CheckSquare, Square, Play, Bot } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import QuizExportButton from "@/components/quiz/QuizExportButton";
 import { cn } from "@/lib/utils";

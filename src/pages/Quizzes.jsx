@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Trash2, ChevronDown, Sparkles } from "lucide-react";
+import { Loader2, Trash2, ChevronDown, FileText } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { TheoryQuizIcon } from "@/components/ui/icons";
 
 import QuizGeneratorPanel from "@/components/quiz/QuizGeneratorPanel";
+import TxtQuizDropzone from "@/components/quiz/TxtQuizDropzone";
 import QuizCard from "@/components/quiz/QuizCard";
 import PullToRefresh from "@/components/PullToRefresh";
 import { useLocale } from "@/lib/LocaleContext";
@@ -21,6 +21,7 @@ export default function Quizzes() {
   const isEn = locale === "en";
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [visibleCount, setVisibleCount] = useState(12);
+  const [txtOpen, setTxtOpen] = useState(false);
 
   // If practical mode was requested via query param, redirect immediately to dedicated practical page
   useEffect(() => {
@@ -74,44 +75,103 @@ export default function Quizzes() {
 
   return (
     <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ["my-quizzes"] })}>
-    <div className="relative max-w-5xl mx-auto overflow-hidden" dir={dir}>
-      {/* خلفية متوهّجة متحركة */}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl"
-        animate={{ scale: [1, 1.3, 1], opacity: [0.25, 0.5, 0.25], x: [0, 30, 0], y: [0, 20, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute top-40 -left-20 w-64 h-64 rounded-full bg-accent/20 blur-3xl"
-        animate={{ scale: [1, 1.25, 1], opacity: [0.2, 0.45, 0.2], x: [0, -25, 0], y: [0, -20, 0] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-      />
+    <div className="max-w-5xl mx-auto space-y-6" dir={dir}>
+      <div className="bf-hd">
+        <span className="mono">
+          {isEn ? "THEORY QUIZ ENGINE" : "إنشاء كويز نظري"}
+        </span>
+        <h1 className="serif">
+          {isEn ? "Quizzes from your " : "كويز من "}
+          <em style={{ color: "var(--sig)" }}>
+            {isEn ? "Materials." : "مادتك."}
+          </em>
+        </h1>
+        <p style={{ color: "var(--mute)", fontSize: "0.92rem" }}>
+          {isEn 
+            ? "Generate and practice exam MCQs extracted with precision from your notes and lectures."
+            : "اختار المصدر ونوع الأسئلة، والكويز يتولد من محتوى الملف مش من معلومات عامة."}
+        </p>
+      </div>
 
+      {/* ── TXT-to-Quiz Express Lane ─────────────────────────── */}
       <motion.div
-        className="flex items-center gap-3 mb-2 relative"
-        initial={{ opacity: 0, y: -24 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 200, damping: 16 }}
+        transition={{ delay: 0.08, type: "spring", stiffness: 220, damping: 22 }}
+        style={{
+          border: "1.5px solid var(--line)",
+          borderRadius: 14,
+          background: "var(--paper2)",
+          overflow: "hidden",
+        }}
       >
-        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-lg shadow-indigo-500/10">
-          <TheoryQuizIcon size={30} />
-        </div>
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 text-[10px] font-mono font-bold tracking-wider mb-1">
-            <Sparkles className="w-3 h-3" />
-            <span>EBE • END BLOCK EXAM</span>
+        {/* header toggle */}
+        <button
+          type="button"
+          onClick={() => setTxtOpen((v) => !v)}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "1rem 1.25rem",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "start",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: ".7rem" }}>
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 34, height: 34,
+              borderRadius: 8,
+              background: "color-mix(in srgb, var(--sig) 12%, transparent)",
+              color: "var(--sig)",
+            }}>
+              <FileText style={{ width: 18, height: 18 }} />
+            </span>
+            <div style={{ textAlign: "start" }}>
+              <p style={{ fontWeight: 900, fontSize: ".95rem", color: "var(--ink)", margin: 0, lineHeight: 1.2 }}>
+                {isEn ? "TXT → Quiz (Instant)" : "TXT → كويز فوري"}
+              </p>
+              <p style={{ fontSize: ".75rem", color: "var(--mute)", margin: 0 }}>
+                {isEn
+                  ? "Drop any .txt file — questions extracted in seconds, 0 credits if Q&A format"
+                  : "حط أي ملف .txt — أسئلة في ثواني، مجاني لو كان بنك أسئلة"}
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground studio-headline-gradient heading-display">
-            {isEn ? "Theory Quiz Generator (EBE)" : "أنشئ كويز نظري (EBE)"}
-          </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-            {isEn 
-              ? "Generate and extract theory MCQs & exam simulations from text, lecture notes and documents"
-              : "امتحانات البلوكات والأسئلة النظرية — توليد واستخراج أسئلة MCQ دقيقة من ملفاتك ومذكراتك لجميع التخصصات"}
-          </p>
-        </div>
+          <ChevronDown
+            style={{
+              width: 18, height: 18,
+              color: "var(--mute)",
+              transform: txtOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform .25s",
+              flexShrink: 0,
+            }}
+          />
+        </button>
+
+        {/* expandable body */}
+        <AnimatePresence initial={false}>
+          {txtOpen && (
+            <motion.div
+              key="txt-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.28, ease: "easeInOut" }}
+              style={{ overflow: "hidden" }}
+            >
+              <div style={{ padding: "0 1.25rem 1.25rem" }}>
+                <TxtQuizDropzone />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       <motion.div

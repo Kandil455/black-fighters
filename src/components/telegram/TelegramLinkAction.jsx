@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Bot, Copy, Check, ExternalLink, LoaderCircle, Link2Off } from "lucide-react";
+import { Bot, Copy, Check, ExternalLink, LoaderCircle, Link2Off } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import {
   createTelegramLinkCode,

@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Clock } from "lucide-react";
+import { Clock } from "@/components/ui/animatedIcons";
 
 function buildSubjectHours(results = []) {
   const map = {};

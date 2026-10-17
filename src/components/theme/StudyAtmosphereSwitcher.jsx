@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Sparkles, Palette, Check, X, Upload, Video, 
   Image as ImageIcon, Trash2, Crown, Plus
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { useStudyTheme, DEFAULT_THEMES } from "@/lib/StudyThemeContext";
 import { cn } from "@/lib/utils";
 import { playClick } from "@/lib/sounds";

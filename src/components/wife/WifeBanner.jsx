@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Crown, Sparkles } from "lucide-react";
+import { Heart, Crown, Sparkles } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 
 const AR_TITLES = ["حبيبتي", "ملكتي 👑", "قلبي ❤️", "روحي ✨"];

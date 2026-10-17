@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { buildTerritoryMapState } from "@/lib/summaryV5/learnerModel";
 import { LVCard, LVBadge } from "@/components/ui/linevault";
 import { cn } from "@/lib/utils";
-import { BookOpen, CheckCircle2, Clock } from "lucide-react";
+import { BookOpen, CheckCircle2, Clock } from "@/components/ui/animatedIcons";
 
 export default function TerritoryMap({
   territories = [],

@@ -1,5 +1,5 @@
 import React from "react";
-import { BookOpen, FolderKanban, Flame, Zap, Brain, Clock } from "lucide-react";
+import { BookOpen, FolderKanban, Flame, Zap, Brain, Clock } from "@/components/ui/animatedIcons";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from '@/api/base44Client';

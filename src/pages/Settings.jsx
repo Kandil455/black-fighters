@@ -4,10 +4,10 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Key, Check, Trash2, Loader2, ExternalLink } from "lucide-react";
+import { Key, Check, Trash2, Loader2, ExternalLink } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { PROVIDERS, getDefaultModel } from "@/lib/models";
-import { testAiKey } from "@/lib/ai";
+import { testAiKey } from "@/lib/testAiKey";
 import ProviderModelPicker from "@/components/settings/ProviderModelPicker";
 import AvatarPicker from "@/components/settings/AvatarPicker";
 import ThemePicker from "@/components/settings/ThemePicker";
@@ -103,15 +103,20 @@ export default function Settings() {
   };
 
   return (
-    <div dir={dir} className="max-w-3xl mx-auto space-y-8">
-      <header className="mb-2">
-        <h1 className="text-2xl font-black sm:text-3xl">{isEn ? "Settings" : "الإعدادات"}</h1>
-        <p className="mt-1.5 text-[13.5px] leading-6 text-muted-foreground">
+    <div dir={dir} className="max-w-3xl mx-auto space-y-8 pb-12">
+      {/* Editorial Header */}
+      <div className="hd mb-6">
+        <span className="mono">{isEn ? "System Settings" : "إعدادات المنصة"}</span>
+        <h1 className="serif">
+          {isEn ? "Fine-tune your " : "اضبط "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "workspace." : "إعداداتك."}</em>
+        </h1>
+        <p style={{ color: "var(--mute)" }}>
           {isEn
-            ? "Your look, language, notifications and account — grouped below."
-            : "شكلك، لغتك، تنبيهاتك، وحسابك — مرتبين تحت في أقسام واضحة."}
+            ? "Your appearance, language, performance, and integrations in one place."
+            : "شكلك، لغتك، أداء المنصة، والربط مع تيليجرام — مرتبين تحت في أقسام واضحة."}
         </p>
-      </header>
+      </div>
 
       {isAlphaAdmin && (
         <>

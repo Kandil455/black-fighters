@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, Eye, CheckCircle2, XCircle } from "lucide-react";
+import { BookOpen, Eye, CheckCircle2, XCircle } from "@/components/ui/animatedIcons";
 import { LVCard, LVBadge } from "@/components/ui/linevault";
 import { cn } from "@/lib/utils";
 

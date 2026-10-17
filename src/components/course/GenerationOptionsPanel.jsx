@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Languages, BookOpen, ListChecks, Table2, CircleHelp, Sigma, Sparkles, Zap } from "lucide-react";
+import { Languages, BookOpen, ListChecks, Table2, CircleHelp, Sigma, Sparkles, Zap } from "@/components/ui/animatedIcons";
 import { PaymentIcon } from "@/components/ui/icons";
 
 const LANGUAGE_OPTIONS = [

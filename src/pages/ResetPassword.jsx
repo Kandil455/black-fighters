@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { LVCard } from "@/components/ui/linevault";
-import { Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, CheckCircle2 } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";

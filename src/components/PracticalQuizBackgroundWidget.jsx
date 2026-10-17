@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2, ChevronRight } from "lucide-react";
+import { Loader2, CheckCircle2, ChevronRight } from "@/components/ui/animatedIcons";
 import { practicalQuizJob } from "@/lib/practicalQuizJob";
 
 export default function PracticalQuizBackgroundWidget() {

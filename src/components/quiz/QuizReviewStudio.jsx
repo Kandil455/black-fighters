@@ -3,14 +3,12 @@ import { motion } from "framer-motion";
 import { 
   CheckCircle2, Circle, AlertTriangle, Trash2, RotateCcw, Plus, 
   Sparkles, ArrowLeft, ShieldAlert, Layers, Loader2
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { FileSaveIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getAiConfig } from "@/api/index";
 import { base44 } from "@/api/base44Client";
-import { callAI } from "@/lib/ai";
 import { checkDistractorSymmetry, reconcileQuestionAnswer } from "@/lib/quizQuality";
 import { playClick, playSuccess } from "@/lib/sounds";
 import { toast } from "sonner";
@@ -159,7 +157,6 @@ export function QuizReviewStudio({
     try {
       playClick();
       setRegeneratingId(id);
-      const aiConfig = await getAiConfig();
 
       const prompt = `أعد صياغة وتوليد هذا السؤال بأسلوب احترافي ودقيق.
 السؤال الحالي: "${targetQ.question}"
@@ -177,7 +174,7 @@ export function QuizReviewStudio({
 سياق المحتوى:
 ${(sourceText || "").slice(0, 4000) || targetQ.question}`;
 
-      const raw = await callAI(aiConfig, [{ role: "user", content: prompt }]);
+      const raw = await base44.functions.invoke("generateText", { prompt });
       const clean = String(raw).replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/i, "").trim();
       const start = clean.indexOf("{");
       const end = clean.lastIndexOf("}");

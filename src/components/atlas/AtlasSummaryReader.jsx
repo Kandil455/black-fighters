@@ -23,7 +23,7 @@ import {
   Moon,
   FileText,
   X,
-} from "lucide-react";
+} from "@/components/ui/animatedIcons";
 import { LVBadge } from "@/components/ui/linevault";
 import { cn } from "@/lib/utils";
 

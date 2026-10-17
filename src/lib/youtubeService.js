@@ -13,14 +13,7 @@ import { apiUrl } from "./apiBase.js";
 
 const getEnvVal = (name) => {
   const p = typeof process !== "undefined" && process?.env;
-  const m = typeof import.meta !== "undefined" && import.meta?.env;
-  return (
-    p?.[name] ||
-    p?.[`VITE_${name}`] ||
-    m?.[name] ||
-    m?.[`VITE_${name}`] ||
-    ""
-  );
+  return p?.[name] || "";
 };
 
 export const DEFAULT_KEY = getEnvVal("GEMINI_API_KEY");
@@ -288,6 +281,9 @@ export async function callGeminiRest(
   modelName = DEFAULT_MODEL,
   maxOutputTokens = 32768
 ) {
+  if (!apiKey) {
+    throw new Error("مفتاح Gemini غير متوفر للاتصال المباشر. يرجى استخدام الخادم للمعالجة.");
+  }
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
   const payload = {
     systemInstruction: {

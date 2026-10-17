@@ -2,11 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { BrandLogo } from "@/components/ui/BrandLogo";
-import { LVCard } from "@/components/ui/linevault";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/authErrors";
 import GoogleIcon from "@/components/GoogleIcon";
@@ -71,129 +67,96 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen bg-[#07080C] flex items-center justify-center px-4 py-10"
+      className="min-h-screen flex flex-col items-center justify-center p-4"
+      style={{ backgroundColor: "var(--paper)", color: "var(--ink)" }}
       dir={dir}
     >
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex justify-center">
-          <BrandLogo size={32} linkTo="/" />
+      {/* Editorial Header */}
+      <div className="hd text-center mb-6">
+        <span className="mono">{isEn ? "ACCOUNT" : "الحساب"}</span>
+        <h1 className="serif">
+          {isEn ? "Sign In & " : "ادخل "}
+          <em style={{ color: "var(--sig)" }}>{isEn ? "Get Started." : "وابدأ."}</em>
+        </h1>
+      </div>
+
+      {/* Auth Card */}
+      <div className="card w-full max-w-md p-6 sm:p-8">
+        {/* Auth Mode Switch */}
+        <div className="tabs justify-center mb-4">
+          <button aria-selected="true" className="font-bold">
+            {isEn ? "Sign In" : "تسجيل الدخول"}
+          </button>
+          <Link to="/register" className="text-muted-foreground hover:text-foreground">
+            <button aria-selected="false">
+              {isEn ? "New Account" : "حساب جديد"}
+            </button>
+          </Link>
         </div>
 
-        <LVCard padding="p-6 sm:p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-[#F2F3F5]">
-              {isEn ? "Sign In" : "تسجيل الدخول"}
-            </h1>
-            <p className="text-xs text-[#9AA0AE] mt-1">
-              {isEn
-                ? "Sign in to access your courses and summaries"
-                : "سجل دخولك للوصول إلى كورساتك وملخصاتك"}
-            </p>
+        <form onSubmit={handleLogin} style={{ display: "grid", gap: 12 }}>
+          <div className="comp">
+            <input
+              type="email"
+              name="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={isEn ? "Email Address" : "البريد الإلكتروني"}
+              required
+              autoComplete="email"
+            />
           </div>
 
-          <Button
+          <div className="comp">
+            <input
+              type={showPass ? "text" : "password"}
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={isEn ? "Password" : "كلمة السر"}
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              className="p-2"
+              style={{ color: "var(--mute)" }}
+            >
+              {showPass ? <EyeOff className="w-4 h-4" animated={false} /> : <Eye className="w-4 h-4" animated={false} />}
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn w-full mt-2"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" animated={false} /> : (isEn ? "Sign In" : "دخول")}
+          </button>
+
+          <div className="flex items-center gap-3 my-2">
+            <div className="flex-1 h-px bg-[var(--line)]" />
+            <span className="mono text-[0.68rem]">{isEn ? "OR" : "أو"}</span>
+            <div className="flex-1 h-px bg-[var(--line)]" />
+          </div>
+
+          <button
             type="button"
             onClick={handleGoogle}
-            variant="outline"
-            className="w-full h-11 gap-2.5 mb-5 font-semibold"
+            className="btn line w-full gap-2"
           >
             <GoogleIcon className="w-4 h-4" />
-            {isEn ? "Continue with Google" : "دخول سريع بـ Google"}
-          </Button>
+            <span>{isEn ? "Continue with Google" : "دخول بـ Google"}</span>
+          </button>
+        </form>
 
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-[#1E222B]" />
-            <span className="text-xs text-[#9AA0AE]">
-              {isEn ? "Or with email" : "أو عبر البريد"}
-            </span>
-            <div className="flex-1 h-px bg-[#1E222B]" />
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="text-xs font-medium text-[#9AA0AE] mb-1.5 block">
-                {isEn ? "Email Address" : "البريد الإلكتروني"}
-              </label>
-              <Input
-                name="email"
-                dir="ltr"
-                type="email"
-                placeholder="example@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5]"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-[#9AA0AE]">
-                  {isEn ? "Password" : "كلمة المرور"}
-                </label>
-                <Link
-                  to="/forgot-password"
-                  className="text-xs text-[#3DDC97] hover:underline font-medium"
-                >
-                  {isEn ? "Forgot password?" : "نسيت كلمة المرور؟"}
-                </Link>
-              </div>
-              <div className="relative">
-                <Input
-                  name="password"
-                  dir="ltr"
-                  type={showPass ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`h-11 bg-[#07080C] border-[#1E222B] rounded-xl focus-visible:border-[#3DDC97] text-[#F2F3F5] ${
-                    isEn ? "pr-11" : "pl-11"
-                  }`}
-                />
-                <button
-                  type="button"
-                  aria-label={
-                    showPass
-                      ? isEn
-                        ? "Hide password"
-                        : "إخفاء كلمة المرور"
-                      : isEn
-                      ? "Show password"
-                      : "إظهار كلمة المرور"
-                  }
-                  onClick={() => setShowPass(!showPass)}
-                  className={`absolute top-0 h-11 w-11 flex items-center justify-center text-[#9AA0AE] hover:text-[#F2F3F5] transition-colors ${
-                    isEn ? "right-0" : "left-0"
-                  }`}
-                >
-                  {showPass ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-11 font-bold text-sm gap-2 mt-2"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {isEn ? "Sign In" : "تسجيل الدخول"}
-            </Button>
-          </form>
-
-          <p className="text-center text-xs text-[#9AA0AE] mt-6">
-            {isEn ? "Don't have an account? " : "ليس لديك حساب؟ "}
-            <Link
-              to="/register"
-              className="text-[#3DDC97] font-semibold hover:underline"
-            >
-              {isEn ? "Create new account" : "إنشاء حساب جديد"}
-            </Link>
-          </p>
-        </LVCard>
+        <p className="text-center text-xs mt-4" style={{ color: "var(--mute)" }}>
+          {isEn ? "Don't have an account? " : "معندكش حساب؟ "}
+          <Link to="/register" className="font-bold underline" style={{ color: "var(--sig)" }}>
+            {isEn ? "Create Account" : "سجل حساب جديد"}
+          </Link>
+        </p>
       </div>
     </div>
   );

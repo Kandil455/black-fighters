@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, RotateCcw, Trophy, Timer, Eye, Download, ChevronLeft, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCcw, Trophy, Timer, Eye, Download, ChevronLeft, Zap } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { base44 } from '@/api/base44Client';

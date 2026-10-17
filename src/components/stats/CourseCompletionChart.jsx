@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { RadialBarChart, RadialBar, ResponsiveContainer, PolarAngleAxis } from "recharts";
-import { Target } from "lucide-react";
+import { Target } from "@/components/ui/animatedIcons";
 
 function buildCourseProgress(courses = [], contents = []) {
   const generatedByCourse = contents.reduce((acc, item) => {

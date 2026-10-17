@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { BookOpenCheck, ChevronRight, ChevronLeft, Lightbulb, GraduationCap, Eye, EyeOff } from "lucide-react";
+import { BookOpenCheck, ChevronRight, ChevronLeft, Lightbulb, GraduationCap, Eye, EyeOff } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 
 // وضع المذاكرة: استعراض الأسئلة مع الإجابة الصحيحة وشرحها مباشرة — بدون مؤقت ولا درجات.

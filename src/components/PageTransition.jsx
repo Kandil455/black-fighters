@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { playSwoosh } from "@/lib/sounds";
 import PageLoader from "@/components/PageLoader";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import "@/design/page-motion.css";
 
 /**
  * Instant Zero-Jank Page Transition
@@ -21,7 +22,7 @@ export default function PageTransition() {
   return (
     <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
-        <div key={location.pathname} className="w-full">
+        <div key={location.pathname} className="w-full bf-page">
           <Outlet />
         </div>
       </Suspense>

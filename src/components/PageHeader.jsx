@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/components/ui/animatedIcons";
 
 /**
  * Consistent page header with an RTL back button (navigate(-1)).

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { base44 } from "@/api/base44Client";
-import { Send, Loader2, Sparkles, Plus, BrainCircuit, FileCog, Trophy, LayoutDashboard, X, Bot } from "lucide-react";
+import { Send, Loader2, Sparkles, Plus, BrainCircuit, FileCog, Trophy, LayoutDashboard, X, Bot } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import { cn } from "@/lib/utils";
 

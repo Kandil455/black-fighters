@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Check, X, ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
+import { Check, X, ChevronLeft, ChevronRight, Clock, Loader2 } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/LocaleContext";
 

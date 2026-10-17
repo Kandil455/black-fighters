@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Loader2, Trash2, Send, ExternalLink, Slack } from "lucide-react";
+import { Check, Loader2, Trash2, Send, ExternalLink, Slack } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { GoogleDriveIcon } from "@/components/ui/icons";
 import {

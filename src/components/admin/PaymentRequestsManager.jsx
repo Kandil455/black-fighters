@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Check, RefreshCw, Copy, ExternalLink, Clock, Trash2 } from "lucide-react";
+import { Loader2, Check, RefreshCw, Copy, ExternalLink, Clock, Trash2 } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { PAYMENT_INFO } from "@/lib/paymentInfo";
 import { db } from "@/lib/firebaseDb";

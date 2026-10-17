@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, X, Trash2, Loader2, Copy, Check, Mic, Square, Sparkles, Shirt, Gift } from "lucide-react";
+import { Send, X, Trash2, Loader2, Copy, Check, Mic, Square, Sparkles, Shirt, Gift } from "@/components/ui/animatedIcons";
 import { cn } from "@/lib/utils";
 import ChatMarkdown from "@/components/course/ChatMarkdown.jsx";
 import { SpeakButton, useSpeechInput } from "@/components/course/VoiceControls.jsx";

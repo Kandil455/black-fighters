@@ -2,7 +2,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Clock, CheckCircle2, XCircle, Copy, Loader2 } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Copy, Loader2 } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import { PAYMENT_INFO } from "@/lib/paymentInfo";
 import { useLocale } from "@/lib/LocaleContext";

@@ -2,13 +2,11 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import NeonBackground from "@/components/NeonBackground";
 import PageLoader from "@/components/PageLoader";
 import ChallengeLobby from "@/components/challenge/ChallengeLobby";
 import ChallengeQuiz from "@/components/challenge/ChallengeQuiz";
 import ChallengeResult from "@/components/challenge/ChallengeResult";
-import { Button } from "@/components/ui/button";
-import { Brain, LogIn, AlertTriangle } from "lucide-react";
+import { Brain, LogIn, AlertTriangle } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import { db } from "@/lib/firebaseDb";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
@@ -222,15 +220,14 @@ export default function ChallengeRoom() {
 
   if (!isAuthenticated) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center px-4" dir={dir}>
-        <NeonBackground />
-        <div className="relative z-10 glass-card rounded-3xl p-8 text-center border border-accent/20 max-w-sm">
-          <Brain className="w-14 h-14 text-accent mx-auto mb-4" />
-          <h1 className="text-xl font-black mb-2">{isEn ? "Challenge Awaiting! ⚔️" : "تحدّي في انتظارك! ⚔️"}</h1>
-          <p className="text-muted-foreground text-sm mb-6">{isEn ? "Sign in to enter the challenge room and play." : "سجّل دخولك عشان تدخل الغرفة وتلعب."}</p>
-          <Button onClick={() => redirectToLogin(window.location.pathname)} className="w-full h-11 font-bold gap-2">
-            <LogIn className="w-4 h-4" /> {isEn ? "Sign in & Enter" : "سجّل دخول وادخل"}
-          </Button>
+      <div className="min-h-screen flex items-center justify-center px-4" dir={dir} style={{ backgroundColor: "var(--paper)", color: "var(--ink)" }}>
+        <div className="card text-center p-8 max-w-sm">
+          <Brain className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--sig)" }} animated={false} />
+          <h1 className="serif text-2xl font-bold mb-2">{isEn ? "Challenge Awaiting! ⚔️" : "تحدّي في انتظارك! ⚔️"}</h1>
+          <p className="text-sm mb-6" style={{ color: "var(--mute)" }}>{isEn ? "Sign in to enter the challenge room and play." : "سجّل دخولك عشان تدخل الغرفة وتلعب."}</p>
+          <button onClick={() => redirectToLogin(window.location.pathname)} className="btn w-full gap-2">
+            <LogIn className="w-4 h-4" animated={false} /> {isEn ? "Sign in & Enter" : "سجّل دخول وادخل"}
+          </button>
         </div>
       </div>
     );
@@ -240,12 +237,11 @@ export default function ChallengeRoom() {
 
   if (error || !challenge) {
     return (
-      <div className="relative min-h-screen flex items-center justify-center px-4" dir={dir}>
-        <NeonBackground />
-        <div className="relative z-10 glass-card rounded-3xl p-10 text-center border border-destructive/30 max-w-sm">
-          <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-3" />
-          <h2 className="text-lg font-black mb-1">{isEn ? "Room Not Found" : "الغرفة مش موجودة"}</h2>
-          <p className="text-muted-foreground text-sm">{isEn ? "It might be closed or the link is incorrect." : "يمكن تكون اتقفلت أو اللينك غلط."}</p>
+      <div className="min-h-screen flex items-center justify-center px-4" dir={dir} style={{ backgroundColor: "var(--paper)", color: "var(--ink)" }}>
+        <div className="card text-center p-8 max-w-sm">
+          <AlertTriangle className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--bad)" }} animated={false} />
+          <h2 className="serif text-xl font-bold mb-1">{isEn ? "Room Not Found" : "الغرفة مش موجودة"}</h2>
+          <p className="text-sm" style={{ color: "var(--mute)" }}>{isEn ? "It might be closed or the link is incorrect." : "يمكن تكون اتقفلت أو اللينك غلط."}</p>
         </div>
       </div>
     );
@@ -256,18 +252,17 @@ export default function ChallengeRoom() {
   const isHost = challenge.host_id === me?.id;
 
   return (
-    <div className="relative min-h-screen px-4 py-8 sm:py-12" dir={dir}>
-      <NeonBackground />
-      <div className="relative z-10">
+    <div className="min-h-screen px-4 py-8 sm:py-12" dir={dir} style={{ backgroundColor: "var(--paper)", color: "var(--ink)" }}>
+      <div>
         {challenge.status === "finished" ? (
           <ChallengeResult challenge={challenge} myId={me?.id} />
         ) : challenge.status === "active" ? (
           myEntry?.finished ? (
             <div className="text-center py-20 max-w-md mx-auto">
-              <div className="glass-card rounded-3xl p-8 border border-accent/20">
-                <Brain className="w-12 h-12 text-accent mx-auto mb-3 animate-pulse" />
-                <p className="font-black text-lg mb-1">{isEn ? "Finished! 🎯" : "خلّصت! 🎯"}</p>
-                <p className="text-sm text-muted-foreground">{isEn ? "Waiting for the opponent to finish to reveal live results." : "في انتظار اللاعب التاني يخلّص عشان تشوفوا النتيجة مع بعض."}</p>
+              <div className="card p-8">
+                <Brain className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--sig)" }} animated={false} />
+                <h2 className="serif text-2xl font-bold mb-1">{isEn ? "Finished! 🎯" : "خلّصت! 🎯"}</h2>
+                <p className="text-sm" style={{ color: "var(--mute)" }}>{isEn ? "Waiting for the opponent to finish to reveal live results." : "في انتظار اللاعب التاني يخلّص عشان تشوفوا النتيجة مع بعض."}</p>
               </div>
             </div>
           ) : (

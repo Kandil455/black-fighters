@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Clock, CheckSquare } from "lucide-react";
+import { Clock, CheckSquare } from "@/components/ui/animatedIcons";
 
 // Build last-14-days series, filling missing days with zeros
 function buildSeries(activities) {

@@ -14,7 +14,7 @@ const SUMMARY_TEXT_SLICE = 24000;
 
 function cleanInstruction(value) {
   const text = String(value || "")
-    // eslint-disable-next-line no-control-regex
+     
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, " ")
     .trim();
   if (!text) throw new Error("INVALID_INSTRUCTION");

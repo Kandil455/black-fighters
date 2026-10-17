@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Youtube, Sparkles, Loader2, PlayCircle, AlertCircle, Crown } from "lucide-react";
+import { Youtube, Sparkles, Loader2, PlayCircle, AlertCircle, Crown } from "@/components/ui/animatedIcons";
 import { useLocale } from "@/lib/LocaleContext";
 import { useAuth } from "@/lib/AuthContext";
 import { fetchYouTubeTranscript, extractYouTubeId } from "@/lib/youtubeService";

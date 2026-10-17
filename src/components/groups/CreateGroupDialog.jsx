@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check } from "@/components/ui/animatedIcons";
 import { toast } from "sonner";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { useLocale } from "@/lib/LocaleContext";

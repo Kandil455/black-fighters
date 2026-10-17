@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { BookOpenCheck, Play, Shuffle, Timer } from "lucide-react";
+import { BookOpenCheck, Play, Shuffle, Timer } from "@/components/ui/animatedIcons";
 
 // Quick setup screen shown BEFORE the quiz starts.
 export default function QuizPrep({ quiz, onStart }) {

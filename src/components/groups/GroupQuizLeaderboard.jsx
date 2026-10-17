@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Crown, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { Crown, Clock, CheckCircle2, Loader2 } from "@/components/ui/animatedIcons";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 
 const MEDALS = ["🥇", "🥈", "🥉"];

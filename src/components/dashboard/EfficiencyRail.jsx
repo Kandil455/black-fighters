@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Bolt, BrainCircuit, TimerReset } from "lucide-react";
+import { ArrowLeft, Bolt, BrainCircuit, TimerReset } from "@/components/ui/animatedIcons";
 
 export default function EfficiencyRail({ courses }) {
   const newest = courses[0];

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from '@/api/base44Client';
 import { Button } from "@/components/ui/button";
-import { BellRing, CheckCircle2 } from "lucide-react";
+import { BellRing, CheckCircle2 } from "@/components/ui/animatedIcons";
 import { format } from "date-fns";
 
 const reminderTime = (reminder) => reminder.reminder_datetime || (reminder.reminder_date ? `${reminder.reminder_date}T${reminder.reminder_time || "00:00"}:00` : "");

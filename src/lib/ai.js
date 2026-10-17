@@ -7,29 +7,27 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { localAnalyzeQuizSource, normalizeQuizResult, reconcileQuestionAnswer, QUIZ_MAX_QUESTIONS, detectLanguage, detectSubject, getRecommendedQuizLanguage } from "./quizQuality.js";
-// ─── Environment Resolver (Vite + Node safe) ─────────────────────────────────
-const env = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env : (typeof process !== "undefined" ? process.env : {});
+// ─── Environment Resolver (Node / Serverless safe only) ──────────────────────
+const getEnvKey = (k) => (typeof process !== "undefined" && process?.env ? process.env[k] || "" : "");
 
-const getEnvKey = (k) => env[k] || (typeof process !== "undefined" ? process.env?.[k] : "") || "";
-
-export const DEFAULT_GEMINI_KEY = getEnvKey("GEMINI_API_KEY") || getEnvKey("VITE_GEMINI_API_KEY") || "";
+export const DEFAULT_GEMINI_KEY = getEnvKey("GEMINI_API_KEY");
 export const GEMINI_KEYS_POOL = [
-  getEnvKey("GEMINI_API_KEY") || getEnvKey("VITE_GEMINI_API_KEY") || "",
-  ...((getEnvKey("GEMINI_BACKUP_KEYS") || getEnvKey("VITE_GEMINI_BACKUP_KEYS") || "").split(",").map(k => k.trim()))
+  getEnvKey("GEMINI_API_KEY"),
+  ...((getEnvKey("GEMINI_BACKUP_KEYS") || "").split(",").map(k => k.trim()))
 ].filter((k) => k && !k.startsWith("AQ."));
 
-export const DEFAULT_ZAI_KEY = getEnvKey("ZAI_API_KEY") || (typeof process !== "undefined" ? process.env?.ZAI_API_KEY : "") || "";
+export const DEFAULT_ZAI_KEY = getEnvKey("ZAI_API_KEY");
 export const ZAI_BASE_URL = "https://api.z.ai/api/paas/v4";
 export const ZAI_VISION_MODEL = "glm-4.6v-flash";
 
-export const DEFAULT_APMIX_KEY = getEnvKey("APMIX_KEY") || getEnvKey("VITE_APMIX_KEY") || "";
+export const DEFAULT_APMIX_KEY = getEnvKey("APMIX_KEY");
 export const APMIX_BASE_URL = "https://api.apmix.ai/v1";
 
-export const DEFAULT_GROQ_KEY = getEnvKey("GROQ_API_KEY") || getEnvKey("VITE_GROQ_API_KEY");
-export const DEFAULT_OPENROUTER_KEY = getEnvKey("OPENROUTER_API_KEY") || getEnvKey("VITE_OPENROUTER_API_KEY");
+export const DEFAULT_GROQ_KEY = getEnvKey("GROQ_API_KEY");
+export const DEFAULT_OPENROUTER_KEY = getEnvKey("OPENROUTER_API_KEY");
 export const POLLINATIONS_BASE_URL = "https://text.pollinations.ai/openai";
 
-export const DEFAULT_CODECRAFT_KEY = env.VITE_CODECRAFT_KEY || "";
+export const DEFAULT_CODECRAFT_KEY = getEnvKey("CODECRAFT_KEY");
 export const CODECRAFT_BASE_URL = "https://codecraftapi.com/v1";
 
 export const DEFAULT_MODELS = {
@@ -837,74 +835,7 @@ export async function chatText(history, message, config) {
   return callAI(taskConfig(config, { temperature: config?.temperature ?? 0.45 }), messages, SYSTEM_PROMPTS.chat);
 }
 
-/**
- * Validate an API key by making a lightweight request to the provider.
- * Throws an error if invalid, returns true if valid.
- */
-export async function testAiKey(provider, apiKey) {
-  if (!apiKey) throw new Error("مفتاح الـ API فارغ");
-  if (apiKey.includes("•")) return true; // It's masked, assume it was already tested and valid
-
-  try {
-    if (provider === "codecraft") {
-      const res = await fetch("https://codecraftapi.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-          "User-Agent": "curl/7.88.1",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-5",
-          messages: [{ role: "user", content: "ping" }],
-          max_tokens: 5,
-        }),
-      });
-      if (!res.ok) throw new Error("مفتاح CodeCraft غير صالح أو لا يمكن الوصول للسيرفر");
-      return true;
-    }
-
-    if (provider === "openrouter") {
-      const res = await fetch("https://openrouter.ai/api/v1/auth/key", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || "مفتاح OpenRouter غير صالح");
-      }
-      return true;
-    } 
-    
-    if (provider === "groq") {
-      const res = await fetch("https://api.groq.com/openai/v1/models", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
-      });
-      if (!res.ok) throw new Error("مفتاح Groq غير صالح");
-      return true;
-    }
-
-    if (provider === "apmix") {
-      const res = await fetch("https://api.apmix.ai/v1/models", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
-      });
-      if (!res.ok) throw new Error("مفتاح APMIX غير صالح");
-      return true;
-    }
-
-    if (provider === "gemini") {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-      if (!res.ok) throw new Error("مفتاح Gemini غير صالح");
-      return true;
-    }
-
-    return true;
-  } catch (e) {
-    if (e.message.includes("ISO-8859-1") || e.message.includes("Failed to execute 'fetch'")) {
-      throw new Error("المفتاح يحتوي على رموز غير صالحة (ربما أحرف عربية أو مسافات).");
-    }
-    throw e;
-  }
-}
+export { testAiKey } from "./testAiKey.js";
 
 // ─── Prompts Library ─────────────────────────────────────────────────────────
 
