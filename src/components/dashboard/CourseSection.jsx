@@ -14,22 +14,31 @@ const containerVariants = {
 export default function CourseSection({
   title,
   subtitle,
-  icon: Icon,
+  icon,
+  subject,
   courses,
   badge,
   emptyText,
   currentUserId,
   isAdmin = false,
   onChanged,
+  onDelete,
+  folders,
+  onMoveToFolder,
+  onChangeSubject,
+  onPurchase,
   selectMode = false,
   selectedIds = new Set(),
   onToggleSelect,
 }) {
+  const effectiveTitle = title || subject?.label || subject?.labelEn || "المقررات";
+  const EffectiveIcon = icon || subject?.icon || BookOpen;
+
   if (!courses || courses.length === 0) {
     if (!emptyText) return null;
     return (
       <div className="space-y-3">
-        <Header title={title} subtitle={subtitle} Icon={Icon} count={0} badge={badge} />
+        <Header title={effectiveTitle} subtitle={subtitle} Icon={EffectiveIcon} count={0} badge={badge} />
         <GlassCard variant="subtle" className="p-8 text-center text-muted-foreground text-sm">
           {emptyText}
         </GlassCard>
@@ -40,9 +49,9 @@ export default function CourseSection({
   return (
     <section className="space-y-4">
       <Header
-        title={title}
+        title={effectiveTitle}
         subtitle={subtitle}
-        Icon={Icon}
+        Icon={EffectiveIcon}
         count={courses.length}
         badge={badge}
       />
@@ -59,6 +68,12 @@ export default function CourseSection({
             index={i}
             canManage={isAdmin || course.created_by_id === currentUserId}
             onChanged={onChanged}
+            onDelete={onDelete}
+            folders={folders}
+            onMoveToFolder={onMoveToFolder}
+            onChangeSubject={onChangeSubject}
+            onPurchase={onPurchase}
+            isAdmin={isAdmin}
             selectMode={selectMode}
             selected={selectedIds.has(course.id)}
             onToggleSelect={onToggleSelect}

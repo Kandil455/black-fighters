@@ -432,28 +432,34 @@ export default function Dashboard() {
             {isEn ? "All Lectures" : "كل المقررات"} ({courses.length})
           </button>
 
-          {subjectGroups.map((group) => (
-            <button
-              key={group.key}
-              type="button"
-              onClick={() => {
-                setSelectedSubject(
-                  selectedSubject === group.key ? "all" : group.key
-                );
-              }}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border inline-flex items-center gap-1.5 cursor-pointer",
-                selectedSubject === group.key
-                  ? "bg-[#19f08c]/15 text-[#19f08c] border-[#19f08c]/40 font-semibold"
-                  : "bg-[#090c11] text-[#9aa4b2] border-white/10 hover:text-[#f5f7fa]"
-              )}
-            >
-              <span>{isEn ? group.meta.labelEn || group.meta.label : group.meta.label}</span>
-              <span className="text-[10px] font-mono opacity-75">
-                {group.courses.length}
-              </span>
-            </button>
-          ))}
+          {subjectGroups.map((group) => {
+            const meta = group.meta || group;
+            const groupLabel = isEn
+              ? meta?.labelEn || meta?.label || group.label || group.key
+              : meta?.label || group.label || group.key;
+            return (
+              <button
+                key={group.key}
+                type="button"
+                onClick={() => {
+                  setSelectedSubject(
+                    selectedSubject === group.key ? "all" : group.key
+                  );
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border inline-flex items-center gap-1.5 cursor-pointer",
+                  selectedSubject === group.key
+                    ? "bg-[#19f08c]/15 text-[#19f08c] border-[#19f08c]/40 font-semibold"
+                    : "bg-[#090c11] text-[#9aa4b2] border-white/10 hover:text-[#f5f7fa]"
+                )}
+              >
+                <span>{groupLabel}</span>
+                <span className="text-[10px] font-mono opacity-75">
+                  {group.courses?.length || 0}
+                </span>
+              </button>
+            );
+          })}
 
           {folders.map((folder) => (
             <button
@@ -554,19 +560,27 @@ export default function Dashboard() {
           />
         ) : viewMode === "subjects" && selectedSubject === "all" ? (
           <div className="space-y-6">
-            {subjectGroups.map((group) => (
-              <CourseSection
-                key={group.key}
-                subject={group.meta}
-                courses={group.courses}
-                onDelete={handleDeleteCourse}
-                folders={folders}
-                onMoveToFolder={handleMoveToFolder}
-                onChangeSubject={handleChangeSubject}
-                onPurchase={handlePurchaseCourse}
-                isAdmin={isAdmin}
-              />
-            ))}
+            {subjectGroups.map((group) => {
+              const meta = group.meta || group;
+              const sectionTitle = isEn
+                ? meta?.labelEn || meta?.label || group.label || group.key
+                : meta?.label || group.label || group.key;
+              return (
+                <CourseSection
+                  key={group.key}
+                  title={sectionTitle}
+                  icon={meta?.icon || group.icon}
+                  subject={meta}
+                  courses={group.courses}
+                  onDelete={handleDeleteCourse}
+                  folders={folders}
+                  onMoveToFolder={handleMoveToFolder}
+                  onChangeSubject={handleChangeSubject}
+                  onPurchase={handlePurchaseCourse}
+                  isAdmin={isAdmin}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

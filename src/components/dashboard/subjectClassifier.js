@@ -17,56 +17,67 @@ export const SUBJECT_META = {
   medicine: {
     key: "medicine",
     label: "باطنة وطب عام (Internal Medicine)",
+    labelEn: "Internal Medicine",
     icon: Stethoscope,
   },
   pharmacology: {
     key: "pharmacology",
     label: "فارماكولوجي وأدوية (Pharmacology)",
+    labelEn: "Pharmacology",
     icon: Pill,
   },
   cardiology: {
     key: "cardiology",
     label: "القلب والأوعية (Cardiology)",
+    labelEn: "Cardiology",
     icon: HeartPulse,
   },
   pathology: {
     key: "pathology",
     label: "باثولوجي وأمراض (Pathology)",
+    labelEn: "Pathology",
     icon: Microscope,
   },
   neurology: {
     key: "neurology",
     label: "مخ وأعصاب وفسيولوجي (Neuro & Physio)",
+    labelEn: "Neurology & Physiology",
     icon: Brain,
   },
   biochemistry: {
     key: "biochemistry",
     label: "كيمياء حيوية وجينات (Biochemistry)",
+    labelEn: "Biochemistry & Genetics",
     icon: Dna,
   },
   surgery: {
     key: "surgery",
     label: "جراحة وطوارئ (Surgery & ER)",
+    labelEn: "Surgery & Emergency",
     icon: Activity,
   },
   microbiology: {
     key: "microbiology",
     label: "ميكروبيولوجي ومناعة (Microbiology)",
+    labelEn: "Microbiology & Immunology",
     icon: FlaskConical,
   },
   cs: {
     key: "cs",
     label: "علوم حاسب وبرمجة (Computer Science)",
+    labelEn: "Computer Science",
     icon: Code2,
   },
   math: {
     key: "math",
     label: "رياضيات وهندسة (Math & Engineering)",
+    labelEn: "Math & Engineering",
     icon: Calculator,
   },
   general: {
     key: "general",
     label: "محاضرات ومقررات عامة",
+    labelEn: "General Lectures",
     icon: GraduationCap,
   },
 };
@@ -116,7 +127,7 @@ const KEYWORD_RULES = [
 
 export function classifyCourseSubject(course) {
   if (!course) return "general";
-  const explicit = String(course.subject || "").trim().toLowerCase();
+  const explicit = String(course.subject_override || course.subject || "").trim().toLowerCase();
   if (explicit && SUBJECT_META[explicit]) {
     return explicit;
   }
@@ -135,6 +146,7 @@ export function getSubjectMeta(course) {
     SUBJECT_META[key] || {
       key: "general",
       label: course?.subject || "محاضرات عامة",
+      labelEn: course?.subject || "General Lectures",
       icon: BookOpen,
     }
   );
@@ -148,7 +160,9 @@ export function groupCoursesBySubject(courses = []) {
       map.set(meta.key, {
         key: meta.key,
         label: meta.label,
+        labelEn: meta.labelEn || meta.label,
         icon: meta.icon,
+        meta,
         courses: [],
       });
     }
