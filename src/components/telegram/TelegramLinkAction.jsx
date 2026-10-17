@@ -9,13 +9,6 @@ import {
 import { useLocale } from "@/lib/LocaleContext";
 import { cn } from "@/lib/utils";
 
-/**
- * TelegramLinkAction — the single account-linking control.
- *
- * Flow: request a short-lived code → show it (copyable) → open the bot with the
- * code prefilled → the bot redeems it server-side. No uid is ever placed in a
- * deep link (see netlify/functions/_shared/telegram-link.mjs).
- */
 export default function TelegramLinkAction({
   linked = false,
   onChange,
@@ -44,9 +37,13 @@ export default function TelegramLinkAction({
       setDeepLink(result.deepLink);
       setSecondsLeft(Math.round((result.ttlMs || 600000) / 1000));
       openTelegramLink(result.deepLink);
-      toast.success(isEn ? "Code created — send it to the bot" : "تم إنشاء الكود — ابعته للبوت");
+      toast.success(
+        isEn ? "Code created — send it to the bot" : "تم إنشاء الكود — ابعته للبوت"
+      );
     } catch (err) {
-      toast.error(err?.message || (isEn ? "Could not create a link code" : "تعذر إنشاء كود الربط"));
+      toast.error(
+        err?.message || (isEn ? "Could not create a link code" : "تعذر إنشاء كود الربط")
+      );
     } finally {
       setPending(false);
     }
@@ -59,7 +56,9 @@ export default function TelegramLinkAction({
       setCopied(true);
       setTimeout(() => setCopied(false), 1600);
     } catch {
-      toast.error(isEn ? "Copy failed — select the code manually" : "تعذر النسخ — انسخ الكود يدويًا");
+      toast.error(
+        isEn ? "Copy failed — select the code manually" : "تعذر النسخ — انسخ الكود يدويًا"
+      );
     }
   }, [code, isEn]);
 
@@ -88,11 +87,15 @@ export default function TelegramLinkAction({
         onClick={handleLink}
         disabled={pending}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/15 disabled:opacity-60",
-          className,
+          "inline-flex items-center gap-1.5 rounded-xl border border-[#19f08c]/35 bg-[#19f08c]/10 px-2.5 py-1.5 text-[11px] font-bold text-[#19f08c] transition-colors hover:bg-[#19f08c]/15 disabled:opacity-60 cursor-pointer",
+          className
         )}
       >
-        {pending ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+        {pending ? (
+          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Bot className="h-3.5 w-3.5" />
+        )}
         {isEn ? "Link Telegram" : "ربط تيليجرام"}
       </button>
     );
@@ -101,41 +104,45 @@ export default function TelegramLinkAction({
   return (
     <div className={cn("space-y-2.5", className)}>
       {code ? (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+        <div className="rounded-xl border border-[#19f08c]/35 bg-[#19f08c]/[0.06] p-3.5 space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-muted-foreground">
-              {isEn ? "Send this code to the bot" : "ابعت الكود ده للبوت"}
+            <span className="text-[11px] font-bold text-[#9aa4b2]">
+              {isEn ? "Send this code to @black_fighters_bot" : "ابعت الكود ده لبوت @black_fighters_bot"}
             </span>
             {secondsLeft > 0 && (
-              <span className="font-mono text-[11px] text-muted-foreground">
+              <span className="font-mono text-[11px] text-[#19f08c] tabular">
                 {minutes}:{seconds}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <code className="flex-1 select-all rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-lg font-black tracking-[0.25em] text-primary">
+            <code className="flex-1 select-all rounded-lg border border-white/[0.1] bg-[#05070a] px-3 py-2 text-center font-mono text-lg font-black tracking-[0.25em] text-[#19f08c]">
               {code}
             </code>
             <button
               type="button"
               onClick={handleCopy}
-              className="rounded-lg border border-border bg-background p-2 transition hover:border-primary/40"
+              className="rounded-lg border border-white/[0.1] bg-[#05070a] p-2.5 transition-colors hover:border-[#19f08c]/40 cursor-pointer"
               aria-label={isEn ? "Copy code" : "نسخ الكود"}
             >
-              {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+              {copied ? (
+                <Check className="h-4 w-4 text-[#19f08c]" />
+              ) : (
+                <Copy className="h-4 w-4 text-[#9aa4b2]" />
+              )}
             </button>
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-[11px] leading-relaxed text-[#9aa4b2]">
             {isEn ? "In the bot, send: " : "جوه البوت اكتب: "}
-            <code className="font-mono text-foreground">/link {code}</code>
+            <code className="font-mono text-[#f5f7fa]">/link {code}</code>
           </p>
           <button
             type="button"
             onClick={() => openTelegramLink(deepLink)}
-            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary hover:underline"
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#19f08c] hover:underline cursor-pointer"
           >
             <ExternalLink className="h-3 w-3" />
-            {isEn ? "Open the bot again" : "افتح البوت تاني"}
+            {isEn ? "Open the bot again" : "افتح البوت مباشرة"}
           </button>
         </div>
       ) : null}
@@ -145,12 +152,20 @@ export default function TelegramLinkAction({
           type="button"
           onClick={handleLink}
           disabled={pending}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground shadow-md shadow-primary/20 transition hover:opacity-90 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-[#19f08c] px-3.5 py-2 text-xs font-black text-[#03150c] btn-primary-glow transition-colors hover:bg-[#19f08c]/90 disabled:opacity-60 cursor-pointer"
         >
-          {pending ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Bot className="h-3.5 w-3.5" />}
+          {pending ? (
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Bot className="h-3.5 w-3.5" />
+          )}
           {linked
-            ? (isEn ? "Get a new link code" : "كود ربط جديد")
-            : (isEn ? "Link via Telegram" : "ربط الحساب عبر التيليجرام")}
+            ? isEn
+              ? "Get a new link code"
+              : "توليد كود ربط جديد"
+            : isEn
+            ? "Link via Telegram"
+            : "ربط الحساب عبر التيليجرام"}
         </button>
 
         {linked && (
@@ -158,7 +173,7 @@ export default function TelegramLinkAction({
             type="button"
             onClick={handleUnlink}
             disabled={pending}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-bold text-muted-foreground transition hover:border-destructive/40 hover:text-destructive disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 py-2 text-xs font-bold text-[#9aa4b2] transition-colors hover:border-[#ef4444]/40 hover:text-[#ef4444] disabled:opacity-60 cursor-pointer"
           >
             <Link2Off className="h-3.5 w-3.5" />
             {isEn ? "Unlink" : "فصل الحساب"}

@@ -10,6 +10,11 @@ const MESSAGES = {
     account: "حسابي",
     tools: "أدوات",
     courses: "مذكراتي ومحاضراتي",
+    myCourses: "مقرراتي ومحاضراتي",
+    loadingCourses: "جاري تحميل مقرراتك ومحاضراتك...",
+    noMatchingCourses: "لا توجد مقررات مطابقة للبحث",
+    noMatchingDesc: "جرّب البحث بكلمة أخرى أو إعادة ضبط الفلاتر لعرض جميع المحاضرات.",
+    resetFilters: "إعادة ضبط الفلاتر",
     create: "تلخيص محاضرة جديدة",
     quizzes: "الكويزات والتقييم",
     review: "استوديو المراجعة",
@@ -31,6 +36,8 @@ const MESSAGES = {
     logout: "تسجيل الخروج",
     studentDefault: "طالب متميز",
     proBadge: "برو",
+    lightMode: "الوضع الفاتح",
+    darkMode: "الوضع الليلي",
 
     // Dashboard Hero & Metrics
     welcomeHero: "أهلاً بك،",
@@ -53,10 +60,10 @@ const MESSAGES = {
     uploadFirstLecture: "ارفع أول ملف دلوقتي",
 
     // Smart Daily Plan
-    dailyFocusBadge: "مراجعة اليوم السريعة ⚡",
-    dailyFocusTitle: "مراجعة سريعة قبل ما تبدأ 🎯",
+    dailyFocusBadge: "مراجعة اليوم السريعة",
+    dailyFocusTitle: "مراجعة سريعة قبل ما تبدأ",
     dailyFocusDesc: "مجهزين لك كروت مراجعة مستحقة وأسئلة سريعة لتثبيت المعلومة ومواصلة الستريك.",
-    startFocusSession: "ابدأ المراجعة (5 دقائق) ⚡",
+    startFocusSession: "ابدأ المراجعة (5 دقائق)",
     closeSession: "إغلاق الجلسة",
 
     // Course Card
@@ -68,21 +75,21 @@ const MESSAGES = {
     quizBadge: "كويز",
     summaryBadge: "ملخص",
     flashcardsBadge: "بطاقات",
-    defaultCourseDesc: "ملخص محاضرة دراسية",
+    defaultCourseDesc: "ملخص محاضرة دراسية منظم مع أسئلة ومراجعة ذكية",
 
     // Landing Page
     landingHeroBadge: "الجيل الجديد من منصات المذاكرة الذكية",
-    landingHeroTitle: "حوّل أي محاضرة أو PDF لكورس تفاعلي بضغطة زر ⚡",
-    landingHeroSubtitle: "ارفع مذكرتك — وخلي النظام يحوّلها لملخص، كويز، وبطاقات مراجعة. أنت بس ذاكر، والباقي علينا.",
+    landingHeroTitle: "حوّل أي محاضرة أو PDF لمذكرة ذكية وكويز تفاعلي في ثوانٍ",
+    landingHeroSubtitle: "ارفع محاضرتك — وسيقوم النظام بتحويلها إلى بطاقات مفاهيم منظمة، جداول مقارنات، تنبيهات امتحانات، وكويزات تدريبية.",
     startBattleCTA: "ابدأ المذاكرة مجاناً",
-    uploadNotesNowCTA: "ارفع مذكرتك دلوقتي",
-    registeredFighters: "طالب بيذاكر معانا",
-    retentionRate: "نسبة الفهم الفعلي",
+    uploadNotesNowCTA: "ارفع مذكرتك الآن",
+    registeredFighters: "طالب يذاكر معنا",
+    retentionRate: "نسبة استبقاء المعلومة",
     summaryTime: "سرعة التلخيص",
-    howItWorksTitle: "إزاي المنصة بتشتغل",
-    howItWorksSubtitle: "ثلاث خطوات بسيطة تضمنلك مذاكرة أسرع وفهم أعلى",
-    featuresTitle: "كل الأدوات اللي هتحتاجها في مكان واحد",
-    featuresSubtitle: "كل اللي يلزمك لمذاكرة ذكية بدون تشتيت أو تعقيد",
+    howItWorksTitle: "كيف تعمل المنصة",
+    howItWorksSubtitle: "ثلاث خطوات مدروسة تضمن لك مذاكرة أسرع واستيعاباً أعمق",
+    featuresTitle: "كل أدوات المذاكرة الذكية في مكان واحد",
+    featuresSubtitle: "بيئة مذاكرة متكاملة مصممة للتركيز العالي بدون تشتيت بصري",
 
     // Save & Actions
     save: "حفظ",
@@ -107,6 +114,11 @@ const MESSAGES = {
     account: "Account",
     tools: "Tools",
     courses: "My Lectures & Notes",
+    myCourses: "My Courses & Lectures",
+    loadingCourses: "Loading your courses and lectures...",
+    noMatchingCourses: "No matching courses found",
+    noMatchingDesc: "Try searching with a different keyword or reset the filters to view all lectures.",
+    resetFilters: "Reset Filters",
     create: "Summarize Lecture",
     quizzes: "Smart Quizzes",
     review: "Smart Review Studio",
@@ -128,6 +140,8 @@ const MESSAGES = {
     logout: "Log Out",
     studentDefault: "Elite Student",
     proBadge: "PRO",
+    lightMode: "Light Mode",
+    darkMode: "Dark Mode",
 
     // Dashboard Hero & Metrics
     welcomeHero: "Welcome back,",
@@ -150,10 +164,10 @@ const MESSAGES = {
     uploadFirstLecture: "Upload first file now",
 
     // Smart Daily Plan
-    dailyFocusBadge: "Quick Daily Review ⚡",
-    dailyFocusTitle: "Ready for a quick 5-min review? 🎯",
+    dailyFocusBadge: "Quick Daily Review",
+    dailyFocusTitle: "Ready for a quick 5-min review?",
     dailyFocusDesc: "Due flashcards and practice questions ready to lock in what you studied and keep your streak going.",
-    startFocusSession: "Start Quick Review (5 min) ⚡",
+    startFocusSession: "Start Quick Review (5 min)",
     closeSession: "Close Session",
 
     // Course Card
@@ -165,21 +179,21 @@ const MESSAGES = {
     quizBadge: "Quiz",
     summaryBadge: "Summary",
     flashcardsBadge: "Cards",
-    defaultCourseDesc: "Interactive Lecture Summary",
+    defaultCourseDesc: "Structured lecture summary with smart quizzes and flashcards",
 
     // Landing Page
     landingHeroBadge: "Next-Gen Smart Study Platform",
-    landingHeroTitle: "Transform Any Lecture or PDF into an Interactive Course ⚡",
-    landingHeroSubtitle: "Upload your notes — and let the system generate summaries, quizzes, and spaced repetition cards. You just study.",
+    landingHeroTitle: "Transform Any Lecture or PDF into Smart Notes & Quizzes in Seconds",
+    landingHeroSubtitle: "Upload your lecture — and let the platform build structured concept cards, comparison tables, exam trap alerts, and practice quizzes.",
     startBattleCTA: "Start Studying for Free",
     uploadNotesNowCTA: "Upload Your Notes Now",
     registeredFighters: "Active Students",
-    retentionRate: "Actual Retention",
+    retentionRate: "Retention Rate",
     summaryTime: "Summary Speed",
     howItWorksTitle: "How The Platform Works",
-    howItWorksSubtitle: "Three simple steps to faster learning and higher retention",
-    featuresTitle: "All The Tools You Need in One Place",
-    featuresSubtitle: "Everything you need for distraction-free, intelligent studying",
+    howItWorksSubtitle: "Three streamlined steps for faster learning and higher retention",
+    featuresTitle: "All Smart Study Tools in One Workspace",
+    featuresSubtitle: "A distraction-free academic workspace built for deep focus",
 
     // Save & Actions
     save: "Save",

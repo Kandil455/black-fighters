@@ -1,2227 +1,697 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/lib/AuthContext';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ShieldCheck,
+  Sparkles,
+  Layers,
+  Cpu,
+  ChevronDown,
+  Lock,
+  CheckCircle2,
+  Zap,
+  BookOpen,
+} from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { useLocale } from "@/lib/LocaleContext";
+import {
+  LVLogo,
+  LVLangSwitch,
+  AnimatedNumber,
+  LineStream,
+  Section,
+  GlassCard,
+  LVBadge,
+  PricingCard,
+  LVConfigurator,
+  reveal,
+  rise,
+} from "@/components/ui/linevault";
+import LandingAtlasShowcase from "@/components/atlas/LandingAtlasShowcase";
+import { cn } from "@/lib/utils";
+
+const HOW_IT_WORKS_STEPS = [
+  {
+    num: "01",
+    titleAr: "ارفع المحاضرة أو المرجع (من صفحة إلى 1,000 صفحة)",
+    titleEn: "Ingest Lecture or Reference (1 to 1,000 Pages)",
+    descAr:
+      "يحلل المحرك الهرمي الفهرس ويقسم الملف إلى لوحات علمية (Plates) متوازية مع قفل المصطلحات الطبية والعلمية عبر الفصول.",
+    descEn:
+      "Our hierarchical pipeline detects structural boundaries and partitions lectures into parallel Atlas Plates with locked terminology.",
+    tag: "MAP-REDUCE ENGINE",
+  },
+  {
+    num: "02",
+    titleAr: "تدقيق عابر للعائلات يمنع الهلوسة الرقمية",
+    titleEn: "Cross-Family Dosage & Citation Verification",
+    descAr:
+      "كل جرعة دوائية ورقم ونسبة مئوية يمر عبر نموذج مدقق من عائلة مختلفة لمطابقته بالنص الأصلي وتوثيق رقم الصفحة (✓ p.13).",
+    descEn:
+      "Every dosage, threshold, and claim is cross-checked by a second model family against raw PDF pages with exact page citations.",
+    tag: "CROSS-FAMILY VERIFIER",
+  },
+  {
+    num: "03",
+    titleAr: "ذاكر بالاستدعاء النشط وخوارزمية FSRS v4.5",
+    titleEn: "Master with Declassify Recall & FSRS v4.5",
+    descAr:
+      "أخفِ الأرقام والمصطلحات الحرجة بضغطة زر لتسميعها لنفسك، ودع محرك الذاكرة يجدول مراجعاتك تلقائياً قبل أن تنساها.",
+    descEn:
+      "Mask high-yield terms inline for active self-testing while FSRS v4.5 + BKT schedules your daily review queue automatically.",
+    tag: "FSRS v4.5 + BKT",
+  },
+];
+
+const TRUST_PILLARS = [
+  {
+    icon: ShieldCheck,
+    titleAr: "تدقيق مزدوج ضد الهلوسة (Cross-Family Verifier)",
+    titleEn: "Cross-Family Hallucination Guard",
+    descAr:
+      "لا نعتمد على نموذج واحد أبداً؛ النموذج المدقق ينتمي لعائلة مختلفة تماماً لمراجعة كل جرعة ورقم صفحة قبل عرضها لك.",
+    descEn:
+      "Primary generation and verification never share the same model family—eliminating silent dosage or numeric hallucinations.",
+    metric: "99.4% VERIFIED",
+  },
+  {
+    icon: Layers,
+    titleAr: "معمارية التلخيص الهرمي (1..1,000 صفحة)",
+    titleEn: "1,000-Page Hierarchical Architecture",
+    descAr:
+      "توليد متوازٍ للفصول مع سجل مصطلحات موحد (Glossary Lock) يضمن عدم اقتطاع أي فقرة في منتصف المحاضرات الطويلة.",
+    descEn:
+      "Parallel plate synthesis with global glossary locking ensures zero middle-of-book truncation across massive PDFs.",
+    metric: ">= 95% COVERAGE",
+  },
+  {
+    icon: Lock,
+    titleAr: "دفتر رصيد ذري وتصدير HTML/PDF يعمل بدون إنترنت",
+    titleEn: "Atomic Credit Vault & Offline Export",
+    descAr:
+      "كل عملية مسجلة بقيد مزدوج آمن مع استرجاع تلقائي للرصيد لو فشل التوليد، وتصدير ملفات HTML تفاعلية وPDF جاهزة للطباعة.",
+    descEn:
+      "Double-entry atomic credit ledger with automatic refund on failure, plus standalone offline HTML and print-ready PDF exports.",
+    metric: "100% ATOMIC LEDGER",
+  },
+];
+
+const PRICING_PLANS = [
+  {
+    key: "starter",
+    nameAr: "باقة الانطلاق (Starter)",
+    nameEn: "Starter Vault",
+    badgeAr: "للطلاب",
+    badgeEn: "SCHOLAR",
+    price: "99",
+    descAr: "مثالية لتلخيص محاضرات الأسبوع والكويزات الدورية بتدقيق كامل.",
+    descEn: "Ideal for weekly lecture summaries, verified notes, and rapid quizzes.",
+    featuresAr: [
+      "350 نقطة كريدت شهرياً",
+      "تلخيص المحاضرات والكتب حتى 300 صفحة",
+      "المدقق الرقمي المزدوج للجرعات (Cross-Family Verifier)",
+      "كويزات نظرية وعملي (OSCE / OSPE)",
+      "تصدير PDF جاهز للطباعة",
+    ],
+    featuresEn: [
+      "350 monthly AI credits",
+      "Hierarchical PDF summaries up to 300 pages",
+      "Cross-Family dosage & citation verifier",
+      "Theory & Practical (OSCE / OSPE) quizzes",
+      "Print-ready PDF export",
+    ],
+    recommended: false,
+  },
+  {
+    key: "pro",
+    nameAr: "باقة برو (Pro Atlas)",
+    nameEn: "Pro Atlas",
+    badgeAr: "الأكثر اختياراً",
+    badgeEn: "RECOMMENDED",
+    price: "199",
+    descAr: "القوة الكاملة لقارئ الأطلس V5، تلخيص الكتب الضخمة، واستوديو يوتيوب.",
+    descEn: "Full Atlas V5 reader power, massive reference books, and YouTube AI Studio.",
+    featuresAr: [
+      "900 نقطة كريدت شهرياً",
+      "تلخيص المراجع الضخمة (من 1 حتى 1,000 صفحة)",
+      "قارئ الأطلس V5 مع شرائط التسميع التفاعلي (Declassify)",
+      "استوديو تلخيص محاضرات يوتيوب بالذكاء الاصطناعي",
+      "تصدير PDF للطباعة + ملف HTML تفاعلي يعمل بدون إنترنت",
+    ],
+    featuresEn: [
+      "900 monthly AI credits",
+      "1 to 1,000-page reference book pipeline",
+      "Atlas V5 Reader with interactive Declassify bars",
+      "YouTube AI Lecture Summarizer Studio",
+      "Printable PDF + standalone offline HTML export",
+    ],
+    recommended: true,
+  },
+  {
+    key: "supreme",
+    nameAr: "باقة القمة (Supreme Vault)",
+    nameEn: "Supreme Vault",
+    badgeAr: "للمراجع الكبرى",
+    badgeEn: "INSTITUTIONAL",
+    price: "399",
+    descAr: "أقصى سعة كريدت للدفعات الطبية والمجموعات الدراسية ووضع طوارئ الامتحانات.",
+    descEn: "Maximum credit capacity for medical syndicates and exam-night triage.",
+    featuresAr: [
+      "2,500 نقطة كريدت شهرياً",
+      "أولوية قصوى على أسرع نماذج التوليد والتدقيق",
+      "فتح راوند الطوارئ ليلة الامتحان (Exam Night Triage)",
+      "خريطة السيطرة المعرفية الكاملة (FSRS v4.5 + BKT)",
+      "دعم فني مباشر ومشاركة غير محدودة للمذكرات",
+    ],
+    featuresEn: [
+      "2,500 monthly AI credits",
+      "Priority routing on flagship synthesis & verifier models",
+      "Exam-Night Emergency Triage Mode unlocked",
+      "Full Territory Mastery Map (FSRS v4.5 + BKT)",
+      "Direct priority support & unlimited sharing",
+    ],
+    recommended: false,
+  },
+];
+
+const FAQ_ITEMS = [
+  {
+    qAr: "كيف يمنع Black Fighters الهلوسة في الجرعات والأرقام الطبية؟",
+    qEn: "How does Black Fighters prevent dosage and numeric hallucinations?",
+    aAr: "نطبق معمارية المدقق العابر للعائلات (Cross-Family Verifier): النموذج الذي يولّد الملخص لا يُسمح له بتدقيق نفسه، بل يراجع مخرجاته نموذج ثانٍ من عائلة مختلفة تماماً ويطابق كل رقم وجرعة بالنص الأصلي المستخرج من الصفحة مع إرفاق شارة الصفحة (✓ p.13).",
+    aEn: "We enforce Cross-Family Verification: the primary generator model never verifies its own output. A second model from a distinct model family cross-checks every dosage and number against the raw PDF page and attaches a verified page badge.",
+  },
+  {
+    qAr: "هل أستطيع رفع كتاب أو مرجع كامل من 500 أو 1,000 صفحة؟",
+    qEn: "Can I upload a 500 or 1,000-page reference book?",
+    aAr: "نعم. خط أنابيب التلخيص الهرمي ذو الـ 9 مراحل يقسم المرجع إلى فصول ولوحات علمية (Plates) متوازية مع سجل مصطلحات موحد (Glossary Registry) يمنع ضياع أي تفاصيل في منتصف الكتاب.",
+    aEn: "Yes. Our 9-stage hierarchical pipeline partitions books into parallel chapters and Atlas Plates with a locked Glossary Registry, ensuring >= 95% structural coverage without middle-of-book truncation.",
+  },
+  {
+    qAr: "كيف يعمل منزلق الكريدت اللوغاريتمي والخصم الكمي؟",
+    qEn: "How does the logarithmic credit configurator work?",
+    aAr: "يمكنك اختيار أي كمية كريدت من 100 حتى 10,000 نقطة عبر المنزلق التفاعلي. كلما زادت الكمية انتقلت تلقائياً إلى شريحة خصم أعلى يصل توفيرها إلى 56%، والرصيد المشحون لا ينتهي أبداً.",
+    aEn: "Dial any credit volume between 100 and 10,000 credits. As volume increases, unit cost drops automatically across 6 tiers (up to 56% off), and top-up credits never expire.",
+  },
+  {
+    qAr: "ما هي وسائل الدفع المتاحة وكيف يتم التفعيل؟",
+    qEn: "What payment methods are supported and how fast is activation?",
+    aAr: "ندعم فودافون كاش، إنستاباي (InstaPay)، عملة USDT TRC20، ونجوم تيليجرام (Telegram Stars). تُحجز التسعيرة لمدة 15 دقيقة في محطة الدفع الفورية ويُضاف الرصيد لدفتر حسابك فور التأكيد.",
+    aEn: "We support Vodafone Cash, InstaPay, USDT TRC20, and Telegram Stars. Your quote is locked for 15 minutes in the live checkout terminal and credited atomically upon verification.",
+  },
+];
 
 export default function Landing() {
-  const { user } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { locale, dir } = useLocale();
+  const navigate = useNavigate();
+  const isAr = locale === "ar";
+  const [openFaq, setOpenFaq] = useState(0);
 
-  // Theme state
-  const [theme, setTheme] = useState(() => {
-    try {
-      const stored = localStorage.getItem('bf_theme');
-      if (stored) return stored;
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    } catch {
-      return 'light';
-    }
-  });
-
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [billingCycle, setBillingCycle] = useState('monthly');
-  const [openFaqIndex, setOpenFaqIndex] = useState(null);
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-  const [newsletterStatus, setNewsletterStatus] = useState({ text: '', type: '' });
-  const [pricesUpdating, setPricesUpdating] = useState(false);
-
-  // Refs
-  const progressLineRef = useRef(null);
-  const cursorDotRef = useRef(null);
-  const headerRef = useRef(null);
-  const heroHeadlineRef = useRef(null);
-  const heroGuidesRef = useRef(null);
-  const manifestoRef = useRef(null);
-  const footerWordmarkRef = useRef(null);
-
-  const authTarget = user ? '/dashboard' : '/register';
-
-  // Apply theme & force document styles
-  useEffect(() => {
-    const originalDir = document.documentElement.dir || 'rtl';
-    const originalLang = document.documentElement.lang || 'ar';
-    const originalBg = document.body.style.backgroundColor;
-    const originalColor = document.body.style.color;
-
-    document.documentElement.dir = 'ltr';
-    document.documentElement.lang = 'en';
-    document.documentElement.setAttribute('data-theme', theme);
-
-    const isDark = theme === 'dark';
-    const bg = isDark ? '#0c0c0b' : '#f3f1ec';
-    const text = isDark ? '#f1efe9' : '#0d0d0c';
-
-    document.body.style.backgroundColor = bg;
-    document.body.style.color = text;
-
-    try {
-      localStorage.setItem('bf_theme', theme);
-    } catch {}
-
-    const meta = document.getElementById('theme-color-meta');
-    if (meta) meta.setAttribute('content', bg);
-
-    return () => {
-      document.documentElement.dir = originalDir;
-      document.documentElement.lang = originalLang;
-      document.body.style.backgroundColor = originalBg;
-      document.body.style.color = originalColor;
-    };
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  };
-
-  const handleBillingToggle = (cycle) => {
-    if (cycle === billingCycle) return;
-    setPricesUpdating(true);
-    setTimeout(() => {
-      setBillingCycle(cycle);
-      setPricesUpdating(false);
-    }, 180);
-  };
-
-  const handleNewsletterSubmit = (e) => {
-    e.preventDefault();
-    const val = newsletterEmail.trim();
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!val) {
-      setNewsletterStatus({ text: 'Email required.', type: 'error' });
-    } else if (!regex.test(val)) {
-      setNewsletterStatus({ text: 'Please enter a valid email address.', type: 'error' });
-    } else {
-      setNewsletterStatus({ text: 'Subscribed to quarterly updates.', type: 'success' });
-      setNewsletterEmail('');
-    }
-  };
-
-  // Scroll & Animation Engine
-  useEffect(() => {
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const isLowEnd = Boolean(
-      (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
-      (navigator.connection && navigator.connection.saveData)
-    );
-    const shouldAnimate = !prefersReduced && !isLowEnd;
-
-    // 1. Hero Reveal
-    if (heroGuidesRef.current) heroGuidesRef.current.classList.add('loaded');
-    const heroTimer = setTimeout(() => {
-      if (heroHeadlineRef.current) heroHeadlineRef.current.classList.add('revealed');
-    }, 100);
-
-    // 2. Manifesto Word Wrapping
-    let manifestoWords = [];
-    if (manifestoRef.current) {
-      const originalHtml = manifestoRef.current.innerHTML;
-      const words = originalHtml.trim().split(/\s+/);
-      manifestoRef.current.innerHTML = words
-        .map((w) => `<span class="manifesto-word">${w}</span>`)
-        .join(' ');
-      manifestoWords = manifestoRef.current.querySelectorAll('.manifesto-word');
-    }
-
-    // 3. Scroll Handling
-    let lastScrollY = window.scrollY;
-    let ticking = false;
-    let headerHidden = false;
-
-    const onScroll = () => {
-      const scrollY = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = docHeight > 0 ? scrollY / docHeight : 0;
-
-      if (progressLineRef.current) {
-        progressLineRef.current.style.transform = `scaleX(${Math.min(Math.max(progress, 0), 1)})`;
-      }
-
-      if (headerRef.current) {
-        if (scrollY > 24) {
-          headerRef.current.classList.add('scrolled');
-        } else {
-          headerRef.current.classList.remove('scrolled');
-        }
-
-        if (scrollY > 120 && scrollY > lastScrollY && !headerHidden) {
-          headerRef.current.classList.add('header-hidden');
-          headerHidden = true;
-        } else if (scrollY < lastScrollY && headerHidden) {
-          headerRef.current.classList.remove('header-hidden');
-          headerHidden = false;
-        }
-      }
-
-      if (shouldAnimate && heroHeadlineRef.current) {
-        const drift = Math.min(scrollY * 0.18, 60);
-        heroHeadlineRef.current.style.transform = `translateY(-${drift}px)`;
-      }
-
-      if (shouldAnimate && manifestoRef.current && manifestoWords.length > 0) {
-        const rect = manifestoRef.current.getBoundingClientRect();
-        const winH = window.innerHeight;
-        const ratio = (winH - rect.top) / (winH + rect.height * 0.75);
-        const clampedRatio = Math.max(0, Math.min(1, ratio));
-        const activeIdx = Math.floor(clampedRatio * manifestoWords.length);
-
-        for (let i = 0; i < manifestoWords.length; i++) {
-          manifestoWords[i].style.opacity = i <= activeIdx ? '1' : '0.14';
-        }
-      }
-
-      if (footerWordmarkRef.current) {
-        const fRect = footerWordmarkRef.current.getBoundingClientRect();
-        if (fRect.top < window.innerHeight) {
-          footerWordmarkRef.current.classList.add('revealed');
-        }
-      }
-
-      lastScrollY = scrollY;
-      ticking = false;
-    };
-
-    const scrollHandler = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(onScroll);
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', scrollHandler, { passive: true });
-
-    // 4. Section Reveals & Stats Counters
-    const reveals = document.querySelectorAll('.reveal-on-scroll');
-    const statCells = document.querySelectorAll('.stat-number');
-    let revealObserver;
-    let statsObserver;
-
-    if (shouldAnimate && 'IntersectionObserver' in window) {
-      revealObserver = new IntersectionObserver(
-        (entries, obs) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add('revealed');
-              obs.unobserve(entry.target);
-            }
-          });
-        },
-        { threshold: 0.1 }
-      );
-
-      reveals.forEach((el) => revealObserver.observe(el));
-
-      statsObserver = new IntersectionObserver(
-        (entries, obs) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              animateNumber(entry.target);
-              obs.unobserve(entry.target);
-            }
-          });
-        },
-        { threshold: 0.25 }
-      );
-
-      statCells.forEach((el) => statsObserver.observe(el));
-    } else {
-      reveals.forEach((el) => el.classList.add('revealed'));
-      statCells.forEach((el) => {
-        el.textContent = el.getAttribute('data-target') + (el.getAttribute('data-suffix') || '');
-      });
-      if (manifestoWords.length > 0) {
-        manifestoWords.forEach((w) => (w.style.opacity = '1'));
-      }
-      if (footerWordmarkRef.current) footerWordmarkRef.current.classList.add('revealed');
-    }
-
-    function animateNumber(element) {
-      const targetVal = parseFloat(element.getAttribute('data-target'));
-      const suffix = element.getAttribute('data-suffix') || '';
-      const isFloat = element.getAttribute('data-target').includes('.');
-      const duration = 1500;
-      let startTimestamp = null;
-
-      function step(timestamp) {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const elapsed = timestamp - startTimestamp;
-        const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3);
-        const current = ease * targetVal;
-
-        element.textContent = (isFloat ? current.toFixed(1) : Math.floor(current)) + suffix;
-        if (progress < 1) {
-          window.requestAnimationFrame(step);
-        } else {
-          element.textContent = element.getAttribute('data-target') + suffix;
-        }
-      }
-      window.requestAnimationFrame(step);
-    }
-
-    // 5. Custom Cursor & Magnetism
-    let cursorRaf = null;
-    const isFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-
-    if (shouldAnimate && isFinePointer) {
-      document.body.classList.add('has-custom-cursor');
-      let mouseX = window.innerWidth / 2;
-      let mouseY = window.innerHeight / 2;
-      let curX = mouseX;
-      let curY = mouseY;
-
-      const mouseMoveHandler = (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-      };
-      window.addEventListener('mousemove', mouseMoveHandler);
-
-      const renderCursor = () => {
-        curX += (mouseX - curX) * 0.22;
-        curY += (mouseY - curY) * 0.22;
-        if (cursorDotRef.current) {
-          cursorDotRef.current.style.left = `${curX}px`;
-          cursorDotRef.current.style.top = `${curY}px`;
-        }
-        cursorRaf = window.requestAnimationFrame(renderCursor);
-      };
-      cursorRaf = window.requestAnimationFrame(renderCursor);
-
-      const interactives = document.querySelectorAll(
-        'a, button, [role="button"], input, .capability-row'
-      );
-      interactives.forEach((el) => {
-        el.addEventListener('mouseenter', () => {
-          if (cursorDotRef.current) cursorDotRef.current.classList.add('active');
-        });
-        el.addEventListener('mouseleave', () => {
-          if (cursorDotRef.current) cursorDotRef.current.classList.remove('active');
-        });
-      });
-
-      const magneticBtns = document.querySelectorAll('[data-magnet]');
-      magneticBtns.forEach((btn) => {
-        btn.addEventListener('mousemove', (e) => {
-          const bRect = btn.getBoundingClientRect();
-          const bCenterX = bRect.left + bRect.width / 2;
-          const bCenterY = bRect.top + bRect.height / 2;
-          const deltaX = (e.clientX - bCenterX) * 0.15;
-          const deltaY = (e.clientY - bCenterY) * 0.15;
-          const magX = Math.max(-6, Math.min(6, deltaX));
-          const magY = Math.max(-6, Math.min(6, deltaY));
-          btn.style.transform = `translate(${magX}px, ${magY}px)`;
-        });
-        btn.addEventListener('mouseleave', () => {
-          btn.style.transform = 'translate(0, 0)';
-        });
-      });
-    }
-
-    return () => {
-      clearTimeout(heroTimer);
-      window.removeEventListener('scroll', scrollHandler);
-      if (revealObserver) revealObserver.disconnect();
-      if (statsObserver) statsObserver.disconnect();
-      if (cursorRaf) window.cancelAnimationFrame(cursorRaf);
-      document.body.classList.remove('has-custom-cursor');
-    };
-  }, []);
-
-  // Lock scroll on mobile menu
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-      const handleEscape = (e) => {
-        if (e.key === 'Escape') setMobileMenuOpen(false);
-      };
-      document.addEventListener('keydown', handleEscape);
-      return () => {
-        document.body.style.overflow = '';
-        document.removeEventListener('keydown', handleEscape);
-      };
-    } else {
-      document.body.style.overflow = '';
-    }
-  }, [mobileMenuOpen]);
-
-  const pricingData = {
-    monthly: { starter: '0 EGP', pro: '149 EGP', supreme: '249 EGP' },
-    annual: { starter: '0 EGP', pro: '119 EGP', supreme: '199 EGP' },
-  };
+  const primaryRoute = isAuthenticated ? "/dashboard" : "/register";
+  const ArrowIcon = dir === "rtl" ? ArrowLeft : ArrowRight;
 
   return (
-    <div className="blackfighters-editorial-root" dir="ltr" lang="en" data-theme={theme}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
-
-        .btn-pill-sm { padding: 10px 22px !important; font-size: 0.76rem !important; min-height: 38px !important; }
-        .btn-pill-lg { padding: 20px 48px !important; font-size: 0.9rem !important; }
-        .btn-pill-outline { width: 100% !important; border: 1px solid var(--line) !important; background: transparent !important; color: var(--ink) !important; }
-        .text-signal { color: var(--signal) !important; }
-        .opacity-80 { opacity: 0.8 !important; }
-        .w-full { width: 100% !important; }
-        .newsletter-subtext { color: var(--mute) !important; font-size: 0.78rem !important; margin-bottom: 16px !important; line-height: 1.5 !important; }
-        .footer-direct-desc { color: var(--mute) !important; line-height: 1.6 !important; font-size: 0.78rem !important; margin-bottom: 16px !important; }
-        .footer-privacy-link { margin-right: 16px !important; }
-        .sr-only-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; border: 0 !important; }
-
-        /* Root Theme Tokens */
-        .blackfighters-editorial-root {
-          direction: ltr !important;
-          text-align: left !important;
-          unicode-bidi: isolate;
-
-          --paper: #f3f1ec;
-          --paper-2: #e9e6de;
-          --ink: #0d0d0c;
-          --mute: #54524c;
-          --line: rgba(13, 13, 12, 0.14);
-          --signal: #ff4d1f;
-
-          --font-serif: "Instrument Serif", Georgia, serif;
-          --font-sans: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          --font-mono: "JetBrains Mono", monospace;
-
-          --ease: cubic-bezier(0.19, 1, 0.22, 1);
-          --gutter: clamp(20px, 4vw, 56px);
-          --max-width: 1600px;
-          --section-vpad: clamp(110px, 15vw, 220px);
-
-          background-color: var(--paper) !important;
-          color: var(--ink) !important;
-          font-family: var(--font-sans) !important;
-          min-height: 100svh;
-          overflow-x: hidden;
-          position: relative;
-        }
-
-        /* Dark Theme Tokens: Bright Crisp Off-White Text on Deep Carbon Black */
-        .blackfighters-editorial-root[data-theme="dark"],
-        html[data-theme="dark"] .blackfighters-editorial-root {
-          --paper: #0c0c0b;
-          --paper-2: #151513;
-          --ink: #f1efe9;
-          --mute: #9e9c94;
-          --line: rgba(241, 239, 233, 0.16);
-          --signal: #ff6a3d;
-
-          background-color: #0c0c0b !important;
-          color: #f1efe9 !important;
-        }
-
-        .blackfighters-editorial-root *,
-        .blackfighters-editorial-root *::before,
-        .blackfighters-editorial-root *::after {
-          box-sizing: border-box;
-          border-radius: 0;
-          direction: ltr;
-          text-align: left;
-          -webkit-font-smoothing: antialiased;
-        }
-
-        /* Enforce Exact Text Colors */
-        .blackfighters-editorial-root h1,
-        .blackfighters-editorial-root h2,
-        .blackfighters-editorial-root h3,
-        .blackfighters-editorial-root h4,
-        .blackfighters-editorial-root .hero-headline,
-        .blackfighters-editorial-root .hero-line-inner,
-        .blackfighters-editorial-root .section-headline,
-        .blackfighters-editorial-root .cap-title,
-        .blackfighters-editorial-root .card-headline,
-        .blackfighters-editorial-root .stat-number,
-        .blackfighters-editorial-root .editorial-quote,
-        .blackfighters-editorial-root .pricing-amount,
-        .blackfighters-editorial-root .pricing-tier-name,
-        .blackfighters-editorial-root .faq-question,
-        .blackfighters-editorial-root .cta-big-line,
-        .blackfighters-editorial-root .brand-wordmark,
-        .blackfighters-editorial-root .footer-giant-wordmark {
-          color: var(--ink) !important;
-        }
-
-        .blackfighters-editorial-root a {
-          color: inherit;
-          text-decoration: none;
-        }
-
-        .blackfighters-editorial-root button {
-          background: none;
-          border: none;
-          color: inherit;
-          font: inherit;
-          cursor: pointer;
-        }
-
-        .mono {
-          font-family: var(--font-mono) !important;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          font-size: 0.78rem;
-        }
-
-        .serif {
-          font-family: var(--font-serif) !important;
-          font-weight: 400;
-        }
-
-        .signal-text {
-          color: var(--signal) !important;
-          font-style: italic;
-        }
-
-        .signal-dot {
-          color: var(--signal) !important;
-        }
-
-        .container {
-          width: 100%;
-          max-width: var(--max-width);
-          margin-left: auto;
-          margin-right: auto;
-          padding-left: var(--gutter);
-          padding-right: var(--gutter);
-        }
-
-        .skip-link {
-          position: absolute;
-          top: 12px;
-          left: 12px;
-          z-index: 9999;
-          background: var(--ink);
-          color: var(--paper);
-          padding: 8px 16px;
-          transform: translateY(-150%);
-          transition: transform 0.2s var(--ease);
-          font-family: var(--font-mono);
-          font-size: 0.8rem;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
-        .skip-link:focus {
-          transform: translateY(0);
-        }
-
-        #progress-line {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 2px;
-          background: var(--signal);
-          transform-origin: 0 50%;
-          transform: scaleX(0);
-          z-index: 1000;
-          pointer-events: none;
-        }
-
-        #cursor-dot {
-          display: none;
-        }
-        @media (hover: hover) and (pointer: fine) {
-          body.has-custom-cursor,
-          body.has-custom-cursor a,
-          body.has-custom-cursor button {
-            cursor: none;
-          }
-          #cursor-dot {
-            display: block;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 10px;
-            height: 10px;
-            background-color: var(--signal);
-            border-radius: 50% !important;
-            pointer-events: none;
-            z-index: 99999;
-            transform: translate(-50%, -50%);
-            transition: width 0.3s var(--ease), height 0.3s var(--ease), background-color 0.3s var(--ease), opacity 0.3s var(--ease);
-          }
-          #cursor-dot.active {
-            width: 56px;
-            height: 56px;
-            background-color: var(--signal);
-            opacity: 0.28;
-          }
-        }
-
-        .btn-pill {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 16px 36px;
-          border-radius: 9999px !important;
-          background-color: var(--signal) !important;
-          color: #ffffff !important;
-          font-family: var(--font-mono);
-          text-transform: uppercase;
-          font-size: 0.82rem;
-          letter-spacing: 0.06em;
-          font-weight: 500;
-          min-height: 48px;
-          min-width: 44px;
-          transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
-          border: 1px solid transparent;
-        }
-        .btn-pill:hover {
-          opacity: 0.9;
-          transform: translateY(-1px);
-        }
-
-        .editorial-section {
-          position: relative;
-          padding-top: var(--section-vpad);
-          padding-bottom: var(--section-vpad);
-          border-bottom: 1px solid var(--line);
-        }
-
-        .reveal-on-scroll {
-          opacity: 0;
-          transform: translateY(36px);
-          transition: opacity 1s var(--ease), transform 1s var(--ease);
-        }
-        .reveal-on-scroll.revealed {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
-        header#site-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          z-index: 900;
-          transition: transform 0.5s var(--ease), background-color 0.3s var(--ease), border-color 0.3s var(--ease);
-          border-bottom: 1px solid transparent;
-        }
-        header#site-header.scrolled {
-          background-color: var(--paper) !important;
-          border-bottom-color: var(--line) !important;
-        }
-        header#site-header.header-hidden {
-          transform: translateY(-100%);
-        }
-
-        .header-inner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          height: 76px;
-        }
-
-        .desktop-nav {
-          display: flex;
-          align-items: center;
-          gap: 36px;
-        }
-        .desktop-nav a {
-          font-family: var(--font-mono);
-          font-size: 0.8rem;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--mute) !important;
-          transition: color 0.25s var(--ease);
-          padding: 8px 0;
-        }
-        .desktop-nav a:hover {
-          color: var(--ink) !important;
-        }
-
-        .header-controls {
-          display: flex;
-          align-items: center;
-          gap: 20px;
-        }
-
-        .theme-toggle {
-          font-family: var(--font-mono);
-          font-size: 0.78rem;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--ink) !important;
-          padding: 10px 14px;
-          border: 1px solid var(--line);
-          transition: border-color 0.25s var(--ease), background-color 0.25s var(--ease);
-          min-height: 44px;
-          display: inline-flex;
-          align-items: center;
-        }
-        .theme-toggle:hover {
-          border-color: var(--ink);
-        }
-
-        .mobile-menu-btn {
-          display: none;
-          font-family: var(--font-mono);
-          font-size: 0.82rem;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--ink) !important;
-          padding: 10px 14px;
-          border: 1px solid var(--line);
-          min-height: 44px;
-          min-width: 44px;
-        }
-
-        #mobile-menu-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100svh;
-          background-color: var(--paper) !important;
-          z-index: 950;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          padding: var(--gutter);
-          transform: translateY(-100%);
-          transition: transform 0.6s var(--ease);
-          pointer-events: none;
-        }
-        #mobile-menu-overlay.open {
-          transform: translateY(0);
-          pointer-events: auto;
-        }
-        .mobile-menu-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          height: 76px;
-        }
-        .mobile-nav-links {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-          margin: auto 0;
-        }
-        .mobile-nav-links a {
-          font-family: var(--font-serif);
-          font-size: clamp(2.5rem, 8vw, 4rem);
-          line-height: 1.1;
-          color: var(--ink) !important;
-          transition: color 0.2s var(--ease);
-        }
-        .mobile-nav-links a:hover {
-          color: var(--signal) !important;
-        }
-        .mobile-menu-foot {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-top: 1px solid var(--line);
-          padding-top: 24px;
-        }
-
-        section#hero {
-          padding-top: calc(76px + clamp(40px, 8vw, 90px));
-          padding-bottom: clamp(70px, 10vw, 130px);
-          position: relative;
-          overflow: hidden;
-          border-bottom: none;
-        }
-
-        .hero-guides {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          left: var(--gutter);
-          right: var(--gutter);
-          pointer-events: none;
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          z-index: 1;
-        }
-        .hero-guide-line {
-          border-left: 1px solid var(--line);
-          height: 100%;
-          transform-origin: top;
-          transform: scaleY(0);
-          transition: transform 1.4s var(--ease);
-        }
-        .hero-guide-line:last-child {
-          border-right: 1px solid var(--line);
-        }
-        .hero-guides.loaded .hero-guide-line {
-          transform: scaleY(1);
-        }
-
-        .hero-content {
-          position: relative;
-          z-index: 2;
-        }
-
-        .hero-meta-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 20px;
-          color: var(--mute) !important;
-          padding-bottom: clamp(28px, 4vw, 44px);
-          border-bottom: 1px solid var(--line);
-          margin-bottom: clamp(32px, 5vw, 64px);
-        }
-
-        .hero-headline {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(3.2rem, 14vw, 13.5rem);
-          line-height: 0.92;
-          letter-spacing: -0.025em;
-          margin-bottom: clamp(40px, 6vw, 76px);
-          will-change: transform;
-          color: var(--ink) !important;
-        }
-        .hero-line-mask {
-          overflow: hidden;
-          display: block;
-        }
-        .hero-line-inner {
-          display: block;
-          transform: translateY(115%);
-          transition: transform 1.2s var(--ease);
-          color: var(--ink) !important;
-        }
-        .hero-line-mask:nth-child(2) .hero-line-inner {
-          transition-delay: 0.15s;
-        }
-        .hero-headline.revealed .hero-line-inner {
-          transform: translateY(0);
-        }
-
-        .hero-bottom-row {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 36px;
-          max-width: 1100px;
-        }
-        @media (min-width: 900px) {
-          .hero-bottom-row {
-            grid-template-columns: minmax(0, 42ch) auto;
-            align-items: flex-end;
-            justify-content: space-between;
-          }
-        }
-
-        .hero-lede {
-          font-size: clamp(1.05rem, 1.8vw, 1.35rem);
-          line-height: 1.45;
-          color: var(--mute) !important;
-          max-width: 36ch;
-        }
-
-        .hero-actions {
-          display: flex;
-          align-items: center;
-          gap: 28px;
-          flex-wrap: wrap;
-        }
-
-        .hero-link {
-          font-family: var(--font-mono);
-          font-size: 0.82rem;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          text-decoration: underline;
-          text-underline-offset: 6px;
-          color: var(--ink) !important;
-          min-height: 44px;
-          display: inline-flex;
-          align-items: center;
-          transition: color 0.2s var(--ease);
-        }
-        .hero-link:hover {
-          color: var(--signal) !important;
-        }
-
-        .ticker-wrap {
-          width: 100%;
-          overflow: hidden;
-          border-top: 1px solid var(--line);
-          border-bottom: 1px solid var(--line);
-          background-color: var(--paper) !important;
-          padding: 18px 0;
-          position: relative;
-        }
-        .ticker-track {
-          display: flex;
-          width: max-content;
-          animation: ticker-scroll 40s linear infinite;
-        }
-        .ticker-wrap:hover .ticker-track {
-          animation-play-state: paused;
-        }
-        .ticker-group {
-          display: flex;
-          align-items: center;
-          gap: 32px;
-          padding-right: 32px;
-        }
-        .ticker-item {
-          font-family: var(--font-mono);
-          font-size: 0.78rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--ink) !important;
-          white-space: nowrap;
-          display: inline-flex;
-          align-items: center;
-          gap: 32px;
-        }
-        .ticker-item::after {
-          content: "•";
-          color: var(--signal) !important;
-          font-size: 0.9rem;
-        }
-        @keyframes ticker-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-
-        .manifesto-label {
-          color: var(--mute) !important;
-          margin-bottom: clamp(28px, 4vw, 48px);
-        }
-        .manifesto-text {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(2.1rem, 5.4vw, 5.2rem);
-          line-height: 1.08;
-          letter-spacing: -0.015em;
-          max-width: 24ch;
-          color: var(--ink) !important;
-        }
-        .manifesto-word {
-          display: inline-block;
-          opacity: 0.14;
-          transition: opacity 0.1s linear;
-        }
-
-        .section-header-row {
-          margin-bottom: clamp(48px, 8vw, 84px);
-        }
-        .section-label {
-          color: var(--mute) !important;
-          margin-bottom: 20px;
-        }
-        .section-headline {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(2.4rem, 6vw, 4.8rem);
-          line-height: 1.02;
-          letter-spacing: -0.02em;
-          color: var(--ink) !important;
-        }
-
-        .capabilities-list {
-          border-top: 1px solid var(--line);
-        }
-        .capability-row {
-          position: relative;
-          display: grid;
-          grid-template-columns: auto 1fr auto;
-          gap: 24px;
-          align-items: baseline;
-          padding: clamp(28px, 4vw, 44px) 0;
-          border-bottom: 1px solid var(--line);
-          cursor: pointer;
-          color: var(--ink) !important;
-          overflow: hidden;
-          transition: color 0.4s var(--ease);
-        }
-        @media (min-width: 900px) {
-          .capability-row {
-            grid-template-columns: 80px 1.2fr 1fr 60px;
-            align-items: center;
-          }
-        }
-        .capability-row::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: var(--ink);
-          transform: scaleY(0);
-          transform-origin: 50% 100%;
-          transition: transform 0.6s var(--ease);
-          z-index: 1;
-        }
-        .capability-row:hover::before {
-          transform: scaleY(1);
-        }
-        .capability-row > * {
-          position: relative;
-          z-index: 2;
-          transition: color 0.4s var(--ease), transform 0.4s var(--ease);
-        }
-        .capability-row:hover {
-          color: var(--paper) !important;
-        }
-        .capability-row:hover .cap-title,
-        .capability-row:hover .cap-desc {
-          color: var(--paper) !important;
-        }
-        .capability-row:hover .cap-index {
-          color: var(--signal) !important;
-        }
-        .capability-row:hover .cap-arrow {
-          transform: translate(6px, -6px);
-          color: var(--signal) !important;
-        }
-
-        .cap-index { color: var(--mute) !important; }
-        .cap-title {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(1.8rem, 4.4vw, 4rem);
-          line-height: 1;
-          letter-spacing: -0.015em;
-          color: var(--ink) !important;
-        }
-        .cap-desc {
-          color: var(--mute) !important;
-          font-size: 0.95rem;
-          line-height: 1.45;
-          max-width: 44ch;
-        }
-        @media (max-width: 899px) {
-          .cap-desc {
-            grid-column: 2 / -1;
-            margin-top: -8px;
-          }
-        }
-        .cap-arrow {
-          font-family: var(--font-serif);
-          font-size: 2rem;
-          line-height: 1;
-          text-align: right;
-          color: var(--ink);
-        }
-
-        .process-cards-stack {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          gap: 36px;
-          margin-top: clamp(40px, 6vw, 72px);
-        }
-        .process-card {
-          position: sticky;
-          background-color: var(--paper-2) !important;
-          border: 1px solid var(--line);
-          min-height: min(68svh, 600px);
-          padding: clamp(32px, 5vw, 64px);
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-        .process-card:nth-child(1) { top: clamp(90px, 12vh, 130px); }
-        .process-card:nth-child(2) { top: calc(clamp(90px, 12vh, 130px) + 26px); }
-        .process-card:nth-child(3) { top: calc(clamp(90px, 12vh, 130px) + 52px); }
-
-        @media (max-width: 768px) {
-          .process-card { min-height: 60svh; }
-        }
-
-        .card-top-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding-bottom: 24px;
-          border-bottom: 1px solid var(--line);
-          color: var(--mute) !important;
-        }
-        .card-headline {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(2.4rem, 6.2vw, 5.2rem);
-          line-height: 0.98;
-          letter-spacing: -0.02em;
-          margin: 40px 0;
-          max-width: 18ch;
-          color: var(--ink) !important;
-        }
-        .card-bottom-row {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 20px;
-          padding-top: 24px;
-          border-top: 1px solid var(--line);
-        }
-        @media (min-width: 900px) {
-          .card-bottom-row {
-            grid-template-columns: 1.4fr auto;
-            align-items: flex-end;
-          }
-        }
-        .card-desc {
-          color: var(--mute) !important;
-          font-size: 1.05rem;
-          max-width: 48ch;
-          line-height: 1.45;
-        }
-        .card-tags {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        .card-tag {
-          padding: 6px 12px;
-          border: 1px solid var(--line);
-          color: var(--ink) !important;
-        }
-
-        .numbers-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          border-top: 1px solid var(--line);
-          border-bottom: 1px solid var(--line);
-        }
-        @media (min-width: 600px) {
-          .numbers-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (min-width: 1024px) {
-          .numbers-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-
-        .stat-cell {
-          padding: clamp(36px, 5vw, 64px) clamp(20px, 3vw, 36px);
-          border-bottom: 1px solid var(--line);
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-        @media (min-width: 600px) {
-          .stat-cell:nth-child(odd) { border-right: 1px solid var(--line); }
-        }
-        @media (min-width: 1024px) {
-          .stat-cell {
-            border-bottom: none;
-            border-right: 1px solid var(--line);
-          }
-          .stat-cell:last-child { border-right: none; }
-        }
-
-        .stat-number {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(3.8rem, 8.5vw, 9.2rem);
-          line-height: 0.9;
-          letter-spacing: -0.03em;
-          margin-bottom: 24px;
-          color: var(--ink) !important;
-        }
-        .stat-label {
-          color: var(--mute) !important;
-          font-size: 0.82rem;
-          line-height: 1.4;
-          max-width: 22ch;
-        }
-
-        .editorial-quote {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(2.3rem, 5.6vw, 5.8rem);
-          line-height: 1.05;
-          letter-spacing: -0.02em;
-          margin-bottom: clamp(36px, 5vw, 60px);
-          max-width: 24ch;
-          color: var(--ink) !important;
-        }
-        .quote-attribution { color: var(--mute) !important; }
-
-        .pricing-header-wrap {
-          display: flex;
-          flex-direction: column;
-          gap: 32px;
-          margin-bottom: clamp(48px, 7vw, 84px);
-        }
-        @media (min-width: 900px) {
-          .pricing-header-wrap {
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: flex-end;
-          }
-        }
-
-        .pricing-toggle {
-          display: inline-flex;
-          align-items: center;
-          gap: 24px;
-          border: 1px solid var(--line);
-          padding: 10px 18px;
-        }
-        .pricing-toggle-btn {
-          color: var(--mute) !important;
-          font-size: 0.78rem;
-          position: relative;
-          padding-bottom: 3px;
-          transition: color 0.25s var(--ease);
-        }
-        .pricing-toggle-btn.active { color: var(--ink) !important; }
-        .pricing-toggle-btn.active::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          bottom: 0;
-          width: 100%;
-          height: 1px;
-          background-color: var(--ink);
-        }
-
-        .pricing-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          border: 1px solid var(--line);
-        }
-        @media (min-width: 900px) {
-          .pricing-grid { grid-template-columns: repeat(3, 1fr); }
-        }
-
-        .pricing-card {
-          padding: clamp(36px, 4.5vw, 56px);
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          border-bottom: 1px solid var(--line);
-          background-color: var(--paper) !important;
-          color: var(--ink) !important;
-        }
-        @media (min-width: 900px) {
-          .pricing-card {
-            border-bottom: none;
-            border-right: 1px solid var(--line);
-          }
-          .pricing-card:last-child { border-right: none; }
-        }
-
-        /* Featured Inverted Tier */
-        .pricing-card.featured {
-          background-color: var(--ink) !important;
-          color: var(--paper) !important;
-        }
-        .pricing-card.featured .pricing-amount,
-        .pricing-card.featured .pricing-feature-item {
-          color: var(--paper) !important;
-        }
-        .pricing-card.featured .pricing-desc,
-        .pricing-card.featured .pricing-period {
-          color: var(--paper) !important;
-          opacity: 0.75;
-        }
-        .pricing-card.featured .pricing-card-header,
-        .pricing-card.featured .pricing-feature-item {
-          border-color: rgba(241, 239, 233, 0.18);
-        }
-
-        .pricing-card-header {
-          padding-bottom: 32px;
-          border-bottom: 1px solid var(--line);
-          margin-bottom: 32px;
-        }
-        .pricing-tier-name { margin-bottom: 16px; color: var(--ink) !important; }
-        .pricing-price-wrap {
-          display: flex;
-          align-items: baseline;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-        .pricing-amount {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(3rem, 5.5vw, 4.8rem);
-          line-height: 1;
-          letter-spacing: -0.02em;
-          transition: opacity 0.25s var(--ease);
-          color: var(--ink) !important;
-        }
-        .pricing-amount.updating { opacity: 0.2; }
-        .pricing-period { color: var(--mute) !important; }
-        .pricing-desc {
-          color: var(--mute) !important;
-          font-size: 0.92rem;
-          line-height: 1.4;
-          min-height: 40px;
-        }
-
-        .pricing-features {
-          list-style: none;
-          margin-bottom: 40px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        .pricing-feature-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-size: 0.9rem;
-          color: var(--ink) !important;
-        }
-        .pricing-check {
-          color: var(--signal) !important;
-          font-size: 0.9rem;
-          font-weight: 600;
-        }
-
-        .faq-list {
-          border-top: 1px solid var(--line);
-          margin-top: clamp(40px, 6vw, 68px);
-        }
-        .faq-item { border-bottom: 1px solid var(--line); }
-        .faq-trigger {
-          width: 100%;
-          text-align: left;
-          padding: clamp(28px, 3.5vw, 40px) 0;
-          display: grid;
-          grid-template-columns: 48px 1fr 32px;
-          align-items: center;
-          gap: 16px;
-          cursor: pointer;
-        }
-        .faq-index { color: var(--mute) !important; }
-        .faq-question {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(1.5rem, 3.2vw, 2.3rem);
-          line-height: 1.15;
-          letter-spacing: -0.01em;
-          color: var(--ink) !important;
-        }
-        .faq-icon {
-          font-family: var(--font-mono);
-          font-size: 1.35rem;
-          text-align: right;
-          color: var(--ink) !important;
-          transition: transform 0.4s var(--ease);
-          display: inline-block;
-        }
-        .faq-item.open .faq-icon {
-          transform: rotate(45deg);
-          color: var(--signal) !important;
-        }
-
-        .faq-answer-grid {
-          display: grid;
-          grid-template-rows: 0fr;
-          transition: grid-template-rows 0.5s var(--ease);
-        }
-        .faq-item.open .faq-answer-grid { grid-template-rows: 1fr; }
-        .faq-answer-inner { overflow: hidden; }
-        .faq-answer-content {
-          padding-left: 64px;
-          padding-bottom: clamp(28px, 4vw, 40px);
-          color: var(--mute) !important;
-          font-size: 1.05rem;
-          line-height: 1.55;
-          max-width: 64ch;
-        }
-        @media (max-width: 768px) {
-          .faq-answer-content { padding-left: 0; }
-        }
-
-        section#cta {
-          border-bottom: 1px solid var(--line);
-          text-align: center;
-          padding-top: clamp(120px, 18vw, 240px);
-          padding-bottom: clamp(120px, 18vw, 240px);
-        }
-        .cta-big-line {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(3.2rem, 9.5vw, 9.8rem);
-          line-height: 0.95;
-          letter-spacing: -0.025em;
-          margin-bottom: clamp(40px, 6vw, 64px);
-          color: var(--ink) !important;
-        }
-        .cta-actions {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 18px;
-        }
-        .cta-microcopy {
-          color: var(--mute) !important;
-          font-size: 0.78rem;
-        }
-
-        footer#site-footer {
-          padding-top: clamp(80px, 12vw, 140px);
-          padding-bottom: clamp(36px, 6vw, 60px);
-          background-color: var(--paper) !important;
-          position: relative;
-          overflow: hidden;
-        }
-        .footer-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 48px;
-          padding-bottom: clamp(60px, 10vw, 120px);
-          border-bottom: 1px solid var(--line);
-        }
-        @media (min-width: 768px) {
-          .footer-grid { grid-template-columns: 1.2fr 1fr 1fr; }
-        }
-        @media (min-width: 1024px) {
-          .footer-grid { grid-template-columns: 2fr 1fr 1fr 1.5fr; }
-        }
-
-        .footer-col-title {
-          color: var(--mute) !important;
-          margin-bottom: 24px;
-        }
-        .footer-links {
-          list-style: none;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-        .footer-links a {
-          color: var(--ink) !important;
-          font-size: 0.8rem;
-          transition: color 0.2s var(--ease);
-          min-height: 24px;
-          display: inline-flex;
-          align-items: center;
-        }
-        .footer-links a:hover { color: var(--signal) !important; }
-
-        .newsletter-form {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .newsletter-input-wrap {
-          position: relative;
-          display: flex;
-        }
-        .newsletter-input {
-          width: 100%;
-          background: transparent;
-          border: none;
-          border-bottom: 1px solid var(--line);
-          color: var(--ink) !important;
-          font-family: var(--font-mono);
-          font-size: 0.82rem;
-          padding: 12px 0;
-          border-radius: 0;
-          outline: none;
-          transition: border-color 0.25s var(--ease);
-        }
-        .newsletter-input:focus { border-bottom-color: var(--signal) !important; }
-        .newsletter-input::placeholder { color: var(--mute) !important; }
-        .newsletter-submit {
-          position: absolute;
-          right: 0;
-          bottom: 12px;
-          font-family: var(--font-mono);
-          font-size: 0.8rem;
-          color: var(--ink) !important;
-          transition: color 0.25s var(--ease);
-        }
-        .newsletter-submit:hover { color: var(--signal) !important; }
-        .newsletter-msg {
-          font-family: var(--font-mono);
-          font-size: 0.74rem;
-          letter-spacing: 0.04em;
-          min-height: 18px;
-        }
-        .newsletter-msg.error { color: var(--signal) !important; }
-        .newsletter-msg.success { color: var(--ink) !important; }
-
-        .footer-giant-wordmark-wrap {
-          padding-top: clamp(40px, 8vw, 80px);
-          overflow: hidden;
-          width: 100%;
-        }
-        .footer-giant-wordmark {
-          font-family: var(--font-serif) !important;
-          font-size: clamp(3.2rem, 24vw, 24rem);
-          line-height: 0.82;
-          letter-spacing: -0.035em;
-          white-space: nowrap;
-          color: var(--ink) !important;
-          display: block;
-          width: 100%;
-          text-align: center;
-          transform: translateY(105%);
-          transition: transform 1.2s var(--ease);
-        }
-        .footer-giant-wordmark.revealed { transform: translateY(0); }
-
-        .footer-meta-bottom {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          padding-top: 32px;
-          color: var(--mute) !important;
-          font-size: 0.75rem;
-        }
-        @media (min-width: 768px) {
-          .footer-meta-bottom {
-            flex-direction: row;
-            justify-content: space-between;
-          }
-        }
-
-        @media (max-width: 899px) {
-          .desktop-nav { display: none; }
-          .mobile-menu-btn { display: inline-flex; align-items: center; }
-          .hero-guides { grid-template-columns: repeat(2, 1fr); }
-          .hero-guides .hero-guide-line:nth-child(3),
-          .hero-guides .hero-guide-line:nth-child(4) {
-            display: none;
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .blackfighters-editorial-root *,
-          .blackfighters-editorial-root *::before,
-          .blackfighters-editorial-root *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-            scroll-behavior: auto !important;
-          }
-          .hero-line-inner { transform: none !important; }
-          .hero-guides .hero-guide-line { transform: none !important; }
-          .reveal-on-scroll { opacity: 1 !important; transform: none !important; }
-          .manifesto-word { opacity: 1 !important; }
-          .footer-giant-wordmark { transform: none !important; }
-          #cursor-dot { display: none !important; }
-          .ticker-track { animation: none !important; }
-        }
-      `}</style>
-
-      {/* Accessible Skip Link */}
-      <a href="#main-content" className="skip-link">
-        Skip to content
-      </a>
-
-      {/* Top Reading Progress Bar */}
-      <div id="progress-line" ref={progressLineRef} aria-hidden="true" />
-
-      {/* Signal Cursor Dot */}
-      <div id="cursor-dot" ref={cursorDotRef} aria-hidden="true" />
-
-      {/* Fixed Header */}
-      <header id="site-header" ref={headerRef} role="banner">
-        <div className="container header-inner">
-          <Link to="/" className="brand-wordmark" aria-label="Black Fighters Home">
-            Black Fighters<span className="signal-dot">.</span>
-          </Link>
-
-          <nav className="desktop-nav" aria-label="Primary navigation">
-            <a href="#work">Capabilities</a>
-            <a href="#process">Methodology</a>
-            <a href="#numbers">Telemetry</a>
-            <a href="#pricing">Tiers</a>
-            <a href="#faq">Inquiries</a>
+    <div
+      dir={dir}
+      className="min-h-screen bg-[#05070a] text-[#f5f7fa] relative overflow-x-hidden selection:bg-[#19f08c]/20"
+    >
+      {/* Silent LineVault Ambient Backdrop */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#05070a]"
+      >
+        <div className="absolute inset-0 bg-radial-emerald" />
+        <div className="absolute inset-0 bg-grid opacity-80" />
+      </div>
+
+      {/* 1. Sticky Glass Header (3-Zone Contract) */}
+      <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#05070a]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6">
+          <LVLogo to="/" label="Black Fighters" />
+
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#9aa4b2]">
+            <a
+              href="#how-it-works"
+              className="hover:text-[#f5f7fa] transition-colors whitespace-nowrap shrink-0"
+            >
+              {isAr ? "كيف تعمل المنصة" : "How it works"}
+            </a>
+            <a
+              href="#atlas-reader"
+              className="hover:text-[#f5f7fa] transition-colors whitespace-nowrap shrink-0"
+            >
+              {isAr ? "قارئ الأطلس V5" : "Atlas V5 Reader"}
+            </a>
+            <a
+              href="#configurator"
+              className="hover:text-[#f5f7fa] transition-colors whitespace-nowrap shrink-0"
+            >
+              {isAr ? "حاسبة الرصيد" : "Credit Vault"}
+            </a>
+            <a
+              href="#pricing"
+              className="hover:text-[#f5f7fa] transition-colors whitespace-nowrap shrink-0"
+            >
+              {isAr ? "الباقات" : "Pricing"}
+            </a>
+            <a
+              href="#faq"
+              className="hover:text-[#f5f7fa] transition-colors whitespace-nowrap shrink-0"
+            >
+              {isAr ? "الأسئلة الشائعة" : "FAQ"}
+            </a>
           </nav>
 
-          <div className="header-controls">
+          <div className="flex items-center gap-3 shrink-0">
+            <LVLangSwitch />
+            {!isAuthenticated && (
+              <Link
+                to="/login"
+                className="hidden sm:inline-flex items-center px-3 py-2 text-xs font-semibold text-[#9aa4b2] hover:text-[#f5f7fa] transition-colors whitespace-nowrap"
+              >
+                {isAr ? "دخول" : "Sign In"}
+              </Link>
+            )}
             <Link
-              to={authTarget}
-              className="btn-pill btn-pill-sm"
+              to={primaryRoute}
+              className="btn-primary-glow inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap shrink-0"
             >
-              {user ? 'Dashboard' : 'Start Free →'}
+              <span>
+                {isAuthenticated
+                  ? isAr
+                    ? "لوحة التحكم"
+                    : "Open Dashboard"
+                  : isAr
+                  ? "ابدأ المذاكرة الآن"
+                  : "Start Studying"}
+              </span>
+              <ArrowIcon className="w-4 h-4" />
             </Link>
-
-            <button
-              className="theme-toggle"
-              onClick={toggleTheme}
-              aria-label="Toggle visual theme"
-              type="button"
-            >
-              {theme === 'dark' ? 'Light' : 'Dark'}
-            </button>
-
-            <button
-              className="mobile-menu-btn"
-              onClick={() => setMobileMenuOpen(true)}
-              aria-label="Open navigation menu"
-              aria-expanded={mobileMenuOpen}
-              type="button"
-            >
-              Menu
-            </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Fullscreen Overlay */}
-      <div
-        id="mobile-menu-overlay"
-        className={mobileMenuOpen ? 'open' : ''}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Mobile navigation menu"
-      >
-        <div className="mobile-menu-head">
-          <span className="brand-wordmark">
-            Black Fighters<span className="signal-dot">.</span>
-          </span>
-          <button
-            className="mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label="Close navigation menu"
-            type="button"
-          >
-            Close
-          </button>
-        </div>
-
-        <nav className="mobile-nav-links" aria-label="Mobile links">
-          <a href="#work" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-            Capabilities
-          </a>
-          <a href="#process" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-            Methodology
-          </a>
-          <a href="#numbers" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-            Telemetry
-          </a>
-          <a href="#pricing" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-            Tiers
-          </a>
-          <a href="#faq" className="mobile-nav-link" onClick={() => setMobileMenuOpen(false)}>
-            Inquiries
-          </a>
-          <Link
-            to={authTarget}
-            className="mobile-nav-link text-signal"
-            onClick={() => setMobileMenuOpen(false)}
-          >
-            {user ? 'Open Dashboard' : 'Start Free →'}
-          </Link>
-        </nav>
-
-        <div className="mobile-menu-foot">
-          <span className="mono">Clinical Intelligence · Est. 2024</span>
-          <button className="theme-toggle" onClick={toggleTheme} type="button">
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
-        </div>
-      </div>
-
-      <main id="main-content">
-        {/* HERO SECTION */}
-        <section id="hero" className="editorial-section" aria-labelledby="hero-heading">
-          <div className="hero-guides" ref={heroGuidesRef} aria-hidden="true">
-            <div className="hero-guide-line" />
-            <div className="hero-guide-line" />
-            <div className="hero-guide-line" />
-            <div className="hero-guide-line" />
-          </div>
-
-          <div className="container hero-content">
-            <div className="hero-meta-row mono">
-              <span>(01)</span>
-              <span>The cognitive study layer for medicine</span>
-              <span>Est. 2024</span>
-            </div>
-
-            <h1 id="hero-heading" className="hero-headline" ref={heroHeadlineRef}>
-              <span className="hero-line-mask">
-                <span className="hero-line-inner">Compress dense textbooks.</span>
-              </span>
-              <span className="hero-line-mask">
-                <span className="hero-line-inner">
-                  Retain <em className="signal-text">everything.</em>
+      {/* 2. Two-Column LineVault Hero */}
+      <section className="relative pt-12 pb-20 sm:pt-20 sm:pb-28">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
+            {/* Column 1: Copy + CTAs + 3 AnimatedNumber Counters */}
+            <div className="lg:col-span-7 space-y-6">
+              <motion.div {...reveal(0)}>
+                <span className="glass inline-flex items-center gap-2.5 rounded-full px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#19f08c]">
+                  <span className="pulse-dot" />
+                  <span>VERIFIED ACADEMIC ENGINE · V5 ATLAS × LINEVAULT</span>
                 </span>
-              </span>
-            </h1>
+              </motion.div>
 
-            <div className="hero-bottom-row">
-              <p className="hero-lede">
-                Black Fighters synthesizes 1,000-page clinical references and raw lecture decks into
-                structured, citation-backed intelligence, active-recall quizzes, and synchronized
-                spaced repetition.
-              </p>
-              <div className="hero-actions">
-                <Link to={authTarget} className="btn-pill" data-magnet>
-                  {user ? 'Go to Dashboard' : 'Start studying free →'}
-                </Link>
-                <a href="#manifesto" className="hero-link">
-                  See the methodology
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* TICKER SECTION */}
-        <div className="ticker-wrap" aria-hidden="true">
-          <div className="ticker-track">
-            <div className="ticker-group">
-              <span className="ticker-item">1,000-Page Textbook Engine</span>
-              <span className="ticker-item">Page-Level Citations</span>
-              <span className="ticker-item">Clinical Dosage Verifier</span>
-              <span className="ticker-item">FSRS Spaced Repetition</span>
-              <span className="ticker-item">Telegram Bot Auto-Sync</span>
-              <span className="ticker-item">Prerequisite Bridges</span>
-              <span className="ticker-item">Credit Ledger Protection</span>
-              <span className="ticker-item">Clinical Reasoning Banks</span>
-            </div>
-            <div className="ticker-group">
-              <span className="ticker-item">1,000-Page Textbook Engine</span>
-              <span className="ticker-item">Page-Level Citations</span>
-              <span className="ticker-item">Clinical Dosage Verifier</span>
-              <span className="ticker-item">FSRS Spaced Repetition</span>
-              <span className="ticker-item">Telegram Bot Auto-Sync</span>
-              <span className="ticker-item">Prerequisite Bridges</span>
-              <span className="ticker-item">Credit Ledger Protection</span>
-              <span className="ticker-item">Clinical Reasoning Banks</span>
-            </div>
-          </div>
-        </div>
-
-        {/* MANIFESTO SECTION */}
-        <section id="manifesto" className="editorial-section" aria-labelledby="manifesto-heading">
-          <div className="container">
-            <div className="manifesto-label mono">(02) THE THESIS</div>
-            <h2 id="manifesto-heading" className="sr-only-hidden">
-              Our Thesis
-            </h2>
-            <p className="manifesto-text" ref={manifestoRef}>
-              Medical students and clinicians do not struggle from a lack of information. They drown
-              in unrefined volume. When every examination demands thousands of complex slides,
-              passive reading is quiet surrender. Black Fighters reconstructs raw syllabi into
-              verifiable, foundational principles, so deep clinical comprehension becomes an{' '}
-              <em className="signal-text">inherent truth.</em> Every claim cited. Every dosage
-              confirmed.
-            </p>
-          </div>
-        </section>
-
-        {/* CAPABILITIES INDEX SECTION */}
-        <section
-          id="work"
-          className="editorial-section reveal-on-scroll"
-          aria-labelledby="capabilities-heading"
-        >
-          <div className="container">
-            <div className="section-header-row">
-              <div className="section-label mono">Capabilities</div>
-              <h2 id="capabilities-heading" className="section-headline">
-                Four pillars, <em className="signal-text">one</em> source of truth.
-              </h2>
-            </div>
-
-            <div className="capabilities-list" role="list">
-              <div className="capability-row" role="listitem" tabIndex={0}>
-                <span className="cap-index mono">01</span>
-                <h3 className="cap-title serif">Textbook & Lecture Synthesis</h3>
-                <p className="cap-desc">
-                  Partition documents up to 1,000 pages into modular chapters with preserved page
-                  numbers and locked medical terminology.
-                </p>
-                <span className="cap-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </div>
-
-              <div className="capability-row" role="listitem" tabIndex={0}>
-                <span className="cap-index mono">02</span>
-                <h3 className="cap-title serif">Prerequisite Scaffolding</h3>
-                <p className="cap-desc">
-                  The 'Before You Read' protocol explains physiological mechanisms from the ground up
-                  before diving into complex pharmacology.
-                </p>
-                <span className="cap-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </div>
-
-              <div className="capability-row" role="listitem" tabIndex={0}>
-                <span className="cap-index mono">03</span>
-                <h3 className="cap-title serif">Clinical Active Recall</h3>
-                <p className="cap-desc">
-                  Auto-generate diagnostic case dilemmas, evidence-based reasoning scenarios, and FSRS
-                  spaced repetition cards directly from source pages.
-                </p>
-                <span className="cap-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </div>
-
-              <div className="capability-row" role="listitem" tabIndex={0}>
-                <span className="cap-index mono">04</span>
-                <h3 className="cap-title serif">Autonomous Telegram Sync</h3>
-                <p className="cap-desc">
-                  Receive formatted briefings, offline high-resolution PDF exports, and interactive
-                  revision quizzes directly in your mobile messaging inbox.
-                </p>
-                <span className="cap-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* PROCESS SECTION */}
-        <section id="process" className="editorial-section" aria-labelledby="process-heading">
-          <div className="container">
-            <div className="section-header-row reveal-on-scroll">
-              <div className="section-label mono">Methodology</div>
-              <h2 id="process-heading" className="section-headline">
-                Three steps. <em className="signal-text">Zero cognitive waste.</em>
-              </h2>
-            </div>
-
-            <div className="process-cards-stack">
-              <article className="process-card" aria-label="Step 1: Ingest">
-                <div className="card-top-row mono">
-                  <span>STEP 01</span>
-                  <span>INGEST</span>
-                </div>
-                <h3 className="card-headline">
-                  Upload dense textbooks and slides up to 1,000 pages with{' '}
-                  <em className="signal-text">zero</em> context loss.
-                </h3>
-                <div className="card-bottom-row">
-                  <p className="card-desc">
-                    Our OCR and semantic document engine partitions vast medical syllabi into
-                    coherent modules while locking core clinical terminology and dosage tables.
-                  </p>
-                  <div className="card-tags mono">
-                    <span className="card-tag">1,000-Page Buffer</span>
-                    <span className="card-tag">Semantic Chunking</span>
-                  </div>
-                </div>
-              </article>
-
-              <article className="process-card" aria-label="Step 2: Synthesize">
-                <div className="card-top-row mono">
-                  <span>STEP 02</span>
-                  <span>SYNTHESIZE</span>
-                </div>
-                <h3 className="card-headline">
-                  Our medical reasoning model structures every chapter with verifiable citations and{' '}
-                  <em className="signal-text">grounded</em> facts.
-                </h3>
-                <div className="card-bottom-row">
-                  <p className="card-desc">
-                    Every physiological mechanism, diagnostic criterion, and drug interaction is
-                    linked bi-directionally to its source textbook page.
-                  </p>
-                  <div className="card-tags mono">
-                    <span className="card-tag">Page Citations</span>
-                    <span className="card-tag">Dosage Verifier</span>
-                  </div>
-                </div>
-              </article>
-
-              <article className="process-card" aria-label="Step 3: Retain">
-                <div className="card-top-row mono">
-                  <span>STEP 03</span>
-                  <span>RETAIN</span>
-                </div>
-                <h3 className="card-headline">
-                  Transition from passive reading into active recall across web and Telegram with{' '}
-                  <em className="signal-text">FSRS</em> algorithms.
-                </h3>
-                <div className="card-bottom-row">
-                  <p className="card-desc">
-                    Calculated memory decay intervals schedule your quizzes and flashcards so
-                    high-yield clinical facts survive long past exam day.
-                  </p>
-                  <div className="card-tags mono">
-                    <span className="card-tag">FSRS Spaced Repetition</span>
-                    <span className="card-tag">Telegram Bot Sync</span>
-                  </div>
-                </div>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        {/* NUMBERS SECTION */}
-        <section id="numbers" className="editorial-section" aria-labelledby="numbers-heading">
-          <div className="container">
-            <div className="section-header-row reveal-on-scroll">
-              <div className="section-label mono">Telemetry</div>
-              <h2 id="numbers-heading" className="section-headline">
-                Proven in <em className="signal-text">academic hospitals.</em>
-              </h2>
-            </div>
-
-            <div className="numbers-grid reveal-on-scroll">
-              <div className="stat-cell">
-                <div className="stat-number" data-target="1000" data-suffix="">
-                  0
-                </div>
-                <div className="stat-label mono">Max pages per single textbook upload.</div>
-              </div>
-              <div className="stat-cell">
-                <div className="stat-number" data-target="99" data-suffix="%">
-                  0%
-                </div>
-                <div className="stat-label mono">Citation grounding & factual trace accuracy.</div>
-              </div>
-              <div className="stat-cell">
-                <div className="stat-number" data-target="14" data-suffix="h">
-                  0h
-                </div>
-                <div className="stat-label mono">Average study hours saved weekly per student.</div>
-              </div>
-              <div className="stat-cell">
-                <div className="stat-number" data-target="28" data-suffix="+">
-                  0+
-                </div>
-                <div className="stat-label mono">Clinical specialties and subject modules.</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* QUOTE SECTION */}
-        <section
-          id="quote"
-          className="editorial-section reveal-on-scroll"
-          aria-labelledby="quote-heading"
-        >
-          <div className="container">
-            <h2 id="quote-heading" className="sr-only-hidden">
-              Testimonial
-            </h2>
-            <blockquote className="editorial-quote">
-              “We replaced five fragmented study tools and pre-exam all-nighters with one structured
-              system. Now our students understand the physiological reasons, not just the slides,
-              and the <em className="signal-text">evidence</em> remains verifiable at the bedside.”
-            </blockquote>
-            <div className="quote-attribution mono">
-              Prof. K. Mansour — Clinical Education Fellow & Medical Resident Lead
-            </div>
-          </div>
-        </section>
-
-        {/* PRICING SECTION */}
-        <section id="pricing" className="editorial-section" aria-labelledby="pricing-heading">
-          <div className="container">
-            <div className="pricing-header-wrap reveal-on-scroll">
-              <div>
-                <div className="section-label mono">Pricing</div>
-                <h2 id="pricing-heading" className="section-headline">
-                  Plain prices. <em className="signal-text">Guaranteed credits.</em>
-                </h2>
-              </div>
-
-              <div className="pricing-toggle mono" role="radiogroup" aria-label="Billing cycle selector">
-                <button
-                  className={`pricing-toggle-btn ${billingCycle === 'monthly' ? 'active' : ''}`}
-                  onClick={() => handleBillingToggle('monthly')}
-                  type="button"
-                  role="radio"
-                  aria-checked={billingCycle === 'monthly'}
-                >
-                  Monthly
-                </button>
-                <button
-                  className={`pricing-toggle-btn ${billingCycle === 'annual' ? 'active' : ''}`}
-                  onClick={() => handleBillingToggle('annual')}
-                  type="button"
-                  role="radio"
-                  aria-checked={billingCycle === 'annual'}
-                >
-                  Annual (25% Savings)
-                </button>
-              </div>
-            </div>
-
-            <div className="pricing-grid reveal-on-scroll">
-              {/* Starter */}
-              <div className="pricing-card">
-                <div>
-                  <div className="pricing-card-header">
-                    <div className="pricing-tier-name mono">Starter</div>
-                    <div className="pricing-price-wrap">
-                      <span className={`pricing-amount ${pricesUpdating ? 'updating' : ''}`}>
-                        {pricingData[billingCycle].starter}
-                      </span>
-                      <span className="pricing-period mono">/ month</span>
-                    </div>
-                    <p className="pricing-desc">
-                      Essential lecture synthesis and active recall for individual students.
-                    </p>
-                  </div>
-
-                  <ul className="pricing-features">
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Core lecture & slide summaries
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Foundational 'Before You Read' boxes
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Daily FSRS flashcard reviews
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Standard web reader with dark mode
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Community support
-                    </li>
-                  </ul>
-                </div>
-                <Link
-                  to={authTarget}
-                  className="btn-pill btn-pill-outline"
-                >
-                  Start studying free
-                </Link>
-              </div>
-
-              {/* Pro Fighter (Featured Inverted) */}
-              <div className="pricing-card featured">
-                <div>
-                  <div className="pricing-card-header">
-                    <div className="pricing-tier-name mono text-signal">
-                      Pro Fighter · Preferred
-                    </div>
-                    <div className="pricing-price-wrap">
-                      <span className={`pricing-amount ${pricesUpdating ? 'updating' : ''}`}>
-                        {pricingData[billingCycle].pro}
-                      </span>
-                      <span className="pricing-period mono opacity-80">
-                        / month
-                      </span>
-                    </div>
-                    <p className="pricing-desc">
-                      For clinical students and demanding academic semesters.
-                    </p>
-                  </div>
-
-                  <ul className="pricing-features">
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> 900 monthly AI credits
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> 1,000-page textbook engine
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Page-level citations & dosage verifier
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Unlimited PDF, HTML, & Telegram export
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Two-way Telegram bot synchronization
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Clinical reasoning case quizzes
-                    </li>
-                  </ul>
-                </div>
-                <Link to={authTarget} className="btn-pill w-full">
-                  Choose Pro Fighter
-                </Link>
-              </div>
-
-              {/* Supreme Max */}
-              <div className="pricing-card">
-                <div>
-                  <div className="pricing-card-header">
-                    <div className="pricing-tier-name mono">Supreme Max</div>
-                    <div className="pricing-price-wrap">
-                      <span className={`pricing-amount ${pricesUpdating ? 'updating' : ''}`}>
-                        {pricingData[billingCycle].supreme}
-                      </span>
-                      <span className="pricing-period mono">/ month</span>
-                    </div>
-                    <p className="pricing-desc">
-                      For residents, board candidates, and study group leaders.
-                    </p>
-                  </div>
-
-                  <ul className="pricing-features">
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> 2,500 monthly AI credits
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Priority processing queue (zero wait)
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Full Telegram Mini App integration
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Emergency round clinical simulations
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Double-entry ledger credit insurance
-                    </li>
-                    <li className="pricing-feature-item">
-                      <span className="pricing-check" aria-hidden="true">✓</span> Dedicated priority academic support
-                    </li>
-                  </ul>
-                </div>
-                <Link
-                  to={authTarget}
-                  className="btn-pill btn-pill-outline"
-                >
-                  Choose Supreme Max
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* QUESTIONS (FAQ) SECTION */}
-        <section id="faq" className="editorial-section" aria-labelledby="faq-heading">
-          <div className="container">
-            <div className="section-header-row reveal-on-scroll">
-              <div className="section-label mono">Questions</div>
-              <h2 id="faq-heading" className="section-headline">
-                Asked, <em className="signal-text">answered.</em>
-              </h2>
-            </div>
-
-            <div className="faq-list reveal-on-scroll">
-              {[
-                {
-                  idx: '01',
-                  q: 'How does Black Fighters summarize 1,000-page textbooks without losing critical details?',
-                  a: 'Large files are partitioned into coordinated chapters with a locked terminology index. Rather than compressing blindly, our architecture preserves every clinical criterion and links each paragraph directly to its source PDF page.',
-                },
-                {
-                  idx: '02',
-                  q: "What is the 'Before You Read' foundational bridge?",
-                  a: 'Before diving into dense clinical manifestations or pharmacodynamics, each chapter opens with an intuitive prerequisite framework. It clarifies the core physiological mechanism in simple language while preserving exact medical terminology.',
-                },
-                {
-                  idx: '03',
-                  q: 'How does the Telegram bot integrate with my account?',
-                  a: 'You link your Telegram account with one click. Once a lecture or textbook finishes synthesizing, the bot notifies you, delivers offline PDF documents, and generates interactive quizzes you can solve directly in chat.',
-                },
-                {
-                  idx: '04',
-                  q: 'Are credits refunded if a document processing task fails?',
-                  a: 'Yes, completely. All credit transactions use a double-entry ledger. Credits are only reserved when a job begins and are automatically restored to your account if any chapter fails or times out.',
-                },
-                {
-                  idx: '05',
-                  q: 'Can I export my study materials to PDF and flashcard decks?',
-                  a: 'Yes. All summaries can be downloaded as print-ready, high-resolution PDFs, standalone HTML documents, or exported directly into active-recall quizzes and FSRS spaced repetition schedules.',
-                },
-              ].map((item, i) => (
-                <div key={item.idx} className={`faq-item ${openFaqIndex === i ? 'open' : ''}`}>
-                  <button
-                    className="faq-trigger"
-                    onClick={() => setOpenFaqIndex(openFaqIndex === i ? null : i)}
-                    aria-expanded={openFaqIndex === i}
-                  >
-                    <span className="faq-index mono">{item.idx}</span>
-                    <span className="faq-question">{item.q}</span>
-                    <span className="faq-icon" aria-hidden="true">
-                      +
-                    </span>
-                  </button>
-                  <div className="faq-answer-grid">
-                    <div className="faq-answer-inner">
-                      <p className="faq-answer-content">{item.a}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* FINAL CTA SECTION */}
-        <section id="cta" className="editorial-section" aria-labelledby="cta-heading">
-          <div className="container reveal-on-scroll">
-            <h2 id="cta-heading" className="cta-big-line">
-              Master medicine with <em className="signal-text">absolute</em> clarity.
-            </h2>
-            <div className="cta-actions">
-              <Link
-                to={authTarget}
-                className="btn-pill btn-pill-lg"
-                data-magnet
+              <motion.h1
+                {...reveal(0.08)}
+                className="font-display text-3xl sm:text-5xl lg:text-[3.35rem] font-extrabold tracking-tight leading-[1.15]"
               >
-                {user ? 'Open Dashboard' : 'Start studying with Black Fighters →'}
-              </Link>
-              <span className="cta-microcopy mono">
-                No credit card required · Free credits included · Instant access
-              </span>
-            </div>
-          </div>
-        </section>
-      </main>
+                <span className="block text-gradient">
+                  {isAr
+                    ? "حوّل أضخم المحاضرات والكتب"
+                    : "Turn 1,000-page lectures into"}
+                </span>
+                <span className="block text-gradient-emerald mt-1.5">
+                  {isAr
+                    ? "إلى أطلس علمي مدقق في ثوانٍ."
+                    : "a cross-verified clinical atlas."}
+                </span>
+              </motion.h1>
 
-      {/* FOOTER */}
-      <footer id="site-footer" role="contentinfo">
-        <div className="container">
-          <div className="footer-grid reveal-on-scroll">
-            <div>
-              <div className="footer-col-title mono">Quarterly clinical briefings</div>
-              <p className="mono newsletter-subtext">
-                Selected methodology, research notes, and platform upgrades. No spam.
-              </p>
-              <form className="newsletter-form" onSubmit={handleNewsletterSubmit} noValidate>
-                <div className="newsletter-input-wrap">
-                  <input
-                    type="email"
-                    className="newsletter-input"
-                    placeholder="Your academic email"
-                    value={newsletterEmail}
-                    onChange={(e) => setNewsletterEmail(e.target.value)}
-                    required
-                    aria-label="Academic email address"
-                  />
-                  <button type="submit" className="newsletter-submit mono">
-                    Send
-                  </button>
-                </div>
-                {newsletterStatus.text && (
+              <motion.p
+                {...reveal(0.16)}
+                className="max-w-2xl text-sm sm:text-base lg:text-lg text-[#9aa4b2] leading-relaxed"
+              >
+                {isAr
+                  ? "من صفحة واحدة حتى 1,000 صفحة — تلخيص هرمي متعدد النماذج، تدقيق عابر للعائلات يمنع الهلوسة الرقمية، وشرائط استدعاء نشط مرتبطة بخوارزمية FSRS v4.5 في مساحة عمل LineVault الهادئة."
+                  : "Hierarchical multi-model summarization, cross-family dosage verification, and FSRS v4.5 spaced repetition in a calm LineVault workspace."}
+              </motion.p>
+
+              <motion.div
+                {...reveal(0.24)}
+                className="flex flex-wrap items-center gap-3.5 pt-2"
+              >
+                <Link
+                  to={primaryRoute}
+                  className="btn-primary-glow inline-flex h-12 items-center gap-2.5 rounded-xl px-6 text-sm sm:text-base font-bold whitespace-nowrap"
+                >
+                  <span>
+                    {isAr ? "ارفع محاضرتك الآن مجاناً" : "Upload Lecture Free"}
+                  </span>
+                  <ArrowIcon className="w-4 h-4" />
+                </Link>
+                <a
+                  href="#atlas-reader"
+                  className="glass inline-flex h-12 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#f5f7fa] hover:border-[#19f08c]/40 hover:bg-white/[0.05] transition-colors whitespace-nowrap"
+                >
+                  <BookOpen className="w-4 h-4 text-[#19f08c]" />
+                  <span>
+                    {isAr ? "جرّب قارئ الأطلس الحيّ" : "Explore Live Atlas Reader"}
+                  </span>
+                </a>
+              </motion.div>
+
+              {/* 3 AnimatedNumber Counters */}
+              <motion.div
+                {...reveal(0.32)}
+                className="grid grid-cols-3 gap-3 sm:gap-4 pt-4 border-t border-white/[0.08]"
+              >
+                <div className="glass rounded-2xl p-3.5 sm:p-4">
                   <div
-                    className={`newsletter-msg mono ${newsletterStatus.type}`}
-                    aria-live="polite"
+                    className="font-mono text-xl sm:text-2xl font-bold text-[#f5f7fa] tabular"
+                    dir="ltr"
                   >
-                    {newsletterStatus.text}
+                    <AnimatedNumber value={1000} suffix="p" />
                   </div>
-                )}
-              </form>
+                  <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
+                    {isAr ? "سعة التلخيص الهرمي" : "Max Book Capacity"}
+                  </p>
+                </div>
+
+                <div className="glass rounded-2xl p-3.5 sm:p-4">
+                  <div
+                    className="font-mono text-xl sm:text-2xl font-bold text-[#19f08c] tabular"
+                    dir="ltr"
+                  >
+                    <AnimatedNumber value={99.4} decimals={1} suffix="%" />
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
+                    {isAr ? "دقة مطابقة الجرعات" : "Dosage Verification"}
+                  </p>
+                </div>
+
+                <div className="glass rounded-2xl p-3.5 sm:p-4">
+                  <div
+                    className="font-mono text-xl sm:text-2xl font-bold text-[#f5f7fa] tabular"
+                    dir="ltr"
+                  >
+                    <AnimatedNumber value={56} prefix="-" suffix="%" />
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
+                    {isAr ? "خصم المنزلق الكمي" : "Volume Tier Savings"}
+                  </p>
+                </div>
+              </motion.div>
             </div>
 
-            <div>
-              <div className="footer-col-title mono">Capabilities</div>
-              <ul className="footer-links mono">
-                <li><a href="#work">Textbook Engine</a></li>
-                <li><a href="#work">Citation Trace</a></li>
-                <li><a href="#work">Clinical Quizzes</a></li>
-                <li><a href="#work">FSRS Flashcards</a></li>
-                <li><a href="#work">Telegram Bot</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <div className="footer-col-title mono">Disciplines</div>
-              <ul className="footer-links mono">
-                <li><a href="#work">Internal Medicine</a></li>
-                <li><a href="#work">Pharmacology</a></li>
-                <li><a href="#work">General Surgery</a></li>
-                <li><a href="#work">Physiology</a></li>
-                <li><a href="#work">Pathology</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <div className="footer-col-title mono">Platform</div>
-              <p className="mono footer-direct-desc">
-                Black Fighters organizes your medical curriculum into one quiet, verifiable intelligence surface.
-              </p>
-              <ul className="footer-links mono">
-                <li><a href="#numbers">System Status</a></li>
-                <li><a href="#pricing">Credit Ledger</a></li>
-                <li><a href="/login">Emergency Round</a></li>
-              </ul>
-            </div>
+            {/* Column 2: Live LineStream Terminal */}
+            <motion.div {...reveal(0.2)} className="lg:col-span-5">
+              <LineStream locale={locale} />
+            </motion.div>
           </div>
+        </div>
+      </section>
 
-          <div className="footer-giant-wordmark-wrap" aria-hidden="true">
-            <span className="footer-giant-wordmark" ref={footerWordmarkRef}>
-              Black Fighters.
-            </span>
-          </div>
+      {/* 3. HowItWorks (01..03 Glass Cards) */}
+      <Section
+        id="how-it-works"
+        eyebrow={isAr ? "هندسة التلخيص والتدقيق" : "PIPELINE ARCHITECTURE"}
+        title={
+          isAr
+            ? "ثلاث خطوات تحول الفوضى إلى أطلس مدقق"
+            : "Three stages from raw PDF to verified mastery"
+        }
+        subtitle={
+          isAr
+            ? "صممنا كل مرحلة لتعالج نقاط الضعف في أدوات الذكاء الاصطناعي التقليدية والمذكرات اليدوية."
+            : "Engineered to eliminate truncation, numeric hallucinations, and passive reading."
+        }
+      >
+        <div className="grid gap-6 md:grid-cols-3">
+          {HOW_IT_WORKS_STEPS.map((step, i) => (
+            <motion.div key={step.num} {...rise(i)}>
+              <GlassCard className="h-full flex flex-col justify-between p-6 sm:p-7 hover:border-[#19f08c]/40 transition-colors">
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-5">
+                    <span
+                      className="font-mono text-2xl font-bold text-[#19f08c] tabular"
+                      dir="ltr"
+                    >
+                      {step.num}
+                    </span>
+                    <LVBadge variant="emerald">{step.tag}</LVBadge>
+                  </div>
+                  <h3 className="font-display text-lg font-bold text-[#f5f7fa] mb-2.5">
+                    {isAr ? step.titleAr : step.titleEn}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-[#9aa4b2] leading-relaxed">
+                    {isAr ? step.descAr : step.descEn}
+                  </p>
+                </div>
+                <div className="mt-6 pt-4 border-t border-white/[0.07] flex items-center justify-between text-[11px] font-mono text-[#646e7d]">
+                  <span>STAGE {step.num}</span>
+                  <span className="text-[#19f08c]">VERIFIED · READY</span>
+                </div>
+              </GlassCard>
+            </motion.div>
+          ))}
+        </div>
+      </Section>
 
-          <div className="footer-meta-bottom mono">
-            <span>© 2026 Black Fighters · All rights reserved</span>
-            <span>
-              <a href="#manifesto" className="footer-privacy-link">Privacy</a>
-              <a href="#manifesto">Terms</a>
+      {/* 4. Live Interactive Atlas Reader Showcase */}
+      <Section
+        id="atlas-reader"
+        eyebrow={isAr ? "قارئ الأطلس التفاعلي V5" : "ATLAS V5 INTERACTIVE READER"}
+        title={
+          isAr
+            ? "جرّب بنفسك: شرح تأسيسي واستدعاء نشط داخل الملخص"
+            : "Experience live Active Recall and verified citations"
+        }
+        subtitle={
+          isAr
+            ? "فعّل وضع التسميع الذاتي (Declassify) لإخفاء المعلومات والجرعات الحرجة واختبر ذاكرتك قبل الامتحان."
+            : "Toggle Declassify mode below to mask critical mechanisms and dosages, then click to reveal."
+        }
+      >
+        <LandingAtlasShowcase locale={locale} />
+      </Section>
+
+      {/* 5. Logarithmic Volume Credit Configurator */}
+      <Section
+        id="configurator"
+        eyebrow={
+          isAr ? "حاسبة الرصيد والخصم الكمي" : "VOLUME CREDIT CONFIGURATOR"
+        }
+        title={
+          isAr
+            ? "اختر كمية الكريدت بدقة — خصم فوري حتى 56%"
+            : "Dial your exact credit volume — up to 56% off"
+        }
+        subtitle={
+          isAr
+            ? "اسحب المنزلق اللوغاريتمي أو اختر شريحة جاهزة. كلما زادت الكمية انخفض سعر الوحدة تلقائياً."
+            : "Drag the logarithmic slider or pick a preset tier. Unit cost drops automatically at every threshold."
+        }
+      >
+        <LVConfigurator
+          locale={locale}
+          onSelectCustomPack={() => navigate("/subscriptions")}
+        />
+      </Section>
+
+      {/* 6. Pricing Plans */}
+      <Section
+        id="pricing"
+        eyebrow={isAr ? "الباقات الشهرية" : "MONTHLY PLANS"}
+        title={
+          isAr
+            ? "باقات واضحة مصممة لكل حجم مذاكرة"
+            : "Transparent plans scaled to your academic load"
+        }
+        subtitle={
+          isAr
+            ? "اشترك في باقة شهرية أو اشحن رصيداً إضافياً لا ينتهي في أي وقت عبر فودافون كاش أو إنستاباي أو تيليجرام."
+            : "Choose a monthly vault plan or top up non-expiring credits anytime via InstaPay, Vodafone Cash, or Telegram Stars."
+        }
+      >
+        <div className="grid gap-6 lg:grid-cols-3">
+          {PRICING_PLANS.map((plan, i) => (
+            <motion.div key={plan.key} {...rise(i)}>
+              <PricingCard
+                name={isAr ? plan.nameAr : plan.nameEn}
+                badge={isAr ? plan.badgeAr : plan.badgeEn}
+                price={plan.price}
+                currency={isAr ? "ج.م" : "EGP"}
+                period={isAr ? "/ شهرياً" : "/ month"}
+                description={isAr ? plan.descAr : plan.descEn}
+                features={isAr ? plan.featuresAr : plan.featuresEn}
+                ctaLabel={
+                  isAr ? "اختر هذه الباقة" : "Select Plan"
+                }
+                to="/subscriptions"
+                recommended={plan.recommended}
+                className="h-full"
+              />
+            </motion.div>
+          ))}
+        </div>
+      </Section>
+
+      {/* 7. Trust & Verification Guarantee */}
+      <Section
+        id="trust"
+        eyebrow={isAr ? "الضمان الهندسي والعلمي" : "ARCHITECTURAL GUARANTEES"}
+        title={
+          isAr
+            ? "لماذا يثق طلاب الطب والعلوم في Black Fighters؟"
+            : "Built for zero-compromise academic reliability"
+        }
+      >
+        <div className="grid gap-6 md:grid-cols-3">
+          {TRUST_PILLARS.map((pillar, i) => {
+            const Icon = pillar.icon;
+            return (
+              <motion.div key={i} {...rise(i)}>
+                <GlassCard className="h-full p-6 sm:p-7 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="grid size-11 place-items-center rounded-xl border border-[#19f08c]/35 bg-[#19f08c]/12 text-[#19f08c]">
+                        <Icon className="size-5" />
+                      </div>
+                      <span
+                        className="font-mono text-xs font-semibold text-[#19f08c]"
+                        dir="ltr"
+                      >
+                        {pillar.metric}
+                      </span>
+                    </div>
+                    <h3 className="font-display text-base sm:text-lg font-bold text-[#f5f7fa] mb-2">
+                      {isAr ? pillar.titleAr : pillar.titleEn}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[#9aa4b2] leading-relaxed">
+                      {isAr ? pillar.descAr : pillar.descEn}
+                    </p>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* 8. FAQ Section */}
+      <Section
+        id="faq"
+        eyebrow={isAr ? "الأسئلة الشائعة" : "FREQUENTLY ASKED QUESTIONS"}
+        title={
+          isAr
+            ? "كل ما تحتاج معرفته قبل البدء"
+            : "Everything you need to know"
+        }
+      >
+        <div className="mx-auto max-w-3xl space-y-3">
+          {FAQ_ITEMS.map((item, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <GlassCard key={idx} padding="p-0" className="overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? -1 : idx)}
+                  className="w-full flex items-center justify-between gap-4 px-5 py-4 text-start cursor-pointer hover:bg-white/[0.02] transition-colors"
+                >
+                  <span className="font-display text-sm sm:text-base font-semibold text-[#f5f7fa]">
+                    {isAr ? item.qAr : item.qEn}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "w-4 h-4 shrink-0 text-[#19f08c] transition-transform duration-200",
+                      isOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="px-5 pb-4 text-xs sm:text-sm text-[#9aa4b2] leading-relaxed border-t border-white/[0.06] pt-3"
+                    >
+                      {isAr ? item.aAr : item.aEn}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </GlassCard>
+            );
+          })}
+        </div>
+      </Section>
+
+      {/* 9. Final CTA */}
+      <section className="py-16 sm:py-24">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <GlassCard
+            variant="highlight"
+            className="p-8 sm:p-12 text-center space-y-6 relative overflow-hidden"
+          >
+            <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.14em] text-[#19f08c]">
+              <span className="pulse-dot" />
+              <span>READY FOR EXAM MASTERY</span>
+            </div>
+            <h2 className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-gradient max-w-2xl mx-auto">
+              {isAr
+                ? "ابدأ الآن وحوّل محاضرتك القادمة إلى أطلس علمي مدقق"
+                : "Transform your next lecture into a cross-verified clinical atlas"}
+            </h2>
+            <p className="text-sm sm:text-base text-[#9aa4b2] max-w-xl mx-auto">
+              {isAr
+                ? "انضم لآلاف الطلاب واحصل على هدية كريدت مجانية فور تسجيل حسابك لتجربة القارئ الذكي والكويزات."
+                : "Create your account in seconds and receive free starter credits to test the Atlas V5 pipeline."}
+            </p>
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
+              <Link
+                to={primaryRoute}
+                className="btn-primary-glow inline-flex h-12 items-center gap-2.5 rounded-xl px-7 text-sm sm:text-base font-bold"
+              >
+                <span>
+                  {isAr ? "ابدأ المذاكرة مجاناً" : "Get Started Free"}
+                </span>
+                <ArrowIcon className="w-4 h-4" />
+              </Link>
+              <Link
+                to="/subscriptions"
+                className="glass inline-flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-[#f5f7fa] hover:border-[#19f08c]/40 transition-colors"
+              >
+                <span>
+                  {isAr ? "استعرض الباقات والرصيد" : "View Pricing & Vault"}
+                </span>
+              </Link>
+            </div>
+          </GlassCard>
+        </div>
+      </section>
+
+      {/* 10. Quiet LineVault Footer */}
+      <footer className="border-t border-white/[0.07] bg-[#05070a] py-10">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <LVLogo
+            to="/"
+            label="Black Fighters"
+            showSubtitle
+            subtitle={
+              isAr
+                ? "أطلس المذاكرة العلمي المدقق · V5 LINEVAULT"
+                : "CROSS-VERIFIED ACADEMIC ATLAS · V5"
+            }
+          />
+          <div className="flex flex-wrap items-center gap-6 text-xs text-[#9aa4b2]">
+            <Link to="/privacy" className="hover:text-[#f5f7fa] transition-colors">
+              {isAr ? "سياسة الخصوصية" : "Privacy Policy"}
+            </Link>
+            <Link to="/terms" className="hover:text-[#f5f7fa] transition-colors">
+              {isAr ? "شروط الاستخدام" : "Terms of Service"}
+            </Link>
+            <Link to="/help" className="hover:text-[#f5f7fa] transition-colors">
+              {isAr ? "مركز المساعدة" : "Help Center"}
+            </Link>
+            <span className="font-mono text-[#646e7d]" dir="ltr">
+              © {new Date().getFullYear()} BLACK FIGHTERS
             </span>
           </div>
         </div>

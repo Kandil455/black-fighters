@@ -1,11 +1,20 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
+import { cva } from "class-variance-authority";
 import {
   AnimatePresence,
-  animate,
   motion,
   useMotionValue,
   useReducedMotion,
+  useSpring,
+  useTransform,
 } from "framer-motion";
 import {
   ArrowRight,
@@ -16,31 +25,465 @@ import {
   TrendingDown,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/lib/LocaleContext";
 
-export const reveal = (i = 0) => ({
-  initial: { opacity: 0, y: 18 },
+/**
+ * LineVault Physics Motion Dictionary (Section C.2)
+ */
+export const reveal = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
   animate: { opacity: 1, y: 0 },
-  transition: { delay: 0.08 * i, duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+  transition: { duration: 0.55, delay, ease: [0.22, 1, 0.36, 1] },
 });
 
 export const rise = (i = 0) => ({
-  initial: { opacity: 0, y: 18 },
+  initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "-60px" },
-  transition: { delay: i * 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] },
+  viewport: { once: true, margin: "-80px" },
+  transition: { duration: 0.5, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] },
 });
 
-const defaultFormat = (v) =>
-  new Intl.NumberFormat("en-US").format(Math.round(v));
+export function AmbientCanvas({ className, variant = "grid" }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#05070a]",
+        className
+      )}
+    >
+      <div className="absolute inset-0 bg-radial-emerald" />
+      {variant !== "minimal" && <div className="bg-grid absolute inset-0 opacity-85" />}
+    </div>
+  );
+}
 
-export function formatInt(v) {
-  return new Intl.NumberFormat("en-US").format(Math.round(Number(v) || 0));
+export function LVLogo({
+  to,
+  label = "Black Fighters",
+  showSubtitle = false,
+  subtitle = "V5 ATLAS × LINEVAULT",
+  className,
+}) {
+  const inner = (
+    <span className={cn("inline-flex items-center gap-2.5 select-none group", className)}>
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#19f08c]/40 bg-[#19f08c]/15 font-mono text-xs font-bold text-[#19f08c] shadow-[0_0_24px_-6px_rgba(25,240,140,0.45)] transition-colors duration-150 group-hover:border-[#19f08c]/70">
+        &gt;_
+      </span>
+      <span className="leading-tight">
+        <span className="block font-display text-sm sm:text-base font-bold tracking-tight text-[#f5f7fa] whitespace-nowrap">
+          {label}
+        </span>
+        {showSubtitle && (
+          <span className="block font-mono text-[10px] uppercase tracking-wider text-[#9aa4b2] whitespace-nowrap">
+            {subtitle}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className="inline-flex items-center focus:outline-none">
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
+}
+
+export function LVLangSwitch({ className }) {
+  const { locale, setLocale } = useLocale();
+  return (
+    <div
+      className={cn(
+        "glass inline-flex items-center rounded-full p-0.5 text-xs font-mono",
+        className
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => setLocale("ar")}
+        className={cn(
+          "px-2.5 py-1 rounded-full font-sans font-semibold transition-colors duration-150 cursor-pointer whitespace-nowrap",
+          locale === "ar"
+            ? "bg-[#19f08c] text-[#03150c]"
+            : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+        )}
+      >
+        عربي
+      </button>
+      <button
+        type="button"
+        onClick={() => setLocale("en")}
+        className={cn(
+          "px-2.5 py-1 rounded-full font-mono font-semibold transition-colors duration-150 cursor-pointer whitespace-nowrap",
+          locale === "en"
+            ? "bg-[#19f08c] text-[#03150c]"
+            : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+        )}
+      >
+        EN
+      </button>
+    </div>
+  );
+}
+
+export const LVCard = forwardRef(function LVCard(
+  {
+    className,
+    padding = "p-6",
+    variant = "default",
+    accent = false,
+    interactive = false,
+    as: Comp = "div",
+    children,
+    ...props
+  },
+  ref
+) {
+  const resolvedVariant = accent && variant === "default" ? "highlight" : variant;
+  return (
+    <Comp
+      ref={ref}
+      className={cn(
+        "relative rounded-2xl transition-colors duration-200",
+        padding,
+        resolvedVariant === "default" && "glass text-[#f5f7fa]",
+        resolvedVariant === "subtle" &&
+          "border border-white/[0.07] bg-[#090c11]/80 text-[#f5f7fa]",
+        resolvedVariant === "highlight" &&
+          "glass border-[#19f08c]/45 text-[#f5f7fa] shadow-[0_0_36px_-12px_rgba(25,240,140,0.3)]",
+        interactive &&
+          "hover:border-[#19f08c]/40 hover:bg-white/[0.04] cursor-pointer",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </Comp>
+  );
+});
+
+export const GlassCard = LVCard;
+
+const badgeVariants = cva(
+  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium tracking-tight transition-colors whitespace-nowrap",
+  {
+    variants: {
+      variant: {
+        default: "border-white/10 bg-white/[0.04] text-[#9aa4b2]",
+        neutral: "border-white/10 bg-white/[0.04] text-[#9aa4b2]",
+        accent: "border-[#19f08c]/35 bg-[#19f08c]/12 text-[#19f08c]",
+        emerald: "border-[#19f08c]/35 bg-[#19f08c]/12 text-[#19f08c]",
+        amber: "border-[#f5b83d]/35 bg-[#f5b83d]/12 text-[#f5b83d]",
+        warn: "border-[#f5b83d]/35 bg-[#f5b83d]/12 text-[#f5b83d]",
+        warning: "border-[#f5b83d]/35 bg-[#f5b83d]/12 text-[#f5b83d]",
+        danger: "border-[#ff5d6c]/35 bg-[#ff5d6c]/12 text-[#ff5d6c]",
+        muted: "border-white/[0.07] bg-white/[0.03] text-[#646e7d]",
+      },
+    },
+    defaultVariants: { variant: "default" },
+  }
+);
+
+export function LVBadge({ className, variant, mono = false, ...props }) {
+  return (
+    <span
+      className={cn(badgeVariants({ variant }), mono && "font-mono tabular", className)}
+      {...props}
+    />
+  );
+}
+
+export function Section({
+  id,
+  eyebrow,
+  title,
+  subtitle,
+  children,
+  className,
+  align = "center",
+}) {
+  return (
+    <section id={id} className={cn("py-16 sm:py-24 relative", className)}>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {(eyebrow || title || subtitle) && (
+          <div
+            className={cn(
+              "mb-12 space-y-3",
+              align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-2xl"
+            )}
+          >
+            {eyebrow && (
+              <div
+                className={cn(
+                  "inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.14em] text-[#19f08c]",
+                  align === "center" && "justify-center"
+                )}
+              >
+                <span className="pulse-dot" />
+                <span>{eyebrow}</span>
+              </div>
+            )}
+            {title && (
+              <h2 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-gradient">
+                {title}
+              </h2>
+            )}
+            {subtitle && (
+              <p className="text-sm sm:text-base text-[#9aa4b2] leading-relaxed">
+                {subtitle}
+              </p>
+            )}
+          </div>
+        )}
+        {children}
+      </div>
+    </section>
+  );
+}
+
+export function SectionHeader({
+  eyebrow,
+  title,
+  subtitle,
+  action,
+  align = "start",
+  className,
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between",
+        align === "center" && "sm:flex-col sm:items-center text-center",
+        className
+      )}
+    >
+      <div className="space-y-1.5 max-w-2xl">
+        {eyebrow && (
+          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.14em] text-[#19f08c]">
+            <span className="size-1.5 rounded-full bg-[#19f08c]" />
+            <span>{eyebrow}</span>
+          </div>
+        )}
+        {title && (
+          <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-gradient">
+            {title}
+          </h2>
+        )}
+        {subtitle && (
+          <p className="text-sm text-[#9aa4b2] leading-relaxed">{subtitle}</p>
+        )}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
+
+export function PageHeader({
+  eyebrow,
+  badge,
+  title,
+  subtitle,
+  description,
+  actions,
+  className,
+}) {
+  const topLabel = eyebrow || badge;
+  const subText = subtitle || description;
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between pb-5 border-b border-white/[0.08]",
+        className
+      )}
+    >
+      <div className="space-y-1.5 max-w-2xl">
+        {topLabel && (
+          <div className="inline-flex items-center gap-2 text-xs font-mono uppercase tracking-[0.14em] text-[#19f08c]">
+            <span className="size-1.5 rounded-full bg-[#19f08c]" />
+            <span>{topLabel}</span>
+          </div>
+        )}
+        {title && (
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-gradient">
+            {title}
+          </h1>
+        )}
+        {subText && (
+          <p className="text-sm text-[#9aa4b2] leading-relaxed">{subText}</p>
+        )}
+      </div>
+      {actions && <div className="flex items-center gap-2.5 shrink-0">{actions}</div>}
+    </div>
+  );
+}
+
+export function CopyButton({ value, className }) {
+  const [copied, setCopied] = useState(false);
+  const onCopy = () => {
+    if (!value) return;
+    navigator.clipboard.writeText(String(value));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      className={cn(
+        "inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-[#9aa4b2] hover:border-[#19f08c]/40 hover:text-[#19f08c] transition-colors cursor-pointer",
+        className
+      )}
+      aria-label="Copy to clipboard"
+    >
+      {copied ? (
+        <Check className="size-3.5 text-[#19f08c]" />
+      ) : (
+        <Copy className="size-3.5" />
+      )}
+    </button>
+  );
+}
+
+export function CopyField({ label, value, mono = true, className }) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      {label && (
+        <span className="block text-xs font-medium text-[#9aa4b2]">{label}</span>
+      )}
+      <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-[#0e131b] px-3.5 py-2.5">
+        <span
+          dir="ltr"
+          className={cn(
+            "truncate text-sm text-[#f5f7fa] select-all",
+            mono && "font-mono tabular"
+          )}
+        >
+          {value}
+        </span>
+        <CopyButton value={value} />
+      </div>
+    </div>
+  );
+}
+
+export const LVButton = forwardRef(function LVButton(
+  {
+    className,
+    variant = "primary",
+    size = "md",
+    as: Comp = "button",
+    children,
+    ...props
+  },
+  ref
+) {
+  return (
+    <Comp
+      ref={ref}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold transition-colors duration-150 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#19f08c]/50 disabled:pointer-events-none disabled:opacity-45 cursor-pointer active:scale-[0.98]",
+        variant === "primary" && "btn-primary-glow",
+        variant === "secondary" &&
+          "glass text-[#f5f7fa] hover:border-[#19f08c]/40 hover:bg-white/[0.05]",
+        variant === "ghost" &&
+          "text-[#9aa4b2] hover:bg-white/[0.05] hover:text-[#f5f7fa]",
+        variant === "danger" &&
+          "border border-[#ff5d6c]/35 bg-[#ff5d6c]/12 text-[#ff5d6c] hover:bg-[#ff5d6c]/20",
+        size === "sm" && "h-9 px-3.5 text-xs rounded-lg",
+        size === "md" && "h-10 px-4 text-sm",
+        size === "lg" && "h-12 px-6 text-base",
+        size === "icon" && "size-10 p-0",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </Comp>
+  );
+});
+
+export const LVInput = forwardRef(function LVInput({ className, ...props }, ref) {
+  return (
+    <input
+      ref={ref}
+      className={cn(
+        "flex h-11 w-full rounded-xl border border-white/10 bg-[#0e131b] px-3.5 py-2 text-sm text-[#f5f7fa] placeholder:text-[#646e7d] transition-colors focus-visible:outline-none focus-visible:border-[#19f08c]/60 focus-visible:ring-2 focus-visible:ring-[#19f08c]/20 disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  );
+});
+
+export function SegmentedTabs({
+  items = [],
+  value,
+  onChange,
+  size = "md",
+  className,
+}) {
+  return (
+    <div
+      role="tablist"
+      className={cn(
+        "inline-flex items-center gap-1 rounded-xl border border-white/10 bg-[#090c11] p-1",
+        className
+      )}
+    >
+      {items.map((item) => {
+        const active = item.value === value;
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange?.(item.value)}
+            className={cn(
+              "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors duration-150 cursor-pointer whitespace-nowrap",
+              size === "sm" ? "h-8 px-3 text-xs" : "h-9 px-3.5 text-xs sm:text-sm",
+              active
+                ? "bg-[#19f08c]/15 text-[#19f08c] border border-[#19f08c]/35 font-semibold"
+                : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+            )}
+          >
+            {Icon && <Icon className="size-3.5 shrink-0" />}
+            <span>{item.label}</span>
+            {item.count !== undefined && (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.2 font-mono text-[11px] tabular",
+                  active
+                    ? "bg-[#19f08c]/20 text-[#19f08c]"
+                    : "bg-white/[0.05] text-[#9aa4b2]"
+                )}
+              >
+                {item.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function formatInt(n) {
+  return Math.round(Number(n) || 0).toLocaleString("en-US");
 }
 
 export function compactQty(n) {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return `${Number.isInteger(m) ? m : m.toFixed(1)}M`;
+  }
   if (n >= 1_000) {
     const k = n / 1_000;
     return `${Number.isInteger(k) ? k : k.toFixed(1)}K`;
@@ -48,597 +491,369 @@ export function compactQty(n) {
   return String(n);
 }
 
-/**
- * Clinical Light brand mark — navy B badge + Black Fighters wordmark
- */
-export function LVLogo({ to = "/", label = "Black Fighters", className }) {
-  return (
-    <Link
-      to={to}
-      className={cn(
-        "group inline-flex items-center gap-2.5 font-bold text-[18px] tracking-tight text-[#0B1F33]",
-        className
-      )}
-    >
-      <span className="w-9 h-9 rounded-md bg-[#0B1F33] text-white inline-flex items-center justify-center text-[15px] font-bold shrink-0 shadow-[0_1px_2px_rgba(11,31,51,0.15)]">
-        B
-      </span>
-      <span className="font-bold text-[#0B1F33]">{label}</span>
-    </Link>
-  );
-}
-
-/**
- * Clinical Light language switch
- */
-export function LVLangSwitch({ locale, onChange, className }) {
-  return (
-    <button
-      type="button"
-      aria-label={
-        locale === "en" ? "تغيير اللغة إلى العربية" : "Switch language to English"
-      }
-      onClick={() => onChange?.(locale === "en" ? "ar" : "en")}
-      className={cn(
-        "h-[42px] px-4 rounded-md border border-[#D5DEE7] bg-white text-[#0B1F33] font-medium text-[14px] hover:border-[#2B8A9E] hover:text-[#2B8A9E] transition-colors cursor-pointer",
-        className
-      )}
-    >
-      EN / ع
-    </button>
-  );
-}
-
-/**
- * Exact 1:1 port of AnimatedNumber
- * Tweens smoothly from 0 on mount and whenever value changes via ref textContent mutation.
- */
 export function AnimatedNumber({
   value,
+  decimals = 0,
+  prefix = "",
+  suffix = "",
+  format,
   className,
-  format = defaultFormat,
 }) {
-  const ref = useRef(null);
-  const mv = useMotionValue(0);
   const reduce = useReducedMotion();
+  const mv = useMotionValue(Number(value) || 0);
+  const spring = useSpring(mv, { stiffness: 180, damping: 26, mass: 0.6 });
+  const text = useTransform(spring, (latest) => {
+    if (format) return `${prefix}${format(latest)}${suffix}`;
+    const num = Number(latest) || 0;
+    const formatted =
+      decimals > 0
+        ? num.toFixed(decimals)
+        : Math.round(num).toLocaleString("en-US");
+    return `${prefix}${formatted}${suffix}`;
+  });
 
   useEffect(() => {
     const target = Number(value) || 0;
-    const paint = (v) => {
-      if (ref.current) ref.current.textContent = format(v);
-    };
-    if (reduce) {
-      mv.set(target);
-      paint(target);
-      return;
-    }
-    const ctrl = animate(mv, target, {
-      duration: 1.1,
-      ease: [0.16, 1, 0.3, 1],
-      onUpdate: paint,
-    });
-    return () => ctrl.stop();
-  }, [value, format, mv, reduce]);
+    if (reduce) mv.jump(target);
+    else mv.set(target);
+  }, [value, reduce, mv]);
 
-  return (
-    <span ref={ref} dir="ltr" className={cn("tabular font-mono", className)}>
-      {format(Number(value) || 0)}
-    </span>
-  );
+  return <motion.span className={cn("tabular", className)}>{text}</motion.span>;
 }
 
-const DEFAULT_INVENTORY_POOLS = [
+const STREAM_POOL = [
   {
-    id: "cardio",
-    nameEn: "Cardiology Pharmacology",
-    nameAr: "أدوية القلب",
-    count: 15,
-    href: "/quizzes",
+    plate: "PLATE-01",
+    termEn: "Ventricular Phase 2 Plateau",
+    termAr: "طور الهضبة — قنوات L-type Ca2+",
+    citation: "✓ p.12",
+    status: "VERIFIED",
   },
   {
-    id: "anatomy",
-    nameEn: "Upper Limb Anatomy",
-    nameAr: "تشريح الطرف العلوي",
-    count: 12,
-    href: "/quizzes",
+    plate: "PLATE-02",
+    termEn: "Amiodarone IV Loading Dose",
+    termAr: "150–300 mg IV bolus over 10 min",
+    citation: "✓ p.13",
+    status: "VERIFIED",
   },
   {
-    id: "renal",
-    nameEn: "Renal Physiology",
-    nameAr: "فسيولوجيا الكلى",
-    count: 11,
-    href: "/quizzes",
+    plate: "PLATE-03",
+    termEn: "Starling Law Preload Relation",
+    termAr: "حجم نهاية الانبساط EDV وقوة الانقباض",
+    citation: "✓ p.19",
+    status: "VERIFIED",
+  },
+  {
+    plate: "PLATE-04",
+    termEn: "SA Node Pacemaker Funny Current (If)",
+    termAr: "دخول الصوديوم التلقائي في المرحلة 4",
+    citation: "✓ p.24",
+    status: "VERIFIED",
+  },
+  {
+    plate: "PLATE-05",
+    termEn: "Heparin vs Warfarin Monitoring",
+    termAr: "مقارنة aPTT مقابل PT/INR ومضادات التسمم",
+    citation: "✓ p.31",
+    status: "VERIFIED",
+  },
+  {
+    plate: "PLATE-06",
+    termEn: "Atropine Muscarinic Blockade",
+    termAr: "تثبيط العصب الحائر ورفع نبض العقدة الجيبية",
+    citation: "✓ p.38",
+    status: "VERIFIED",
+  },
+  {
+    plate: "PLATE-07",
+    termEn: "FSRS v4.5 Memory Stability",
+    termAr: "جدولة الاستدعاء النشط بنسبة إتقان 96%",
+    citation: "✓ p.44",
+    status: "VERIFIED",
+  },
+  {
+    plate: "PLATE-08",
+    termEn: "Digoxin Na+/K+ ATPase Inhibition",
+    termAr: "زيادة الكالسيوم داخل الخلية وتنبيه العصب الحائر",
+    citation: "✓ p.52",
+    status: "VERIFIED",
+  },
+  {
+    plate: "PLATE-09",
+    termEn: "Beta-1 Selective Blockers (Metoprolol)",
+    termAr: "خفض استهلاك الأكسجين القلبي ومعدل النبض",
+    citation: "✓ p.61",
+    status: "VERIFIED",
   },
 ];
 
-/**
- * Exact 1:1 port of Black Fighters «مراجعة اليوم» Hero Card (نسخة نضيفة داكنة)
- * Features radial glow (.bf-glow), floating card (.bf-float), 38 due cards counter,
- * animated 62% progress bar (.bf-progress-fill), 3 subject rows, and CTA button.
- */
-export function LineStream({
-  locale = "ar",
-  pools = DEFAULT_INVENTORY_POOLS,
-  ctaHref = "/quizzes",
-}) {
-  const isAr = locale !== "en";
+export function LineStream({ locale = "ar" }) {
+  const isAr = locale === "ar";
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setOffset((prev) => (prev + 1) % STREAM_POOL.length);
+    }, 1600);
+    return () => clearInterval(id);
+  }, []);
+
+  const visibleRows = useMemo(() => {
+    const rows = [];
+    for (let i = 0; i < 7; i++) {
+      const idx = (offset + i) % STREAM_POOL.length;
+      rows.push({ ...STREAM_POOL[idx], key: `${STREAM_POOL[idx].plate}-${offset + i}` });
+    }
+    return rows;
+  }, [offset]);
+
   return (
-    <div className="relative">
-      <div className="bf-glow" aria-hidden="true" />
-      <div className="bf-card bf-float relative p-[22px] shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center justify-between pb-4 border-b border-[#D5DEE7]">
-          <span className="font-semibold text-[17px] text-[#0B1F33]">
-            {isAr ? "مراجعة اليوم" : "Today's Review"}
-          </span>
-          <span className="bf-pill py-1 px-3 text-[13px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#2B8A9E]" />
-            <span>{isAr ? "لحظي" : "Live"}</span>
+    <div className="glass-strong rounded-2xl p-4 sm:p-5 overflow-hidden">
+      <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-white/[0.08]">
+        <div className="flex items-center gap-2.5">
+          <span className="pulse-dot" />
+          <span className="font-mono text-xs font-semibold tracking-wider text-[#19f08c]">
+            LIVE ATLAS STREAM
           </span>
         </div>
+        <span className="font-mono text-[11px] text-[#9aa4b2]" dir="ltr">
+          CROSS-FAMILY VERIFIER · V5
+        </span>
+      </div>
 
-        <div className="flex items-baseline gap-3 mt-5">
-          <span className="font-mono text-[68px] font-medium text-[#2B8A9E] leading-none">
-            <AnimatedNumber value={38} />
-          </span>
-          <span className="text-[#5A6B7D] text-[17px]">
-            {isAr ? "بطاقة مستحقة" : "cards due"}
-          </span>
-        </div>
-
-        <div className="h-2 rounded-full bg-[#1A1E27] mt-[18px] overflow-hidden">
-          <div className="bf-progress-fill w-[62%] h-2 rounded-full bg-[#2B8A9E]" />
-        </div>
-
-        <div className="flex justify-between mt-2 text-[13px] text-[#5A6B7D]">
-          <span>{isAr ? "تم 24 من 62" : "24 of 62 completed"}</span>
-          <span>{isAr ? "حوالي 9 دقايق" : "~9 minutes"}</span>
-        </div>
-
-        <div className="grid gap-2.5 mt-5">
-          {pools.map((pool) => (
-            <div key={pool.id} className="bf-row">
-              <span className="text-[#0B1F33] text-[15px]">
-                {isAr ? pool.nameAr : pool.nameEn}
-              </span>
-              <span className="font-mono text-[#5A6B7D] tabular">
-                {pool.count ?? 12}
-              </span>
-            </div>
+      <div className="space-y-2 min-h-[348px]">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {visibleRows.map((item) => (
+            <motion.div
+              key={item.key}
+              layout
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-[#05070a]/70 px-3.5 py-2.5"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="font-mono text-[10px] font-semibold text-[#19f08c]"
+                    dir="ltr"
+                  >
+                    {item.plate}
+                  </span>
+                  <span
+                    className="font-mono text-xs font-semibold text-[#f5f7fa] truncate"
+                    dir="ltr"
+                  >
+                    {item.termEn}
+                  </span>
+                </div>
+                <p className="text-xs text-[#9aa4b2] truncate mt-0.5">
+                  {item.termAr}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0" dir="ltr">
+                <span className="rounded-full border border-[#19f08c]/35 bg-[#19f08c]/12 px-2 py-0.5 font-mono text-[11px] font-semibold text-[#19f08c]">
+                  {item.citation}
+                </span>
+              </div>
+            </motion.div>
           ))}
-        </div>
+        </AnimatePresence>
+      </div>
 
-        <Link
-          to={ctaHref}
-          className="mt-5 w-full h-[52px] rounded-xl bg-[#2B8A9E] text-[#FFFFFF] font-semibold text-[17px] inline-flex items-center justify-center shadow-[0_8px_32px_rgba(61,220,151,0.28)] hover:-translate-y-0.5 transition-transform"
-        >
-          {isAr ? "ابدأ المراجعة" : "Start Review"}
-        </Link>
+      <div className="mt-3.5 pt-3 border-t border-white/[0.08] flex items-center justify-between text-[11px] font-mono text-[#9aa4b2]">
+        <span>
+          {isAr
+            ? "تدقيق آلي مزدوج ضد الهلوسة الرقمية"
+            : "Dual-model dosage & page verification"}
+        </span>
+        <span className="text-[#19f08c]" dir="ltr">
+          99.4% ACCURACY
+        </span>
       </div>
     </div>
   );
 }
 
-/**
- * Exact port of Black Fighters Section header (.k eyebrow + 44px title + #5A6B7D subtitle)
- */
-export function Section({ id, eyebrow, title, subtitle, children, className }) {
-  return (
-    <section
-      id={id}
-      className={cn(
-        "mx-auto max-w-[1280px] scroll-mt-24 px-5 sm:px-11 pt-20",
-        className
-      )}
-    >
-      <div className="mb-8 max-w-2xl">
-        {eyebrow && <div className="bf-k">{eyebrow}</div>}
-        <h2 className="mt-2.5 text-balance text-3xl sm:text-[44px] font-bold tracking-[-0.01em] text-[#0B1F33] leading-[1.2]">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="mt-3.5 text-[18px] text-[#5A6B7D] leading-[1.8] max-w-[640px]">
-            {subtitle}
-          </p>
-        )}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-/**
- * Unified PageHeader — Title + Description + Optional Badge + Actions
- */
-export function PageHeader({
-  title,
-  description,
-  badge,
-  action,
-  secondaryAction,
-  actions,
-  children,
-  className,
-}) {
-  const rightSlot = action || actions || children;
-  return (
-    <header
-      className={cn(
-        "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 mb-6 border-b border-[#D5DEE7]",
-        className
-      )}
-    >
-      <div className="space-y-2 min-w-0">
-        {badge ? (
-          <div className="bf-pill py-1.5 px-3.5 text-xs">
-            <span className="bf-pulse-dot size-1.5 rounded-full bg-[#2B8A9E]" aria-hidden="true" />
-            <span>{badge}</span>
-          </div>
-        ) : null}
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0B1F33] truncate">
-          {title}
-        </h1>
-        {description ? (
-          <p className="text-sm text-[#5A6B7D] max-w-2xl leading-relaxed">
-            {description}
-          </p>
-        ) : null}
-      </div>
-      {(rightSlot || secondaryAction) ? (
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          {secondaryAction}
-          {rightSlot}
-        </div>
-      ) : null}
-    </header>
-  );
-}
-
-/**
- * Clean Dark Card (.c: background #FFFFFF, border 1px solid #D5DEE7, border-radius 20px)
- */
-export function LVCard({
-  children,
-  className,
-  interactive = false,
-  accent = false,
-  padding = "p-5 sm:p-6",
-  ...props
-}) {
-  return (
-    <div
-      className={cn(
-        "bf-card transition-colors duration-200",
-        accent && "border-[#2B8A9E]",
-        interactive && "bf-card-hover cursor-pointer",
-        padding,
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-}
-
-export const GlassCard = LVCard;
-
-/**
- * Clean Dark Pill / Badge (.pill: border #C5D9E0, bg #E6F3F6, color #2B8A9E)
- */
-export function LVBadge({
-  children,
-  variant = "default",
-  mono = false,
-  className,
-  ...props
-}) {
-  const variants = {
-    default: "border-[#D5DEE7] text-[#5A6B7D] bg-[#EEF2F5]",
-    neutral: "border-[#D5DEE7] text-[#5A6B7D] bg-[#EEF2F5]",
-    accent: "border-[#C5D9E0] text-[#2B8A9E] bg-[#E6F3F6]",
-    success: "border-[#C5D9E0] text-[#2B8A9E] bg-[#E6F3F6]",
-    warning: "border-[#F5A524]/40 text-[#F5A524] bg-[#F5A524]/10",
-    warn: "border-[#F5A524]/40 text-[#F5A524] bg-[#F5A524]/10",
-    danger: "border-[#E5484D] text-[#FF9A9D] bg-[#2A1214]",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium tabular",
-        mono && "font-mono",
-        variants[variant] || variants.default,
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </span>
-  );
-}
-
-/**
- * LineVault StatCard with AnimatedNumber tweening
- */
 export function StatCard({
   label,
   value,
-  sublabel,
-  subtext,
+  numericValue,
+  sub,
   icon: Icon,
-  trend,
+  accent = "emerald",
   className,
 }) {
-  const numericValue =
-    typeof value === "number" && Number.isFinite(value) ? value : null;
-  const caption = sublabel || subtext;
+  const accentMap = {
+    emerald: "text-[#19f08c] bg-[#19f08c]/12 border-[#19f08c]/30",
+    amber: "text-[#f5b83d] bg-[#f5b83d]/12 border-[#f5b83d]/30",
+    sky: "text-[#38bdf8] bg-[#38bdf8]/12 border-[#38bdf8]/30",
+    violet: "text-[#19f08c] bg-[#19f08c]/12 border-[#19f08c]/30",
+  };
+  const pillClass = accentMap[accent] || accentMap.emerald;
 
   return (
-    <LVCard padding="p-5" className={cn("flex flex-col gap-3", className)}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-[#5A6B7D]">{label}</span>
-        {Icon ? (
-          <div className="grid size-9 place-items-center rounded-xl border border-[#2B8A9E]/30 bg-[#2B8A9E]/10 text-[#2B8A9E]">
-            <Icon className="w-4 h-4" />
+    <GlassCard className={cn("p-4 sm:p-5", className)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-xs font-medium text-[#9aa4b2] truncate">{label}</p>
+          <p className="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-[#f5f7fa] tabular">
+            {numericValue !== undefined ? (
+              <AnimatedNumber value={numericValue} />
+            ) : (
+              value
+            )}
+          </p>
+          {sub && (
+            <p className="text-[11px] text-[#9aa4b2] truncate">{sub}</p>
+          )}
+        </div>
+        {Icon && (
+          <div
+            className={cn(
+              "grid size-10 shrink-0 place-items-center rounded-xl border",
+              pillClass
+            )}
+          >
+            <Icon className="size-4" />
           </div>
-        ) : null}
+        )}
       </div>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-2xl sm:text-3xl font-semibold font-mono tabular text-[#0B1F33] tracking-tight">
-          {numericValue !== null ? <AnimatedNumber value={numericValue} /> : value}
-        </span>
-        {trend ? (
-          <span className="text-xs font-mono font-semibold text-[#2B8A9E]">
-            {trend}
-          </span>
-        ) : null}
-      </div>
-      {caption ? (
-        <span className="text-xs text-[#5A6B7D]">{caption}</span>
-      ) : null}
-    </LVCard>
+    </GlassCard>
   );
 }
 
-/**
- * LineVault EmptyState (states.tsx)
- */
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  actionLabel,
-  onAction,
-  action,
-  className,
-}) {
+export function EmptyState({ icon: Icon, title, description, action, className }) {
   return (
-    <LVCard
-      padding="px-6 py-12"
+    <GlassCard
+      variant="subtle"
       className={cn(
-        "flex flex-col items-center justify-center text-center gap-3",
+        "flex flex-col items-center justify-center text-center py-12 px-6",
         className
       )}
     >
-      {Icon ? (
-        <div className="grid size-12 place-items-center rounded-2xl border border-[#2B8A9E]/30 bg-[#2B8A9E]/10 text-[#2B8A9E]">
-          <Icon className="w-6 h-6" />
+      {Icon && (
+        <div className="mb-4 grid size-12 place-items-center rounded-2xl border border-[#19f08c]/30 bg-[#19f08c]/12 text-[#19f08c]">
+          <Icon className="size-5" />
         </div>
-      ) : null}
-      <h3 className="text-lg font-semibold text-[#0B1F33]">{title}</h3>
-      {description ? (
-        <p className="text-sm text-[#5A6B7D] max-w-sm leading-relaxed">
+      )}
+      {title && (
+        <h3 className="font-display text-base sm:text-lg font-semibold text-[#f5f7fa]">
+          {title}
+        </h3>
+      )}
+      {description && (
+        <p className="mt-1.5 max-w-md text-xs sm:text-sm text-[#9aa4b2] leading-relaxed">
           {description}
         </p>
-      ) : null}
-      {action ? (
-        <div className="mt-2">{action}</div>
-      ) : actionLabel && onAction ? (
-        <Button onClick={onAction} className="mt-2">
-          {actionLabel}
-        </Button>
-      ) : null}
-    </LVCard>
+      )}
+      {action && <div className="mt-5">{action}</div>}
+    </GlassCard>
   );
 }
 
-/**
- * LineVault PricingCard
- */
 export function PricingCard({
   name,
-  subtitle,
-  price,
-  period,
   badge,
-  recommended = false,
-  selected = false,
+  price,
+  currency = "ج.م",
+  period = "/ شهرياً",
+  description,
   features = [],
-  ctaLabel,
+  ctaLabel = "اشترك الآن",
   onSelect,
-  disabled = false,
+  to,
+  recommended = false,
   className,
 }) {
   return (
-    <LVCard
-      accent={recommended || selected}
-      padding="p-6"
-      className={cn("flex flex-col justify-between h-full", className)}
+    <GlassCard
+      variant={recommended ? "highlight" : "default"}
+      className={cn(
+        "flex flex-col justify-between p-6 sm:p-7",
+        recommended && "border-[#19f08c]/45",
+        className
+      )}
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h3 className="text-lg font-semibold text-[#0B1F33]">{name}</h3>
-          {badge ? (
-            <LVBadge variant={recommended ? "accent" : "default"}>
+          <h3 className="font-display text-lg font-bold text-[#f5f7fa]">{name}</h3>
+          {badge && (
+            <LVBadge variant={recommended ? "emerald" : "neutral"}>
               {badge}
             </LVBadge>
-          ) : null}
+          )}
         </div>
-        {subtitle ? (
-          <p className="text-xs text-[#5A6B7D] mb-4">{subtitle}</p>
-        ) : null}
-
-        <div className="flex items-baseline gap-1.5 mb-6 pb-5 border-b border-[#D5DEE7]">
-          <span className="text-3xl font-semibold font-mono tabular text-[#0B1F33]">
+        {description && (
+          <p className="text-xs text-[#9aa4b2] mb-5 leading-relaxed">
+            {description}
+          </p>
+        )}
+        <div className="flex items-baseline gap-1.5 mb-6 font-mono tabular">
+          <span className="text-3xl sm:text-4xl font-bold text-[#f5f7fa]">
             {price}
           </span>
-          {period ? (
-            <span className="text-xs text-[#5A6B7D]">{period}</span>
-          ) : null}
+          <span className="text-xs text-[#9aa4b2]">{currency}</span>
+          {period && <span className="text-xs text-[#646e7d]">{period}</span>}
         </div>
-
-        <ul className="divide-y divide-[#D5DEE7] text-sm mb-6">
-          {features.slice(0, 6).map((feat, idx) => (
-            <li
-              key={idx}
-              className="flex items-center justify-between gap-2.5 py-2.5 text-[#0B1F33]/90"
-            >
+        <ul className="space-y-2.5 mb-7 text-xs sm:text-sm text-[#f5f7fa]/90">
+          {features.map((feat, idx) => (
+            <li key={idx} className="flex items-start gap-2.5">
+              <CheckCircle2 className="size-4 shrink-0 text-[#19f08c] mt-0.5" />
               <span>{feat}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#2B8A9E] shrink-0" />
             </li>
           ))}
         </ul>
       </div>
 
-      <Button
-        variant={recommended || selected ? "default" : "outline"}
-        className="w-full"
-        disabled={disabled}
-        onClick={onSelect}
-      >
-        {ctaLabel}
-      </Button>
-    </LVCard>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   PORTED LINEVAULT CHECKOUT & CONFIGURATOR PRIMITIVES
-   (checkout/parts.tsx + pool-ui.tsx + configurator.tsx + lib/qty.ts)
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-export async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    /* fallback for non-HTTPS or older webviews */
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.cssText = "position:fixed;top:0;left:-9999px;opacity:0";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    ta.remove();
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
-export function CopyButton({
-  value,
-  label = "Copy",
-  text = "نسخ",
-  copiedText = "تم النسخ",
-  toastText,
-  compact = false,
-}) {
-  const [done, setDone] = useState(false);
-  const timer = useRef(null);
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  async function onClick() {
-    const target = typeof value === "function" ? value() : value;
-    if (!(await copyText(target))) {
-      toast.error("تعذّر النسخ. حدّد النص وانسخه يدوياً.");
-      return;
-    }
-    toast.success(toastText || copiedText);
-    setDone(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setDone(false), 1600);
-  }
-
-  const Icon = done ? Check : Copy;
-  return (
-    <Button
-      type="button"
-      variant="secondary"
-      size={compact ? "icon" : "sm"}
-      className={cn(compact && "size-8 rounded-lg", done && "text-[#2B8A9E]")}
-      onClick={() => void onClick()}
-      aria-label={label}
-    >
-      <Icon className="size-4" aria-hidden="true" />
-      {!compact && <span>{done ? copiedText : text}</span>}
-    </Button>
-  );
-}
-
-/**
- * Exact port of LineVault's CopyField (checkout/parts.tsx)
- * Labelled monospace value (always LTR, selectable) with a copy button.
- */
-export function CopyField({
-  label,
-  value,
-  unit,
-  big = false,
-  copyLabel = "نسخ",
-  copiedLabel = "تم النسخ",
-}) {
-  return (
-    <div className="rounded-2xl border border-[#D5DEE7] bg-[#EEF2F5] p-4">
-      <div className="mb-2 text-xs font-medium text-[#5A6B7D]">{label}</div>
-      <div className="flex items-start justify-between gap-3">
-        <div
-          dir="ltr"
+      {to ? (
+        <Link
+          to={to}
           className={cn(
-            "min-w-0 break-all text-start font-mono text-[#0B1F33]",
-            big
-              ? "text-2xl font-semibold tabular sm:text-3xl"
-              : "text-sm leading-relaxed"
+            "w-full h-11 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors duration-150",
+            recommended
+              ? "btn-primary-glow"
+              : "border border-white/10 bg-white/[0.04] text-[#f5f7fa] hover:border-[#19f08c]/40 hover:bg-white/[0.07]"
           )}
         >
-          <span className="select-all">{value}</span>
-          {unit && (
-            <span className="ms-2 text-base font-medium text-[#5A6B7D]">
-              {unit}
-            </span>
+          <span>{ctaLabel}</span>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={onSelect}
+          className={cn(
+            "w-full h-11 rounded-xl font-semibold text-sm inline-flex items-center justify-center gap-2 transition-colors duration-150 cursor-pointer",
+            recommended
+              ? "btn-primary-glow"
+              : "border border-white/10 bg-white/[0.04] text-[#f5f7fa] hover:border-[#19f08c]/40 hover:bg-white/[0.07]"
           )}
-        </div>
-        <CopyButton
-          value={value}
-          label={copyLabel}
-          text={copyLabel}
-          copiedText={copiedLabel}
-        />
-      </div>
-    </div>
+        >
+          <span>{ctaLabel}</span>
+        </button>
+      )}
+    </GlassCard>
   );
 }
 
-const pad2 = (n) => String(n).padStart(2, "0");
+function pad2(n) {
+  return n < 10 ? `0${n}` : `${n}`;
+}
 
-/**
- * Exact port of LineVault's CountdownRing (checkout/parts.tsx)
- * Depleting SVG ring + mm:ss countdown.
- */
 export function CountdownRing({
   expiresAt,
   startAt,
   onElapsed,
-  size = 76,
-  label = "الوقت المتبقي للدفع",
+  size = 84,
+  label = "Time remaining",
 }) {
-  const end = useMemo(() => Date.parse(expiresAt), [expiresAt]);
-  const total = useMemo(
-    () => Math.max(1, end - Date.parse(startAt)),
-    [end, startAt]
-  );
+  const end = useMemo(() => new Date(expiresAt).getTime(), [expiresAt]);
+  const total = useMemo(() => {
+    if (!startAt) return 15 * 60 * 1000;
+    return Math.max(1000, end - new Date(startAt).getTime());
+  }, [end, startAt]);
+
   const [now, setNow] = useState(null);
   const fired = useRef(false);
 
@@ -660,7 +875,7 @@ export function CountdownRing({
   const r = (size - 8) / 2;
   const c = 2 * Math.PI * r;
   const tone =
-    left < 60_000 ? "#E5484D" : left < 300_000 ? "#F5A524" : "#2B8A9E";
+    left < 60_000 ? "#ff5d6c" : left < 300_000 ? "#f5b83d" : "#19f08c";
   const mm = Math.floor(left / 60_000);
   const ss = Math.floor((left % 60_000) / 1000);
 
@@ -669,7 +884,6 @@ export function CountdownRing({
       role="timer"
       aria-label={label}
       className="relative grid shrink-0 place-items-center"
-      style={{ width: size, height: size }}
     >
       <svg
         width={size}
@@ -683,7 +897,7 @@ export function CountdownRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="rgb(255 255 255 / 0.1)"
+          stroke="rgba(255,255,255,0.08)"
           strokeWidth={4}
         />
         <circle
@@ -700,7 +914,7 @@ export function CountdownRing({
         />
       </svg>
       <span
-        className="absolute font-mono text-[15px] font-semibold tabular text-[#0B1F33]"
+        className="absolute font-mono text-[15px] font-semibold tabular text-[#f5f7fa]"
         dir="ltr"
       >
         {pad2(mm)}:{pad2(ss)}
@@ -714,43 +928,39 @@ function StepDot({ state }) {
     "relative z-10 grid size-7 shrink-0 place-items-center rounded-full ring-1 transition-colors duration-300";
   if (state === "done") {
     return (
-      <span className={cn(base, "bg-[#2B8A9E] text-[#FFFFFF] ring-[#2B8A9E]")}>
+      <span className={cn(base, "bg-[#19f08c] text-[#03150c] ring-[#19f08c]")}>
         <Check className="size-4" strokeWidth={3} aria-hidden="true" />
       </span>
     );
   }
   if (state === "error") {
     return (
-      <span className={cn(base, "bg-[#E5484D]/15 text-[#E5484D] ring-[#E5484D]/50")}>
+      <span className={cn(base, "bg-[#ff5d6c]/15 text-[#ff5d6c] ring-[#ff5d6c]/50")}>
         <X className="size-4" strokeWidth={3} aria-hidden="true" />
       </span>
     );
   }
   if (state === "current") {
     return (
-      <span className={cn(base, "bg-[#2B8A9E]/10 ring-[#2B8A9E]/60")}>
+      <span className={cn(base, "bg-[#19f08c]/15 ring-[#19f08c]/60")}>
         <span
           aria-hidden="true"
-          className="absolute inset-0 rounded-full bg-[#2B8A9E]/30 motion-safe:animate-ping"
+          className="absolute inset-0 rounded-full bg-[#19f08c]/30 motion-safe:animate-ping"
         />
         <span
           aria-hidden="true"
-          className="relative size-2.5 rounded-full bg-[#2B8A9E]"
+          className="relative size-2.5 rounded-full bg-[#19f08c]"
         />
       </span>
     );
   }
   return (
-    <span className={cn(base, "ring-[#D5DEE7]")}>
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-white/20" />
+    <span className={cn(base, "ring-white/10")}>
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-[#646e7d]" />
     </span>
   );
 }
 
-/**
- * Exact port of LineVault's Stepper (checkout/parts.tsx)
- * Vertical live status stepper with ping dot on current step.
- */
 export function Stepper({ steps = [] }) {
   return (
     <ol>
@@ -768,8 +978,8 @@ export function Stepper({ steps = [] }) {
                 className={cn(
                   "absolute start-[13px] top-7 bottom-0 w-px transition-colors duration-500",
                   s.state === "done"
-                    ? "bg-[#2B8A9E]/60"
-                    : "bg-[#D5DEE7]"
+                    ? "bg-[#19f08c]/60"
+                    : "bg-white/10"
                 )}
               />
             )}
@@ -778,13 +988,13 @@ export function Stepper({ steps = [] }) {
               <div
                 className={cn(
                   "text-sm font-medium",
-                  s.state === "pending" ? "text-[#5A6B7D]" : "text-[#0B1F33]"
+                  s.state === "pending" ? "text-[#9aa4b2]" : "text-[#f5f7fa]"
                 )}
               >
                 {s.label}
               </div>
               {s.sub && (
-                <div className="mt-0.5 text-xs text-[#5A6B7D] tabular">
+                <div className="mt-0.5 text-xs text-[#9aa4b2] tabular">
                   {s.sub}
                 </div>
               )}
@@ -796,36 +1006,33 @@ export function Stepper({ steps = [] }) {
   );
 }
 
-/**
- * Exact port of joyful-heisenberg ConnBadge (checkout/parts.tsx)
- */
 export function ConnBadge({ mode = "sse", isEn = false }) {
   const map = {
     sse: {
-      dot: "bg-[#2B8A9E]",
+      dot: "bg-[#19f08c]",
       ping: true,
-      text: isEn ? "Live" : "مباشر",
+      text: isEn ? "Live Vault" : "متصل مباشرة",
     },
     poll: {
-      dot: "bg-[#F5A524]",
+      dot: "bg-[#f5b83d]",
       ping: false,
       text: isEn ? "Syncing" : "مزامنة",
     },
     offline: {
-      dot: "bg-[#E5484D]",
+      dot: "bg-[#ff5d6c]",
       ping: false,
       text: isEn ? "Reconnecting…" : "إعادة اتصال…",
     },
   }[mode] || {
-    dot: "bg-[#2B8A9E]",
+    dot: "bg-[#19f08c]",
     ping: true,
-    text: isEn ? "Live" : "مباشر",
+    text: isEn ? "Live Vault" : "متصل مباشرة",
   };
 
   return (
     <span
       aria-live="polite"
-      className="inline-flex items-center gap-2 rounded-full border border-[#D5DEE7] bg-[#EEF2F5] px-3 py-1 text-xs font-medium text-[#5A6B7D]"
+      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-[#9aa4b2]"
     >
       <span className="relative flex size-2">
         {map.ping && (
@@ -847,13 +1054,10 @@ export function ConnBadge({ mode = "sse", isEn = false }) {
   );
 }
 
-/**
- * Exact port of joyful-heisenberg AnimatedCheck (checkout-view.tsx)
- */
 export function AnimatedCheck() {
   const reduce = useReducedMotion();
   return (
-    <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-[#2B8A9E]/40 bg-[#2B8A9E]/10 text-[#2B8A9E]">
+    <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-[#19f08c]/40 bg-[#19f08c]/12 text-[#19f08c]">
       <svg
         viewBox="0 0 24 24"
         className="size-8"
@@ -875,9 +1079,6 @@ export function AnimatedCheck() {
   );
 }
 
-/**
- * Exact port of joyful-heisenberg AvailabilityBar (pool-ui.tsx)
- */
 export function AvailabilityBar({
   available = 50000,
   max = 50000,
@@ -891,13 +1092,24 @@ export function AvailabilityBar({
       ? Math.min(100, Math.max(0, sharePct))
       : Math.min(100, Math.round((available / denom) * 100));
   const low = available < max * 0.2;
+  const widthClasses =
+    pct >= 90
+      ? "w-full"
+      : pct >= 75
+      ? "w-4/5"
+      : pct >= 50
+      ? "w-3/5"
+      : pct >= 30
+      ? "w-2/5"
+      : "w-1/4";
+
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between gap-3 text-xs">
-        <span className="font-medium uppercase tracking-wider text-[#5A6B7D]">
+        <span className="font-medium uppercase tracking-wider text-[#9aa4b2]">
           {label}
         </span>
-        <span className="font-mono text-[#5A6B7D] tabular" dir="ltr">
+        <span className="font-mono text-[#9aa4b2] tabular" dir="ltr">
           {formatInt(available)} {availableSuffix}
         </span>
       </div>
@@ -907,23 +1119,20 @@ export function AvailabilityBar({
         aria-valuemin={0}
         aria-valuemax={denom}
         aria-valuenow={available}
-        className="h-2 overflow-hidden rounded-full bg-white/10"
+        className="h-2 overflow-hidden rounded-full bg-white/[0.06]"
       >
         <div
           className={cn(
-            "h-full rounded-full transition-[width,background-color] duration-500",
-            low ? "bg-[#F5A524]" : "bg-[#2B8A9E]"
+            "h-full rounded-full transition-colors duration-300",
+            widthClasses,
+            low ? "bg-[#f5b83d]" : "bg-[#19f08c]"
           )}
-          style={{ width: `${Math.max(pct, 4)}%` }}
         />
       </div>
     </div>
   );
 }
 
-/**
- * Exact port of LineVault's TierList (pool-ui.tsx)
- */
 export function TierList({
   tiers = [],
   activeMinQty,
@@ -934,7 +1143,7 @@ export function TierList({
   const sorted = [...tiers].sort((a, b) => a.min_qty - b.min_qty);
   const base = sorted[0]?.unit_price || 1;
   return (
-    <ul className="divide-y divide-[#D5DEE7] text-sm">
+    <ul className="divide-y divide-white/[0.08] text-sm">
       {sorted.map((tier, i) => {
         const pct = base
           ? Math.round((1 - tier.unit_price / base) * 100)
@@ -946,21 +1155,22 @@ export function TierList({
             aria-current={isActive ? "true" : undefined}
             className={cn(
               "flex items-center justify-between gap-3 py-2.5",
-              isActive && "-mx-3 rounded-lg bg-[#2B8A9E]/[0.08] px-3"
+              isActive &&
+                "-mx-3 rounded-xl bg-[#19f08c]/12 border border-[#19f08c]/30 px-3"
             )}
           >
-            <span className="text-[#5A6B7D] tabular" dir="ltr">
+            <span className="text-[#9aa4b2] font-mono tabular" dir="ltr">
               {compactQty(tier.min_qty)}+ {isEn ? "Credits" : unitLabel}
             </span>
             <span className="flex items-center gap-2">
               {i > 0 && pct > 0 && (
-                <span className="rounded-full bg-[#2B8A9E]/10 border border-[#2B8A9E]/25 px-2 py-0.5 text-xs text-[#2B8A9E]">
+                <span className="rounded-full bg-[#19f08c]/12 border border-[#19f08c]/30 px-2 py-0.5 text-xs font-mono text-[#19f08c]">
                   {isEn ? `Save ${pct}%` : `وفّر ${pct}%`}
                 </span>
               )}
-              <span className="font-mono tabular text-[#0B1F33]" dir="ltr">
+              <span className="font-mono tabular text-[#f5f7fa]" dir="ltr">
                 {tier.unit_price.toFixed(2)} {isEn ? "EGP" : currencyLabel}
-                <span className="text-[#5A6B7D]">
+                <span className="text-[#9aa4b2]">
                   {" "}
                   / {isEn ? "cr" : unitLabel}
                 </span>
@@ -973,12 +1183,14 @@ export function TierList({
   );
 }
 
-export const CREDIT_CHIPS = [100, 350, 900, 2500, 5000, 10000];
+export const CREDIT_CHIPS = [100, 250, 500, 1000, 2500, 5000, 10000];
 const CREDIT_TIERS = [
-  { min_qty: 100, unit_price: 0.45, nameAr: "الشريحة 1 · أساسي", nameEn: "Tier 1 · Starter" },
-  { min_qty: 350, unit_price: 0.28, nameAr: "الشريحة 2 · دراسي", nameEn: "Tier 2 · Semester" },
-  { min_qty: 900, unit_price: 0.17, nameAr: "الشريحة 3 · برو", nameEn: "Tier 3 · Pro" },
-  { min_qty: 2500, unit_price: 0.10, nameAr: "الشريحة 4 · المراجع الكبرى", nameEn: "Tier 4 · Max" },
+  { min_qty: 100, unit_price: 0.5, nameAr: "الشريحة 1 · أساسي", nameEn: "Tier 1 · Standard" },
+  { min_qty: 250, unit_price: 0.44, nameAr: "الشريحة 2 · دفعة طلابية", nameEn: "Tier 2 · Scholar Pack" },
+  { min_qty: 500, unit_price: 0.38, nameAr: "الشريحة 3 · مكثف", nameEn: "Tier 3 · Intensive" },
+  { min_qty: 1000, unit_price: 0.32, nameAr: "الشريحة 4 · دفعة امتحانات", nameEn: "Tier 4 · Exam Vault" },
+  { min_qty: 2500, unit_price: 0.27, nameAr: "الشريحة 5 · مجموعة دراسية", nameEn: "Tier 5 · Study Syndicate" },
+  { min_qty: 5000, unit_price: 0.22, nameAr: "الشريحة 6 · أطلس كامل", nameEn: "Tier 6 · Full Atlas" },
 ];
 
 export function creditQtySteps(min = 100, max = 10000) {
@@ -1034,11 +1246,6 @@ export function quoteForCredits(qty) {
   };
 }
 
-/**
- * Exact port of joyful-heisenberg PoolConfigurator + CheckoutView (configurator.tsx + checkout-view.tsx)
- * Features logarithmic slider, quick chips, AnimatedNumber tween, AvailabilityBar,
- * live depleting CountdownRing timer, ConnBadge, and interactive Stepper + AnimatedCheck.
- */
 export function LVConfigurator({
   locale = "ar",
   onSelectCustomPack,
@@ -1051,8 +1258,8 @@ export function LVConfigurator({
   const poolAvailable = 50000;
   const steps = useMemo(() => creditQtySteps(minQty, maxQty), []);
 
-  const [qty, setQty] = useState(selectedQty || 900);
-  const [raw, setRaw] = useState(() => formatInt(selectedQty || 900));
+  const [qty, setQty] = useState(selectedQty || 1000);
+  const [raw, setRaw] = useState(() => formatInt(selectedQty || 1000));
   const [demoStage, setDemoStage] = useState(0);
   const [timerWindow, setTimerWindow] = useState(() => {
     const start = Date.now();
@@ -1097,7 +1304,7 @@ export function LVConfigurator({
 
   const handleSlider = (e) => {
     const idx = Number(e.target.value);
-    const val = steps[idx] ?? 900;
+    const val = steps[idx] ?? 1000;
     setQty(val);
     setRaw(formatInt(val));
   };
@@ -1132,13 +1339,13 @@ export function LVConfigurator({
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <label
               htmlFor={inputId}
-              className="text-sm font-medium text-[#5A6B7D]"
+              className="text-sm font-medium text-[#9aa4b2]"
             >
               {isEn
                 ? "How many credits do you need?"
                 : "كم نقطة كريدت تحتاج؟"}
             </label>
-            <span className="text-xs font-mono text-[#5A6B7D]" dir="ltr">
+            <span className="text-xs font-mono text-[#9aa4b2]" dir="ltr">
               {isEn ? "Between 100 and 10,000" : "بين 100 و 10,000 نقطة"}
             </span>
           </div>
@@ -1154,9 +1361,9 @@ export function LVConfigurator({
               value={raw}
               onChange={handleRawInput}
               onBlur={() => setRaw(formatInt(qty))}
-              className="h-16 w-full rounded-xl border border-[#D5DEE7] bg-[#EEF2F5] px-4 pe-24 font-mono text-3xl font-semibold tabular text-[#0B1F33] focus:border-[#2B8A9E]/60 focus:outline-none"
+              className="h-16 w-full rounded-xl border border-white/10 bg-[#0e131b] px-4 pe-24 font-mono text-3xl font-semibold tabular text-[#f5f7fa] focus:border-[#19f08c]/60 focus:outline-none"
             />
-            <span className="pointer-events-none absolute inset-y-0 right-5 flex items-center font-mono text-sm text-[#5A6B7D]">
+            <span className="pointer-events-none absolute inset-y-0 right-5 flex items-center font-mono text-sm text-[#9aa4b2]">
               {isEn ? "Credits" : "نقطة"}
             </span>
           </div>
@@ -1171,10 +1378,10 @@ export function LVConfigurator({
               value={sliderIdx}
               onChange={handleSlider}
               aria-label={isEn ? "Credit Quantity" : "كمية الكريدتس"}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[#2B8A9E]"
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[#19f08c]"
             />
             <div
-              className="flex items-center justify-between font-mono text-xs text-[#5A6B7D] tabular"
+              className="flex items-center justify-between font-mono text-xs text-[#9aa4b2] tabular"
               dir="ltr"
             >
               <span>100</span>
@@ -1201,10 +1408,10 @@ export function LVConfigurator({
                   aria-pressed={active}
                   onClick={() => applyQty(n)}
                   className={cn(
-                    "h-9 rounded-full border px-3.5 font-mono text-sm tabular transition-colors",
+                    "h-9 rounded-full border px-3.5 font-mono text-sm tabular transition-colors cursor-pointer",
                     active
-                      ? "border-[#2B8A9E]/60 bg-[#2B8A9E]/10 text-[#2B8A9E]"
-                      : "border-[#D5DEE7] bg-[#EEF2F5] text-[#5A6B7D] hover:border-[#D5DEE7] hover:text-[#0B1F33]"
+                      ? "border-[#19f08c]/60 bg-[#19f08c]/15 text-[#19f08c] font-semibold"
+                      : "border-white/10 bg-[#0e131b] text-[#9aa4b2] hover:border-[#19f08c]/35 hover:text-[#f5f7fa]"
                   )}
                 >
                   {compactQty(n)}
@@ -1215,9 +1422,9 @@ export function LVConfigurator({
         </div>
 
         {/* Tier Breakdown */}
-        <div className="border-t border-[#D5DEE7] pt-6">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[#5A6B7D]">
-            {isEn ? "Volume Pricing Tiers" : "شرائح التسعير حسب الكمية"}
+        <div className="border-t border-white/[0.08] pt-6">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[#9aa4b2]">
+            {isEn ? "Volume Pricing Tiers" : "شرائح التسعير والخصم الكمي"}
           </p>
           <TierList
             tiers={CREDIT_TIERS}
@@ -1226,31 +1433,31 @@ export function LVConfigurator({
           />
         </div>
 
-        {/* Pool Availability Bar (1:1 joyful-heisenberg AvailabilityBar) */}
-        <div className="border-t border-[#D5DEE7] pt-5">
+        {/* Pool Availability Bar */}
+        <div className="border-t border-white/[0.08] pt-5">
           <AvailabilityBar
             available={poolAvailable}
             max={poolAvailable}
             sharePct={Math.max(12, share)}
-            label={isEn ? "Pool Availability" : "توفر المخزون"}
+            label={isEn ? "Vault Pool Availability" : "سعة خزنة الرصيد المتاحة"}
             availableSuffix={isEn ? "available" : "متاح حالياً"}
           />
         </div>
       </GlassCard>
 
-      {/* Live Quote + CountdownRing + Stepper Terminal (1:1 joyful-heisenberg configurator.tsx + checkout-view.tsx) */}
+      {/* Live Quote + CountdownRing + Stepper Terminal */}
       <GlassCard className="space-y-5 p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-3 border-b border-[#D5DEE7] pb-4">
+        <div className="flex items-start justify-between gap-3 border-b border-white/[0.08] pb-4">
           <div>
             <div className="mb-2">
               <ConnBadge mode="sse" isEn={isEn} />
             </div>
-            <p className="text-sm font-medium text-[#5A6B7D]">
+            <p className="text-sm font-medium text-[#9aa4b2]">
               {isEn ? "Total" : "الإجمالي"}
             </p>
-            <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#0B1F33]">
+            <div className="mt-1 flex items-baseline gap-2 font-mono text-4xl sm:text-5xl font-semibold tracking-tight tabular text-[#f5f7fa]">
               <AnimatedNumber value={quote.totalEgp} />
-              <span className="text-base font-normal text-[#5A6B7D]">
+              <span className="text-base font-normal text-[#9aa4b2]">
                 {isEn ? "EGP" : "ج.م"}
               </span>
             </div>
@@ -1267,17 +1474,17 @@ export function LVConfigurator({
 
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <LVBadge variant="accent">
+            <LVBadge variant="emerald">
               {isEn ? quote.tier.nameEn : quote.tier.nameAr}
             </LVBadge>
             {quote.savePct > 0 && (
-              <LVBadge variant="accent">
+              <LVBadge variant="emerald">
                 {isEn ? `Save ${quote.savePct}%` : `وفّر ${quote.savePct}%`}
               </LVBadge>
             )}
           </div>
 
-          <p className="mt-2.5 flex items-center gap-1.5 text-xs text-[#2B8A9E]">
+          <p className="mt-2.5 flex items-center gap-1.5 text-xs text-[#19f08c]">
             <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
             <span>
               {isEn
@@ -1287,7 +1494,7 @@ export function LVConfigurator({
           </p>
 
           {quote.savingsEgp > 0 && (
-            <p className="mt-1 text-xs font-mono text-[#5A6B7D]">
+            <p className="mt-1 text-xs font-mono text-[#9aa4b2]">
               {isEn
                 ? `You save ${quote.savingsEgp} EGP vs base rate`
                 : `توفّر ${quote.savingsEgp} ج.م مقارنة بالسعر الأساسي`}
@@ -1299,10 +1506,10 @@ export function LVConfigurator({
           <button
             type="button"
             onClick={() => applyQty(quote.nextTier.min_qty)}
-            className="flex w-full items-center gap-2 rounded-xl border border-[#D5DEE7] bg-[#EEF2F5] px-3 py-2.5 text-start text-xs text-[#5A6B7D] transition-colors hover:border-[#2B8A9E]/40 hover:text-[#0B1F33]"
+            className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-[#0e131b] px-3 py-2.5 text-start text-xs text-[#9aa4b2] transition-colors hover:border-[#19f08c]/40 hover:text-[#f5f7fa] cursor-pointer"
           >
             <TrendingDown
-              className="size-4 shrink-0 text-[#2B8A9E]"
+              className="size-4 shrink-0 text-[#19f08c]"
               aria-hidden="true"
             />
             <span>
@@ -1313,16 +1520,16 @@ export function LVConfigurator({
           </button>
         )}
 
-        {/* Live Order Status Stepper (1:1 joyful-heisenberg checkout-view.tsx) */}
-        <div className="rounded-2xl border border-[#D5DEE7] bg-[#EEF2F5] p-4 space-y-3">
+        {/* Live Order Status Stepper */}
+        <div className="rounded-2xl border border-white/10 bg-[#05070a]/70 p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-[#5A6B7D]">
+            <span className="text-xs font-medium uppercase tracking-wider text-[#9aa4b2]">
               {isEn ? "Live Delivery Flow" : "مراحل التسليم المباشر"}
             </span>
             <button
               type="button"
               onClick={() => setDemoStage((s) => (s + 1) % 4)}
-              className="font-mono text-[11px] text-[#2B8A9E] hover:underline"
+              className="font-mono text-[11px] text-[#19f08c] hover:underline cursor-pointer"
             >
               {isEn ? "Preview stage →" : "معاينة المرحلة ←"}
             </button>
@@ -1338,7 +1545,7 @@ export function LVConfigurator({
                 className="py-2 text-center space-y-2"
               >
                 <AnimatedCheck />
-                <p className="text-sm font-semibold text-[#0B1F33]">
+                <p className="text-sm font-semibold text-[#f5f7fa]">
                   {isEn ? "Credits Ready in Ledger" : "الرصيد جاهز في حسابك"}
                 </p>
               </motion.div>
@@ -1352,7 +1559,7 @@ export function LVConfigurator({
           <Button
             type="button"
             size="lg"
-            className="w-full"
+            className="w-full btn-primary-glow font-bold"
             onClick={() =>
               onSelectCustomPack({
                 key: `custom_${quote.qty}`,
@@ -1365,14 +1572,14 @@ export function LVConfigurator({
             }
           >
             <span>
-              {isEn ? "Continue to Payment" : "متابعة للدفع"}
+              {isEn ? "Continue to Payment" : "متابعة للدفع الفوري"}
             </span>
             <ArrowRight className="rtl:rotate-180" />
           </Button>
         )}
 
-        <p className="flex items-start gap-2 text-xs text-[#5A6B7D]">
-          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[#2B8A9E]" />
+        <p className="flex items-start gap-2 text-xs text-[#9aa4b2]">
+          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[#19f08c]" />
           <span>
             {isEn
               ? "Unique order locked for 15 minutes. Auto-delivered on confirmation."

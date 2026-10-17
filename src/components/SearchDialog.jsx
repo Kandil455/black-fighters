@@ -1,171 +1,299 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "react-router-dom";
-import { Search, X, BookOpen, FileText } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import { useLocale } from "@/lib/LocaleContext";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Search, BookOpen, Brain, FileText, Layers, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+
+const SEARCH_INDEX_TTL_MS = 2 * 60 * 1000;
+const searchIndexCache = new Map();
+
+function normalizeSearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي");
+}
+
+function parseContentText(item) {
+  if (!item?.content) return "";
+  try {
+    const parsed = JSON.parse(item.content);
+    const parts = [];
+    if (typeof parsed.summary_markdown === "string") parts.push(parsed.summary_markdown);
+    if (Array.isArray(parsed.questions)) {
+      for (const question of parsed.questions.slice(0, 30)) {
+        if (question?.question) parts.push(question.question);
+      }
+    }
+    if (Array.isArray(parsed.cards)) {
+      for (const card of parsed.cards.slice(0, 30)) {
+        if (card?.front) parts.push(card.front);
+        if (card?.back) parts.push(card.back);
+      }
+    }
+    return parts.join(" ");
+  } catch {
+    return String(item.content).slice(0, 1200);
+  }
+}
 
 export default function SearchDialog({ open, onClose }) {
-  const [query, setQuery] = useState("");
-  const inputRef = useRef(null);
+  const { profile } = useAuth();
+  const { isEn } = useLocale();
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [data, setData] = useState({ courses: [], contents: [], quizzes: [] });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open) { setQuery(""); setTimeout(() => inputRef.current?.focus(), 100); }
-  }, [open]);
+    const timer = setTimeout(() => setDebouncedQuery(q), 120);
+    return () => clearTimeout(timer);
+  }, [q]);
 
   useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+    if (!open || !profile?.id) return;
+    const cacheKey = `${profile.id}:${profile.email || ""}`;
+    const cached = searchIndexCache.get(cacheKey);
+    if (cached && Date.now() - cached.createdAt < SEARCH_INDEX_TTL_MS) {
+      setData(cached.data);
+      setLoading(false);
+      return;
+    }
 
-  const { data: courses = [] } = useQuery({
-    queryKey: ["search-courses"],
-    queryFn: async () => {
-      try {
-        const { base44 } = await import("@/api/base44Client");
-        const user = await base44.auth.me();
-        return base44.entities.Course.filter({ created_by_id: user.id }, "-created_date", 200);
-      } catch { return []; }
-    },
-    enabled: open,
-  });
+    let cancelled = false;
+    setLoading(true);
+    Promise.all([
+      base44.entities.Course.filter({ created_by_id: profile.id }, "-created_date", 60).catch(() => []),
+      base44.entities.GeneratedContent.list("-created_date", 80).catch(() => []),
+      base44.entities.SharedQuiz.filter({ created_by: profile.email }, "-created_date", 40).catch(() => []),
+    ]).then(([courses, contents, quizzes]) => {
+      if (cancelled) return;
+      const myCourseIds = new Set(courses.map((c) => c.id));
+      const courseTitleById = new Map(courses.map((c) => [c.id, c.title || "كورس"]));
+      const nextData = {
+        courses: courses.map((c) => ({
+          ...c,
+          _searchText: normalizeSearchText(
+            `${c.title || ""} ${c.description || ""} ${(c.chapters || []).map((ch) => `${ch.title || ""} ${(ch.content || "").slice(0, 400)}`).join(" ")}`
+          ),
+        })),
+        contents: contents
+          .filter((ct) => myCourseIds.has(ct.course_id))
+          .map((ct) => ({
+            ...ct,
+            courseTitle: courseTitleById.get(ct.course_id) || "كورس",
+            _searchText: normalizeSearchText(`${ct.title || ""} ${ct.content_type || ""} ${parseContentText(ct)}`),
+          })),
+        quizzes: quizzes.map((qz) => ({
+          ...qz,
+          _searchText: normalizeSearchText(`${qz.title || ""} ${qz.subject || ""} ${qz.description || ""}`),
+        })),
+      };
+      searchIndexCache.set(cacheKey, { createdAt: Date.now(), data: nextData });
+      setData(nextData);
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [open, profile?.id, profile?.email]);
 
-  const { data: lessons = [] } = useQuery({
-    queryKey: ["search-lessons"],
-    queryFn: async () => {
-      try {
-        const { base44 } = await import("@/api/base44Client");
-        const user = await base44.auth.me();
-        return base44.entities.Lesson.filter({ created_by_id: user.id }, "-created_date", 300);
-      } catch { return []; }
-    },
-    enabled: open,
-  });
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (open) onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   const results = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase().trim();
-    const courseResults = courses
-      .filter((c) =>
-        c.title?.toLowerCase().includes(q) ||
-        c.description?.toLowerCase().includes(q) ||
-        c.category?.toLowerCase().includes(q)
-      )
-      .slice(0, 5)
-      .map((c) => ({ type: "course", id: c.id, title: c.title, sub: c.category || c.description?.slice(0, 60) }));
+    const term = normalizeSearchText(debouncedQuery.trim());
+    if (!term) {
+      return {
+        courses: data.courses.slice(0, 5),
+        contents: [],
+        quizzes: data.quizzes.slice(0, 3),
+      };
+    }
+    const courses = data.courses.filter((c) => c._searchText?.includes(term)).slice(0, 6);
+    const contents = data.contents.filter((ct) => ct._searchText?.includes(term)).slice(0, 6);
+    const quizzes = data.quizzes.filter((qz) => qz._searchText?.includes(term)).slice(0, 5);
+    return { courses, contents, quizzes };
+  }, [debouncedQuery, data]);
 
-    // Search lessons (chapters)
-    const lessonResults = lessons
-      .filter((l) =>
-        l.title?.toLowerCase().includes(q) ||
-        l.content?.toLowerCase().includes(q) ||
-        l.description?.toLowerCase().includes(q)
-      )
-      .slice(0, 4)
-      .map((l) => {
-        const courseTitle = courses.find(c => c.id === l.course_id)?.title || "كورس";
-        return {
-          type: "chapter",
-          id: l.course_id,
-          title: l.title,
-          sub: `في كورس: ${courseTitle}`,
-          snippet: l.content?.slice(0, 80) || "",
-        };
-      });
+  const go = (path) => {
+    onClose();
+    setQ("");
+    navigate(path);
+  };
 
-    return [...courseResults, ...lessonResults];
-  }, [query, courses, lessons]);
-
-  const icons = { course: BookOpen, chapter: FileText };
-
-  if (!open) return null;
+  const total = results.courses.length + results.contents.length + results.quizzes.length;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-start justify-center pt-[15vh] px-4"
-        onClick={onClose}
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        className="max-w-xl p-0 rounded-2xl border border-border bg-popover text-popover-foreground overflow-hidden gap-0 shadow-2xl"
+        dir={isEn ? "ltr" : "rtl"}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: -20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: -20 }}
-          className="w-full max-w-2xl glass-card border border-primary/30 neon-glow-cyan rounded-3xl overflow-hidden shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-            <Search className="w-5 h-5 text-primary" />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="ابحث في كورساتك ومحتواها..."
-              className="flex-1 bg-transparent outline-none text-lg font-semibold placeholder:text-muted-foreground"
-              dir="auto"
-            />
-            {query && (
-              <button onClick={() => setQuery("")} className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            )}
-            <kbd className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground bg-secondary/50 border border-border rounded-lg px-2 py-1">Esc</kbd>
-          </div>
+        <DialogTitle className="sr-only">
+          {isEn ? "Search Notes & Quizzes" : "بحث في المذكرات والكويزات"}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          {isEn ? "Type to search lectures, summaries, and quizzes" : "اكتب للبحث السريع داخل محاضراتك وتلخيصاتك وكويزاتك"}
+        </DialogDescription>
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border bg-secondary/40">
+          <Search className="size-4 text-primary shrink-0" />
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={
+              isEn
+                ? "Search courses, summaries, quizzes, flashcards..."
+                : "ابحث في الكورسات، الملخصات، الكويزات، الفلاش كاردز..."
+            }
+            className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
+          />
+          {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+          <kbd className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
+            ESC
+          </kbd>
+        </div>
 
-          {query.trim() ? (
-            <div className="max-h-80 overflow-y-auto">
-              {results.length ? (
-                <div className="p-2">
-                  {results.map((r, i) => {
-                    const Icon = icons[r.type] || BookOpen;
-                    return (
-                      <Link key={i} to={`/course/${r.id}`} onClick={onClose}>
-                        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl hover:bg-primary/10 transition-colors group cursor-pointer">
-                          <div className="w-8 h-8 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0 mt-0.5">
-                            <Icon className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-sm group-hover:text-primary transition-colors">{r.title}</p>
-                            <p className="text-xs text-muted-foreground truncate">{r.sub}</p>
-                            {r.snippet && (
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1 opacity-70">...{r.snippet}...</p>
-                            )}
-                          </div>
-                          <span className="text-[10px] font-bold text-muted-foreground bg-secondary/50 rounded-lg px-2 py-1 shrink-0">
-                            {r.type === "course" ? "كورس" : "فصل"}
-                          </span>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="py-12 text-center">
-                  <Search className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-                  <p className="text-muted-foreground">مفيش نتائج لـ "{query}"</p>
-                </div>
-              )}
+        <div className="max-h-[65vh] overflow-y-auto p-3 space-y-4">
+          {total === 0 && !loading && (
+            <div className="text-center py-10 text-muted-foreground text-sm">
+              <Sparkles className="size-8 mx-auto mb-2 opacity-30" />
+              {q
+                ? isEn
+                  ? "No matching results"
+                  : "لا توجد نتائج مطابقة"
+                : isEn
+                ? "Start typing to search your library"
+                : "ابدأ بالكتابة للبحث في كل محتواك"}
             </div>
-          ) : (
-            <div className="p-5">
-              <p className="text-sm font-bold text-muted-foreground mb-3">بحث سريع في:</p>
-              <div className="flex flex-wrap gap-2">
-                {["العناوين", "الفصول", "المحتوى", "المواد", "المستويات"].map((tag) => (
+          )}
+
+          {results.courses.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
+                {q
+                  ? isEn
+                    ? "Courses"
+                    : "الكورسات"
+                  : isEn
+                  ? "Recent Courses"
+                  : "أحدث الكورسات"}
+              </p>
+              <div className="space-y-1">
+                {results.courses.map((c) => (
                   <button
-                    key={tag}
-                    onClick={() => setQuery(tag.replace("المواد", "").replace("المستويات", ""))}
-                    className="text-xs font-bold bg-secondary/60 rounded-xl px-3 py-1.5 hover:bg-primary/15 hover:text-primary transition-colors"
+                    key={c.id}
+                    onClick={() => go(`/course/${c.id}`)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/70 transition-colors text-start group cursor-pointer"
                   >
-                    {tag}
+                    <div className="size-8 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+                      <BookOpen className="size-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                        {c.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {c.chapters?.length || 0} {isEn ? "chapters" : "فصل"}
+                      </p>
+                    </div>
+                    <ArrowLeft className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity rtl:rotate-0 ltr:rotate-180" />
                   </button>
                 ))}
               </div>
             </div>
           )}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+
+          {results.contents.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
+                {isEn ? "Generated Content" : "محتوى مولّد"}
+              </p>
+              <div className="space-y-1">
+                {results.contents.map((ct) => {
+                  const Icon =
+                    ct.content_type === "quiz"
+                      ? Brain
+                      : ct.content_type === "flashcards"
+                      ? Layers
+                      : FileText;
+                  const label =
+                    ct.content_type === "quiz"
+                      ? isEn
+                        ? "Quiz"
+                        : "كويز"
+                      : ct.content_type === "flashcards"
+                      ? isEn
+                        ? "Flashcards"
+                        : "بطاقات"
+                      : isEn
+                      ? "Summary"
+                      : "ملخص";
+                  return (
+                    <button
+                      key={ct.id}
+                      onClick={() => go(`/course/${ct.course_id}`)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/70 transition-colors text-start group cursor-pointer"
+                    >
+                      <div className="size-8 rounded-lg bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+                        <Icon className="size-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {label} — {ct.courseTitle || (isEn ? "Course" : "كورس")}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {isEn ? "Inside course" : "داخل الكورس"}
+                        </p>
+                      </div>
+                      <ArrowLeft className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity rtl:rotate-0 ltr:rotate-180" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {results.quizzes.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">
+                {isEn ? "Shared Quizzes" : "الكويزات المشتركة"}
+              </p>
+              <div className="space-y-1">
+                {results.quizzes.map((qz) => (
+                  <button
+                    key={qz.id}
+                    onClick={() => go(`/shared-quiz/${qz.share_code}`)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/70 transition-colors text-start group cursor-pointer"
+                  >
+                    <div className="size-8 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0">
+                      <Brain className="size-4 text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{qz.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {qz.subject || ""} · {qz.questions?.length || 0} {isEn ? "Q" : "سؤال"}
+                      </p>
+                    </div>
+                    <ArrowLeft className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity rtl:rotate-0 ltr:rotate-180" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

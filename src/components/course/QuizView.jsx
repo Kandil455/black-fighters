@@ -18,11 +18,11 @@ export default function QuizView(props) {
 
   return (
     <div className="flex flex-col w-full">
-      <div className="flex justify-end mb-4 px-4">
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/10">
-          <span className="text-xs font-bold text-white/70 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            {isEn ? "Modern UI" : "التصميم الجديد (Neon)"}
+      <div className="flex justify-end mb-4">
+        <div className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-card border border-border shadow-xs">
+          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            {isEn ? "Interactive Focus UI" : "وضع الامتحان التفاعلي الذكي"}
           </span>
           <Switch checked={useModern} onCheckedChange={setUseModern} />
         </div>

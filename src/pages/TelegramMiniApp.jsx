@@ -1,12 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { signInWithCustomToken } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import AtlasSummaryReader from '@/components/atlas/AtlasSummaryReader';
-import DailyOrderSheet from '@/components/atlas/DailyOrderSheet';
-import { scheduleFsrsReview, createReviewItem, FSRS_RATINGS } from '@/lib/summaryV5/fsrsEngine';
-import { LVCard, LVBadge } from '@/components/ui/linevault';
-import { LoaderIcon, LightningIcon } from '@/components/ui/icons';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { signInWithCustomToken } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import AtlasSummaryReader from "@/components/atlas/AtlasSummaryReader";
+import DailyOrderSheet from "@/components/atlas/DailyOrderSheet";
+import {
+  scheduleFsrsReview,
+  createReviewItem,
+  FSRS_RATINGS,
+} from "@/lib/summaryV5/fsrsEngine";
+import { LVCard, LVBadge, LVLogo } from "@/components/ui/linevault";
+import { LoaderIcon, LightningIcon } from "@/components/ui/icons";
 import {
   applyTelegramChrome,
   bootstrapTelegramSession,
@@ -14,98 +18,122 @@ import {
   isInsideTelegram,
   loadTelegramSdk,
   openPlatform,
-} from '@/lib/telegramMiniApp';
+} from "@/lib/telegramMiniApp";
 
 const STARTAPP_REGEX = /^[A-Za-z0-9_-]{1,512}$/;
 
 function parseClientStartApp(rawParam) {
   if (!rawParam || !STARTAPP_REGEX.test(rawParam)) {
-    return { mode: 'reader', docId: 'atlas-cardio-07', page: 1 };
+    return { mode: "reader", docId: "atlas-cardio-07", page: 1 };
   }
   const docMatch = rawParam.match(/^doc_([A-Za-z0-9_-]+)_p_(\d+)$/);
   if (docMatch) {
-    return { mode: 'reader', docId: docMatch[1], page: Number(docMatch[2]) };
+    return { mode: "reader", docId: docMatch[1], page: Number(docMatch[2]) };
   }
   const decMatch = rawParam.match(/^declassify_([A-Za-z0-9_-]+)$/);
   if (decMatch) {
-    return { mode: 'declassify', docId: decMatch[1], page: 1 };
+    return { mode: "declassify", docId: decMatch[1], page: 1 };
   }
-  if (rawParam === 'review_due') {
-    return { mode: 'review', docId: 'atlas-cardio-07', page: 1 };
+  if (rawParam === "review_due") {
+    return { mode: "review", docId: "atlas-cardio-07", page: 1 };
   }
-  if (rawParam.startsWith('quiz_')) {
-    return { mode: 'quiz', docId: 'atlas-cardio-07', page: 1 };
+  if (rawParam.startsWith("quiz_")) {
+    return { mode: "quiz", docId: "atlas-cardio-07", page: 1 };
   }
-  return { mode: 'reader', docId: rawParam, page: 1 };
+  return { mode: "reader", docId: rawParam, page: 1 };
 }
 
 const MINI_APP_QUIZ_ITEMS = [
   {
-    id: 'tgq-1',
-    questionAr: 'ما هي القناة الأيونية المسؤولة عن طور الهضبة (Phase 2 Plateau) في خلايا البطين؟',
-    options: ['Fast Na+ Channels', 'L-type Ca2+ Channels', 'Funny Na+ Channels (If)', 'Cl- Channels'],
+    id: "tgq-1",
+    questionAr:
+      "ما هي القناة الأيونية المسؤولة عن طور الهضبة (Phase 2 Plateau) في خلايا البطين؟",
+    options: [
+      "Fast Na+ Channels",
+      "L-type Ca2+ Channels",
+      "Funny Na+ Channels (If)",
+      "Cl- Channels",
+    ],
     correctIndex: 1,
-    explanationAr: 'قنوات الكالسيوم البطيئة L-type Ca2+ تحافظ على طور الهضبة بالتوازن مع خروج البوتاسيوم.',
+    explanationAr:
+      "قنوات الكالسيوم البطيئة L-type Ca2+ تحافظ على طور الهضبة بالتوازن مع خروج البوتاسيوم.",
   },
   {
-    id: 'tgq-2',
-    questionAr: 'أي عصب قحفي ينقل إشارات مستقبلات الضغط من الجيب السباتي (Carotid Sinus)؟',
-    options: ['العصب المبهم (CN X)', 'العصب اللساني البلعومي (CN IX)', 'العصب الوجهي (CN VII)', 'العصب تحت اللساني (CN XII)'],
+    id: "tgq-2",
+    questionAr:
+      "أي عصب قحفي ينقل إشارات مستقبلات الضغط من الجيب السباتي (Carotid Sinus)؟",
+    options: [
+      "العصب المبهم (CN X)",
+      "العصب اللساني البلعومي (CN IX)",
+      "العصب الوجهي (CN VII)",
+      "العصب تحت اللساني (CN XII)",
+    ],
     correctIndex: 1,
-    explanationAr: 'عصب هيرينغ المتفرع من العصب التاسع (CN IX) ينقل إشارات الجيب السباتي إلى نواة السبيل المفرد.',
+    explanationAr:
+      "عصب هيرينغ المتفرع من العصب التاسع (CN IX) ينقل إشارات الجيب السباتي إلى نواة السبيل المفرد.",
   },
 ];
 
 export default function TelegramMiniApp() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const tgWebApp = typeof window !== 'undefined' ? window.Telegram?.WebApp : null;
+  const tgWebApp = typeof window !== "undefined" ? window.Telegram?.WebApp : null;
 
-  // Real session state. Before this, /tg rendered demo content for everyone and
-  // never talked to the server, so "signed in inside Telegram" did not exist.
-  const [session, setSession] = useState({ status: isInsideTelegram() ? 'checking' : 'not-in-telegram' });
+  const [session, setSession] = useState({
+    status: isInsideTelegram() ? "checking" : "not-in-telegram",
+  });
 
   useEffect(() => {
     let cancelled = false;
-    // The SDK loads first: the CSP allows telegram.org only on /tg, and without it
-    // there is no `initData` to verify.
     (async () => {
       await loadTelegramSdk();
       if (cancelled) return;
       applyTelegramChrome();
       if (!isInsideTelegram()) {
-        setSession({ status: 'not-in-telegram' });
+        setSession({ status: "not-in-telegram" });
         return;
       }
       try {
-        const result = await bootstrapTelegramSession({ signInWithCustomToken, auth });
+        const result = await bootstrapTelegramSession({
+          signInWithCustomToken,
+          auth,
+        });
         if (!cancelled) setSession(result);
       } catch (err) {
-        if (!cancelled) setSession({ status: 'error', error: err?.message });
+        if (!cancelled) setSession({ status: "error", error: err?.message });
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const startParamRaw =
-    searchParams.get('startapp') ||
+    searchParams.get("startapp") ||
     tgWebApp?.initDataUnsafe?.start_param ||
-    searchParams.get('mode') ||
-    '';
+    searchParams.get("mode") ||
+    "";
 
-  const parsedStart = useMemo(() => parseClientStartApp(startParamRaw), [startParamRaw]);
-  const [activeTab, setActiveTab] = useState(parsedStart.mode || 'reader');
-  const [cloudPosition, setCloudPosition] = useState(`ص ${parsedStart.page || 1}`);
+  const parsedStart = useMemo(
+    () => parseClientStartApp(startParamRaw),
+    [startParamRaw]
+  );
+  const [activeTab, setActiveTab] = useState(parsedStart.mode || "reader");
+  const [cloudPosition, setCloudPosition] = useState(
+    `ص ${parsedStart.page || 1}`
+  );
   const [quizAnswers, setQuizAnswers] = useState({});
   const [srsCard, setSrsCard] = useState(() =>
     createReviewItem({
-      id: 'tg_srs_1',
+      id: "tg_srs_1",
       docId: parsedStart.docId,
       chapterIndex: 1,
       plateNumber: 7,
-      promptAr: 'ما هي جرعة التحميل الوريدية القياسية لعقار Amiodarone في حالات اضطراب النظم البطيني؟',
-      answerTerm: '150–300 mg IV bolus',
-      contextSentence: 'تُعطى جرعة 150–300 mg وريدياً مع مراقبة التخطيط القلبي وضغط الدم.',
+      promptAr:
+        "ما هي جرعة التحميل الوريدية القياسية لعقار Amiodarone في حالات اضطراب النظم البطيني؟",
+      answerTerm: "150–300 mg IV bolus",
+      contextSentence:
+        "تُعطى جرعة 150–300 mg وريدياً مع مراقبة التخطيط القلبي وضغط الدم.",
       sourcePages: [13],
     })
   );
@@ -116,121 +144,142 @@ export default function TelegramMiniApp() {
     try {
       tgWebApp.ready?.();
       tgWebApp.expand?.();
-      tgWebApp.CloudStorage?.getItem?.(`pos_${parsedStart.docId}`, (err, val) => {
-        if (!err && val) setCloudPosition(val);
-      });
-    } catch {
-      // Safe fallback outside Telegram webview
-    }
+      tgWebApp.CloudStorage?.getItem?.(
+        `pos_${parsedStart.docId}`,
+        (err, val) => {
+          if (!err && val) setCloudPosition(val);
+        }
+      );
+    } catch {}
   }, [tgWebApp, parsedStart.docId]);
 
-  const triggerHaptic = (type = 'light') => haptic(type);
+  const triggerHaptic = (type = "light") => haptic(type);
 
-  const handleSaveCloudProgress = useCallback((label) => {
-    setCloudPosition(label);
-    triggerHaptic('light');
-    try {
-      tgWebApp?.CloudStorage?.setItem?.(`pos_${parsedStart.docId}`, label);
-    } catch {
-      // Ignore
-    }
-  }, [tgWebApp, parsedStart.docId]);
+  const handleSaveCloudProgress = useCallback(
+    (label) => {
+      setCloudPosition(label);
+      triggerHaptic("light");
+      try {
+        tgWebApp?.CloudStorage?.setItem?.(`pos_${parsedStart.docId}`, label);
+      } catch {}
+    },
+    [tgWebApp, parsedStart.docId]
+  );
 
   const handleGradeSrs = (rating) => {
-    triggerHaptic('medium');
+    triggerHaptic("medium");
     const next = scheduleFsrsReview(srsCard, rating);
     setSrsCard(next);
     setSrsRevealed(false);
   };
 
   return (
-    <main dir="rtl" className="min-h-dvh bg-[#07080C] text-[#F2F3F5] p-4 max-w-3xl mx-auto space-y-4">
-      {/* Session state — honest about whether this is the real account session */}
-      {session.status === 'checking' && (
-        <div className="flex items-center gap-2 rounded-xl border border-[#1E222B] bg-[#0E1117] px-3 py-2 text-[11px] text-[#9AA0AE]">
-          <LoaderIcon size={14} className="text-[#3DDC97]" />
+    <main
+      dir="rtl"
+      className="min-h-dvh bg-[#05070a] text-[#f5f7fa] p-4 max-w-3xl mx-auto space-y-4 relative overflow-hidden"
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 bg-radial-emerald bg-grid opacity-55"
+      />
+
+      {/* Session state */}
+      {session.status === "checking" && (
+        <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] glass px-3 py-2 text-[11px] text-[#9aa4b2]">
+          <LoaderIcon size={14} className="text-[#19f08c]" />
           بنتحقق من حسابك على تيليجرام…
         </div>
       )}
-      {session.status === 'authenticated' && (
-        <div className="flex items-center gap-2 rounded-xl border border-[#3DDC97]/30 bg-[#3DDC97]/5 px-3 py-2 text-[11px] text-[#3DDC97]">
-          <LightningIcon size={14} />
-          متصل بحسابك الحقيقي على المنصة — كل حاجة بتتحفظ في مكانها.
+      {session.status === "authenticated" && (
+        <div className="flex items-center gap-2 rounded-xl border border-[#19f08c]/35 bg-[#19f08c]/10 px-3 py-2 text-[11px] text-[#19f08c]">
+          <LightningIcon size={14} animated={false} />
+          متصل بحسابك الحقيقي على المنصة — كل تقدمك محفوظ سحابياً.
         </div>
       )}
-      {session.status === 'unlinked' && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-2">
-          <p className="text-[11px] leading-relaxed text-amber-200">
-            فتحت التطبيق من تيليجرام لكن معندناش حساب مرتبط بالحساب ده لسه. اربط من المنصة عشان نتزامن تقدمك.
+      {session.status === "unlinked" && (
+        <div className="rounded-xl border border-[#f59e0b]/35 bg-[#f59e0b]/10 px-3.5 py-3 space-y-2">
+          <p className="text-[11px] leading-relaxed text-[#f5f7fa]">
+            فتحت التطبيق من تيليجرام لكن لم تربط حسابك بعد. اربط حسابك من المنصة لمزامنة جميع ملخصاتك وكويزاتك.
           </p>
           <button
             type="button"
-            onClick={() => openPlatform('/settings')}
-            className="rounded-lg bg-[#3DDC97] px-3 py-1.5 text-[11px] font-black text-[#03150c]"
+            onClick={() => openPlatform("/profile")}
+            className="rounded-lg bg-[#19f08c] px-3 py-1.5 text-[11px] font-black text-[#03150c] cursor-pointer"
           >
             افتح إعدادات الربط
           </button>
         </div>
       )}
-      {session.status === 'error' && (
-        <div className="rounded-xl border border-[#E5484D]/30 bg-[#E5484D]/5 px-3 py-2.5 space-y-2">
-          <p className="text-[11px] leading-relaxed text-[#E5484D]">
+      {session.status === "error" && (
+        <div className="rounded-xl border border-[#ef4444]/35 bg-[#ef4444]/10 px-3.5 py-3 space-y-2">
+          <p className="text-[11px] leading-relaxed text-[#ef4444]">
             تعذر التحقق من حسابك على تيليجرام ({session.error}).
           </p>
           <button
             type="button"
             onClick={() => navigate(0)}
-            className="rounded-lg border border-[#1E222B] px-3 py-1.5 text-[11px] font-bold text-[#F2F3F5]"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] font-bold text-[#f5f7fa] cursor-pointer"
           >
             جرّب تاني
           </button>
         </div>
       )}
-      {session.status === 'not-in-telegram' && (
-        <div className="rounded-xl border border-[#1E222B] bg-[#0E1117] px-3 py-2 text-[11px] text-[#9AA0AE]">
-          دي صفحة تطبيق تيليجرام المصغر — تقدر تفتحها من جوه البوت. اللي بتشوفه هنا معاينة.
+      {session.status === "not-in-telegram" && (
+        <div className="rounded-xl border border-white/[0.07] glass px-3.5 py-2.5 text-[11px] text-[#9aa4b2] flex items-center justify-between gap-2">
+          <span>
+            تطبيق تيليجرام المصغر (@black_fighters_bot) — يمكنك فتحه من داخل البوت أو تجربته هنا مباشرة.
+          </span>
+          <LVBadge variant="accent" mono>
+            /tg
+          </LVBadge>
         </div>
       )}
 
       {/* Compact Telegram Mini App Header */}
-      <header className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#1E222B]">
-        <div>
-          <div className="text-[11px] font-mono text-[#9AA0AE]">
-            TELEGRAM MINI APP · /tg · SYNCED ({cloudPosition})
+      <header className="glass rounded-[1.25rem] p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <LVLogo to="/dashboard" label="Black Fighters" />
+          <div>
+            <div className="text-[10px] font-mono text-[#19f08c]">
+              TELEGRAM MINI APP · SYNCED ({cloudPosition})
+            </div>
+            <strong className="text-sm sm:text-base font-bold text-[#f5f7fa]">
+              القارئ والاختبار السحابي المصغر
+            </strong>
           </div>
-          <strong className="text-base font-bold text-[#F2F3F5]">
-            BLACK FIGHTERS — القارئ السحابي المصغر
-          </strong>
         </div>
 
         <button
           type="button"
-          onClick={() => handleSaveCloudProgress('ص 13')}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[#3DDC97]/40 bg-[#3DDC97]/10 text-[#3DDC97] hover:bg-[#3DDC97]/20 transition-colors"
+          onClick={() => handleSaveCloudProgress("ص 13")}
+          className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-[#19f08c]/40 bg-[#19f08c]/10 text-[#19f08c] hover:bg-[#19f08c]/20 transition-colors cursor-pointer"
         >
           حفظ الموضع سحابياً
         </button>
       </header>
 
       {/* 4 Focused Mini App Modes */}
-      <nav aria-label="أوضاع تطبيق تليجرام المصغر" className="grid grid-cols-4 gap-2">
+      <nav
+        aria-label="أوضاع تطبيق تليجرام المصغر"
+        className="grid grid-cols-4 gap-2"
+      >
         {[
-          { id: 'reader', label: 'القارئ' },
-          { id: 'declassify', label: 'استدعاء نشط' },
-          { id: 'review', label: 'المراجعة' },
-          { id: 'quiz', label: 'الاختبار' },
+          { id: "reader", label: "القارئ" },
+          { id: "declassify", label: "استدعاء نشط" },
+          { id: "review", label: "المراجعة" },
+          { id: "quiz", label: "الاختبار" },
         ].map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => {
-              triggerHaptic('light');
+              triggerHaptic("light");
               setActiveTab(tab.id);
             }}
-            className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-colors ${
+            className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
               activeTab === tab.id
-                ? 'bg-[#3DDC97] text-[#07080C] border-[#3DDC97]'
-                : 'bg-[#0E1117] text-[#9AA0AE] border-[#1E222B] hover:text-[#F2F3F5]'
+                ? "bg-[#19f08c] text-[#03150c] border-[#19f08c]"
+                : "glass text-[#9aa4b2] border-white/[0.07] hover:text-[#f5f7fa]"
             }`}
           >
             {tab.label}
@@ -238,23 +287,26 @@ export default function TelegramMiniApp() {
         ))}
       </nav>
 
-      {activeTab === 'reader' && (
-        <AtlasSummaryReader initialTheme="night" initialDeclassifyMode={false} compact />
+      {activeTab === "reader" && (
+        <AtlasSummaryReader
+          initialTheme="night"
+          initialDeclassifyMode={false}
+        />
       )}
 
-      {activeTab === 'declassify' && (
-        <AtlasSummaryReader initialTheme="night" initialDeclassifyMode compact />
+      {activeTab === "declassify" && (
+        <AtlasSummaryReader initialTheme="night" initialDeclassifyMode />
       )}
 
-      {activeTab === 'review' && (
+      {activeTab === "review" && (
         <div className="space-y-4">
           <LVCard className="p-5 space-y-4">
-            <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#1E222B]">
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/[0.07]">
               <div>
-                <div className="text-[11px] font-mono text-[#9AA0AE]">
+                <div className="text-[11px] font-mono text-[#19f08c]">
                   FSRS v4.5 ACTIVE RECALL
                 </div>
-                <h2 className="text-base font-bold text-[#F2F3F5]">
+                <h2 className="text-base font-bold text-[#f5f7fa]">
                   بطاقة استدعاء نشط متزامنة مع البوت
                 </h2>
               </div>
@@ -263,7 +315,7 @@ export default function TelegramMiniApp() {
               </LVBadge>
             </div>
 
-            <p className="text-sm font-semibold text-[#F2F3F5] leading-relaxed">
+            <p className="text-sm font-semibold text-[#f5f7fa] leading-relaxed">
               {srsCard.promptAr}
             </p>
 
@@ -272,36 +324,36 @@ export default function TelegramMiniApp() {
                 type="button"
                 aria-expanded={srsRevealed}
                 onClick={() => {
-                  triggerHaptic('light');
+                  triggerHaptic("light");
                   setSrsRevealed((v) => !v);
                 }}
-                className={`px-4 py-2 rounded-xl text-sm font-mono font-semibold border transition-colors ${
+                className={`px-4 py-2 rounded-xl text-sm font-mono font-semibold border transition-colors cursor-pointer ${
                   srsRevealed
-                    ? 'bg-[#3DDC97]/10 border-[#3DDC97]/40 text-[#3DDC97]'
-                    : 'bg-[#131720] border-[#28313E] text-transparent select-none hover:border-[#3DDC97]/40'
+                    ? "bg-[#19f08c]/15 border-[#19f08c]/40 text-[#19f08c]"
+                    : "bg-white/[0.04] border-white/[0.1] text-[#9aa4b2] hover:border-[#19f08c]/40 hover:text-[#f5f7fa]"
                 }`}
               >
-                {srsCard.answerTerm}
+                {srsRevealed ? srsCard.answerTerm : "[اضغط لكشف الإجابة]"}
               </button>
             </div>
 
             {srsRevealed && (
-              <div className="p-4 rounded-xl bg-[#07080C] border border-[#1E222B] space-y-3">
-                <p className="text-xs text-[#9AA0AE] leading-relaxed">
+              <div className="p-4 rounded-xl bg-[#05070a] border border-white/[0.07] space-y-3">
+                <p className="text-xs text-[#9aa4b2] leading-relaxed">
                   {srsCard.contextSentence}
                 </p>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    { r: FSRS_RATINGS.AGAIN, label: '1 · نسيت' },
-                    { r: FSRS_RATINGS.HARD, label: '2 · صعب' },
-                    { r: FSRS_RATINGS.GOOD, label: '3 · جيد' },
-                    { r: FSRS_RATINGS.EASY, label: '4 · سهل' },
+                    { r: FSRS_RATINGS.AGAIN, label: "1 · نسيت" },
+                    { r: FSRS_RATINGS.HARD, label: "2 · صعب" },
+                    { r: FSRS_RATINGS.GOOD, label: "3 · جيد" },
+                    { r: FSRS_RATINGS.EASY, label: "4 · سهل" },
                   ].map((b) => (
                     <button
                       key={b.r}
                       type="button"
                       onClick={() => handleGradeSrs(b.r)}
-                      className="py-2 px-2 rounded-lg border border-[#1E222B] bg-[#0E1117] text-[#F2F3F5] hover:border-[#3DDC97]/40 hover:text-[#3DDC97] text-xs font-mono transition-colors"
+                      className="py-2 px-2 rounded-lg border border-white/[0.07] bg-white/[0.03] text-[#f5f7fa] hover:border-[#19f08c]/40 hover:text-[#19f08c] text-xs font-mono transition-colors cursor-pointer"
                     >
                       {b.label}
                     </button>
@@ -315,11 +367,13 @@ export default function TelegramMiniApp() {
         </div>
       )}
 
-      {activeTab === 'quiz' && (
+      {activeTab === "quiz" && (
         <LVCard className="p-5 space-y-4">
-          <div className="pb-3 border-b border-[#1E222B]">
-            <div className="text-[11px] font-mono text-[#9AA0AE]">QUICK VERIFICATION QUIZ</div>
-            <h2 className="text-base font-bold text-[#F2F3F5]">
+          <div className="pb-3 border-b border-white/[0.07]">
+            <div className="text-[11px] font-mono text-[#19f08c]">
+              QUICK VERIFICATION QUIZ
+            </div>
+            <h2 className="text-base font-bold text-[#f5f7fa]">
               اختبار التثبيت السريع داخل تليجرام
             </h2>
           </div>
@@ -331,21 +385,24 @@ export default function TelegramMiniApp() {
               return (
                 <div
                   key={q.id}
-                  className="p-4 rounded-xl bg-[#07080C] border border-[#1E222B] space-y-3"
+                  className="p-4 rounded-xl bg-[#05070a] border border-white/[0.07] space-y-3"
                 >
-                  <p className="text-sm font-bold text-[#F2F3F5]">
+                  <p className="text-sm font-bold text-[#f5f7fa]">
                     {qIdx + 1}. {q.questionAr}
                   </p>
                   <div className="grid gap-2">
                     {q.options.map((opt, oIdx) => {
                       const isCorrect = oIdx === q.correctIndex;
                       const isSelected = chosen === oIdx;
-                      let btnClasses = 'bg-[#0E1117] border-[#1E222B] text-[#F2F3F5] hover:border-[#28313E]';
+                      let btnClasses =
+                        "bg-white/[0.03] border-white/[0.07] text-[#f5f7fa] hover:border-[#19f08c]/35";
                       if (isAnswered) {
                         if (isCorrect) {
-                          btnClasses = 'bg-[#3DDC97]/15 border-[#3DDC97]/50 text-[#3DDC97]';
+                          btnClasses =
+                            "bg-[#19f08c]/15 border-[#19f08c]/50 text-[#19f08c] font-bold";
                         } else if (isSelected) {
-                          btnClasses = 'bg-[#E5484D]/15 border-[#E5484D]/50 text-[#E5484D]';
+                          btnClasses =
+                            "bg-[#ef4444]/15 border-[#ef4444]/50 text-[#ef4444]";
                         }
                       }
                       return (
@@ -353,10 +410,13 @@ export default function TelegramMiniApp() {
                           key={opt}
                           type="button"
                           onClick={() => {
-                            triggerHaptic(isCorrect ? 'light' : 'heavy');
-                            setQuizAnswers((prev) => ({ ...prev, [q.id]: oIdx }));
+                            triggerHaptic(isCorrect ? "light" : "heavy");
+                            setQuizAnswers((prev) => ({
+                              ...prev,
+                              [q.id]: oIdx,
+                            }));
                           }}
-                          className={`text-right px-3.5 py-2.5 rounded-xl border text-xs font-medium transition-colors ${btnClasses}`}
+                          className={`text-right px-3.5 py-2.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${btnClasses}`}
                         >
                           {opt}
                         </button>
@@ -364,7 +424,7 @@ export default function TelegramMiniApp() {
                     })}
                   </div>
                   {isAnswered && (
-                    <p className="text-xs text-[#9AA0AE] pt-1">
+                    <p className="text-xs text-[#19f08c] pt-1">
                       ✓ {q.explanationAr}
                     </p>
                   )}

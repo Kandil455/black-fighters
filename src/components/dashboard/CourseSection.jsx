@@ -1,34 +1,98 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Folder } from "lucide-react";
 import CourseCard from "@/components/CourseCard";
+import { GlassCard } from "@/components/ui/linevault";
+import { BookOpen } from "lucide-react";
 
-export default function CourseSection({ title, courses, contentMap = {} }) {
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 16 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      transition={{ duration: 0.3 }}
-      className="mb-10"
-    >
-      {title && (
-        <div className="flex items-center justify-between gap-3 mb-5 pb-2.5 border-b border-white/5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
-              <Folder className="w-4 h-4" />
-            </div>
-            <h2 className="text-base sm:text-lg font-black tracking-tight font-heading text-white">{title}</h2>
-          </div>
-          <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-            {courses.length}
-          </span>
-        </div>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 auto-rows-fr">
-        {courses.map((course, i) => (
-          <CourseCard key={course.id} course={course} index={i} contents={contentMap[course.id] || []} />
-        ))}
+const containerVariants = {
+  hidden: {},
+  show: {
+    transition: { staggerChildren: 0.04, delayChildren: 0.02 },
+  },
+};
+
+export default function CourseSection({
+  title,
+  subtitle,
+  icon: Icon,
+  courses,
+  badge,
+  emptyText,
+  currentUserId,
+  isAdmin = false,
+  onChanged,
+  selectMode = false,
+  selectedIds = new Set(),
+  onToggleSelect,
+}) {
+  if (!courses || courses.length === 0) {
+    if (!emptyText) return null;
+    return (
+      <div className="space-y-3">
+        <Header title={title} subtitle={subtitle} Icon={Icon} count={0} badge={badge} />
+        <GlassCard variant="subtle" className="p-8 text-center text-muted-foreground text-sm">
+          {emptyText}
+        </GlassCard>
       </div>
-    </motion.div>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <Header
+        title={title}
+        subtitle={subtitle}
+        Icon={Icon}
+        count={courses.length}
+        badge={badge}
+      />
+      <motion.div
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        {courses.map((course, i) => (
+          <CourseCard
+            key={course.id}
+            course={course}
+            index={i}
+            canManage={isAdmin || course.created_by_id === currentUserId}
+            onChanged={onChanged}
+            selectMode={selectMode}
+            selected={selectedIds.has(course.id)}
+            onToggleSelect={onToggleSelect}
+          />
+        ))}
+      </motion.div>
+    </section>
+  );
+}
+
+function Header({ title, subtitle, Icon = BookOpen, count, badge }) {
+  return (
+    <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex items-center gap-3">
+        <div className="grid size-10 place-items-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-base sm:text-lg font-bold tracking-tight text-foreground">
+              {title}
+            </h2>
+            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border tabular">
+              {count}
+            </span>
+            {badge && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/25">
+                {badge}
+              </span>
+            )}
+          </div>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+        </div>
+      </div>
+    </div>
   );
 }

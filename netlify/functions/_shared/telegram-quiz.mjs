@@ -82,14 +82,31 @@ export async function getQuizSession(chatId) {
  * Remembers the poll Telegram just created so its answer can be attributed.
  * Returns the poll id (or null when the send failed).
  */
-export async function rememberQuestionPoll({ chatId, index, pollId, correctOptionId, total }) {
+export async function rememberQuestionPoll({
+  chatId,
+  index,
+  pollId,
+  correctOptionId,
+  total,
+  questionText = "",
+  options = [],
+  explanation = "",
+  topic = "",
+}) {
   if (!chatId || !pollId) return null;
   try {
     await sessionRef(chatId).set(
       {
         index: Number(index) || 0,
         total: Number(total) || 0,
-        [`polls.${pollId}`]: { index: Number(index) || 0, correct_option_id: Number(correctOptionId) || 0 },
+        [`polls.${pollId}`]: {
+          index: Number(index) || 0,
+          correct_option_id: Number(correctOptionId) || 0,
+          question: String(questionText || "").slice(0, 350),
+          options: Array.isArray(options) ? options.slice(0, 10) : [],
+          explanation: String(explanation || "").slice(0, 400),
+          topic: String(topic || "Telegram Quiz").slice(0, 120),
+        },
         updated_at: new Date().toISOString(),
       },
       { merge: true },
@@ -144,6 +161,28 @@ export async function recordPollAnswer({ chatId, pollId, optionIds = [], telegra
       { answers, answered, correct, updated_at: new Date().toISOString() },
       { merge: true },
     );
+    if (!isCorrect && session.uid && poll.question) {
+      await adminDb
+        .collection("mistakeVault")
+        .doc(`${session.uid}_${pollId}`)
+        .set(
+          {
+            uid: session.uid,
+            poll_id: pollId,
+            quiz_id: session.quiz_id,
+            question: poll.question,
+            options: poll.options || [],
+            correct_index: correctOptionId,
+            chosen_index: chosen,
+            explanation: poll.explanation || "",
+            topic: poll.topic || "كويز تيليجرام",
+            source: "telegram_poll",
+            updated_at: new Date().toISOString(),
+          },
+          { merge: true },
+        )
+        .catch(() => {});
+    }
   } catch (err) {
     console.warn("[telegram-quiz] could not record answer:", err.message);
     return { recorded: false, reason: "PERSIST_FAILED" };

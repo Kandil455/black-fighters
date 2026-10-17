@@ -38,14 +38,18 @@ const firebaseConfig = {
 // problem when it is a build-environment problem. Name the exact vars to set.
 const configCheck = validateFirebaseConfig(viteEnv);
 if (!configCheck.ok) {
-  console.error(firebaseConfigWarning(configCheck.missing));
+  const warningMsg = firebaseConfigWarning(configCheck.missing);
+  if (!viteEnv.DEV) {
+    console.error(warningMsg);
+  }
 }
 
 let _app, _auth, _googleProvider;
 let _initOk = false;
 
-try {
-  _app = initializeApp(firebaseConfig);
+if (configCheck.ok) {
+  try {
+    _app = initializeApp(firebaseConfig);
   try {
     _auth = initializeAuth(_app, {
       persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence],
@@ -78,8 +82,9 @@ try {
       }
     }, 50);
   }
-} catch (e) {
-  console.warn('Firebase init failed:', e.message);
+  } catch (e) {
+    console.warn('Firebase init failed:', e.message);
+  }
 }
 
 const baseAuth = _auth || { currentUser: DEV_SANDBOX_USER, onAuthStateChanged: (cb) => { cb(DEV_SANDBOX_USER); return () => {}; } };

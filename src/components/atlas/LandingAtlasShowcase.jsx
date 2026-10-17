@@ -10,8 +10,8 @@ export const DEMO_TABS = [
 
 const COMPARISON_ROWS = [
   {
-    criteriaAr: "تغطية ملفات المحاضرات الضخمة (100–500 صفحة)",
-    criteriaEn: "100–500 Page Lecture Coverage",
+    criteriaAr: "تغطية ملفات المحاضرات الضخمة (100–1,000 صفحة)",
+    criteriaEn: "100–1,000 Page Lecture Coverage",
     bfAr: "معمارية هرمية (Map-Reduce + قفل مصطلحات) بضمان تغطية >= 95%",
     bfEn: "Hierarchical Map-Reduce + Glossary Lock (>= 95% coverage)",
     notesAr: "تكدس مئات الصفحات بدون فهرسة تفاعلية",
@@ -52,22 +52,22 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
     <div className="space-y-8">
       {/* Live Interactive Reader Preview Card */}
       <LVCard padding="p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-[#1E222B]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-white/[0.08]">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#3DDC97]" />
-              <h3 className="text-base font-semibold text-[#F2F3F5]">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <BookOpen className="w-4 h-4 text-[#19f08c]" />
+              <h3 className="text-base font-semibold text-[#f5f7fa]">
                 {isAr
-                  ? "معاينة حية لقارئ الملخصات الذكي"
-                  : "Live Interactive Summary Reader Preview"}
+                  ? "معاينة حية لقارئ الأطلس V5 الذكي"
+                  : "Live Interactive Atlas V5 Reader Preview"}
               </h3>
-              <LVBadge variant="accent">
+              <LVBadge variant="emerald">
                 {isAr ? "مدقق رقمياً 100%" : "100% Verified"}
               </LVBadge>
             </div>
-            <p className="text-xs text-[#9AA0AE]">
+            <p className="text-xs text-[#9aa4b2]">
               {isAr
-                ? "شرح تمهيدي من الأساس + الاحتفاظ بالمصطلحات الإنجليزية + وضع تسميع تفاعلي"
+                ? "شرح تمهيدي من الأساس + الاحتفاظ بالمصطلحات الإنجليزية + وضع تسميع تفاعلي (Declassify)"
                 : "Foundational explanation + preserved English terminology + interactive active recall"}
             </p>
           </div>
@@ -79,10 +79,10 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
               setRevealedItems({ d1: false, d2: false });
             }}
             className={cn(
-              "px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition-colors duration-150 shrink-0",
+              "px-3.5 py-2 rounded-xl text-xs font-semibold inline-flex items-center gap-2 border transition-colors duration-150 shrink-0 cursor-pointer",
               declassifyActive
-                ? "bg-[#3DDC97] text-[#03150c] border-[#3DDC97]"
-                : "bg-white/[0.04] text-[#F2F3F5] border-[#1E222B] hover:border-[#262A34]"
+                ? "bg-[#19f08c] text-[#03150c] border-[#19f08c]"
+                : "bg-white/[0.04] text-[#f5f7fa] border-white/10 hover:border-[#19f08c]/45"
             )}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -92,7 +92,7 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
                   ? "إيقاف وضع التسميع"
                   : "Exit Recall Mode"
                 : isAr
-                ? "جرب وضع التسميع الذاتي"
+                ? "جرّب وضع التسميع الذاتي (Declassify)"
                 : "Try Active Recall Mode"}
             </span>
           </button>
@@ -100,23 +100,23 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
 
         <div className="space-y-4">
           {/* Prerequisite Box */}
-          <div className="rounded-xl bg-white/[0.03] border border-[#1E222B] p-4">
-            <div className="text-xs font-semibold text-[#3DDC97] mb-1.5">
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.08] p-4">
+            <div className="text-xs font-semibold text-[#19f08c] mb-1.5">
               {isAr
                 ? "قبل ما تقرا (شرح تمهيدي من الأساس):"
                 : "Prerequisite Foundation:"}
             </div>
-            <p className="text-xs sm:text-sm text-[#F2F3F5]/90 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#f5f7fa]/90 leading-relaxed">
               خلية عضلة القلب في وقت الراحة تكون سالبة الشحنة من الداخل (
-              <span dir="ltr" className="font-mono text-[#3DDC97] font-semibold">
+              <span dir="ltr" className="font-mono text-[#19f08c] font-semibold">
                 -90 mV
               </span>
               ). أي دخول لأيونات موجبة مثل الصوديوم{" "}
-              <span dir="ltr" className="font-mono text-[#F2F3F5]">
+              <span dir="ltr" className="font-mono text-[#f5f7fa]">
                 Na+
               </span>{" "}
               أو الكالسيوم{" "}
-              <span dir="ltr" className="font-mono text-[#F2F3F5]">
+              <span dir="ltr" className="font-mono text-[#f5f7fa]">
                 Ca2+
               </span>{" "}
               يرفع الجهد الكهربائي ويطلق الانقباض.
@@ -124,10 +124,10 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
           </div>
 
           {/* Main Summary Paragraph with Interactive Recall */}
-          <div className="rounded-xl bg-[#07080C]/70 border border-[#1E222B] p-4 sm:p-5 space-y-3 text-sm leading-loose text-[#F2F3F5]">
-            <p className="text-[#F2F3F5]">
+          <div className="rounded-xl bg-[#05070a]/80 border border-white/[0.08] p-4 sm:p-5 space-y-3 text-sm leading-loose text-[#f5f7fa]">
+            <p className="text-[#f5f7fa]">
               1. يتميز{" "}
-              <span className="text-[#3DDC97] font-semibold">
+              <span className="text-[#19f08c] font-semibold">
                 طور الهضبة (Phase 2 Plateau)
               </span>{" "}
               في البطين بـ{" "}
@@ -135,40 +135,40 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
                 <button
                   type="button"
                   onClick={() => setRevealedItems((p) => ({ ...p, d1: true }))}
-                  className="px-2.5 py-0.5 mx-1 rounded-md bg-white/[0.04] border border-[#3DDC97]/40 text-xs font-mono text-[#3DDC97] hover:bg-[#3DDC97]/10 transition-colors"
+                  className="px-2.5 py-0.5 mx-1 rounded-md bg-[#19f08c]/10 border border-dashed border-[#19f08c]/50 text-xs font-mono text-[#19f08c] hover:bg-[#19f08c]/20 transition-colors cursor-pointer"
                 >
                   [اضغط لكشف المعلومة]
                 </button>
               ) : (
-                <span className="px-2 py-0.5 rounded-md bg-[#3DDC97]/10 text-[#3DDC97] font-mono text-xs font-semibold">
+                <span className="px-2 py-0.5 rounded-md bg-[#19f08c]/12 text-[#19f08c] font-mono text-xs font-semibold">
                   دخول الكالسيوم البطيء عبر قنوات L-type Ca2+
                 </span>
               )}{" "}
               وهي النقطة التي تستهدفها أدوية{" "}
-              <span dir="ltr" className="font-mono text-[#F2F3F5] font-semibold">
+              <span dir="ltr" className="font-mono text-[#f5f7fa] font-semibold">
                 Calcium Channel Blockers
               </span>
               .
             </p>
 
-            <p className="text-[#F2F3F5]">
+            <p className="text-[#f5f7fa]">
               2. جرعة التحميل الوريدية القياسية لعقار{" "}
-              <strong className="font-mono text-[#F2F3F5]">Amiodarone</strong> في
+              <strong className="font-mono text-[#f5f7fa]">Amiodarone</strong> في
               الطوارئ هي{" "}
               {declassifyActive && !revealedItems.d2 ? (
                 <button
                   type="button"
                   onClick={() => setRevealedItems((p) => ({ ...p, d2: true }))}
-                  className="px-2.5 py-0.5 mx-1 rounded-md bg-white/[0.04] border border-[#3DDC97]/40 text-xs font-mono text-[#3DDC97] hover:bg-[#3DDC97]/10 transition-colors"
+                  className="px-2.5 py-0.5 mx-1 rounded-md bg-[#19f08c]/10 border border-dashed border-[#19f08c]/50 text-xs font-mono text-[#19f08c] hover:bg-[#19f08c]/20 transition-colors cursor-pointer"
                 >
                   [اضغط لكشف الجرعة]
                 </button>
               ) : (
                 <span
                   dir="ltr"
-                  className="px-2 py-0.5 rounded-md bg-[#F5A524]/15 text-[#F5A524] font-mono text-xs font-semibold"
+                  className="px-2 py-0.5 rounded-md bg-[#f5b83d]/15 text-[#f5b83d] font-mono text-xs font-semibold"
                 >
-                  150–300 mg IV bolus (ص 13)
+                  150–300 mg IV bolus (✓ p.13)
                 </span>
               )}
               .
@@ -180,7 +180,7 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
       {/* Clean Architectural Comparison Table */}
       <LVCard padding="p-6 sm:p-8" className="overflow-x-auto">
         <div className="mb-5">
-          <h3 className="text-lg sm:text-xl font-semibold text-[#F2F3F5]">
+          <h3 className="text-lg sm:text-xl font-semibold text-[#f5f7fa]">
             {isAr
               ? "مقارنة مع المذكرات التقليدية و ChatGPT العادي"
               : "How Black Fighters Compares to Static Notes & Generic ChatGPT"}
@@ -189,42 +189,42 @@ export default function LandingAtlasShowcase({ locale = "ar" }) {
 
         <table className="w-full text-xs sm:text-sm border-collapse min-w-[600px]">
           <thead>
-            <tr className="border-b border-[#1E222B] text-start">
-              <th className="py-3 px-3 text-[#9AA0AE] font-medium text-start">
+            <tr className="border-b border-white/[0.08] text-start">
+              <th className="py-3 px-3 text-[#9aa4b2] font-medium text-start">
                 {isAr ? "المعيار" : "Criterion"}
               </th>
-              <th className="py-3 px-4 text-[#3DDC97] font-semibold bg-white/[0.03] rounded-t-xl text-start">
-                Black Fighters
+              <th className="py-3 px-4 text-[#19f08c] font-semibold bg-[#19f08c]/[0.06] rounded-t-xl text-start">
+                Black Fighters × LineVault
               </th>
-              <th className="py-3 px-3 text-[#9AA0AE] font-medium text-start">
+              <th className="py-3 px-3 text-[#9aa4b2] font-medium text-start">
                 {isAr ? "المذكرة التقليدية" : "Static Notes"}
               </th>
-              <th className="py-3 px-3 text-[#9AA0AE] font-medium text-start">
+              <th className="py-3 px-3 text-[#9aa4b2] font-medium text-start">
                 {isAr ? "ChatGPT العادي" : "Generic ChatGPT"}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1E222B]">
+          <tbody className="divide-y divide-white/[0.07]">
             {COMPARISON_ROWS.map((row, i) => (
               <tr key={i}>
-                <td className="py-3.5 px-3 font-semibold text-[#F2F3F5]">
+                <td className="py-3.5 px-3 font-semibold text-[#f5f7fa]">
                   {isAr ? row.criteriaAr : row.criteriaEn}
                 </td>
-                <td className="py-3.5 px-4 bg-white/[0.02] text-[#F2F3F5] font-medium">
+                <td className="py-3.5 px-4 bg-[#19f08c]/[0.03] text-[#f5f7fa] font-medium">
                   <span className="inline-flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#3DDC97] shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-[#19f08c] shrink-0 mt-0.5" />
                     <span>{isAr ? row.bfAr : row.bfEn}</span>
                   </span>
                 </td>
-                <td className="py-3.5 px-3 text-[#9AA0AE]">
+                <td className="py-3.5 px-3 text-[#9aa4b2]">
                   <span className="inline-flex items-start gap-2">
-                    <XCircle className="w-4 h-4 text-[#E5484D]/70 shrink-0 mt-0.5" />
+                    <XCircle className="w-4 h-4 text-[#ff5d6c]/75 shrink-0 mt-0.5" />
                     <span>{row.notesAr}</span>
                   </span>
                 </td>
-                <td className="py-3.5 px-3 text-[#9AA0AE]">
+                <td className="py-3.5 px-3 text-[#9aa4b2]">
                   <span className="inline-flex items-start gap-2">
-                    <XCircle className="w-4 h-4 text-[#E5484D]/70 shrink-0 mt-0.5" />
+                    <XCircle className="w-4 h-4 text-[#ff5d6c]/75 shrink-0 mt-0.5" />
                     <span>{row.chatgptAr}</span>
                   </span>
                 </td>

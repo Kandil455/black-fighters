@@ -1,15 +1,29 @@
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Brain, Share2, Trash2, Users, Check, Swords, CheckSquare, Square, Play, Bot } from "lucide-react";
+import {
+  Brain,
+  Share2,
+  Trash2,
+  Users,
+  Check,
+  Swords,
+  CheckSquare,
+  Square,
+  Play,
+  Send,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import QuizExportButton from "@/components/quiz/QuizExportButton";
+import { invokeSecureFunction } from "@/lib/secureFunctions";
+import { openTelegramLinkWithCode } from "@/lib/telegramClient";
 import { cn } from "@/lib/utils";
 
 export default function QuizCard({ quiz, onDelete, isSelected, onToggleSelect }) {
   const navigate = useNavigate();
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
+  const [sendingTelegram, setSendingTelegram] = useState(false);
 
   const handleShare = async (e) => {
     e.stopPropagation();
@@ -24,86 +38,142 @@ export default function QuizCard({ quiz, onDelete, isSelected, onToggleSelect })
     }
   };
 
+  const handleSendToTelegram = async (e) => {
+    e.stopPropagation();
+    if (sendingTelegram) return;
+    setSendingTelegram(true);
+    try {
+      const res = await invokeSecureFunction("export-to-telegram", {
+        title: quiz.title || "كويز تفاعلي",
+        type: "quiz",
+        questions: quiz.questions || [],
+        quizId: quiz.id,
+        deliveryMode: "both",
+      });
+      if (res?.data?.success) {
+        toast.success(res.data.message || "تم إرسال الكويز واستطلاعات Quiz Polls إلى تيليجرام! 🤖");
+      } else if (res?.data?.error === "NO_TELEGRAM_LINKED") {
+        toast.error(res.data.message, {
+          action: {
+            label: "ربط البوت",
+            onClick: () => {
+              openTelegramLinkWithCode().catch((err) =>
+                toast.error(err?.message || "تعذر إنشاء كود الربط"),
+              );
+            },
+          },
+        });
+      } else {
+        toast.error(res?.data?.message || "تعذر إرسال الكويز للبوت");
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "حصل خطأ في إرسال الكويز للبوت");
+    } finally {
+      setSendingTelegram(false);
+    }
+  };
+
   return (
-    <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 40, scale: 0.9, rotateX: -12 },
-        show: { opacity: 1, y: 0, scale: 1, rotateX: 0, transition: { type: "spring", stiffness: 260, damping: 18 } },
-      }}
-      whileHover={{ y: -8, scale: 1.035, rotateZ: -0.5, transition: { type: "spring", stiffness: 320, damping: 14 } }}
-      whileTap={{ scale: 0.97 }}
+    <div
       onClick={() => navigate(`/q/${quiz.id}`)}
-      style={{ transformPerspective: 900 }}
       className={cn(
-        "relative glass-card rounded-2xl p-5 border transition-colors cursor-pointer group overflow-hidden",
-        isSelected ? "border-destructive/80 neon-glow-cyan bg-destructive/5" : "border-border hover:border-primary/50 hover:neon-glow-cyan"
+        "relative glass rounded-[1.25rem] p-5 border transition-colors cursor-pointer group overflow-hidden",
+        isSelected
+          ? "border-[#ef4444]/80 bg-[#ef4444]/5"
+          : "border-white/[0.07] hover:border-[#19f08c]/45",
       )}
     >
-      {/* sheen sweep on hover */}
-      <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
       <div className="flex items-start justify-between mb-3 relative">
         <div className="flex items-center gap-2">
           {onToggleSelect && (
-            <div 
-              onClick={(e) => { e.stopPropagation(); onToggleSelect(quiz.id); }}
-              className="text-muted-foreground hover:text-destructive transition-colors z-10 p-1 cursor-pointer"
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect(quiz.id);
+              }}
+              className="text-[#9aa4b2] hover:text-[#ef4444] transition-colors z-10 p-1 cursor-pointer"
             >
-              {isSelected ? <CheckSquare className="w-5 h-5 text-destructive" /> : <Square className="w-5 h-5" />}
+              {isSelected ? (
+                <CheckSquare className="w-5 h-5 text-[#ef4444]" />
+              ) : (
+                <Square className="w-5 h-5" />
+              )}
             </div>
           )}
-          <motion.div
-            whileHover={{ rotate: [0, -12, 12, -8, 0], scale: 1.15 }}
-            transition={{ duration: 0.6 }}
-            className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:neon-glow-cyan"
-          >
-            <Brain className="w-5 h-5 text-primary" />
-          </motion.div>
+          <div className="w-11 h-11 rounded-xl bg-[#19f08c]/10 border border-[#19f08c]/25 flex items-center justify-center text-[#19f08c]">
+            <Brain className="w-5 h-5" />
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <Button
             size="icon"
             variant="ghost"
-            className="h-8 w-8 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-            title="امتحان الكويز على التليجرام"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(`https://t.me/black_fighters_bot?start=quiz_${quiz.id}`, "_blank");
-              toast.success("🚀 تم فتح الكويز على بوت التيليجرام (@black_fighters_bot)!");
-            }}
+            disabled={sendingTelegram}
+            className="h-8 w-8 text-[#19f08c] hover:text-[#19f08c] hover:bg-[#19f08c]/10"
+            title="إرسال الكويز كاستطلاعات Quiz Polls إلى تيليجرام"
+            onClick={handleSendToTelegram}
           >
-            <Bot className="w-4 h-4" />
+            {sendingTelegram ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
           </Button>
           <QuizExportButton quiz={quiz} />
-          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={handleShare}>
-            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-[#9aa4b2] hover:text-[#19f08c]"
+            onClick={handleShare}
+          >
+            {copied ? <Check className="w-4 h-4 text-[#19f08c]" /> : <Share2 className="w-4 h-4" />}
           </Button>
           {onDelete && (
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(quiz); }}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-[#9aa4b2] hover:text-[#ef4444]"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(quiz);
+              }}
+            >
               <Trash2 className="w-4 h-4" />
             </Button>
           )}
         </div>
       </div>
-      <h3 className="font-extrabold text-base mb-1 line-clamp-1">{quiz.title}</h3>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+
+      <h3 className="font-extrabold text-base text-[#f5f7fa] mb-1 line-clamp-1">{quiz.title}</h3>
+      <div className="flex items-center gap-2 text-xs text-[#9aa4b2] mb-3 font-mono tabular-nums">
         <span>{quiz.questions?.length || 0} سؤال</span>
-        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {quiz.attempts_count || 0} محاولة</span>
+        <span aria-hidden="true">·</span>
+        <span className="flex items-center gap-1">
+          <Users className="w-3 h-3" /> {quiz.attempts_count || 0} محاولة
+        </span>
       </div>
+
       <Button
         size="sm"
-        className="w-full mb-2 gap-1.5 font-black text-xs"
-        onClick={(e) => { e.stopPropagation(); navigate(`/q/${quiz.id}`); }}
+        className="w-full mb-2 gap-1.5 font-black text-xs bg-[#19f08c] text-[#03150c] hover:bg-[#19f08c]/90 rounded-xl"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/q/${quiz.id}`);
+        }}
       >
         <Play className="w-3.5 h-3.5 fill-current" /> ابدأ الحل
       </Button>
       <Button
         size="sm"
         variant="outline"
-        className="w-full gap-1.5 font-bold text-xs border-accent/30 text-accent hover:bg-accent/10"
-        onClick={(e) => { e.stopPropagation(); navigate(`/challenge/new/${quiz.id}`); }}
+        className="w-full gap-1.5 font-bold text-xs border-white/[0.1] text-[#f5f7fa] hover:border-[#19f08c]/40 hover:text-[#19f08c] rounded-xl"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/challenge/new/${quiz.id}`);
+        }}
       >
         <Swords className="w-3.5 h-3.5" /> ابدأ تحدّي
       </Button>
-    </motion.div>
+    </div>
   );
 }

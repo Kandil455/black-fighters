@@ -108,34 +108,39 @@ export default function Layout() {
       items: [
         { to: "/dashboard", label: locale === "ar" ? "اليوم والمقررات" : "Today & Courses", icon: DocumentIcon },
         { to: "/create", label: locale === "ar" ? "رفع محاضرة جديدة" : "Upload Lecture", icon: SummaryNoteIcon },
-        { to: "/review", label: locale === "ar" ? "المراجعة الذكية (FSRS)" : "FSRS Review", icon: FlameIcon },
-        { to: "/stats", label: locale === "ar" ? "خريطة الإتقان" : "Mastery Map", icon: TrophyIcon },
-        ...(isEmergencyAllowed
-          ? [{ to: "/emergency", label: locale === "ar" ? "راوند الطوارئ" : "Emergency Round", icon: ShieldAlert }]
-          : []),
       ],
     },
     {
       title: locale === "ar" ? "الاستوديو والأدوات" : "Studio & Tools",
       items: [
-        { to: "/quizzes", label: locale === "ar" ? "كويز نظري" : "Theory Quizzes", icon: TheoryQuizIcon },
-        { to: "/practical", label: locale === "ar" ? "كويز عملي وصور" : "Practical Lab", icon: PracticalQuizIcon },
-        { to: "/youtube-ai", label: locale === "ar" ? "تلخيص يوتيوب" : "YouTube Studio", icon: YoutubeIcon },
-        { to: "/tools", label: locale === "ar" ? "أدوات PDF" : "PDF Tools", icon: FileCog },
+        { to: "/quizzes", label: locale === "ar" ? "بنك الكويزات النظري" : "Theory Quizzes", icon: TheoryQuizIcon },
+        { to: "/practical", label: locale === "ar" ? "معمل العملي والصور" : "Practical Lab", icon: PracticalQuizIcon },
+        { to: "/youtube-ai", label: locale === "ar" ? "استوديو يوتيوب AI" : "YouTube Studio", icon: YoutubeIcon },
+        { to: "/tools", label: locale === "ar" ? "استوديو أدوات PDF" : "PDF Tools", icon: FileCog },
+      ],
+    },
+    {
+      title: locale === "ar" ? "المراجعة والتثبيت" : "Review & FSRS",
+      items: [
+        { to: "/review", label: locale === "ar" ? "المراجعة الذكية (FSRS)" : "FSRS Review", icon: FlameIcon },
+        { to: "/stats", label: locale === "ar" ? "خريطة السيطرة والأداء" : "Mastery & Stats", icon: TrophyIcon },
+        ...(isEmergencyAllowed
+          ? [{ to: "/emergency", label: locale === "ar" ? "راوند الطوارئ" : "Emergency Triage", icon: ShieldAlert }]
+          : []),
       ],
     },
     {
       title: locale === "ar" ? "الساحة والمجتمع" : "Arena & Community",
       items: [
-        { to: "/leaderboard", label: locale === "ar" ? "الترتيب والدوريات" : "Leaderboard", icon: TrophyIcon },
-        { to: "/friends", label: locale === "ar" ? "الأصدقاء" : "Friends", icon: FriendsIcon },
+        { to: "/leaderboard", label: locale === "ar" ? "لوحة الشرف والدوريات" : "Leaderboard", icon: TrophyIcon },
+        { to: "/friends", label: locale === "ar" ? "الأصدقاء والتحديات" : "Friends & Duels", icon: FriendsIcon },
         { to: "/groups", label: locale === "ar" ? "مجموعات الدفعة" : "Study Groups", icon: StudyGroupIcon },
       ],
     },
     {
-      title: locale === "ar" ? "الحساب والرصيد" : "Account & Credits",
+      title: locale === "ar" ? "الحساب والرصيد" : "Account & Vault",
       items: [
-        { to: "/subscriptions", label: locale === "ar" ? "الرصيد والباقات" : "Credits & Plans", icon: CreditCard },
+        { to: "/subscriptions", label: locale === "ar" ? "خزنة الرصيد والباقات" : "Credits & Vault", icon: CreditCard },
         { to: "/profile", label: locale === "ar" ? "الملف الشخصي" : "Profile", icon: User },
         { to: "/settings", label: locale === "ar" ? "الإعدادات" : "Settings", icon: Settings },
         { to: "/help", label: locale === "ar" ? "مركز المساعدة" : "Help Center", icon: HelpCircle },
@@ -144,36 +149,38 @@ export default function Layout() {
   ];
 
   const sidebar = (
-    <div className="flex flex-col h-full select-none bg-white">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-[#D5DEE7]">
+    <div className="flex flex-col h-full select-none bg-[#090c11] text-[#f5f7fa]">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.08]">
         <LVLogo to="/dashboard" label="Black Fighters" />
-        <NotificationBell />
+        <div className="flex items-center gap-1.5">
+          <NotificationBell />
+        </div>
       </div>
 
       <div className="px-3.5 pt-3.5 pb-2 space-y-2">
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="w-full bg-[#F6F8FA] hover:bg-[#EEF2F5] border border-[#D5DEE7] hover:border-[#B8CBD6] rounded-md px-3 py-2 text-start flex items-center justify-between text-xs text-[#5A6B7D] hover:text-[#0B1F33] transition-colors duration-150"
+          className="w-full bg-[#0e131b] hover:bg-white/[0.05] border border-white/[0.08] hover:border-[#19f08c]/40 rounded-xl px-3 py-2 text-start flex items-center justify-between text-xs text-[#9aa4b2] hover:text-[#f5f7fa] transition-colors duration-150 cursor-pointer"
         >
           <span className="flex items-center gap-2 truncate">
-            <Search className="w-3.5 h-3.5 shrink-0 text-[#5A6B7D]" />
+            <Search className="w-3.5 h-3.5 shrink-0 text-[#19f08c]" />
             <span className="font-medium truncate">{t("search")}</span>
           </span>
-          <kbd className="px-1.5 py-0.5 rounded bg-white text-[10px] text-[#5A6B7D] font-mono border border-[#D5DEE7]">
+          <kbd className="px-1.5 py-0.5 rounded bg-[#05070a] text-[10px] text-[#9aa4b2] font-mono border border-white/10">
             ⌘K
           </kbd>
         </button>
 
-        <div className="bg-[#F6F8FA] p-0.5 rounded-md border border-[#D5DEE7] flex items-center text-xs font-medium">
+        <div className="bg-[#0e131b] p-0.5 rounded-xl border border-white/[0.08] flex items-center text-xs font-medium">
           <button
             type="button"
             onClick={() => setLocale("ar")}
             className={cn(
-              "flex-1 py-1.5 px-2 rounded-[5px] flex items-center justify-center transition-colors duration-150",
+              "flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
               locale === "ar"
-                ? "bg-white text-[#0B1F33] font-semibold shadow-sm"
-                : "text-[#5A6B7D] hover:text-[#0B1F33]"
+                ? "bg-[#19f08c] text-[#03150c] font-bold"
+                : "text-[#9aa4b2] hover:text-[#f5f7fa]"
             )}
           >
             <span>العربية</span>
@@ -182,10 +189,10 @@ export default function Layout() {
             type="button"
             onClick={() => setLocale("en")}
             className={cn(
-              "flex-1 py-1.5 px-2 rounded-[5px] font-mono flex items-center justify-center transition-colors duration-150",
+              "flex-1 py-1.5 px-2 rounded-lg font-mono flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
               locale === "en"
-                ? "bg-white text-[#0B1F33] font-semibold shadow-sm"
-                : "text-[#5A6B7D] hover:text-[#0B1F33]"
+                ? "bg-[#19f08c] text-[#03150c] font-bold"
+                : "text-[#9aa4b2] hover:text-[#f5f7fa]"
             )}
           >
             <span>EN</span>
@@ -196,7 +203,7 @@ export default function Layout() {
       <nav className="flex-1 px-3 py-3 space-y-5 overflow-y-auto scrollbar-none overscroll-contain">
         {PRIMARY_HUBS.map((hub) => (
           <div key={hub.title} className="space-y-1">
-            <p className="px-3 text-[11px] font-medium uppercase tracking-wider text-[#8A97A8]">
+            <p className="px-3 text-[10px] font-mono font-semibold uppercase tracking-[0.14em] text-[#646e7d]">
               {hub.title}
             </p>
             <div className="space-y-0.5">
@@ -227,16 +234,16 @@ export default function Layout() {
                     }}
                     title={item.label}
                     className={cn(
-                      "group relative flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors duration-150",
+                      "group relative flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors duration-150",
                       active
-                        ? "bg-[#E6F3F6] text-[#0B1F33] font-semibold border border-[#C5D9E0]"
-                        : "text-[#5A6B7D] hover:text-[#0B1F33] hover:bg-[#F6F8FA] border border-transparent"
+                        ? "bg-[#19f08c]/12 text-[#19f08c] font-semibold border border-[#19f08c]/35"
+                        : "text-[#9aa4b2] hover:text-[#f5f7fa] hover:bg-white/[0.04] border border-transparent"
                     )}
                   >
                     {active && (
                       <span
                         aria-hidden="true"
-                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[#2B8A9E]"
+                        className="absolute start-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-e-full bg-[#19f08c]"
                       />
                     )}
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -244,13 +251,17 @@ export default function Layout() {
                         className={cn(
                           "w-6 h-6 rounded-md flex items-center justify-center transition-colors duration-150",
                           active
-                            ? "text-[#2B8A9E]"
-                            : "text-[#8A97A8] group-hover:text-[#0B1F33]"
+                            ? "text-[#19f08c]"
+                            : "text-[#9aa4b2] group-hover:text-[#f5f7fa]"
                         )}
                       >
-                        <Icon className="w-4 h-4" size={16} animated={false} />
+                        {Icon?.displayName?.startsWith("Icon(") ? (
+                          <Icon className="w-4 h-4" size={16} animated={false} />
+                        ) : (
+                          <Icon className="w-4 h-4" size={16} />
+                        )}
                       </div>
-                      <span className="truncate">{item.label}</span>
+                      <span className="truncate whitespace-nowrap">{item.label}</span>
                     </div>
                   </Link>
                 );
@@ -260,27 +271,28 @@ export default function Layout() {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-[#D5DEE7] bg-white space-y-2">
+      <div className="p-3 border-t border-white/[0.08] bg-[#090c11] space-y-2">
         <div className="hidden" aria-hidden="true">
           <DocumentIcon size={14} animated={false} />
+          <SummaryNoteIcon size={14} animated={false} />
         </div>
 
-        <div className="rounded-md bg-[#F6F8FA] border border-[#D5DEE7] p-2.5 space-y-2">
+        <div className="rounded-xl bg-[#0e131b] border border-white/[0.08] p-2.5 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-3.5 h-3.5 text-[#2B8A9E] shrink-0" />
-              <span className="text-xs font-semibold text-[#0B1F33] truncate">
+              <Sparkles className="w-3.5 h-3.5 text-[#19f08c] shrink-0" />
+              <span className="text-xs font-semibold text-[#f5f7fa] truncate">
                 {isPro
-                  ? profile?.subscription_plan_name || (locale === "en" ? "Pro Plan" : "باقة برو نشطة")
+                  ? profile?.subscription_plan_name || (locale === "en" ? "Pro Vault" : "باقة برو نشطة")
                   : locale === "en"
-                  ? "Free Plan"
+                  ? "Free Vault"
                   : "الباقة المجانية"}
               </span>
             </div>
             <Link
               to="/subscriptions"
               onClick={() => setMobileOpen(false)}
-              className="px-2.5 py-1 rounded-md bg-[#0B1F33] text-white text-[11px] font-semibold hover:bg-[#071624] transition-colors shrink-0"
+              className="px-2.5 py-1 rounded-lg bg-[#19f08c] text-[#03150c] text-[11px] font-bold hover:bg-[#3bf59d] transition-colors shrink-0 whitespace-nowrap"
             >
               {isPro
                 ? locale === "en"
@@ -288,25 +300,25 @@ export default function Layout() {
                   : "إدارة"
                 : locale === "en"
                 ? "Top Up"
-                : "شحن"}
+                : "شحن الرصيد"}
             </Link>
           </div>
 
-          <div className="flex items-center gap-1.5 pt-1 border-t border-[#D5DEE7]">
+          <div className="flex items-center gap-1.5 pt-1 border-t border-white/[0.07]">
             <a
               href="https://wa.me/201009275685"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#5A6B7D] hover:text-[#0B1F33] hover:bg-white transition-colors"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#9aa4b2] hover:text-[#f5f7fa] hover:bg-white/[0.04] transition-colors whitespace-nowrap"
             >
-              <Headphones className="w-3 h-3" />
+              <Headphones className="w-3 h-3 text-[#19f08c]" />
               <span>{locale === "en" ? "Support" : "الدعم الفني"}</span>
             </a>
             {authUser?.role === "admin" && (
               <Link
                 to="/admin"
                 onClick={() => setMobileOpen(false)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#2B8A9E] hover:bg-white transition-colors font-semibold"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1 px-2 rounded-md text-[11px] text-[#19f08c] hover:bg-white/[0.04] transition-colors font-semibold whitespace-nowrap"
               >
                 <span>{locale === "en" ? "Admin" : "الإدارة"}</span>
               </Link>
@@ -331,13 +343,12 @@ export default function Layout() {
                   (profile?.full_name || authUser?.email || "?")[0].toUpperCase()
                 }
               />
-              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#2B8A9E] border border-white" />
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-[#0B1F33] truncate">
+              <div className="text-xs font-semibold text-[#f5f7fa] truncate">
                 {profile?.displayName || profile?.full_name || t("studentDefault")}
               </div>
-              <div className="text-[11px] font-mono tabular text-[#5A6B7D] truncate" dir="ltr">
+              <div className="text-[11px] font-mono tabular text-[#19f08c] truncate" dir="ltr">
                 {Number(profile?.credits ?? 10).toLocaleString()} cr · {profile?.xp || 0} XP
               </div>
             </div>
@@ -345,7 +356,7 @@ export default function Layout() {
           <button
             type="button"
             onClick={logout}
-            className="text-[#5A6B7D] hover:text-[#B42318] p-1.5 rounded-md hover:bg-[#FCECEF] transition-colors shrink-0"
+            className="text-[#9aa4b2] hover:text-[#ff5d6c] p-1.5 rounded-lg hover:bg-[#ff5d6c]/10 transition-colors shrink-0 cursor-pointer"
             title={t("logout")}
           >
             <LogOut className="w-4 h-4" />
@@ -359,33 +370,33 @@ export default function Layout() {
     <MotionConfig reducedMotion="user">
       <div
         dir={dir}
-        className="min-h-screen bg-[#F6F8FA] text-[#0B1F33] relative selection:bg-[#2B8A9E]/20"
+        className="min-h-screen bg-[#05070a] text-[#f5f7fa] relative selection:bg-[#19f08c]/20"
       >
         <NeonBackground />
 
         <aside
           className={`hidden md:flex fixed inset-y-0 start-0 ${
             dir === "rtl" ? "border-e" : "border-s"
-          } w-64 lg:w-64 border-[#D5DEE7] bg-white z-30 flex-col shadow-[0_0_0_1px_rgba(11,31,51,0.02)]`}
+          } w-64 lg:w-64 border-white/[0.08] bg-[#090c11] z-30 flex-col`}
         >
           {sidebar}
         </aside>
 
-        <header className="md:hidden sticky top-0 z-40 bg-white/95 border-b border-[#D5DEE7] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
+        <header className="md:hidden sticky top-0 z-40 bg-[#05070a]/85 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
           <LVLogo to="/dashboard" label="Black Fighters" />
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
               aria-label="بحث"
-              className="tap-target w-8 h-8 rounded-md flex items-center justify-center text-[#5A6B7D] hover:text-[#0B1F33] bg-[#F6F8FA] border border-[#D5DEE7]"
+              className="tap-target w-8 h-8 rounded-lg flex items-center justify-center text-[#9aa4b2] hover:text-[#f5f7fa] bg-[#0e131b] border border-white/10"
             >
               <Search className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
-              className="w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-xs font-mono font-semibold text-[#2B8A9E]"
+              className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-xs font-mono font-semibold text-[#19f08c]"
             >
               {locale === "ar" ? "EN" : "ع"}
             </button>
@@ -394,7 +405,7 @@ export default function Layout() {
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"}
-              className="tap-target w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-[#0B1F33]"
+              className="tap-target w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-[#f5f7fa]"
             >
               {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -403,23 +414,23 @@ export default function Layout() {
 
         {mobileOpen && (
           <div
-            className="md:hidden fixed inset-0 z-50 bg-[#0B1F33]/35"
+            className="md:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs"
             onClick={() => setMobileOpen(false)}
           >
             <aside
-              className={`absolute inset-y-0 start-0 w-72 bg-white ${
+              className={`absolute inset-y-0 start-0 w-72 bg-[#090c11] ${
                 dir === "rtl" ? "border-s" : "border-e"
-              } border-[#D5DEE7] flex flex-col shadow-xl`}
+              } border-white/[0.08] flex flex-col shadow-2xl`}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-3 border-b border-[#D5DEE7] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#5A6B7D]">
-                  {locale === "ar" ? "القائمة الرئيسية" : "Navigation"}
+              <div className="p-3 border-b border-white/[0.08] flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#9aa4b2]">
+                  {locale === "ar" ? "مراكز القيادة" : "Command Hubs"}
                 </span>
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="w-8 h-8 rounded-md flex items-center justify-center bg-[#F6F8FA] border border-[#D5DEE7] text-[#5A6B7D] hover:text-[#0B1F33]"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-[#9aa4b2] hover:text-[#f5f7fa]"
                 >
                   <X className="w-4 h-4" />
                 </button>

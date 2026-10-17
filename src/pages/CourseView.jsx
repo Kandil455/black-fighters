@@ -15,7 +15,8 @@ import QuizView from "@/components/course/QuizView";
 import EditableStudySheet from "@/components/course/EditableStudySheet";
 import FlashcardsView from "@/components/course/FlashcardsView";
 import SummaryView from "@/components/course/SummaryView";
-import SummaryGenerationControls from "@/components/course/SummaryGenerationControls";
+import SummaryGenerationControls, { getSelectedSummaryDomain } from "@/components/course/SummaryGenerationControls";
+import { isTelegramAutoSendEnabled } from "@/components/settings/TelegramPanel";
 import LanguageDialog from "@/components/course/LanguageDialog";
 import NotesView from "@/components/course/NotesView";
 import ReminderDialog from "@/components/course/ReminderDialog";
@@ -84,6 +85,7 @@ export default function CourseView() {
   const [reviewReminderOpen, setReviewReminderOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingTelegram, setExportingTelegram] = useState(false);
+  const [activeTab, setActiveTab] = useState("summary");
 
   const { data: course, isLoading } = useQuery({
     queryKey: ["course", id],
@@ -220,7 +222,8 @@ export default function CourseView() {
           : summaryColorLevel === "medium"
           ? "استخدم 2-3 Highlights فقط في كل قسم، وبألوان دلالية مختلفة عند توفر أنواع مختلفة: ==cyan:مصطلح علمي==، ==green:تعريف أو نتيجة==، ==yellow:حقيقة أساسية==، ==orange:مثال==، ==red:تحذير أو استثناء==. لا تلوّن جملة كاملة ولا علامات الترقيم، ولا تجعل لوناً واحداً يسيطر على الصفحة. استخدم **Bold** بدون لون لبقية المهم."
           : "استخدم ألواناً دلالية منظمة: cyan للمصطلح وgreen للتعريف وyellow للحقيقة وorange للمثال وred للتحذير. لوّن الكلمات أو العبارات القصيرة فقط، ونوّع الألوان حسب المعنى مع ترك نص عادي كافٍ.";
-      const stylePrompt = `${getSummaryTemplate(summaryStyle).prompt}\n${colorInstruction}`;
+      const domainAddon = getSelectedSummaryDomain()?.promptAddon || "";
+      const stylePrompt = `${getSummaryTemplate(summaryStyle).prompt}\n${domainAddon}\n${colorInstruction}`;
       const callAI = async (chunkText, chunkIdx, pageBudget) => {
         const plannedQuestions = type === "quiz"
           ? Math.max(0, Number(quizQuestionPlan[chunkIdx]) || 0)
@@ -402,6 +405,41 @@ export default function CourseView() {
         : type === "flashcards" ? "generate_flashcards" : null;
       if (xpAction) {
         try { await awardXP(xpAction); } catch {}
+      }
+
+      // Auto-send to Telegram if enabled by user preference
+      if ((type === "summary" || type === "quiz") && isTelegramAutoSendEnabled(profile)) {
+        try {
+          const autoQuestions = type === "quiz" ? (finalResult?.questions || []) : [];
+          const autoSummaryText =
+            type === "summary"
+              ? String(finalResult?.summary_markdown || "")
+              : "";
+          let autoSummaryHtml = "";
+          if (type === "summary" && finalResult?.summary_document_v3) {
+            autoSummaryHtml = renderStudyGuideHtml({
+              document: finalResult.summary_document_v3,
+              markdown: autoSummaryText,
+              title: course?.title || "الملخص الذكي",
+              templateId: readGuideTemplate(),
+              forExport: true,
+            });
+          }
+          const autoRes = await invokeSecureFunction("export-to-telegram", {
+            title: course?.title || "محتوى دراسي",
+            type,
+            summaryText: autoSummaryText,
+            summaryHtml: autoSummaryHtml,
+            questions: autoQuestions,
+            deliveryMode: "both",
+            isAutoNotification: true,
+          });
+          if (autoRes?.data?.success) {
+            toast.success("🤖 تم الإرسال التلقائي إلى شات التيليجرام الخاص بك!");
+          }
+        } catch {
+          /* best effort auto-send */
+        }
       }
 
     } catch (err) {
@@ -616,13 +654,9 @@ function summaryToTelegramText(summaryRow) {
   return String(rendered || "").trim();
 }
 
-  const exportToTelegramBot = async (customType = null) => {
+  const exportToTelegramBot = async (customType = null, deliveryMode = "both") => {
     setExportingTelegram(true);
     try {
-      // The stored rows use `content_type`; this lookup used `c.type`, which is
-      // never set — so `summaryItem` was ALWAYS undefined and the export silently
-      // fell back to `course.description` ("ملخص … منظم ومراجع آلياً"). That is why
-      // Telegram received a placeholder instead of the summary.
       const summaryItem = contents.find((c) => c.content_type === "summary") || contents.find((c) => c.type === "summary");
       const quizItem = contents.find((c) => c.content_type === "quiz") || contents.find((c) => c.type === "quiz");
       const activeType = customType || (quizItem ? "quiz" : "summary");
@@ -660,6 +694,7 @@ function summaryToTelegramText(summaryRow) {
         summaryText,
         summaryHtml,
         questions,
+        deliveryMode,
       });
 
       if (res.data?.success) {
@@ -692,54 +727,97 @@ function summaryToTelegramText(summaryRow) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6" dir={dir}>
-      <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-semibold text-white/55 hover:text-[#3DDC97] mb-2 transition-colors font-mono uppercase tracking-wider">
-        <ArrowRight className={isEn ? "w-4 h-4 rotate-180" : "w-4 h-4"} /> {isEn ? "Back to Lectures & Notes" : "رجوع للمحاضرات والمذكرات"}
+    <div className="max-w-5xl mx-auto space-y-6" dir={dir}>
+      <Link
+        to="/dashboard"
+        className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary mb-1 transition-colors font-mono uppercase tracking-wider"
+      >
+        <ArrowRight className={isEn ? "w-4 h-4 rotate-180" : "w-4 h-4"} />{" "}
+        {isEn ? "Back to Lectures & Notes" : "رجوع للمحاضرات والمذكرات"}
       </Link>
 
-      <div className="relative glass rounded-3xl p-6 sm:p-8 border border-white/10 mb-6 overflow-hidden">
-        <div className="relative z-10 flex items-start justify-between gap-4">
+      <div className="relative glass rounded-[1.25rem] p-6 sm:p-7 overflow-hidden">
+        <div className="relative z-10 flex flex-col sm:flex-row items-start justify-between gap-4">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gradient">{course.title}</h1>
-            <p className="text-xs sm:text-sm text-white/60 max-w-xl">{course.description}</p>
-            <Button onClick={generateAll} disabled={!!generating} size="sm" className="mt-4 gap-2 font-bold btn-primary-glow h-10 px-5 rounded-full">
-              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#f5f7fa]">
+              {course.title}
+            </h1>
+            {course.description && (
+              <p className="text-xs sm:text-sm text-[#9aa4b2] max-w-2xl leading-relaxed">
+                {course.description}
+              </p>
+            )}
+            <Button
+              onClick={generateAll}
+              disabled={!!generating}
+              size="sm"
+              className="mt-3 gap-2 font-bold h-10 px-5 rounded-xl btn-primary-glow bg-[#19f08c] text-[#03150c] hover:bg-[#19f08c]/90"
+            >
+              {generating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
               {isEn ? "Generate All Content (All AI)" : "توليد المحتوى بالكامل (All AI)"}
             </Button>
           </div>
           <div className="flex flex-col gap-1 shrink-0">
-            <div className="flex items-center gap-1">
-              <button onClick={() => setReviewReminderOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={isEn ? "Review Alert" : "تنبيه مراجعة"}>
+            <div className="flex items-center gap-1 rounded-xl border border-white/[0.07] bg-[#05070a]/70 p-1">
+              <button
+                onClick={() => setReviewReminderOpen(true)}
+                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] hover:bg-white/[0.04] transition-colors cursor-pointer"
+                title={isEn ? "Review Alert" : "تنبيه مراجعة"}
+              >
                 <BellPlus className="w-4 h-4" />
               </button>
-              <button onClick={() => setReminderOpen(true)} className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={isEn ? "Google Calendar Reminder" : "تذكير Google Calendar"}>
+              <button
+                onClick={() => setReminderOpen(true)}
+                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] hover:bg-white/[0.04] transition-colors cursor-pointer"
+                title={isEn ? "Google Calendar Reminder" : "تذكير Google Calendar"}
+              >
                 <CalendarPlus className="w-4 h-4" />
               </button>
               <button
                 onClick={saveToDrive}
                 disabled={savingDrive}
-                className="p-2 rounded-xl text-muted-foreground hover:text-[#4285F4] hover:bg-[#4285F4]/10 transition-colors disabled:opacity-50"
+                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#4285F4] hover:bg-white/[0.04] transition-colors disabled:opacity-50 cursor-pointer"
                 title={isEn ? "Save to Google Drive" : "حفظ على Google Drive"}
               >
-                {savingDrive ? <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" /> : <GoogleDriveIcon size={18} />}
+                {savingDrive ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
+                ) : (
+                  <GoogleDriveIcon size={18} />
+                )}
               </button>
               <button
                 onClick={() => exportToTelegramBot()}
                 disabled={exportingTelegram}
-                className="p-2 rounded-xl text-muted-foreground hover:text-[#0088cc] hover:bg-[#0088cc]/10 transition-colors disabled:opacity-50"
+                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#0088cc] hover:bg-white/[0.04] transition-colors disabled:opacity-50 cursor-pointer"
                 title={isEn ? "Export to Telegram Bot 🤖" : "تصدير إلى التيليجرام 🤖"}
               >
-                {exportingTelegram ? <Loader2 className="w-4 h-4 animate-spin text-[#0088cc]" /> : <Send className="w-4 h-4 text-[#0088cc]" />}
+                {exportingTelegram ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0088cc]" />
+                ) : (
+                  <Send className="w-4 h-4 text-[#0088cc]" />
+                )}
               </button>
               <button
                 onClick={exportPdf}
                 disabled={exporting}
-                className="p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] hover:bg-white/[0.04] transition-colors disabled:opacity-50 cursor-pointer"
                 title={isEn ? "Export PDF" : "تصدير PDF"}
               >
-                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {exporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
               </button>
-              <button onClick={deleteCourse} className="p-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={isEn ? "Delete Course" : "حذف المذكرة"}>
+              <button
+                onClick={deleteCourse}
+                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors cursor-pointer"
+                title={isEn ? "Delete Course" : "حذف المذكرة"}
+              >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -747,19 +825,71 @@ function summaryToTelegramText(summaryRow) {
         </div>
       </div>
 
-      <TojiCoach course={course} generatedCount={contents.filter((c) => ["quiz", "summary", "flashcards"].includes(c.type)).length} />
-      <CourseInsightBar course={course} generatedCount={contents.filter((c) => ["quiz", "summary", "flashcards"].includes(c.type)).length} />
+      <TojiCoach
+        course={course}
+        generatedCount={
+          contents.filter((c) => ["quiz", "summary", "flashcards"].includes(c.type || c.content_type))
+            .length
+        }
+      />
+      <CourseInsightBar
+        course={course}
+        generatedCount={
+          contents.filter((c) => ["quiz", "summary", "flashcards"].includes(c.type || c.content_type))
+            .length
+        }
+      />
 
-      <Tabs defaultValue="content" dir={dir}>
-        <TabsList className="glass border border-white/10 w-full justify-start h-auto p-1.5 flex-wrap rounded-2xl">
-          <TabsTrigger value="content" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><BookOpen className="w-4 h-4" /> {isEn ? "Study Content" : "المحتوى الدراسي"}</TabsTrigger>
-          <TabsTrigger value="quiz" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Brain className="w-4 h-4" /> {isEn ? "Quizzes" : "الكويزات"}</TabsTrigger>
-          <TabsTrigger value="summary" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><FileText className="w-4 h-4" /> {isEn ? "Summaries" : "التلخيصات"}</TabsTrigger>
-          <TabsTrigger value="flashcards" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Layers className="w-4 h-4" /> {isEn ? "Flashcards" : "البطاقات التعليمية"}</TabsTrigger>
-          <TabsTrigger value="notes" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><StickyNote className="w-4 h-4" /> {isEn ? "Notes" : "الملاحظات"}</TabsTrigger>
-          <TabsTrigger value="study" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><GraduationCap className="w-4 h-4" /> {isEn ? "Study Mode" : "وضع المذاكرة"}</TabsTrigger>
-          <TabsTrigger value="practice" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Target className="w-4 h-4" /> {isEn ? "Practice" : "تدريب"}</TabsTrigger>
-          <TabsTrigger value="share" className="gap-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"><Share2 className="w-4 h-4" /> {isEn ? "Share" : "مشاركة"}</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} dir={dir}>
+        <TabsList className="glass w-full justify-start h-auto p-1.5 flex-wrap rounded-[1.25rem] gap-1">
+          <TabsTrigger
+            value="summary"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <FileText className="w-4 h-4" /> {isEn ? "Smart Summary" : "الملخص الذكي"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="quiz"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <Brain className="w-4 h-4" /> {isEn ? "Quizzes" : "الكويزات"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="flashcards"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <Layers className="w-4 h-4" /> {isEn ? "Flashcards" : "البطاقات التعليمية"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="content"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <BookOpen className="w-4 h-4" /> {isEn ? "Source Lecture" : "النص الأصلي"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="notes"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <StickyNote className="w-4 h-4" /> {isEn ? "Notes" : "الملاحظات"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="study"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <GraduationCap className="w-4 h-4" /> {isEn ? "Study Mode" : "وضع المذاكرة"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="practice"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <Target className="w-4 h-4" /> {isEn ? "Practice" : "تدريب"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="share"
+            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+          >
+            <Share2 className="w-4 h-4" /> {isEn ? "Share" : "مشاركة"}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="content" className="mt-6">
@@ -773,29 +903,96 @@ function summaryToTelegramText(summaryRow) {
                 <Button
                   onClick={() => navigate(`/challenge/new/${id}`)}
                   size="sm"
-                  className="gap-2 font-bold rounded-full btn-primary-glow"
+                  className="gap-2 font-bold rounded-xl"
                 >
                   <Swords className="w-4 h-4" />
                   {isEn ? "Start Live Challenge ⚔️" : "بدء تحدّي مباشر ⚔️"}
                 </Button>
-                <Button
-                  onClick={() => exportToTelegramBot("quiz")}
-                  disabled={exportingTelegram}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-[#0088cc]/40 text-[#0088cc] hover:bg-[#0088cc]/10 font-bold rounded-xl"
-                >
-                  {exportingTelegram ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  {isEn ? "Export Quiz to Telegram" : "تصدير الكويز للتيليجرام 🤖"}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => exportToTelegramBot("quiz", "polls")}
+                    disabled={exportingTelegram}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-[#19f08c]/40 text-[#19f08c] hover:bg-[#19f08c]/10 font-bold rounded-xl"
+                  >
+                    {exportingTelegram ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    {isEn ? "Send as Telegram Quiz Polls" : "إرسال كاستطلاعات Quiz Polls 📊"}
+                  </Button>
+                  <Button
+                    onClick={() => exportToTelegramBot("quiz", "both")}
+                    disabled={exportingTelegram}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-[#0088cc]/40 text-[#0088cc] hover:bg-[#0088cc]/10 font-bold rounded-xl"
+                  >
+                    {exportingTelegram ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    {isEn ? "Export Interactive Quiz to Bot" : "تصدير الكويز للتيليجرام 🤖"}
+                  </Button>
+                </div>
               </div>
-              <QuizControls isEn={isEn} quizProfiles={quizProfiles} quizCount={quizCount} setQuizCount={setQuizCount} difficulty={difficulty} setDifficulty={setDifficulty} quizProfile={quizProfile} setQuizProfile={setQuizProfile} showExplanations={showExplanations} setShowExplanations={setShowExplanations} action={<GenButton type="quiz" label={isEn ? "New Quiz" : "كويز جديد"} icon={Sparkles} />} />
-              <QuizView quiz={getContentData("quiz")} course={course} />
+              <QuizControls
+                isEn={isEn}
+                quizProfiles={quizProfiles}
+                quizCount={quizCount}
+                setQuizCount={setQuizCount}
+                difficulty={difficulty}
+                setDifficulty={setDifficulty}
+                quizProfile={quizProfile}
+                setQuizProfile={setQuizProfile}
+                showExplanations={showExplanations}
+                setShowExplanations={setShowExplanations}
+                action={
+                  <GenButton
+                    type="quiz"
+                    label={isEn ? "New Quiz" : "كويز جديد"}
+                    icon={Sparkles}
+                  />
+                }
+              />
+              <QuizView
+                quiz={getContentData("quiz")}
+                course={course}
+                onJumpToSummary={() => {
+                  setActiveTab("summary");
+                  toast.info(isEn ? "Switched to Smart Summary" : "تم الانتقال إلى الملخص الذكي لمراجعة الفقرة 📖");
+                }}
+              />
             </div>
           ) : (
-            <EmptyGen label={isEn ? "Interactive Quiz" : "كويز تفاعلي"} desc={isEn ? "Multiple-choice questions — or paste your questions and answers" : "أسئلة اختيار متعدد — أو الصق أسئلتك بإجاباتها"} button={
-              <QuizControls isEn={isEn} quizProfiles={quizProfiles} quizCount={quizCount} setQuizCount={setQuizCount} difficulty={difficulty} setDifficulty={setDifficulty} quizProfile={quizProfile} setQuizProfile={setQuizProfile} showExplanations={showExplanations} setShowExplanations={setShowExplanations} action={<GenButton type="quiz" label={isEn ? "Quiz" : "الكويز"} icon={Brain} />} />
-            } />
+            <EmptyGen
+              label={isEn ? "Interactive Quiz" : "كويز تفاعلي ذكي"}
+              desc={
+                isEn
+                  ? "Multiple-choice questions with full explanations"
+                  : "أسئلة اختيار متعدد بمستويات متدرجة مع شرح تفصيلي للإجابات"
+              }
+              button={
+                <QuizControls
+                  isEn={isEn}
+                  quizProfiles={quizProfiles}
+                  quizCount={quizCount}
+                  setQuizCount={setQuizCount}
+                  difficulty={difficulty}
+                  setDifficulty={setDifficulty}
+                  quizProfile={quizProfile}
+                  setQuizProfile={setQuizProfile}
+                  showExplanations={showExplanations}
+                  setShowExplanations={setShowExplanations}
+                  action={
+                    <GenButton type="quiz" label={isEn ? "Quiz" : "الكويز"} icon={Brain} />
+                  }
+                />
+              }
+            />
           )}
         </TabsContent>
 
@@ -811,26 +1008,90 @@ function summaryToTelegramText(summaryRow) {
                   size="sm"
                   className="gap-2 border-[#0088cc]/40 text-[#0088cc] hover:bg-[#0088cc]/10 font-bold rounded-xl"
                 >
-                  {exportingTelegram ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {exportingTelegram ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                   {isEn ? "Export Summary to Telegram" : "تصدير الملخص للتيليجرام 🤖"}
                 </Button>
               </div>
-              <SummaryGenerationControls summaryStyle={summaryStyle} setSummaryStyle={setSummaryStyle} maxPages={summaryMaxPages} setMaxPages={setSummaryMaxPages} colorLevel={summaryColorLevel} setColorLevel={setSummaryColorLevel} textLength={courseText().length} action={<GenButton type="summary" label={isEn ? "New Summary" : "ملخص جديد"} icon={Sparkles} />} />
+              <SummaryGenerationControls
+                summaryStyle={summaryStyle}
+                setSummaryStyle={setSummaryStyle}
+                maxPages={summaryMaxPages}
+                setMaxPages={setSummaryMaxPages}
+                colorLevel={summaryColorLevel}
+                setColorLevel={setSummaryColorLevel}
+                textLength={courseText().length}
+                action={
+                  <GenButton
+                    type="summary"
+                    label={isEn ? "New Summary" : "ملخص جديد"}
+                    icon={Sparkles}
+                  />
+                }
+              />
               <SummaryView summary={getContentData("summary")} course={course} />
             </div>
           ) : (
-            <EmptyGen label={isEn ? "Comprehensive Summary" : "ملخص شامل"} desc={isEn ? "Choose template and depth before generating" : "اختار الشكل والحجم قبل التوليد"} button={<SummaryGenerationControls summaryStyle={summaryStyle} setSummaryStyle={setSummaryStyle} maxPages={summaryMaxPages} setMaxPages={setSummaryMaxPages} colorLevel={summaryColorLevel} setColorLevel={setSummaryColorLevel} textLength={courseText().length} action={<GenButton type="summary" label={isEn ? "Summary" : "الملخص"} icon={FileText} />} />} />
+            <EmptyGen
+              label={isEn ? "Smart Structured Summary" : "ملخص ذكي منظم ببطاقات وجداول"}
+              desc={
+                isEn
+                  ? "Choose template and depth before generating"
+                  : "اختر نمط التلخيص وعدد الصفحات لتوليد مذكرة ذكية مقسمة لبطاقات وجداول وفهرس"
+              }
+              button={
+                <SummaryGenerationControls
+                  summaryStyle={summaryStyle}
+                  setSummaryStyle={setSummaryStyle}
+                  maxPages={summaryMaxPages}
+                  setMaxPages={setSummaryMaxPages}
+                  colorLevel={summaryColorLevel}
+                  setColorLevel={setSummaryColorLevel}
+                  textLength={courseText().length}
+                  action={
+                    <GenButton
+                      type="summary"
+                      label={isEn ? "Summary" : "الملخص"}
+                      icon={FileText}
+                    />
+                  }
+                />
+              }
+            />
           )}
         </TabsContent>
 
         <TabsContent value="flashcards" className="mt-6">
           {getContent("flashcards") ? (
             <div>
-              <div className="flex justify-end mb-4"><GenButton type="flashcards" label={isEn ? "New Flashcards" : "بطاقات جديدة"} icon={Sparkles} /></div>
+              <div className="flex justify-end mb-4">
+                <GenButton
+                  type="flashcards"
+                  label={isEn ? "New Flashcards" : "بطاقات جديدة"}
+                  icon={Sparkles}
+                />
+              </div>
               <FlashcardsView flashcards={getContentData("flashcards")} course={course} />
             </div>
           ) : (
-            <EmptyGen label={isEn ? "Recall Flashcards" : "بطاقات تذكر"} desc={isEn ? "Interactive flashcards for fast spaced repetition" : "Flashcards تفاعلية للمذاكرة السريعة"} button={<GenButton type="flashcards" label={isEn ? "Flashcards" : "البطاقات"} icon={Layers} />} />
+            <EmptyGen
+              label={isEn ? "Recall Flashcards" : "بطاقات تذكر"}
+              desc={
+                isEn
+                  ? "Interactive flashcards for fast spaced repetition"
+                  : "بطاقات فلاش كاردز تفاعلية للمراجعة السريعة وتثبيت المصطلحات"
+              }
+              button={
+                <GenButton
+                  type="flashcards"
+                  label={isEn ? "Flashcards" : "البطاقات"}
+                  icon={Layers}
+                />
+              }
+            />
           )}
         </TabsContent>
 
@@ -842,9 +1103,13 @@ function summaryToTelegramText(summaryRow) {
           {getContent("quiz") ? (
             <StudyMode quiz={getContentData("quiz")} />
           ) : (
-            <div className="text-center py-12">
+            <div className="rounded-2xl border border-border bg-card text-center py-12 px-6">
               <GraduationCap className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
-              <p className="text-muted-foreground">{isEn ? "Generate a quiz first from the Quizzes tab to review questions with explanations without stress or timers" : "ولّد كويز الأول من تاب الكويزات عشان تذاكر الأسئلة وشرحها بدون ضغط ولا مؤقت"}</p>
+              <p className="text-muted-foreground text-sm">
+                {isEn
+                  ? "Generate a quiz first from the Quizzes tab to review questions with explanations without stress or timers"
+                  : "ولّد كويز الأول من تاب الكويزات عشان تذاكر الأسئلة وشرحها بدون ضغط ولا مؤقت"}
+              </p>
             </div>
           )}
         </TabsContent>
@@ -853,9 +1118,13 @@ function summaryToTelegramText(summaryRow) {
           {getContent("quiz") ? (
             <PracticeMode quiz={getContentData("quiz")} />
           ) : (
-            <div className="text-center py-12">
+            <div className="rounded-2xl border border-border bg-card text-center py-12 px-6">
               <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-40" />
-              <p className="text-muted-foreground">{isEn ? "Generate a quiz first from the Quizzes tab to enable practice mode" : "ولّد كويز الأول من تاب الكويزات عشان تقدر تستخدم وضع التدريب"}</p>
+              <p className="text-muted-foreground text-sm">
+                {isEn
+                  ? "Generate a quiz first from the Quizzes tab to enable practice mode"
+                  : "ولّد كويز الأول من تاب الكويزات عشان تقدر تستخدم وضع التدريب"}
+              </p>
             </div>
           )}
         </TabsContent>
@@ -865,84 +1134,156 @@ function summaryToTelegramText(summaryRow) {
         </TabsContent>
       </Tabs>
 
-      <LanguageDialog open={!!langDialog} onSelect={(lang) => generate(langDialog, lang)} onClose={() => setLangDialog(null)} />
-      <ReminderDialog open={reminderOpen} onClose={() => setReminderOpen(false)} courseTitle={course.title} />
-      <ReviewReminderDialog open={reviewReminderOpen} onClose={() => setReviewReminderOpen(false)} course={course} />
+      <LanguageDialog
+        open={!!langDialog}
+        onSelect={(lang) => generate(langDialog, lang)}
+        onClose={() => setLangDialog(null)}
+      />
+      <ReminderDialog
+        open={reminderOpen}
+        onClose={() => setReminderOpen(false)}
+        courseTitle={course.title}
+      />
+      <ReviewReminderDialog
+        open={reviewReminderOpen}
+        onClose={() => setReviewReminderOpen(false)}
+        course={course}
+      />
       <AiChatAssistant course={course} />
     </div>
   );
 }
 
-function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, difficulty, setDifficulty, quizProfile, setQuizProfile, showExplanations, setShowExplanations, action }) {
+function QuizControls({
+  isEn = false,
+  quizProfiles,
+  quizCount,
+  setQuizCount,
+  difficulty,
+  setDifficulty,
+  quizProfile,
+  setQuizProfile,
+  showExplanations,
+  setShowExplanations,
+  action,
+}) {
   const counts = [5, 10, 20, 50, 100];
   const profiles = quizProfiles || [
-    { id: "balanced", label: isEn ? "Balanced" : "Balanced", hint: isEn ? "Comprehensive review" : "مراجعة شاملة" },
-    { id: "exam", label: isEn ? "Exam" : "Exam", hint: isEn ? "Exam-like questions" : "شبه الامتحان" },
-    { id: "concepts", label: isEn ? "Concepts" : "Concepts", hint: isEn ? "Deep understanding" : "فهم عميق" },
-    { id: "application", label: isEn ? "Cases" : "Cases", hint: isEn ? "Clinical cases" : "تطبيق وحالات" },
-    { id: "traps", label: isEn ? "Traps" : "Traps", hint: isEn ? "Common traps" : "أخطاء شائعة" },
+    { id: "balanced", label: isEn ? "Balanced" : "شامل متوازن", hint: isEn ? "Comprehensive review" : "مراجعة شاملة" },
+    { id: "exam", label: isEn ? "Exam" : "نمط الامتحان", hint: isEn ? "Exam-like questions" : "شبه الامتحان" },
+    { id: "concepts", label: isEn ? "Concepts" : "مفاهيم أساسية", hint: isEn ? "Deep understanding" : "فهم عميق" },
+    { id: "application", label: isEn ? "Cases" : "حالات وتطبيق", hint: isEn ? "Clinical cases" : "تطبيق وحالات" },
+    { id: "traps", label: isEn ? "Traps" : "تركات الامتحانات", hint: isEn ? "Common traps" : "أخطاء شائعة" },
   ];
   return (
-    <div className="glass rounded-2xl p-4 border border-white/10 mb-4 space-y-4">
-      <div className="flex items-start gap-2 rounded-xl bg-[#3DDC97]/5 border border-[#3DDC97]/20 p-3">
+    <div className="rounded-2xl bg-card p-5 border border-border mb-4 space-y-4 shadow-xs text-start">
+      <div className="flex items-start gap-2.5 rounded-xl bg-primary/10 border border-primary/25 p-3">
         <span className="text-base">💡</span>
-        <p className="text-xs text-white/65 leading-relaxed">
+        <p className="text-xs text-foreground/90 leading-relaxed">
           {isEn
             ? "Black Fighters automatically analyzes content: extracts existing question banks, generates new questions from explanations, and eliminates duplicates."
-            : "Black Fighters يحلل المحتوى تلقائياً: لو لقى بنك أسئلة هيستخرجها، ولو المحتوى شرح هيولّد أسئلة جديدة، ولو مختلط هيعمل الاتنين مع حذف التكرار."}
+            : "يحلل محرك Black Fighters محتوى محاضرتك تلقائياً: يستخرج أسئلة الامتحانات السابقة ويولّد أسئلة جديدة من الشرح مع التفسير العلمي."}
         </p>
       </div>
       <div>
-        <p className="text-sm font-semibold mb-2">{isEn ? "Number of Questions — up to 100" : "عدد الأسئلة — لحد 100 سؤال"}</p>
+        <p className="text-xs font-bold text-foreground mb-2">
+          {isEn ? "Number of Questions — up to 100" : "عدد الأسئلة — لحد 100 سؤال"}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           {counts.map((n) => (
-            <button key={n} onClick={() => setQuizCount(n)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${quizCount === n ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{n}</button>
+            <button
+              key={n}
+              type="button"
+              onClick={() => setQuizCount(n)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                quizCount === n
+                  ? "border-primary text-primary bg-primary/10"
+                  : "border-border bg-secondary/50 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {n}
+            </button>
           ))}
           <input
             type="number"
             min="1"
             max="100"
             value={quizCount}
-            onChange={(e) => setQuizCount(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-            className="w-24 bg-[#07080C] border border-white/10 rounded-xl px-3 py-2 text-sm font-bold"
+            onChange={(e) =>
+              setQuizCount(Math.max(1, Math.min(100, Number(e.target.value) || 1)))
+            }
+            className="w-20 bg-secondary/60 border border-border rounded-xl px-3 py-1.5 text-xs font-bold text-foreground"
           />
         </div>
       </div>
       <div>
-        <p className="text-sm font-semibold mb-2">{isEn ? "Difficulty Level" : "مستوى الصعوبة"}</p>
+        <p className="text-xs font-bold text-foreground mb-2">
+          {isEn ? "Difficulty Level" : "مستوى الصعوبة"}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           {[
             ["easy", isEn ? "Easy 😌" : "سهل 😌"],
             ["mixed", isEn ? "Mixed ⚖️" : "متنوع ⚖️"],
-            ["hard", isEn ? "Hard 🔥" : "صعب 🔥"]
+            ["hard", isEn ? "Hard 🔥" : "صعب 🔥"],
           ].map(([v, l]) => (
-            <button key={v} onClick={() => setDifficulty(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${difficulty === v ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{l}</button>
-          ))}
-        </div>
-      </div>
-      <div>
-        <p className="text-sm font-semibold mb-2">{isEn ? "Quiz Profile" : "نوع الكويز"}</p>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {profiles.map((profile) => (
             <button
-              key={profile.id}
-              onClick={() => setQuizProfile(profile.id)}
-              className={`rounded-xl border px-2 py-2 text-center transition-colors ${quizProfile === profile.id ? "border-[#3DDC97] bg-[#3DDC97]/10 text-[#3DDC97]" : "border-white/10 bg-white/[0.02] text-white/60"}`}
+              key={v}
+              type="button"
+              onClick={() => setDifficulty(v)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                difficulty === v
+                  ? "border-primary text-primary bg-primary/10"
+                  : "border-border bg-secondary/50 text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <span className="block text-xs font-bold">{profile.label}</span>
-              <span className="block text-[10px] opacity-75">{profile.hint}</span>
+              {l}
             </button>
           ))}
         </div>
       </div>
       <div>
-        <p className="text-sm font-semibold mb-2">{isEn ? "Answer Explanations" : "شرح الإجابات"}</p>
+        <p className="text-xs font-bold text-foreground mb-2">
+          {isEn ? "Quiz Profile" : "نوع الكويز"}
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {profiles.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setQuizProfile(p.id)}
+              className={`rounded-xl border px-2.5 py-2 text-center transition-colors cursor-pointer ${
+                quizProfile === p.id
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="block text-xs font-bold">{p.label}</span>
+              <span className="block text-[10px] opacity-80">{p.hint}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-bold text-foreground mb-2">
+          {isEn ? "Answer Explanations" : "شرح الإجابات"}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           {[
             [true, isEn ? "Show explanations after answering ✅" : "اعرض الشرح بعد الإجابة ✅"],
-            [false, isEn ? "Without explanations ✋" : "بدون شرح ✋"]
+            [false, isEn ? "Without explanations ✋" : "بدون شرح ✋"],
           ].map(([v, l]) => (
-            <button key={String(v)} onClick={() => setShowExplanations(v)} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${showExplanations === v ? "border-[#3DDC97] text-[#3DDC97] bg-[#3DDC97]/10" : "border-white/10 text-white/60"}`}>{l}</button>
+            <button
+              key={String(v)}
+              type="button"
+              onClick={() => setShowExplanations(v)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                showExplanations === v
+                  ? "border-primary text-primary bg-primary/10"
+                  : "border-border bg-secondary/50 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {l}
+            </button>
           ))}
         </div>
       </div>
@@ -953,11 +1294,12 @@ function QuizControls({ isEn = false, quizProfiles, quizCount, setQuizCount, dif
 
 function EmptyGen({ label, desc, button }) {
   return (
-    <div className="glass rounded-3xl p-14 text-center border border-white/10">
-      <Sparkles className="w-12 h-12 text-[#3DDC97] mx-auto mb-4 opacity-80" />
-      <h3 className="text-xl font-bold mb-2 text-white">{label}</h3>
-      <p className="text-white/60 mb-6">{desc}</p>
+    <div className="rounded-2xl bg-card p-8 sm:p-10 text-center border border-border shadow-sm">
+      <Sparkles className="w-10 h-10 text-primary mx-auto mb-3" />
+      <h3 className="font-display text-lg sm:text-xl font-bold mb-1.5 text-foreground">{label}</h3>
+      <p className="text-xs sm:text-sm text-muted-foreground mb-6 max-w-lg mx-auto">{desc}</p>
       {button}
     </div>
   );
 }
+

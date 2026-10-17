@@ -410,51 +410,109 @@ async function sendDocumentBuffer({ chatId, fileName, mimeType = "application/oc
   }
 }
 
-export async function sendExportToTelegram({ chatId, title = "محتوى دراسي", type = "summary", summaryText = "", summaryHtml = "", questions = [], quizId = null }) {
+function buildExecutiveSummaryCapsule(title = "ملخص دراسي", rawText = "") {
+  const lines = String(rawText || "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const headings = [];
+  const bullets = [];
+  for (const line of lines) {
+    if (/^#{1,3}\s+/.test(line)) {
+      const h = line.replace(/^#{1,3}\s+/, "").replace(/[*_`=~]/g, "").trim();
+      if (h && headings.length < 5) headings.push(h);
+    } else if (/^[-•*]\s+/.test(line)) {
+      const b = line
+        .replace(/^[-•*]\s+/, "")
+        .replace(/==(green|yellow|cyan|orange|red):([^=]+)==/g, "$2")
+        .replace(/[*_`=~]/g, "")
+        .trim();
+      if (b.length > 15 && bullets.length < 6) bullets.push(b.slice(0, 180));
+    }
+  }
+
+  const out = [
+    `📚 <b>كبسولة الملخص الذكي: ${title}</b>`,
+    "━━━━━━━━━━━━━━━━━━━━",
+  ];
+
+  if (headings.length > 0) {
+    out.push("🧭 <b>محاور المذكرة:</b>");
+    headings.forEach((h, idx) => out.push(`  ${idx + 1}. <b>${h}</b>`));
+    out.push("");
+  }
+
+  if (bullets.length > 0) {
+    out.push("⚡ <b>أهم النقاط السريعة (High-Yield):</b>");
+    bullets.forEach((b) => out.push(`• ${b}`));
+  } else if (lines.length > 0) {
+    out.push(lines.slice(0, 5).join("\n").slice(0, 900));
+  }
+
+  out.push("━━━━━━━━━━━━━━━━━━━━");
+  out.push("📎 <i>مرفق ملف المذكرة الكامل (HTML Study Guide) الجاهز للفتح والطباعة على الموبايل:</i>");
+  return out.join("\n");
+}
+
+export async function sendExportToTelegram({
+  chatId,
+  uid = null,
+  title = "محتوى دراسي",
+  type = "summary",
+  summaryText = "",
+  summaryHtml = "",
+  questions = [],
+  quizId = null,
+  deliveryMode = "both",
+}) {
   if (!chatId) return { ok: false, error: "NO_CHAT_ID" };
+  const appUrl = getAppBaseUrl();
 
   if (type === "summary") {
-    // Deliver the actual study guide.
-    //
-    // Previously this sent a text message truncated to 3800 characters with all
-    // markup stripped, so a real summary arrived as a cut-off wall of plain text —
-    // and when the caller sent nothing (see the `content_type` lookup bug) the
-    // chat received only the course blurb. Now the rendered HTML template travels
-    // as a document, with a short caption, so the student gets "the file".
     const plain = String(summaryText || "").replace(/[#*_`>]/g, "").replace(/\n{3,}/g, "\n\n").trim();
+    const capsule = buildExecutiveSummaryCapsule(title, summaryText || plain);
+    const summaryKeyboard = {
+      inline_keyboard: [
+        [
+          { text: "🎯 اختبرني في الملخص", callback_data: "cmd_ebe" },
+          { text: "📱 فتح القارئ التفاعلي", url: `${appUrl.replace(/\/+$/, "")}/tg` },
+        ],
+      ],
+    };
+
     if (summaryHtml) {
+      await sendStyledMessage(chatId, capsule, summaryKeyboard);
       const fileName = `${String(title || "ملخص").replace(/[\\/:*?"<>|]/g, "-").slice(0, 60)}.html`;
       const sent = await sendDocumentBuffer({
         chatId,
         fileName,
         mimeType: "text/html",
         buffer: Buffer.from(String(summaryHtml), "utf8"),
-        caption: `📚 <b>${title}</b>\nملف مذاكرة جاهز — افتحه من الموبايل أو اطبعه.`,
+        caption: `📚 <b>${title}</b>\nملف المذكرة الذكية الكامل — افتحه من الموبايل أو اطبعه مباشرة.`,
       });
-      if (sent?.ok) return { ok: true, delivered: "document" };
+      if (sent?.ok) return { ok: true, delivered: "capsule_and_document" };
       console.warn("[TelegramEngine] document send failed, falling back to text");
     }
 
     const header = `📚 <b>تصدير ملخص من Black Fighters: ${title}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n`;
-    // Split instead of truncating: a long summary used to lose everything past
-    // the 3800th character with no indication anything was missing.
     const chunks = [];
     for (let i = 0; i < plain.length && chunks.length < 6; i += 3800) chunks.push(plain.slice(i, i + 3800));
     if (!chunks.length) {
-      return sendStyledMessage(chatId, `${header}⚠️ <i>الملخص فاضي — جرّب تولّده من المنصة الأول.</i>`);
+      return sendStyledMessage(chatId, `${header}⚠️ <i>الملخص فاضي — جرّب تولّده من المنصة الأول.</i>`, summaryKeyboard);
     }
     for (let index = 0; index < chunks.length; index += 1) {
       const isLast = index === chunks.length - 1;
       await sendStyledMessage(
         chatId,
         `${index === 0 ? header : ""}${chunks[index]}${isLast ? `\n\n━━━━━━━━━━━━━━━━━━━━\n⚡ <i>تم التصدير من منصة Black Fighters</i>` : ""}`,
+        isLast ? summaryKeyboard : null,
       );
     }
     return { ok: true, delivered: "text", parts: chunks.length };
   }
 
   if (type === "quiz" && questions.length > 0) {
-    const appUrl = getAppBaseUrl();
     let activeQuizId = quizId;
     if (!activeQuizId) {
       activeQuizId = `exp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -478,14 +536,66 @@ export async function sendExportToTelegram({ chatId, title = "محتوى درا�
 
     const startUrl = `${appUrl}/q/${activeQuizId}`;
 
+    // Send native Telegram Quiz Polls if requested (up to 10 polls per batch to respect rate limits)
+    let pollsSent = 0;
+    if (deliveryMode === "polls" || deliveryMode === "both") {
+      const pollSlice = questions.slice(0, 10);
+      await startQuizSession({
+        chatId,
+        uid,
+        quizId: activeQuizId,
+        total: pollSlice.length,
+        userName: "Warrior",
+      });
+
+      for (let i = 0; i < pollSlice.length; i += 1) {
+        const q = pollSlice[i];
+        const rawOpts = Array.isArray(q.options) ? q.options.slice(0, 10) : [];
+        const cleanOpts = rawOpts
+          .map((o) => String(typeof o === "object" ? o.text || o.label || "" : o).trim().slice(0, 100))
+          .filter(Boolean);
+        if (cleanOpts.length < 2) continue;
+
+        const correctIdx = resolveCorrectOptionIndex(q, rawOpts);
+        const pollPayload = {
+          chat_id: chatId,
+          question: `(${i + 1}/${pollSlice.length}) ${String(q.question || q.q || "سؤال").slice(0, 280)}`,
+          options: cleanOpts,
+          type: "quiz",
+          correct_option_id: Math.max(0, Math.min(cleanOpts.length - 1, correctIdx)),
+          is_anonymous: false,
+        };
+        const expText = String(q.explanation || q.exp || "").trim();
+        if (expText) {
+          pollPayload.explanation = expText.slice(0, 195);
+        }
+        const pollRes = await callTelegramApi("sendPoll", pollPayload);
+        const pollId = pollRes?.result?.poll?.id;
+        if (pollId) {
+          pollsSent += 1;
+          await rememberQuestionPoll({
+            chatId,
+            index: i,
+            pollId,
+            correctOptionId: pollPayload.correct_option_id,
+            total: pollSlice.length,
+            questionText: String(q.question || q.q || "سؤال"),
+            options: cleanOpts,
+            explanation: expText,
+            topic: title,
+          });
+        }
+      }
+    }
+
     const launchCard = `
-🎯 <b>تم تجهيز كويز الـ OSCE بنجاح يا محارب!</b> ⚡
+🎯 <b>تم تجهيز كويز Black Fighters بنجاح يا محارب!</b> ⚡
 ━━━━━━━━━━━━━━━━━━━━
 📌 <b>العنوان:</b> ${title}
 📝 <b>عدد الأسئلة:</b> <b>${questions.length} سؤال</b>
-🔬 <b>النظام:</b> سلايدات سريرية + أسئلة Quiz تفاعلية 🩻
+${pollsSent > 0 ? `📊 <b>استطلاعات Quiz Polls المرسلة:</b> <b>${pollsSent} استطلاع حي</b>\n` : ""}🔬 <b>النظام:</b> استطلاعات Quiz Polls + محاكي مؤقت تفاعلي 🩻
 ━━━━━━━━━━━━━━━━━━━━
-⏱️ <b>اختر نظام المؤقت وابدأ الحل فوراً:</b>
+⏱️ <b>اختر نظام المؤقت أو أنهِ التصحيح لحساب نقاط الـ XP:</b>
     `.trim();
 
     const keyboard = {
@@ -496,7 +606,7 @@ export async function sendExportToTelegram({ chatId, title = "محتوى درا�
           { text: "⏳ 60 ثانية", callback_data: `run_custom_quiz:${activeQuizId}:0:60` },
         ],
         [
-          { text: "🚀 ابدأ الكويز الآن (بدون مؤقت)", callback_data: `run_custom_quiz:${activeQuizId}:0:0` },
+          { text: "🚀 ابدأ الكويز التفاعلي الآن", callback_data: `run_custom_quiz:${activeQuizId}:0:0` },
         ],
         [
           { text: "🌐 حل الكويز في الموقع", url: startUrl },
@@ -506,7 +616,7 @@ export async function sendExportToTelegram({ chatId, title = "محتوى درا�
     };
 
     const res = await sendStyledMessage(chatId, launchCard, keyboard);
-    return { ok: true, sent: questions.length, quizId: activeQuizId, res };
+    return { ok: true, sent: questions.length, pollsSent, quizId: activeQuizId, res };
   }
 
   return { ok: false, error: "INVALID_EXPORT_TYPE" };

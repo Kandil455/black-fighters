@@ -17,7 +17,7 @@ const TABS_CONFIG = [
   {
     key: "studio",
     root: "/quizzes",
-    labelAr: "أدوات",
+    labelAr: "الأدوات",
     labelEn: "Studio",
     icon: BrainCircuit,
     match: ["/quizzes", "/practical", "/youtube-ai", "/tools"],
@@ -40,9 +40,9 @@ const TABS_CONFIG = [
   },
   {
     key: "me",
-    root: "/profile",
-    labelAr: "حسابي",
-    labelEn: "Account",
+    root: "/subscriptions",
+    labelAr: "الرصيد",
+    labelEn: "Vault",
     icon: User,
     match: ["/stats", "/profile", "/subscriptions", "/settings", "/leaderboard", "/friends", "/groups"],
   },
@@ -80,7 +80,7 @@ export default function BottomTabBar() {
 
   return (
     <div
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 border-t border-[#D5DEE7] pb-safe"
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-white/[0.08] pb-safe"
       dir={dir}
     >
       <nav
@@ -99,7 +99,7 @@ export default function BottomTabBar() {
                 type="button"
                 onClick={() => handleTab(tab)}
                 aria-label={label}
-                className="flex items-center justify-center mx-1 px-3.5 py-2 rounded-md bg-[#0B1F33] text-white hover:bg-[#071624] transition-colors duration-150"
+                className="btn-primary-glow flex items-center justify-center mx-1 px-3.5 py-2 rounded-xl"
               >
                 <Plus className="w-5 h-5 stroke-[2.5]" />
               </button>
@@ -114,14 +114,20 @@ export default function BottomTabBar() {
               aria-label={label}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex-1 flex flex-col items-center justify-center py-1 px-1 gap-1 rounded-md transition-colors duration-150 min-w-0",
+                "relative flex-1 flex flex-col items-center justify-center py-1.5 px-1 gap-1 rounded-lg transition-colors duration-150 min-w-0",
                 active
-                  ? "text-[#2B8A9E]"
-                  : "text-[#5A6B7D] hover:text-[#0B1F33]"
+                  ? "text-[#19f08c] font-semibold"
+                  : "text-[#9aa4b2] hover:text-[#f5f7fa]"
               )}
             >
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-0 inset-x-4 h-[2px] rounded-full bg-[#19f08c]"
+                />
+              )}
               <Icon className="w-5 h-5 shrink-0" />
-              <span className="text-[10px] font-medium truncate leading-none">
+              <span className="text-[10px] font-medium truncate leading-none whitespace-nowrap">
                 {label}
               </span>
             </button>

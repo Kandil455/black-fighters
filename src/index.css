@@ -15,8 +15,6 @@ html[data-performance="saver"] *::after {
   scroll-behavior: auto !important;
 }
 
-/* ت١ — Tiered glass blur: same glass look, ~40–55% fewer blur samples on the
-   saver tier (blur cost scales with radius). Effect kept, GPU work cut. */
 html[data-performance="saver"] {
   --blur-card:  16px;
   --blur-dock:  26px;
@@ -24,12 +22,6 @@ html[data-performance="saver"] {
   --blur-ultra: 14px;
 }
 
-/* §5 scene tier — Landing with the WebGL knight running. The knight shares
-   main-thread + GPU with the 15 glass cards; its ambient 30fps render must
-   never fight a 28px backdrop-filter for the same slice of frame time.
-   Blur radius steps down while the scene exists (the look survives — glass
-   over a dark animated backdrop is visually blur-agnostic); poster mode
-   never sets html[data-scene], so those users keep the full look. */
 html[data-scene="3d"] {
   --blur-card:  10px;
   --blur-dock:  14px;
@@ -45,15 +37,7 @@ html[data-scene="3d"] .glass-card {
 
 /* ══════════════════════════════════════════════════
    LITE TIER — phones with ~2–4 GB RAM / 4 cores
-   ══════════════════════════════════════════════════
-   `backdrop-filter` is the single most expensive thing this UI does: 41 files
-   use a blur class, and each blurred surface forces the compositor to read back
-   and re-filter the backdrop every frame it moves. On an entry-level phone that
-   is the difference between a smooth scroll and a slideshow, so the lite tier
-   drops the effect entirely and keeps the SAME flat surface colours — the layout
-   and contrast are unchanged, only the (invisible-over-a-dark-backdrop) blur
-   goes away. Mirrors the `saver` tier above, but keyed on device capability
-   rather than the user's power-mode choice. */
+   ══════════════════════════════════════════════════ */
 html[data-tier="lite"] {
   --blur-card:  0px;
   --blur-dock:  0px;
@@ -65,7 +49,6 @@ html[data-tier="lite"] *::before,
 html[data-tier="lite"] *::after {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  /* Long transition lists pay off on cheap CPUs; keep feedback instant. */
   transition-duration: 140ms !important;
 }
 html[data-tier="lite"] .glass,
@@ -74,132 +57,95 @@ html[data-tier="lite"] .ios-glass-card,
 html[data-tier="lite"] .glass-panel {
   box-shadow: none !important;
 }
-/* Infinite decorative animations are the second cost: they keep the compositor
-   awake forever. Spinners are deliberately NOT in this list — a spinner that
-   doesn't spin communicates nothing. */
 html[data-tier="lite"] .bf-icon-pulse,
 html[data-tier="lite"] .animate-pulse,
 html[data-tier="lite"] .animate-bounce {
   animation: none !important;
 }
-/* Off-screen list rows skip layout/paint entirely. */
 html[data-tier="lite"] .lite-cv-auto {
   content-visibility: auto;
   contain-intrinsic-size: auto 72px;
 }
 
 /* ══════════════════════════════════════════════════
-   DESIGN TOKENS
+   LINEVAULT EXACT DESIGN TOKENS (#05070a + #19f08c)
    ══════════════════════════════════════════════════ */
 @layer base {
-  :root {
-    /* Glass blur radii — tiered via html[data-performance] (report ت١) */
-    --blur-card:  0px;
-    --blur-dock:  0px;
-    --blur-pill:  0px;
-    --blur-ultra: 0px;
-
-    /* Black Fighters «Clinical Light» — medical/academic paper */
-    --bf-navy:            #0B1F33;
-    --bf-navy-deep:       #071624;
-    --bf-teal:            #2B8A9E;
-    --bf-teal-soft:       #E6F3F6;
-    --bf-paper:           #F6F8FA;
-    --bf-paper-2:         #EEF2F5;
-    --bf-ink:             #0B1F33;
-    --bf-ink-muted:       #5A6B7D;
-    --bf-line:            #D5DEE7;
-    --bf-white:           #FFFFFF;
-
-    --background:         210 20% 97%;   /* #F6F8FA */
-    --foreground:         207 65% 12%;   /* #0B1F33 */
-    --card:                 0  0% 100%;  /* #FFFFFF */
-    --card-foreground:    207 65% 12%;   /* #0B1F33 */
-    --popover:              0  0% 100%;
-    --popover-foreground: 207 65% 12%;
-
-    /* Primary CTA — navy petrol; accent — clinical teal */
-    --primary:            207 65% 12%;   /* #0B1F33 */
-    --primary-foreground:   0  0% 100%;
-    --accent:             191 57% 39%;   /* #2B8A9E */
-    --accent-foreground:    0  0% 100%;
-
-    --secondary:          204 18% 94%;   /* #EEF2F5 */
-    --secondary-foreground: 207 65% 12%;
-    --muted:              204 18% 94%;
-    --muted-foreground:   210 16% 42%;   /* #5A6B7D */
-
-    --destructive:        358 75% 49%;
-    --destructive-foreground: 0 0% 100%;
-    --border:             210 18% 87%;   /* #D5DEE7 */
-    --input:              210 18% 87%;
-    --ring:               191 57% 39%;   /* #2B8A9E */
-    --radius:             0.5rem;        /* 8px — clinical, not pill */
-
-    --sidebar-background:           0  0% 100%;
-    --sidebar-foreground:         210 16% 42%;
-    --sidebar-primary:            207 65% 12%;
-    --sidebar-primary-foreground:   0  0% 100%;
-    --sidebar-accent:             191 45% 94%;
-    --sidebar-accent-foreground:  207 65% 12%;
-    --sidebar-border:             210 18% 87%;
-    --sidebar-ring:               191 57% 39%;
-
-    /* Typography — Cairo + IBM Plex Sans Arabic */
-    --font-heading:  'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
-    --font-body:     'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
-    --font-display:  'Cairo', 'IBM Plex Sans Arabic', 'Alexandria', system-ui, sans-serif;
-    --font-mono:     'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
-  }
-
-  .dark {
-    --background:         228 26%  4%;
-    --foreground:         220 14% 95%;
-    --card:               220 24%  7%;
-    --card-foreground:    220 14% 95%;
-    --popover:            220 24%  7%;
-    --popover-foreground: 220 14% 95%;
-    --primary:            154 70% 55%;
-    --primary-foreground: 154 67%  5%;
-    --secondary:          220 31%  6%;
-    --secondary-foreground: 220 14% 95%;
-    --muted:              220 31%  6%;
-    --muted-foreground:   222 12% 64%;
-    --accent:             154 70% 55%;
-    --accent-foreground:  154 67%  5%;
-    --destructive:        358 75% 59%;
-    --destructive-foreground: 220 14% 95%;
-    --border:             222 18% 14%;
-    --input:              223 16% 18%;
-    --ring:               154 70% 55%;
-  }
-
-  /* NOTE: the light-theme compatibility shim that used to live here was moved to
-     the end of this file as the unlayered "COLOUR HARMONISATION" layer. Keeping
-     both caused a conflict: the shim's `.theme-light .text-white` rule had higher
-     specificity and no accent exclusion, so it re-darkened button labels that the
-     harmonisation layer had just correctly left white (dark-on-dark buttons with
-     invisible text). ONE layer owns colour now. */
-
+  :root,
+  .dark,
+  html.dark,
   .light,
   .theme-light {
-    --background:         210 20% 97%;
-    --foreground:         207 65% 12%;
-    --card:                 0  0% 100%;
-    --card-foreground:    207 65% 12%;
-    --popover:              0  0% 100%;
-    --popover-foreground: 207 65% 12%;
-    --primary:            207 65% 12%;
-    --primary-foreground:   0  0% 100%;
-    --secondary:          204 18% 94%;
-    --secondary-foreground: 207 65% 12%;
-    --muted:              204 18% 94%;
-    --muted-foreground:   210 16% 42%;
-    --accent:             191 57% 39%;
-    --accent-foreground:    0  0% 100%;
-    --border:             210 18% 87%;
-    --input:              210 18% 87%;
-    --ring:               191 57% 39%;
+    --blur-card:  16px;
+    --blur-dock:  20px;
+    --blur-pill:  12px;
+    --blur-ultra: 16px;
+
+    /* LineVault Exact Ink Surfaces */
+    --bg-0: #05070a;                      /* ink-950: Primary page canvas */
+    --bg-1: #090c11;                      /* ink-900: Elevated section / sidebar */
+    --bg-2: #0e131b;                      /* ink-850: Card / Input surface */
+    --surface: rgb(255 255 255 / 0.03);
+    --surface-hover: rgb(255 255 255 / 0.055);
+
+    /* LineVault Typography Hierarchy */
+    --fg-0: #f5f7fa;                      /* Primary crisp white */
+    --fg-1: #9aa4b2;                      /* Secondary slate */
+    --fg-2: #646e7d;                      /* Muted metadata */
+
+    /* LineVault Single Emerald Accent */
+    --lv-accent: #19f08c;                 /* Emerald 400-500 neon-calm */
+    --accent-ink: #03150c;                /* Deep emerald-black on solid CTA */
+    --accent-soft: rgb(25 240 140 / 0.12);
+
+    /* Semantic Status Colors */
+    --warn: #f5b83d;
+    --danger: #ff5d6c;
+
+    /* Hairline Borders & Glows */
+    --line: rgb(255 255 255 / 0.08);
+    --line-strong: rgb(255 255 255 / 0.16);
+    --shadow-glow: 0 0 0 1px rgb(25 240 140 / 0.5), 0 8px 40px -6px rgb(25 240 140 / 0.45);
+    --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.06) inset, 0 24px 48px -24px rgb(0 0 0 / 0.7);
+
+    /* Tailwind / Shadcn HSL Tokens Mapped to LineVault Dark Ink */
+    --background:         216 33%  3%;    /* #05070a */
+    --foreground:         216 33% 97%;    /* #f5f7fa */
+    --card:               218 31%  5%;    /* #090c11 */
+    --card-foreground:    216 33% 97%;    /* #f5f7fa */
+    --popover:            218 31%  6%;    /* #0b0f17 */
+    --popover-foreground: 216 33% 97%;
+
+    --primary:            152 88% 52%;    /* #19f08c LineVault Emerald */
+    --primary-foreground: 150 75%  5%;    /* #03150c Deep Emerald Ink */
+    --accent:             152 88% 52%;    /* #19f08c */
+    --accent-foreground:  150 75%  5%;
+
+    --secondary:          217 31%  8%;    /* #0e131b */
+    --secondary-foreground: 216 33% 97%;
+    --muted:              217 31%  8%;    /* #0e131b */
+    --muted-foreground:   215 15% 65%;    /* #9aa4b2 */
+
+    --destructive:        354 100% 68%;   /* #ff5d6c */
+    --destructive-foreground: 0 0% 100%;
+    --border:             217 24% 14%;    /* #1b222d / rgba(255,255,255,0.08) */
+    --input:              217 24% 14%;
+    --ring:               152 88% 52%;
+    --radius:             1rem;
+
+    --sidebar-background:         218 31%  5%;
+    --sidebar-foreground:         215 15% 65%;
+    --sidebar-primary:            152 88% 52%;
+    --sidebar-primary-foreground: 150 75%  5%;
+    --sidebar-accent:             217 31%  8%;
+    --sidebar-accent-foreground:  216 33% 97%;
+    --sidebar-border:             217 24% 14%;
+    --sidebar-ring:               152 88% 52%;
+
+    --font-heading:  'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+    --font-body:     'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+    --font-display:  'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+    --font-mono:     'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
   }
 }
 
@@ -213,8 +159,8 @@ html[data-tier="lite"] .lite-cv-auto {
   }
 
   html {
-    background-color: var(--bf-paper, #F6F8FA);
-    color: var(--bf-ink, #0B1F33);
+    background-color: #05070a;
+    color: #f5f7fa;
     scroll-behavior: auto;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "kern";
     font-optical-sizing: auto;
@@ -229,8 +175,8 @@ html[data-tier="lite"] .lite-cv-auto {
     font-weight: 450;
     line-height: 1.65;
     letter-spacing: 0.005em;
-    background-color: var(--bf-paper, #F6F8FA);
-    color: var(--bf-ink, #0B1F33);
+    background-color: #05070a;
+    color: #f5f7fa;
     min-height: 100dvh;
     position: relative;
     overflow-x: hidden;
@@ -242,54 +188,65 @@ html[data-tier="lite"] .lite-cv-auto {
   }
 
   ::selection {
-    background: rgba(43, 138, 158, 0.22);
-    color: #0B1F33;
+    background: rgb(25 240 140 / 0.22);
+    color: #f5f7fa;
   }
 
-  /* Headings — clinical weight contrast */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     letter-spacing: -0.015em;
-    line-height: 1.22;
+    line-height: 1.25;
     font-weight: 700;
-    color: var(--bf-ink, #0B1F33);
+    color: #f5f7fa;
   }
 
-  /* Paragraph copy — comfortable reading */
   p {
-    line-height: 1.8;
+    line-height: 1.75;
     font-weight: 450;
-    color: var(--bf-ink-muted, #5A6B7D);
+    color: #9aa4b2;
   }
 
-  /* Mono elements */
   code, kbd, .font-mono {
     font-family: var(--font-mono);
     font-feature-settings: "calt" 0;
     letter-spacing: 0.02em;
   }
 
-  /* Interactive elements */
   button, a, [role="button"], [role="tab"], label, summary {
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Focus ring */
   :focus-visible {
-    outline: 2px solid var(--bf-teal, #2B8A9E);
+    outline: 2px solid #19f08c;
     outline-offset: 3px;
     border-radius: 4px;
   }
 }
 
+/* ══════════════════════════════════════════════════
+   COMPOSITOR-ONLY KEYFRAMES & GUARDRAILS
+   ══════════════════════════════════════════════════ */
 @keyframes caret {
   50% { opacity: 0; }
 }
 
+@keyframes scan-vert {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  20%  { opacity: 0.55; }
+  80%  { opacity: 0.55; }
+  100% { transform: translateY(420%); opacity: 0; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.65; }
+  75%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
 @keyframes bf-up {
-  from { opacity: 0; transform: translateY(26px); }
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -300,12 +257,12 @@ html[data-tier="lite"] .lite-cv-auto {
 
 @keyframes bf-pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(2); opacity: 0.3; }
+  50% { transform: scale(1.6); opacity: 0.35; }
 }
 
 @keyframes bf-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-9px); }
+  50% { transform: translateY(-7px); }
 }
 
 @keyframes bf-glow {
@@ -322,10 +279,6 @@ html[data-tier="lite"] .lite-cv-auto {
   to { transform: translateX(50%); }
 }
 
-/* ── Unified icon micro-animation (src/components/ui/icons.jsx) ──
-   transform-only on purpose: opacity+scale ride the compositor, while the old
-   `filter: drop-shadow()` keyframes repainted every frame on the main thread.
-   Disabled by prefers-reduced-motion here and by the saver kill-switch above. */
 @keyframes bf-icon-pulse {
   0%, 100% { transform: scale(1); }
   50%      { transform: scale(1.08); }
@@ -340,386 +293,169 @@ html[data-tier="lite"] .lite-cv-auto {
 }
 
 /* ══════════════════════════════════════════════════
-   UTILITIES — BLACK FIGHTERS «Clinical Light»
+   LINEVAULT CORE UTILITY CLASSES
    ══════════════════════════════════════════════════ */
 @layer utilities {
+  .bg-grid,
+  .lv-bg-grid {
+    background-image:
+      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 100%);
+  }
+
+  .bg-radial-emerald {
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgb(25 240 140 / 0.14), transparent 70%),
+      radial-gradient(ellipse 40% 35% at 80% 20%, rgb(15 184 108 / 0.08), transparent 70%);
+  }
+
   .glass {
-    background: var(--bf-white, #FFFFFF);
-    border: 1px solid var(--bf-line, #D5DEE7);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015));
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
-  .bf-card {
-    background: var(--bf-white, #FFFFFF);
-    border: 1px solid var(--bf-line, #D5DEE7);
-    border-radius: 10px;
-    box-shadow: 0 1px 2px rgba(11, 31, 51, 0.04);
+  .glass-strong {
+    background: linear-gradient(180deg, rgb(18 24 34 / 0.88), rgb(11 15 22 / 0.88));
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
-  .bf-card-hover {
-    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-  }
-
-  .bf-card-hover:hover {
-    transform: translateY(-3px);
-    border-color: #B8CBD6;
-    box-shadow: 0 8px 24px rgba(11, 31, 51, 0.06);
-  }
-
-  .bf-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    min-height: 56px;
-    padding: 0 18px;
-    border: 1px solid var(--bf-line, #D5DEE7);
-    border-radius: 8px;
-    background: var(--bf-paper-2, #EEF2F5);
-  }
-
-  .bf-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 6px;
-    border: 1px solid #C5D9E0;
-    background: var(--bf-teal-soft, #E6F3F6);
-    color: var(--bf-teal, #2B8A9E);
-    font-weight: 600;
-    font-size: 13px;
-  }
-
-  .bf-hl {
-    background: rgba(43, 138, 158, 0.12);
-    color: #1A6A7C;
-    padding: 1px 6px;
-    border-radius: 4px;
-  }
-
-  .bf-tb {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 46px;
-    border-radius: 8px;
-    background: var(--bf-paper-2, #EEF2F5);
-    color: var(--bf-navy, #0B1F33);
-    border: 1px solid var(--bf-line, #D5DEE7);
-    font-weight: 600;
-    font-size: 15px;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-  }
-
-  .bf-tb:hover {
-    background: #E3EAF0;
-    transform: translateY(-1px);
-  }
-
-  .bf-k {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 12px;
-    color: var(--bf-teal, #2B8A9E);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .bf-hero-gradient {
-    color: var(--bf-teal, #2B8A9E);
-  }
-
-  .bf-glow {
-    display: none;
-  }
-
-  .bf-float {
-    animation: bf-float 6s ease-in-out infinite;
-  }
-
-  .bf-pulse-dot {
-    animation: bf-pulse 1.8s ease-in-out infinite;
-  }
-
-  .bf-progress-fill {
-    transform-origin: right;
-    animation: bf-grow 1.5s 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  }
-
-  .bf-marquee-mask {
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-    mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  }
-
-  .bf-marquee-track {
-    display: flex;
-    width: max-content;
-    animation: bf-marquee 36s linear infinite;
-  }
-
-  .bf-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    white-space: nowrap;
-    padding: 10px 18px;
-    border-radius: 8px;
-    border: 1px solid var(--bf-line, #D5DEE7);
-    background: var(--bf-white, #FFFFFF);
-    color: var(--bf-ink-muted, #5A6B7D);
-    font-size: 15px;
-  }
-
-  .bf-day-circle {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--bf-navy, #0B1F33);
-    color: #FFFFFF;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    animation: bf-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
-  }
-
-  .bf-flip-scene {
-    perspective: 1100px;
-  }
-
-  .bf-flip-inner {
-    position: relative;
-    display: block;
-    height: 240px;
-    cursor: pointer;
-    transform-style: preserve-3d;
-    transition: transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-
-  .bf-flip-inner[data-flipped="true"] {
-    transform: rotateY(180deg);
-  }
-
-  .bf-flip-front,
-  .bf-flip-back {
-    position: absolute;
-    inset: 0;
-    box-sizing: border-box;
-    padding: 24px;
-    border-radius: 10px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    backface-visibility: hidden;
-  }
-
-  .bf-flip-front {
-    background: var(--bf-white, #FFFFFF);
-    border: 1px solid var(--bf-line, #D5DEE7);
-  }
-
-  .bf-flip-back {
-    background: var(--bf-teal-soft, #E6F3F6);
-    border: 1px solid #C5D9E0;
-    transform: rotateY(180deg);
-  }
-
-  .text-gradient {
-    color: var(--bf-teal, #2B8A9E);
-  }
-
-  .bf-clinical-cta {
-    display: inline-flex;
-    align-items: stretch;
-    height: 52px;
-    border-radius: 6px;
-    overflow: hidden;
-    background: var(--bf-navy, #0B1F33);
-    color: #FFFFFF;
-    font-weight: 700;
-    font-size: 16px;
-    transition: background-color 0.15s ease, transform 0.15s ease;
-  }
-
-  .bf-clinical-cta:hover {
-    background: var(--bf-navy-deep, #071624);
-  }
-
-  .bf-clinical-cta__label {
-    display: inline-flex;
-    align-items: center;
-    padding: 0 22px;
-  }
-
-  .bf-clinical-cta__sep {
-    width: 1px;
-    align-self: stretch;
-    background: rgba(255, 255, 255, 0.28);
-  }
-
-  .bf-clinical-cta__icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 52px;
-  }
-
-  .bf-nav-link {
-    position: relative;
-    color: var(--bf-ink, #0B1F33);
-    font-size: 15px;
-    font-weight: 500;
-    padding: 6px 2px;
-    transition: color 0.15s ease;
-  }
-
-  .bf-nav-link:hover {
-    color: var(--bf-teal, #2B8A9E);
-  }
-
-  .bf-nav-link[data-active="true"] {
-    color: var(--bf-teal, #2B8A9E);
-    font-weight: 600;
-  }
-
-  .bf-nav-link[data-active="true"]::before,
-  .bf-nav-link[data-active="true"]::after {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    height: 2px;
-    background: var(--bf-teal, #2B8A9E);
-  }
-
-  .bf-nav-link[data-active="true"]::before {
-    top: -10px;
-  }
-
-  .bf-nav-link[data-active="true"]::after {
-    bottom: -2px;
-  }
-
-  .tabular {
-    font-variant-numeric: tabular-nums;
-  }
-
-  .animate-caret {
-    animation: caret 1s steps(2) infinite;
-  }
-
-  .shadow-glow {
-    box-shadow: 0 8px 32px rgba(61, 220, 151, 0.28);
-  }
-
-  /* Internal product surfaces — Clean Dark Card (#0E1117 / #1E222B) */
-  .app-content .ios-glass-card,
-  .app-content .glass-card {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    box-shadow: none;
-  }
-
-  .app-focus-panel {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    box-shadow: none;
-  }
-
-  /* Safe area insets (iOS/Android notch) */
-  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
-  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
-  .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
-  .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
-  .h-safe-bottom { height: env(safe-area-inset-bottom, 0px); }
-
-  /* 44px minimum tap target (Apple HIG / WCAG) */
-  .tap-target { min-width: 44px; min-height: 44px; }
-
-  /* Hide scrollbar (keep function) */
-  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
-  .scrollbar-none::-webkit-scrollbar { display: none; }
-
-  /* ── CLEAN DARK CARD SYSTEM (#0E1117 / #1E222B) ──────── */
-
-  .ios-glass-card, .glass-card {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: 1.25rem;
-    box-shadow: none;
-    transition:
-      background-color 0.2s ease,
-      border-color 0.2s ease;
-  }
-
-  /* §5 hover contract: border-color only in the primary hover rule */
-  .ios-glass-card:hover, .glass-card:hover {
-    border-color: #2C7A55;
-  }
-
-  .ios-glass-card:hover, .glass-card:hover {
-    background-color: #11151D;
-  }
-
-  /* Navigation / dock surface */
-  .ios-glass-dock {
-    background: rgba(7, 8, 12, 0.92);
-    border: 1px solid hsl(var(--border));
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
-  }
-
-  /* Small pill / badge surface */
-  .ios-glass-pill {
-    background: hsl(var(--card));
-    border: 1px solid #1F6B46;
-    color: #3DDC97;
-    box-shadow: none;
-  }
-
-  .aurora-bg {
-    background: hsl(var(--background));
-  }
-
-  .glass-panel {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-  }
-
-  .glass-input {
-    background: rgb(9 12 17 / 0.8);
-    border: 1px solid rgb(255 255 255 / 0.09);
-  }
-
-  .shadow-glow-cyan,
-  .shadow-glow-violet,
-  .shadow-glow-amber {
-    box-shadow: none;
-  }
-
-  /* ── CLEAN TYPOGRAPHY (LineVault text-gradient) ─── */
-
-  /* Theme-aware headline gradient.
-     It used to hardcode a WHITE gradient with `color: transparent`, so as soon as
-     the light theme was applied the page title became white-on-white and
-     disappeared. Deriving the stops from the theme's own foreground colour keeps
-     the exact same look in dark mode and stays readable in light mode. */
+  .text-gradient,
   .studio-headline-gradient {
-    background: linear-gradient(180deg, hsl(var(--foreground)) 30%, hsl(var(--foreground) / 0.62));
+    background: linear-gradient(180deg, #fff 30%, rgb(255 255 255 / 0.55));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
+  .text-gradient-emerald,
   .neon-text-gradient {
-    color: #3DDC97;
-    animation: none;
+    background: linear-gradient(135deg, #6bffb8 0%, #19f08c 50%, #0fb86c 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
-  @keyframes neon-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50%       { background-position: 100% 50%; }
+  .btn-primary-glow {
+    background-color: #19f08c;
+    color: #03150c;
+    box-shadow: 0 0 0 1px rgb(25 240 140 / 0.5), 0 8px 40px -6px rgb(25 240 140 / 0.45);
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  }
+  .btn-primary-glow:hover {
+    background-color: #3bf59d;
+  }
+  .btn-primary-glow:active {
+    transform: scale(0.98);
   }
 
-  /* ── INTERACTIVE BORDER EFFECTS ───────────────────── */
+  .pulse-dot {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background-color: #19f08c;
+  }
+  .pulse-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background-color: #19f08c;
+    animation: pulse-ring 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  .aurora-orb-cyan {
+    background: radial-gradient(circle, rgba(25, 240, 140, 0.12) 0%, rgba(25, 240, 140, 0) 70%);
+    will-change: transform;
+  }
+  .aurora-orb-purple {
+    background: radial-gradient(circle, rgba(15, 184, 108, 0.10) 0%, rgba(15, 184, 108, 0) 70%);
+    will-change: transform;
+  }
+  .aurora-orb-gold {
+    background: radial-gradient(circle, rgba(245, 184, 61, 0.08) 0%, rgba(245, 184, 61, 0) 70%);
+    will-change: transform;
+  }
+
+  .tilt-glow {
+    background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 50%), rgba(25, 240, 140, 0.14), transparent 70%);
+  }
+  .tilt-gleam {
+    background: radial-gradient(180px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.08), transparent 65%);
+  }
+
+  .bf-card,
+  .ios-glass-card,
+  .glass-card,
+  .app-content .ios-glass-card,
+  .app-content .glass-card {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015));
+    border: 1px solid var(--line);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-card);
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .ios-glass-card:hover,
+  .glass-card:hover,
+  .bf-card-hover:hover {
+    border-color: rgb(25 240 140 / 0.38);
+  }
+
+  .ios-glass-dock,
+  .ios-glass-dark {
+    background: linear-gradient(180deg, rgb(18 24 34 / 0.92), rgb(11 15 22 / 0.92));
+    color: #f5f7fa;
+    border: 1px solid var(--line-strong);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: var(--shadow-card);
+  }
+
+  .ios-glass-pill {
+    background: rgb(25 240 140 / 0.12);
+    border: 1px solid rgb(25 240 140 / 0.32);
+    color: #19f08c;
+    box-shadow: none;
+  }
+
+  .aurora-bg {
+    background: #05070a;
+  }
+
+  .glass-panel,
+  .app-focus-panel,
+  .glass-ultra {
+    background: #090c11;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
+  }
+
+  .glass-input {
+    background: #0e131b;
+    color: #f5f7fa;
+    border: 1px solid var(--line);
+  }
+
+  .shadow-glow,
+  .shadow-glow-cyan,
+  .shadow-glow-violet,
+  .shadow-glow-amber {
+    box-shadow: var(--shadow-glow);
+  }
 
   .laser-border {
     position: relative;
@@ -730,17 +466,9 @@ html[data-tier="lite"] .lite-cv-auto {
     transition: border-color 0.15s ease;
   }
   .glow-card:hover {
-    border-color: rgb(255 255 255 / 0.16);
+    border-color: rgb(25 240 140 / 0.35);
   }
 
-  /* ── PRIMARY BUTTON SURFACE (LineVault --shadow-glow) ── */
-  .btn-primary-glow {
-    box-shadow: 0 0 0 1px rgb(25 240 140 / 0.5), 0 8px 40px -6px rgb(25 240 140 / 0.45);
-    transition: transform 0.15s ease;
-  }
-  .btn-primary-glow:active { transform: scale(0.98); }
-
-  /* ── SUBTLE LIFT ─────────────────────────────────── */
   .btn-lift {
     transition: transform 0.15s ease;
   }
@@ -751,112 +479,22 @@ html[data-tier="lite"] .lite-cv-auto {
     .btn-primary-glow:active { transform: none; }
   }
 
-  /* ── CINEMATIC SCANNING LINE ──────────────────────── */
-  /* COMPOSITOR CONTRACT: the old version animated `top` (0%→100%) — a
-     layout+paint invalidation EVERY frame for 3.5s infinite, on the big
-     glass hero card. Button hovers inside that card queued behind those
-     repaints (the Dashboard-vs-Landing smoothness gap). Now the ::after is
-     inset:0 (height = card height) carrying a 1px gradient line drawn via
-     background-size at its top edge; translateY sweeps it -100%→+100% =
-     exactly one full card height, transform+opacity only (compositor). */
   .scan-line-anim {
     position: relative;
     overflow: hidden;
   }
-  .scan-line-anim::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(0,245,255,0.5) 50%,
-      transparent 100%);
-    background-size: 100% 1px;
-    background-repeat: no-repeat;
-    animation: scan-vert 3.5s ease-in-out infinite;
-    pointer-events: none;
-  }
-  @keyframes scan-vert {
-    0%   { transform: translateY(-100%); opacity: 0; }
-    10%  { opacity: 1; }
-    90%  { opacity: 1; }
-    100% { transform: translateY(100%); opacity: 0; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .scan-line-anim::after { animation: none; opacity: 0; }
-  }
 
-  /* ── HOVER LIFT ───────────────────────────────────── */
-  /* NOTE: never combine .hover-lift with a JS-driven transform on the same
-     element — its `transition: transform` re-interpolates every per-frame
-     write and the motion feels floaty (the tilt-card lag). A child of a
-     tilt card may still use it: the transforms are on different elements. */
   .hover-lift {
-    transition: transform 0.28s cubic-bezier(0.16,1,0.3,1);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .hover-lift:hover { transform: translateY(-4px); }
+  .hover-lift:hover { transform: translateY(-3px); }
 
-  /* ── CURSOR-GLOW ANCHORING (tilt cards) ─────────────── */
-  /* Register --mx/--my as typed percentage properties so the BROWSER
-     interpolates the radial-gradient center — the laser line GLIDES toward
-     the cursor instead of teleporting every frame (the card springs, the
-     anchor eases behind it: no more jagged/jumpy sweep). Browsers without
-     @property simply keep the instant follow (graceful degradation). */
-  @property --mx {
-    syntax: "<percentage>";
-    inherits: true;
-    initial-value: 50%;
-  }
-  @property --my {
-    syntax: "<percentage>";
-    inherits: true;
-    initial-value: 50%;
-  }
-  .tilt-glow {
-    background: radial-gradient(
-      480px circle at var(--mx, 50%) var(--my, 50%),
-      var(--glow-color, rgba(0, 245, 255, 0.18)),
-      transparent 65%
-    );
-    transition:
-      --mx 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-      --my 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  }  .tilt-gleam {
-    background: radial-gradient(
-      320px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255,255,255,0.35),
-      transparent 55%
-    );
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    padding: 1px;
-    transition:
-      --mx 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-      --my 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  /* NOTE: no will-change rule here. A will-change applied on hover is never
-     dropped when the rAF loop parks, hoarding a compositor layer forever
-     (WebKit RAM rule). The tilt component manages its own layers. */
-
-  /* ── NAV DOCK COMPOSITOR ISOLATION ───────────────────── */
-  /* The dock's blur(44px) saturate(200%) backdrop must re-sample everything
-     under it every time anything inside it changes — a hover scale on a
-     button forced a full backdrop re-filter each frame (the navbar lag).
-     isolation:fixed + its own compositor layer pins that repaint surface;
-     transforms inside now stay on the child layer and never re-sample the
-     backdrop. */
   .magnetic-host {
     isolation: isolate;
     transform: translateZ(0);
     backface-visibility: hidden;
   }
 
-  /* ── FLOATING ASSISTANT ORB ─────────────────────────── */
-  /* Compositor-only CSS keyframes: idle float on the button, gradient spin
-     and sonar pulse on children — zero React/framer involvement while idle,
-     and the press scale lives on an inner wrapper (no transform fights). */
   @keyframes fabFloat {
     0%, 100% { transform: translateY(0); }
     50%      { transform: translateY(-4px); }
@@ -865,8 +503,8 @@ html[data-tier="lite"] .lite-cv-auto {
     to { transform: rotate(360deg); }
   }
   @keyframes fabPulse {
-    0%   { transform: scale(1);    opacity: 0.7; }
-    100% { transform: scale(1.45); opacity: 0; }
+    0%   { transform: scale(1);    opacity: 0.6; }
+    100% { transform: scale(1.4); opacity: 0; }
   }
   .fab-float { animation: fabFloat 2.8s ease-in-out infinite; }
   .fab-spin  { animation: fabSpin 8s linear infinite; }
@@ -875,45 +513,32 @@ html[data-tier="lite"] .lite-cv-auto {
     .fab-float, .fab-spin, .fab-pulse { animation: none; }
   }
 
-  /* ── PULSE DOT ────────────────────────────────────── */
-  /* COMPOSITOR CONTRACT: the ring used to animate box-shadow — main-thread
-     repaint every frame, infinite, sitting on the hero chip inside the tilt
-     card (hover work inside the card queued behind it). Now the ring is an
-     ::after pseudo-element that scales+fades (transform+opacity only —
-     compositor). The dot's own glow is a STATIC box-shadow (never animated). */
-  .pulse-dot {
-    position: relative;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: hsl(var(--primary));
-    box-shadow: 0 0 6px rgba(0,245,255,0.55); /* static — paint once */
-  }
-  .pulse-dot::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: rgba(0,245,255,0.6);
-    animation: pulse-ring 2s ease-out infinite;
-    pointer-events: none;
-  }
-  @keyframes pulse-ring {
-    0%   { transform: scale(1);   opacity: 0.7; }
-    70%  { transform: scale(2.2); opacity: 0; }
-    100% { transform: scale(2.2); opacity: 0; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .pulse-dot::after { animation: none; opacity: 0; }
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 
-  /* ── CUSTOM SCROLLBAR (where visible) ───────────────── */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  .animate-caret {
+    animation: caret 1s steps(2) infinite;
+  }
+
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+  .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+  .h-safe-bottom { height: env(safe-area-inset-bottom, 0px); }
+
+  .tap-target { min-width: 44px; min-height: 44px; }
+
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: rgba(0,245,255,0.2);
+    background: rgb(255 255 255 / 0.14);
     border-radius: 99px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(0,245,255,0.35); }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(25 240 140 / 0.45); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -923,47 +548,30 @@ html[data-tier="lite"] .lite-cv-auto {
       transition-duration: 0.001ms !important;
     }
   }
-  /* ── SELECTION ───────────────────────────────────── */
-  ::selection {
-    background-color: rgba(0,245,255,0.2);
-    color: #fff;
-  }
 
-  /* ── TYPOGRAPHY HELPERS ──────────────────────────── */
   .heading-display {
-    font-family: var(--font-heading);
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-  }
-
-  .heading-section {
     font-family: var(--font-heading);
     font-weight: 800;
     letter-spacing: -0.025em;
     line-height: 1.15;
   }
 
+  .heading-section {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
   .caption-mono {
     font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.18em;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    font-weight: 700;
-    color: hsl(240 6% 50%);
+    font-weight: 600;
+    color: #9aa4b2;
   }
 
-  /* ── CARD INNER GLOW VARIANT ─────────────────────── */
-  .card-inner-glow {
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.12),
-      inset 0 0 40px rgba(0,245,255,0.02);
-  }
-
-  /* ── GPU HARDWARE ACCELERATION & FAST RENDERING ───── */
-  /* Safari/WebKit hoards RAM for will-change layers — promote only while an
-     animation actually runs (clearWillChangeOnEnd in src/lib/frameScheduler.js),
-     never permanently (review warning #2). */
   .gpu-accelerated {
     transform: translateZ(0);
     backface-visibility: hidden;
@@ -975,140 +583,26 @@ html[data-tier="lite"] .lite-cv-auto {
     contain-intrinsic-size: 0 160px;
   }
 
-  /* ═══════════════════════════════════════════════════════
-     ✨ CLEAN SAAS SYSTEM — BLACK FIGHTERS REFINED
-     ═══════════════════════════════════════════════════════ */
-
-  /* ── AURORA ORB BACKGROUNDS ──────────────────────────── */
-  /* COMPOSITOR CONTRACT (root-system fix): these orbs used to carry
-     filter: blur(70-90px) WHILE animating transform — a moving blurred
-     element re-rasterizes its blur every frame: 3 orbs × ~300-480px ×
-     dozens of taps ≈ 3M+ texture samples/frame, forever, on every page
-     (the balanced-mode menu lag). The radial-gradient stops ARE the
-     falloff — the blur was re-softening an already-soft gradient. Now:
-     no filter (rasterized once) + will-change (justified: the layer lives
-     for the element's lifetime) = pure compositor transform forever. */
-  .aurora-orb-cyan {
-    position: fixed;
-    width: 480px; height: 480px;
-    border-radius: 50%;
-    background: radial-gradient(circle,
-      rgba(0,245,255,0.13) 0%, rgba(0,245,255,0.09) 32%, transparent 72%);
-    pointer-events: none;
-    z-index: 0;
-    will-change: transform;
-    animation: auroraFloat1 22s ease-in-out infinite;
-    top: -120px; right: -120px;
+  .neon-text-cyan,
+  .gradient-text-cyan,
+  .counter-glow-cyan,
+  .counter-glow-green {
+    color: #19f08c;
+    text-shadow: none;
   }
-  .aurora-orb-purple {
-    position: fixed;
-    width: 380px; height: 380px;
-    border-radius: 50%;
-    background: radial-gradient(circle,
-      rgba(168,85,247,0.11) 0%, rgba(168,85,247,0.08) 32%, transparent 72%);
-    pointer-events: none;
-    z-index: 0;
-    will-change: transform;
-    animation: auroraFloat2 28s ease-in-out infinite;
-    bottom: -80px; left: -80px;
-  }
-  .aurora-orb-gold {
-    position: fixed;
-    width: 300px; height: 300px;
-    border-radius: 50%;
-    background: radial-gradient(circle,
-      rgba(255,200,0,0.09) 0%, rgba(255,200,0,0.06) 32%, transparent 72%);
-    pointer-events: none;
-    z-index: 0;
-    will-change: transform;
-    animation: auroraFloat3 18s ease-in-out infinite;
-    top: 40%; left: 40%;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .aurora-orb-cyan, .aurora-orb-purple, .aurora-orb-gold { animation: none; }
-  }
-  @keyframes auroraFloat1 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(-60px, 80px) scale(1.15); }
-    66% { transform: translate(40px, -40px) scale(0.9); }
-  }
-  @keyframes auroraFloat2 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(70px, -50px) scale(1.1); }
-    66% { transform: translate(-40px, 60px) scale(0.92); }
-  }
-  @keyframes auroraFloat3 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(-50px, -60px) scale(1.08); }
-    66% { transform: translate(60px, 50px) scale(0.95); }
-  }
-  .saas-card:hover {
-    border-color: #28313E;
-    background: #131720;
-    box-shadow: none;
+  .neon-text-gold,
+  .gradient-text-gold,
+  .counter-glow-gold {
+    color: #f5b83d;
+    text-shadow: none;
   }
 
-  /* ── FLOATING ────────────────────────────────────────── */
-  .float-slow  { animation: none; }
-  .float-med   { animation: none; }
-  .float-fast  { animation: none; }
-  @keyframes floatSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-  @keyframes floatMed  { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px);  } }
-  @keyframes floatFast { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px);  } }
-
-  /* ── SHIMMER SWEEP ───────────────────────────────────── */
-  /* Legacy summary callouts — paper-surface tones declared as one component
-     (bg + border + text live together here, per DESIGN.md's callout rule). */
-  .legacy-summary-html blockquote {
-    border: 1px solid hsl(258 75% 78%);
-    background: hsl(258 90% 96%);
-    color: hsl(262 60% 12%);
-  }
-
-  .shimmer-sweep { position: relative; overflow: hidden; }
-
-  /* ── ANIMATED GRADIENT BG ────────────────────────────── */
-  .gradient-animate {
-    background: hsl(var(--background));
-  }
-
-  /* ── CLEAN ACCENT TEXT ───────────────────────────────── */
-  .neon-text-cyan {
-    color: #3DDC97;
-  }
-  .neon-text-gold {
-    color: #F5A524;
-  }
-
-  /* ── COUNTER ACCENTS ─────────────────────────────────── */
-  .counter-glow-cyan   { color: #3DDC97; text-shadow: none; }
-  .counter-glow-gold   { color: #F5A524; text-shadow: none; }
-  .counter-glow-green  { color: #3DDC97; text-shadow: none; }
-
-  /* ── SCANLINES (disabled in LineVault clean mode) ────── */
   .scanlines::before {
     display: none;
   }
 
-  /* ── SLIDE-UP ENTRANCE ───────────────────────────────── */
   .slide-up-enter { opacity: 1; transform: none; }
 
-  /* ── FLAT CARD ULTRA ─────────────────────────────────── */
-  .glass-ultra {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    box-shadow: none;
-  }
-
-  /* ── ACCENT TEXT ─────────────────────────────────────── */
-  .gradient-text-cyan {
-    color: #3DDC97;
-  }
-  .gradient-text-gold {
-    color: #F5A524;
-  }
-
-  /* ── PING BADGE ──────────────────────────────────────── */
   .ping-badge { position: relative; }
   .ping-badge::after {
     content: '';
@@ -1116,86 +610,9 @@ html[data-tier="lite"] .lite-cv-auto {
     top: -2px; right: -2px;
     width: 8px; height: 8px;
     border-radius: 50%;
-    background: #3DDC97;
-  }
-
-  /* ── HIGH-PERFORMANCE ANIMATED CSS FRAMES ───────────── */
-  .frame-cyber-dragon {
-    border-radius: 9999px;
-    animation: rotateFrame 6s linear infinite, cyberDragonGlow 3s ease-in-out infinite alternate;
-  }
-  .frame-cyber-dragon-glow {
-    filter: drop-shadow(0 0 16px rgba(0, 242, 254, 0.6)) drop-shadow(0 0 24px rgba(16, 185, 129, 0.4));
-  }
-
-  .frame-blazing-aura {
-    border-radius: 9999px;
-    animation: rotateFrame 4s linear infinite reverse, blazingPulse 2s ease-in-out infinite alternate;
-  }
-  .frame-blazing-aura-glow {
-    filter: drop-shadow(0 0 18px rgba(255, 77, 0, 0.75)) drop-shadow(0 0 30px rgba(255, 208, 0, 0.4));
-  }
-
-  .frame-neon-quantum {
-    border-radius: 9999px;
-    animation: rotateFrame 3s linear infinite, quantumGlitch 4s ease-in-out infinite;
-  }
-  .frame-neon-quantum-glow {
-    filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.7)) drop-shadow(0 0 28px rgba(255, 0, 128, 0.5));
-  }
-
-  .frame-arcane-runes {
-    border-radius: 9999px;
-    animation: rotateFrame 7s linear infinite, arcaneMystic 3.5s ease-in-out infinite alternate;
-  }
-  .frame-arcane-runes-glow {
-    filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.7)) drop-shadow(0 0 28px rgba(251, 191, 36, 0.45));
-  }
-
-  .frame-spartan-apex {
-    border-radius: 9999px;
-    animation: rotateFrame 5s linear infinite, spartanApexPulse 3s ease-in-out infinite alternate;
-  }
-  .frame-spartan-apex-glow {
-    filter: drop-shadow(0 0 22px rgba(0, 242, 254, 0.75)) drop-shadow(0 0 32px rgba(245, 158, 11, 0.6));
-  }
-
-  @keyframes rotateFrame {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
-  @keyframes cyberDragonGlow {
-    0% { filter: brightness(1) drop-shadow(0 0 10px #00f2fe); }
-    50% { filter: brightness(1.3) drop-shadow(0 0 22px #10b981); }
-    100% { filter: brightness(1.1) drop-shadow(0 0 16px #00e5ff); }
-  }
-
-  @keyframes blazingPulse {
-    0% { filter: brightness(1); }
-    50% { filter: brightness(1.4) drop-shadow(0 0 22px #ff4d00); }
-    100% { filter: brightness(1); }
-  }
-
-  @keyframes quantumGlitch {
-    0%, 100% { filter: hue-rotate(0deg) brightness(1.1); }
-    50% { filter: hue-rotate(90deg) brightness(1.35); }
-  }
-
-  @keyframes arcaneMystic {
-    0% { filter: brightness(1) drop-shadow(0 0 12px #a855f7); }
-    50% { filter: brightness(1.35) drop-shadow(0 0 24px #fbbf24); }
-    100% { filter: brightness(1) drop-shadow(0 0 12px #7c3aed); }
-  }
-
-  @keyframes spartanApexPulse {
-    0% { filter: brightness(1.1) drop-shadow(0 0 14px #00f2fe); }
-    50% { filter: brightness(1.4) drop-shadow(0 0 26px #f59e0b); }
-    100% { filter: brightness(1.1) drop-shadow(0 0 14px #00f2fe); }
+    background: #19f08c;
   }
 }
-
-
 
 /* ══════════════════════════════════════════════════
    UNIVERSAL BI-DIRECTIONAL (RTL / LTR) ISOLATION
@@ -1252,7 +669,6 @@ html[data-tier="lite"] .lite-cv-auto {
   unicode-bidi: isolate;
 }
 
-/* Inline isolate for code, medical formulas, and technical tokens */
 .bidi-isolate,
 bdi,
 [dir="auto"] {
@@ -1264,12 +680,12 @@ bdi,
    ══════════════════════════════════════════════════ */
 mark,
 .hl-yellow {
-  background-color: #fef08a !important;
-  color: #713f12 !important;
-  padding: 0.15rem 0.45rem;
-  border-radius: 0.35rem;
-  font-weight: 800 !important;
-  border-bottom: 2px solid #ca8a04 !important;
+  background-color: rgba(245, 184, 61, 0.2) !important;
+  color: #fde68a !important;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.3rem;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #f5b83d !important;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   display: inline;
@@ -1277,12 +693,12 @@ mark,
 
 mark.hl-green,
 .hl-green {
-  background-color: #bbf7d0 !important;
-  color: #14532d !important;
-  padding: 0.15rem 0.45rem;
-  border-radius: 0.35rem;
-  font-weight: 800 !important;
-  border-bottom: 2px solid #16a34a !important;
+  background-color: rgba(25, 240, 140, 0.18) !important;
+  color: #6bffb8 !important;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.3rem;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #19f08c !important;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   display: inline;
@@ -1290,12 +706,12 @@ mark.hl-green,
 
 mark.hl-red,
 .hl-red {
-  background-color: #fecaca !important;
-  color: #7f1d1d !important;
-  padding: 0.15rem 0.45rem;
-  border-radius: 0.35rem;
-  font-weight: 800 !important;
-  border-bottom: 2px solid #dc2626 !important;
+  background-color: rgba(255, 93, 108, 0.2) !important;
+  color: #fda4af !important;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.3rem;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #ff5d6c !important;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   display: inline;
@@ -1303,12 +719,12 @@ mark.hl-red,
 
 mark.hl-cyan,
 .hl-cyan {
-  background-color: #bae6fd !important;
-  color: #0c4a6e !important;
-  padding: 0.15rem 0.45rem;
-  border-radius: 0.35rem;
-  font-weight: 800 !important;
-  border-bottom: 2px solid #0284c7 !important;
+  background-color: rgba(56, 189, 248, 0.2) !important;
+  color: #7dd3fc !important;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.3rem;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #38bdf8 !important;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   display: inline;
@@ -1316,160 +732,19 @@ mark.hl-cyan,
 
 mark.hl-orange,
 .hl-orange {
-  background-color: #fed7aa !important;
-  color: #7c2d12 !important;
-  padding: 0.15rem 0.45rem;
-  border-radius: 0.35rem;
-  font-weight: 800 !important;
-  border-bottom: 2px solid #ea580c !important;
+  background-color: rgba(251, 146, 60, 0.2) !important;
+  color: #fdba74 !important;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.3rem;
+  font-weight: 700 !important;
+  border-bottom: 2px solid #fb923c !important;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   display: inline;
 }
 
-/* Dark mode specific high-contrast neon tints */
-.medical-doc-dark mark,
-.medical-doc-dark .hl-yellow,
-.dark mark:not(.medical-doc-light mark),
-.dark .hl-yellow:not(.medical-doc-light .hl-yellow) {
-  background-color: rgba(234, 179, 8, 0.28) !important;
-  color: #fef08a !important;
-  border-bottom-color: #eab308 !important;
-}
-
-.medical-doc-dark mark.hl-green,
-.medical-doc-dark .hl-green,
-.dark mark.hl-green:not(.medical-doc-light mark.hl-green),
-.dark .hl-green:not(.medical-doc-light .hl-green) {
-  background-color: rgba(34, 197, 94, 0.28) !important;
-  color: #86efac !important;
-  border-bottom-color: #22c55e !important;
-}
-
-.medical-doc-dark mark.hl-red,
-.medical-doc-dark .hl-red,
-.dark mark.hl-red:not(.medical-doc-light mark.hl-red),
-.dark .hl-red:not(.medical-doc-light .hl-red) {
-  background-color: rgba(239, 68, 68, 0.28) !important;
-  color: #fca5a5 !important;
-  border-bottom-color: #ef4444 !important;
-}
-
-.medical-doc-dark mark.hl-cyan,
-.medical-doc-dark .hl-cyan,
-.dark mark.hl-cyan:not(.medical-doc-light mark.hl-cyan),
-.dark .hl-cyan:not(.medical-doc-light .hl-cyan) {
-  background-color: rgba(14, 165, 233, 0.28) !important;
-  color: #7dd3fc !important;
-  border-bottom-color: #0ea5e9 !important;
-}
-
-.medical-doc-dark mark.hl-orange,
-.medical-doc-dark .hl-orange,
-.dark mark.hl-orange:not(.medical-doc-light mark.hl-orange),
-.dark .hl-orange:not(.medical-doc-light .hl-orange) {
-  background-color: rgba(249, 115, 22, 0.28) !important;
-  color: #fdba74 !important;
-  border-bottom-color: #f97316 !important;
-}
-
-.part-header-pill {
-  display: inline-block;
-  background-color: #000000;
-  color: #ffffff;
-  padding: 0.35rem 0.9rem;
-  border-radius: 0.65rem;
-  font-weight: 900;
-  font-size: 0.95rem;
-  letter-spacing: -0.01em;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.arabic-walkthrough-pill {
-  display: inline-block;
-  background-color: hsl(var(--card));
-  color: #ffffff;
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.5rem;
-  font-weight: 800;
-  font-size: 0.8rem;
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-}
-
 /* ══════════════════════════════════════════════════
-   WHITE PAPER MODE & HIGH CONTRAST (DOCUMENT THEMES)
-   ══════════════════════════════════════════════════ */
-.medical-doc-light {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-}
-
-.medical-doc-light .paired-part-card,
-.medical-doc-light .glass-card {
-  background: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #0f172a !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
-}
-
-.medical-doc-light p,
-.medical-doc-light li,
-.medical-doc-light span {
-  color: #0f172a !important;
-}
-
-.medical-doc-light strong {
-  color: #000000 !important;
-  font-weight: 800 !important;
-}
-
-.medical-doc-light table {
-  background: #ffffff !important;
-  border-color: #cbd5e1 !important;
-}
-
-.medical-doc-light th {
-  background: #f1f5f9 !important;
-  color: #0f172a !important;
-  border-color: #cbd5e1 !important;
-}
-
-.medical-doc-light td {
-  border-color: #e2e8f0 !important;
-  color: #1e293b !important;
-}
-
-.medical-doc-light code {
-  background: #f1f5f9 !important;
-  color: #0369a1 !important;
-  border: 1px solid #cbd5e1 !important;
-}
-
-.medical-doc-light blockquote {
-  background: #f8fafc !important;
-  border-color: #6366f1 !important;
-  color: #312e81 !important;
-}
-
-.medical-doc-light .arabic-walkthrough-pill {
-  background: #fef2f2 !important;
-  color: #991b1b !important;
-  border: 1px solid #fca5a5 !important;
-}
-
-/* Crisp Dark Mode (no washed-out grey!) */
-.medical-doc-dark p,
-.medical-doc-dark li {
-  color: #f1f5f9 !important;
-}
-.medical-doc-dark strong {
-  color: #ffffff !important;
-}
-
-/* ══════════════════════════════════════════════════
-   FLAWLESS VECTOR PRINT & PDF ISOLATION
+   PRINT & PDF ISOLATION
    ══════════════════════════════════════════════════ */
 @media print {
   @page {
@@ -1477,7 +752,6 @@ mark.hl-orange,
     size: A4 portrait;
   }
 
-  /* Reset root containers to 100% width and cancel containing block transforms */
   html,
   body,
   #root,
@@ -1489,1556 +763,23 @@ mark.hl-orange,
     padding: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-width: 100% !important;
-    float: none !important;
     background: #ffffff !important;
     color: #000000 !important;
     overflow: visible !important;
   }
 
-  *,
-  *::before,
-  *::after {
-    transform: none !important;
-    -webkit-transform: none !important;
-    filter: none !important;
-    perspective: none !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
-
-  /* 1. Suppress sidebars, headers, navigation, buttons, and app shells */
   aside,
   nav,
-  header,
+  header.no-print,
   footer,
   .sidebar,
   .print-hidden,
-  button,
+  .no-print,
   [role="navigation"],
   .app-dock,
   .floating-ai,
-  [data-sonner-toaster],
-  .youtube-ai-toolbar,
-  .youtube-ai-header,
-  .youtube-ai-input-section,
-  .youtube-ai-tabs,
-  .youtube-ai-copilot {
+  [data-sonner-toaster] {
     display: none !important;
     visibility: hidden !important;
   }
-
-  /* 2. Medical reference document occupies full width */
-  #printable-medical-guide {
-    position: static !important;
-    display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    box-shadow: none !important;
-    border: none !important;
-  }
-
-  /* 3. Pure white paper with crisp solid black text */
-  #printable-medical-guide .glass-card,
-  #printable-medical-guide .bidi-ltr,
-  #printable-medical-guide .bidi-rtl,
-  #printable-medical-guide .paired-part-card,
-  #printable-medical-guide div {
-    background: #ffffff !important;
-    color: #000000 !important;
-    border-color: #cbd5e1 !important;
-    box-shadow: none !important;
-  }
-
-  #printable-medical-guide p,
-  #printable-medical-guide li,
-  #printable-medical-guide span,
-  #printable-medical-guide td {
-    color: #000000 !important;
-  }
-
-  #printable-medical-guide strong,
-  #printable-medical-guide th,
-  #printable-medical-guide h1,
-  #printable-medical-guide h2,
-  #printable-medical-guide h3 {
-    color: #000000 !important;
-    font-weight: 800 !important;
-  }
-
-  #printable-medical-guide table {
-    border: 1px solid #94a3b8 !important;
-    background: #ffffff !important;
-    width: 100% !important;
-  }
-
-  #printable-medical-guide th {
-    background: #f1f5f9 !important;
-    color: #000000 !important;
-    border: 1px solid #94a3b8 !important;
-    font-weight: 800 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  #printable-medical-guide td {
-    border: 1px solid #cbd5e1 !important;
-    color: #000000 !important;
-  }
-
-  mark,
-  .hl-yellow {
-    background-color: #fef08a !important;
-    color: #000000 !important;
-    border-bottom: 2px solid #ca8a04 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    font-weight: 800 !important;
-    padding: 0.1rem 0.3rem !important;
-  }
-
-  mark.hl-green,
-  .hl-green {
-    background-color: #bbf7d0 !important;
-    color: #000000 !important;
-    border-bottom: 2px solid #16a34a !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    font-weight: 800 !important;
-    padding: 0.1rem 0.3rem !important;
-  }
-
-  mark.hl-red,
-  .hl-red {
-    background-color: #fecaca !important;
-    color: #000000 !important;
-    border-bottom: 2px solid #dc2626 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    font-weight: 800 !important;
-    padding: 0.1rem 0.3rem !important;
-  }
-
-  mark.hl-cyan,
-  .hl-cyan {
-    background-color: #bae6fd !important;
-    color: #000000 !important;
-    border-bottom: 2px solid #0284c7 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    font-weight: 800 !important;
-    padding: 0.1rem 0.3rem !important;
-  }
-
-  mark.hl-orange,
-  .hl-orange {
-    background-color: #fed7aa !important;
-    color: #000000 !important;
-    border-bottom: 2px solid #ea580c !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    font-weight: 800 !important;
-    padding: 0.1rem 0.3rem !important;
-  }
-
-  .part-header-pill {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border: 1px solid #000000 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .arabic-walkthrough-pill {
-    background-color: #1e293b !important;
-    color: #ffffff !important;
-    border: 1px solid #1e293b !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .paired-part-card {
-    page-break-inside: avoid;
-    break-inside: avoid;
-    margin-bottom: 2rem !important;
-    border: 1px solid #cbd5e1 !important;
-  }
 }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   5 COMPLETE FRONTEND SKINS (Live Switchable across the entire platform)
-   ═══════════════════════════════════════════════════════════════════════════ */
-html[data-bf-skin="visor"] {
-  --lv-ink-950: 5 6 10;
-  --lv-ink-900: 9 11 17;
-  --lv-ink-850: 14 17 26;
-  --lv-accent: 92 242 255;       /* #5cf2ff Visor Cyan */
-  --lv-accent-soft: 123 140 255; /* #7b8cff Indigo */
-  --primary: 185 100% 68%;
-  --accent: 185 100% 68%;
-  --ring: 185 100% 68%;
-}
-
-html[data-bf-skin="linevault"] {
-  --lv-ink-950: 5 7 10;
-  --lv-ink-900: 9 12 17;
-  --lv-ink-850: 14 19 26;
-  --lv-accent: 25 240 140;       /* #3DDC97 LineVault Emerald */
-  --lv-accent-soft: 16 185 129;
-  --primary: 152 88% 52%;
-  --accent: 152 88% 52%;
-  --ring: 152 88% 52%;
-}
-
-html[data-bf-skin="atlas"] {
-  --lv-ink-950: 8 11 18;
-  --lv-ink-900: 13 18 29;
-  --lv-ink-850: 19 26 42;
-  --lv-accent: 229 184 75;       /* #e5b84b Atlas Royal Gold */
-  --lv-accent-soft: 245 158 11;
-  --primary: 42 75% 60%;
-  --accent: 42 75% 60%;
-  --ring: 42 75% 60%;
-}
-
-html[data-bf-skin="linear"] {
-  --lv-ink-950: 0 0 0;           /* #000000 Pure OLED Black */
-  --lv-ink-900: 8 8 11;
-  --lv-ink-850: 14 14 18;
-  --lv-accent: 244 246 251;      /* Crisp White Accent */
-  --lv-accent-soft: 129 140 248;
-  --primary: 220 20% 96%;
-  --accent: 220 20% 96%;
-  --ring: 220 20% 96%;
-}
-
-html[data-bf-skin="crimson"] {
-  --lv-ink-950: 7 4 8;
-  --lv-ink-900: 14 7 17;
-  --lv-ink-850: 22 10 26;
-  --lv-accent: 255 46 84;        /* #ff2e54 Fighter Crimson */
-  --lv-accent-soft: 255 122 69;
-  --primary: 349 100% 59%;
-  --accent: 349 100% 59%;
-  --ring: 349 100% 59%;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   COLOUR HARMONISATION — one palette for every page
-   ══════════════════════════════════════════════════════════════════════════
-   HISTORY: the UI was written against a hardcoded dark palette, then part of it
-   was converted to a hardcoded light palette. The two are mixed across 58 files
-   (`bg-[#0E1117]` next to `bg-[#F6F8FA]`), so whole pages came out half dark and
-   half light — the owner's report: "شوف كل الصفحات… وخلي الموقع متناسق".
-
-   Fixing 58 files by hand would be undone by the next edit, so the palette is
-   normalised ONCE, here: every hardcoded surface/ink/border an author wrote is
-   redirected to the matching design token. Tokens follow the active theme, so a
-   page renders consistently whatever palette its author happened to use.
-
-   Deliberately unlayered: unlayered rules win over Tailwind's `@layer utilities`,
-   which is what lets this override the utility classes. Brand colours
-   (#3DDC97, #2B8A9E, #03150c) and semantic status colours are intentionally NOT
-   remapped — they are accents, not surfaces. */
-
-/* ── dark surfaces → background / card ─────────────────────────────────── */
-[class~="bg-[#07080C]"], [class*=" bg-[#07080C]/"], [class~="bg-[#0a0b12]"], [class*=" bg-[#0a0b12]/"], [class~="bg-[#090a10]"], [class*=" bg-[#090a10]/"],
-[class~="bg-[#0d0f17]"], [class*=" bg-[#0d0f17]/"], [class*="bg-slate-950"], [class~="bg-[#05070A]"], [class*=" bg-[#05070A]/"],
-[class~="bg-[#060813]"], [class*=" bg-[#060813]/"], [class~="bg-[#0b0e1b]"], [class*=" bg-[#0b0e1b]/"], [class~="bg-[#0a0d1d]"], [class*=" bg-[#0a0d1d]/"] {
-  background-color: hsl(var(--background)) !important;
-}
-
-[class~="bg-[#0E1117]"], [class*=" bg-[#0E1117]/"], [class~="bg-[#131720]"], [class*=" bg-[#131720]/"], [class~="bg-[#181F29]"], [class*=" bg-[#181F29]/"],
-[class~="bg-[#0F141B]"], [class*=" bg-[#0F141B]/"], [class~="bg-[#12161F]"], [class*=" bg-[#12161F]/"], [class*="bg-slate-900"],
-[class*="bg-slate-800"] {
-  background-color: hsl(var(--card)) !important;
-}
-
-/* ── light surfaces (authored for the light palette) → same tokens ──────── */
-[class~="bg-[#F6F8FA]"], [class*=" bg-[#F6F8FA]/"], [class~="bg-[#EEF2F5]"], [class*=" bg-[#EEF2F5]/"], [class~="bg-[#E6F3F6]"], [class*=" bg-[#E6F3F6]/"] {
-  background-color: hsl(var(--card)) !important;
-}
-
-/* Faint "raised" washes. Tinting with the FOREGROUND colour keeps the exact same
-   lift in dark mode (light ink over a dark card) and becomes a subtle shade in
-   light mode — mapping them to `card` instead would erase the effect entirely. */
-[class~="bg-white/5"], [class*=" bg-white/"] {
-  background-color: hsl(var(--foreground) / 0.045) !important;
-}
-
-/* ── ink ───────────────────────────────────────────────────────────────── */
-/* Filled accent surfaces keep their light label.
-   `--primary` is dark navy in the light theme, so remapping a hardcoded light
-   label to the foreground ink made dark-on-dark buttons with invisible text —
-   e.g. the default Button (`bg-[#0B1F33] text-white`). Anything painted with an
-   accent or dark-neutral fill is therefore excluded from the ink remap. */
-[class~="text-[#F2F3F5]"], [class*=" text-[#F2F3F5]/"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]),
-[class~="text-[#E5E7EB]"], [class*=" text-[#E5E7EB]/"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]),
-[class~="text-[#0B1F33]"], [class*=" text-[#0B1F33]/"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]),
-[class~="text-white"]:not([class*="bg-primary"]):not([class~="bg-[#0B1F33]"], [class*=" bg-[#0B1F33]/"]):not([class~="bg-[#071624]"], [class*=" bg-[#071624]/"]):not([class~="bg-[#3DDC97]"], [class*=" bg-[#3DDC97]/"]):not([class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"]):not([class~="bg-[#0088cc]"], [class*=" bg-[#0088cc]/"]):not([class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"]):not([class~="bg-[#0F3460]"], [class*=" bg-[#0F3460]/"]):not([class~="bg-[#16213E]"], [class*=" bg-[#16213E]/"]):not([class~="bg-[#E5484D]"], [class*=" bg-[#E5484D]/"]):not([class*="bg-destructive"]):not([class*="bg-emerald-"]):not([class*="bg-green-"]):not([class*="bg-red-"]):not([class*="bg-rose-"]):not([class*="bg-sky-"]):not([class*="bg-blue-"]):not([class*="bg-indigo-"]):not([class*="bg-violet-"]):not([class*="bg-purple-"]):not([class*="bg-amber-"]):not([class*="bg-orange-"]):not([class*="bg-teal-"]):not([class*="bg-cyan-"]):not([class*="bg-fuchsia-"]):not([class*="bg-pink-"]):not([class*="bg-slate-700"]):not([class*="bg-slate-800"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]):not([class*="bg-gray-700"]):not([class*="bg-gray-800"]):not([class*="bg-gray-900"]):not([class*="bg-gray-950"]):not([class*="bg-zinc-700"]):not([class*="bg-zinc-800"]):not([class*="bg-zinc-900"]):not([class*="bg-zinc-950"]):not([class*="bg-neutral-700"]):not([class*="bg-neutral-800"]):not([class*="bg-neutral-900"]):not([class*="bg-neutral-950"]):not([class*="bg-stone-700"]):not([class*="bg-stone-800"]):not([class*="bg-stone-900"]):not([class*="bg-stone-950"]):not([class*="bg-black"]) {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class~="text-[#9AA0AE]"], [class*=" text-[#9AA0AE]/"], [class~="text-[#8A91A0]"], [class*=" text-[#8A91A0]/"], [class~="text-[#5A6B7D]"], [class*=" text-[#5A6B7D]/"],
-[class*="text-slate-400"], [class*="text-slate-500"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-/* ── borders ───────────────────────────────────────────────────────────── */
-[class~="border-[#1E222B]"], [class*=" border-[#1E222B]/"], [class~="border-[#262A34]"], [class*=" border-[#262A34]/"], [class~="border-[#D5DEE7]"], [class*=" border-[#D5DEE7]/"],
-[class~="border-[#B8CBD6]"], [class*=" border-[#B8CBD6]/"], [class~="border-[#28313E]"], [class*=" border-[#28313E]/"], [class*="border-white/"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-/* ── a dark hero on a light page (and vice-versa) ──────────────────────── */
-[class~="from-[#0c0f1d]"], [class~="from-[#101426]"], [class~="from-[#160b13]"],
-[class~="via-[#101426]"], [class~="to-[#160b13]"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-}
-
-/* ── every remaining hardcoded dark surface → tokens ────────────────────────
-   Generated from the palette actually present in the source (40 distinct dark
-   hexes across 58 files). Case-insensitive matching covers the `#07080C` /
-   `#07080c` spellings, and the two "clinical accent" navy values are deliberately
-   excluded — they stay dark in both themes so their white labels keep contrast. */
-[class*="bg-[#03150c]" i],
-[class*="bg-[#05060a]" i],
-[class*="bg-[#05060b]" i],
-[class*="bg-[#05080a]" i],
-[class*="bg-[#06070a]" i],
-[class*="bg-[#060813]" i],
-[class*="bg-[#07080C]" i],
-[class*="bg-[#07080c]" i],
-[class*="bg-[#07090e]" i],
-[class*="bg-[#070914]" i],
-[class*="bg-[#070a14]" i],
-[class*="bg-[#070b16]" i],
-[class*="bg-[#071311]" i],
-[class*="bg-[#08090d]" i],
-[class*="bg-[#08090e]" i],
-[class*="bg-[#090a10]" i],
-[class*="bg-[#090b14]" i],
-[class*="bg-[#0a0b12]" i],
-[class*="bg-[#0a0e14]" i],
-[class*="bg-[#0b0c14]" i] {
-  background-color: hsl(var(--background)) !important;
-}
-
-[class*="bg-[#081216]" i],
-[class*="bg-[#090d1a]" i],
-[class*="bg-[#0E1117]" i],
-[class*="bg-[#0a0d18]" i],
-[class*="bg-[#0a0d1b]" i],
-[class*="bg-[#0a0d1d]" i],
-[class*="bg-[#0a1115]" i],
-[class*="bg-[#0b0c16]" i],
-[class*="bg-[#0b0e1b]" i],
-[class*="bg-[#0c0d15]" i],
-[class*="bg-[#0c0d16]" i],
-[class*="bg-[#0d0e17]" i],
-[class*="bg-[#0d0f17]" i],
-[class*="bg-[#0d1020]" i],
-[class*="bg-[#0d1117]" i],
-[class*="bg-[#0d1122]" i],
-[class*="bg-[#131720]" i],
-[class*="bg-[#131820]" i],
-[class*="bg-[#181F29]" i],
-[class*="bg-[#1A1E27]" i],
-[class*="bg-[#1E222B]" i],
-[class*="bg-[#2A1214]" i] {
-  background-color: hsl(var(--card)) !important;
-}
-
-/* ══════════════════════════════════════════════════════════════════════════
-   FORCED SIMPLE PALETTE — white surfaces, black ink, everywhere.
-   ══════════════════════════════════════════════════════════════════════════
-   The platform carried two competing hardcoded palettes (a dark one and a light
-   one) plus a theme switcher, so screens ended up half dark and half light. The
-   owner's instruction was to stop engineering around it: "خليه كله أبيض والكلام
-   كله أسود".
-
-   This block PINS the palette: white background, white cards, black text, grey
-   borders — in every theme state, including the inline custom properties that
-   `applyTheme()` writes on <html> (a stylesheet `!important` beats an inline
-   custom-property declaration, which is why this works where the earlier
-   per-page fixes could not).
-
-   Only accents stay coloured: the brand emerald, plus any status colour
-   (error/success/warning) — they are what makes a button or an alert legible.
-   Every hardcoded surface is normalised to these tokens by the harmonisation
-   layer above, so the whole app follows from here. */
-
-html,
-html.dark,
-html.theme-light,
-html[data-theme],
-:root {
-  --background: 0 0% 100% !important;
-  --foreground: 0 0% 0% !important;
-  --card: 0 0% 100% !important;
-  --card-foreground: 0 0% 0% !important;
-  --popover: 0 0% 100% !important;
-  --popover-foreground: 0 0% 0% !important;
-  --secondary: 0 0% 96% !important;
-  --secondary-foreground: 0 0% 0% !important;
-  --muted: 0 0% 96% !important;
-  --muted-foreground: 0 0% 38% !important;
-  --border: 0 0% 87% !important;
-  --input: 0 0% 87% !important;
-  --sidebar-background: 0 0% 100% !important;
-  --sidebar-foreground: 0 0% 0% !important;
-  --sidebar-accent: 0 0% 96% !important;
-  --sidebar-accent-foreground: 0 0% 0% !important;
-  --sidebar-border: 0 0% 87% !important;
-
-  /* The accent was a teal/blue (#2B8A9E). On a white page it read as the pale
-     "لبني" the owner rejected, so the accent is now a neutral charcoal: selected
-     chips, links and rings stay clearly marked without introducing a second hue
-     next to the black-on-white text. */
-  --primary: 210 20% 18% !important;
-  --primary-foreground: 0 0% 100% !important;
-  --accent: 215 16% 25% !important;
-  --accent-foreground: 0 0% 100% !important;
-  --ring: 215 16% 25% !important;
-
-  /* Legacy LineVault aliases used by .glass / .bf-card / print styles. */
-  --bf-white: #FFFFFF !important;
-  --bf-paper: #FFFFFF !important;
-  --bf-line: #E2E6EA !important;
-  --bf-ink: #000000 !important;
-  --bf-ink-muted: #5A6572 !important;
-  /* The teal accent pair painted .bf-pill and several badges. Pinned to the
-     neutral scale so those surfaces stop being a second, competing hue. */
-  --bf-teal: #1F2937 !important;
-  --bf-teal-soft: #F3F4F6 !important;
-  --bf-paper-2: #F3F4F6 !important;
-
-  color-scheme: light !important;
-}
-
-html,
-body {
-  background-color: #FFFFFF !important;
-  color: #000000;
-}
-
-/* A dark `data-theme` used to switch these; keep the surfaces white regardless. */
-html[data-theme="night"],
-html[data-theme="focus"],
-html[data-theme="cram"] {
-  background-color: #FFFFFF !important;
-}
-
-::selection {
-  background: hsl(var(--primary) / 0.25);
-  color: #000000;
-}
-
-/* ── the last of the teal/blue literals → neutral ──────────────────────────
-   `bg-accent` was already tokenised above; these are the handful of places that
-   spelled the colour out by hand. The accent is charcoal now, so a fill uses the
-   ink tone (its label is white) and a text use uses the ink tone too. Telegram's
-   own brand blue (#0088cc) is intentionally left alone — it belongs to the icon. */
-[class~="bg-[#2B8A9E]"], [class*=" bg-[#2B8A9E]/"], [class~="bg-[#1B4F72]"], [class*=" bg-[#1B4F72]/"], [class~="bg-[#16697A]"], [class*=" bg-[#16697A]/"], [class~="bg-[#205f7a]"], [class*=" bg-[#205f7a]/"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class~="text-[#2B8A9E]"], [class*=" text-[#2B8A9E]/"], [class~="text-[#1B4F72]"], [class*=" text-[#1B4F72]/"] {
-  color: hsl(210 20% 18%) !important;
-}
-
-[class~="border-[#2B8A9E]"], [class*=" border-[#2B8A9E]/"], [class~="border-[#C5D9E0]"], [class*=" border-[#C5D9E0]/"], [class~="border-[#D6E9F0]"], [class*=" border-[#D6E9F0]/"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class~="bg-[#E6F3F6]"], [class*=" bg-[#E6F3F6]/"], [class~="bg-[#D6E9F0]"], [class*=" bg-[#D6E9F0]/"], [class~="bg-[#EAF4F7]"], [class*=" bg-[#EAF4F7]/"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-/* ── cyan / sky / blue / indigo / teal → the neutral palette ──────────────
-   The quiz and AI screens were built on a cyan accent from an earlier dark
-   theme. On the white palette it read as the pale "لبني" the owner rejected,
-   so those hues are folded into the same grey/charcoal scale as everything else:
-   pale tints become light grey chips, solid fills become charcoal (their labels
-   are already excluded white), text becomes ink and borders become the token
-   border. Slate gradients are flattened too, so no dark band survives. */
-
-[class*="bg-cyan-50"],
-[class*="bg-cyan-100"],
-[class*="bg-cyan-200"],
-[class*="bg-cyan-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-cyan-400"],
-[class*="bg-cyan-500"],
-[class*="bg-cyan-600"],
-[class*="bg-cyan-700"],
-[class*="bg-cyan-800"],
-[class*="bg-cyan-900"],
-[class*="bg-cyan-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-cyan-50"],
-[class*="text-cyan-100"],
-[class*="text-cyan-200"],
-[class*="text-cyan-300"],
-[class*="text-cyan-400"],
-[class*="text-cyan-500"],
-[class*="text-cyan-600"],
-[class*="text-cyan-700"],
-[class*="text-cyan-800"],
-[class*="text-cyan-900"],
-[class*="text-cyan-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-cyan-50"],
-[class*="border-cyan-100"],
-[class*="border-cyan-200"],
-[class*="border-cyan-300"],
-[class*="border-cyan-400"],
-[class*="border-cyan-500"],
-[class*="border-cyan-600"],
-[class*="border-cyan-700"],
-[class*="border-cyan-800"],
-[class*="border-cyan-900"],
-[class*="border-cyan-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-cyan-50"],
-[class*="from-cyan-100"],
-[class*="from-cyan-200"],
-[class*="from-cyan-300"],
-[class*="from-cyan-400"],
-[class*="from-cyan-500"],
-[class*="from-cyan-600"],
-[class*="from-cyan-700"],
-[class*="from-cyan-800"],
-[class*="from-cyan-900"],
-[class*="from-cyan-950"], [class*="via-cyan-50"],
-[class*="via-cyan-100"],
-[class*="via-cyan-200"],
-[class*="via-cyan-300"],
-[class*="via-cyan-400"],
-[class*="via-cyan-500"],
-[class*="via-cyan-600"],
-[class*="via-cyan-700"],
-[class*="via-cyan-800"],
-[class*="via-cyan-900"],
-[class*="via-cyan-950"], [class*="to-cyan-50"],
-[class*="to-cyan-100"],
-[class*="to-cyan-200"],
-[class*="to-cyan-300"],
-[class*="to-cyan-400"],
-[class*="to-cyan-500"],
-[class*="to-cyan-600"],
-[class*="to-cyan-700"],
-[class*="to-cyan-800"],
-[class*="to-cyan-900"],
-[class*="to-cyan-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-sky-50"],
-[class*="bg-sky-100"],
-[class*="bg-sky-200"],
-[class*="bg-sky-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-sky-400"],
-[class*="bg-sky-500"],
-[class*="bg-sky-600"],
-[class*="bg-sky-700"],
-[class*="bg-sky-800"],
-[class*="bg-sky-900"],
-[class*="bg-sky-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-sky-50"],
-[class*="text-sky-100"],
-[class*="text-sky-200"],
-[class*="text-sky-300"],
-[class*="text-sky-400"],
-[class*="text-sky-500"],
-[class*="text-sky-600"],
-[class*="text-sky-700"],
-[class*="text-sky-800"],
-[class*="text-sky-900"],
-[class*="text-sky-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-sky-50"],
-[class*="border-sky-100"],
-[class*="border-sky-200"],
-[class*="border-sky-300"],
-[class*="border-sky-400"],
-[class*="border-sky-500"],
-[class*="border-sky-600"],
-[class*="border-sky-700"],
-[class*="border-sky-800"],
-[class*="border-sky-900"],
-[class*="border-sky-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-sky-50"],
-[class*="from-sky-100"],
-[class*="from-sky-200"],
-[class*="from-sky-300"],
-[class*="from-sky-400"],
-[class*="from-sky-500"],
-[class*="from-sky-600"],
-[class*="from-sky-700"],
-[class*="from-sky-800"],
-[class*="from-sky-900"],
-[class*="from-sky-950"], [class*="via-sky-50"],
-[class*="via-sky-100"],
-[class*="via-sky-200"],
-[class*="via-sky-300"],
-[class*="via-sky-400"],
-[class*="via-sky-500"],
-[class*="via-sky-600"],
-[class*="via-sky-700"],
-[class*="via-sky-800"],
-[class*="via-sky-900"],
-[class*="via-sky-950"], [class*="to-sky-50"],
-[class*="to-sky-100"],
-[class*="to-sky-200"],
-[class*="to-sky-300"],
-[class*="to-sky-400"],
-[class*="to-sky-500"],
-[class*="to-sky-600"],
-[class*="to-sky-700"],
-[class*="to-sky-800"],
-[class*="to-sky-900"],
-[class*="to-sky-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-blue-50"],
-[class*="bg-blue-100"],
-[class*="bg-blue-200"],
-[class*="bg-blue-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-blue-400"],
-[class*="bg-blue-500"],
-[class*="bg-blue-600"],
-[class*="bg-blue-700"],
-[class*="bg-blue-800"],
-[class*="bg-blue-900"],
-[class*="bg-blue-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-blue-50"],
-[class*="text-blue-100"],
-[class*="text-blue-200"],
-[class*="text-blue-300"],
-[class*="text-blue-400"],
-[class*="text-blue-500"],
-[class*="text-blue-600"],
-[class*="text-blue-700"],
-[class*="text-blue-800"],
-[class*="text-blue-900"],
-[class*="text-blue-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-blue-50"],
-[class*="border-blue-100"],
-[class*="border-blue-200"],
-[class*="border-blue-300"],
-[class*="border-blue-400"],
-[class*="border-blue-500"],
-[class*="border-blue-600"],
-[class*="border-blue-700"],
-[class*="border-blue-800"],
-[class*="border-blue-900"],
-[class*="border-blue-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-blue-50"],
-[class*="from-blue-100"],
-[class*="from-blue-200"],
-[class*="from-blue-300"],
-[class*="from-blue-400"],
-[class*="from-blue-500"],
-[class*="from-blue-600"],
-[class*="from-blue-700"],
-[class*="from-blue-800"],
-[class*="from-blue-900"],
-[class*="from-blue-950"], [class*="via-blue-50"],
-[class*="via-blue-100"],
-[class*="via-blue-200"],
-[class*="via-blue-300"],
-[class*="via-blue-400"],
-[class*="via-blue-500"],
-[class*="via-blue-600"],
-[class*="via-blue-700"],
-[class*="via-blue-800"],
-[class*="via-blue-900"],
-[class*="via-blue-950"], [class*="to-blue-50"],
-[class*="to-blue-100"],
-[class*="to-blue-200"],
-[class*="to-blue-300"],
-[class*="to-blue-400"],
-[class*="to-blue-500"],
-[class*="to-blue-600"],
-[class*="to-blue-700"],
-[class*="to-blue-800"],
-[class*="to-blue-900"],
-[class*="to-blue-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-indigo-50"],
-[class*="bg-indigo-100"],
-[class*="bg-indigo-200"],
-[class*="bg-indigo-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-indigo-400"],
-[class*="bg-indigo-500"],
-[class*="bg-indigo-600"],
-[class*="bg-indigo-700"],
-[class*="bg-indigo-800"],
-[class*="bg-indigo-900"],
-[class*="bg-indigo-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-indigo-50"],
-[class*="text-indigo-100"],
-[class*="text-indigo-200"],
-[class*="text-indigo-300"],
-[class*="text-indigo-400"],
-[class*="text-indigo-500"],
-[class*="text-indigo-600"],
-[class*="text-indigo-700"],
-[class*="text-indigo-800"],
-[class*="text-indigo-900"],
-[class*="text-indigo-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-indigo-50"],
-[class*="border-indigo-100"],
-[class*="border-indigo-200"],
-[class*="border-indigo-300"],
-[class*="border-indigo-400"],
-[class*="border-indigo-500"],
-[class*="border-indigo-600"],
-[class*="border-indigo-700"],
-[class*="border-indigo-800"],
-[class*="border-indigo-900"],
-[class*="border-indigo-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-indigo-50"],
-[class*="from-indigo-100"],
-[class*="from-indigo-200"],
-[class*="from-indigo-300"],
-[class*="from-indigo-400"],
-[class*="from-indigo-500"],
-[class*="from-indigo-600"],
-[class*="from-indigo-700"],
-[class*="from-indigo-800"],
-[class*="from-indigo-900"],
-[class*="from-indigo-950"], [class*="via-indigo-50"],
-[class*="via-indigo-100"],
-[class*="via-indigo-200"],
-[class*="via-indigo-300"],
-[class*="via-indigo-400"],
-[class*="via-indigo-500"],
-[class*="via-indigo-600"],
-[class*="via-indigo-700"],
-[class*="via-indigo-800"],
-[class*="via-indigo-900"],
-[class*="via-indigo-950"], [class*="to-indigo-50"],
-[class*="to-indigo-100"],
-[class*="to-indigo-200"],
-[class*="to-indigo-300"],
-[class*="to-indigo-400"],
-[class*="to-indigo-500"],
-[class*="to-indigo-600"],
-[class*="to-indigo-700"],
-[class*="to-indigo-800"],
-[class*="to-indigo-900"],
-[class*="to-indigo-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-teal-50"],
-[class*="bg-teal-100"],
-[class*="bg-teal-200"],
-[class*="bg-teal-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-teal-400"],
-[class*="bg-teal-500"],
-[class*="bg-teal-600"],
-[class*="bg-teal-700"],
-[class*="bg-teal-800"],
-[class*="bg-teal-900"],
-[class*="bg-teal-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-teal-50"],
-[class*="text-teal-100"],
-[class*="text-teal-200"],
-[class*="text-teal-300"],
-[class*="text-teal-400"],
-[class*="text-teal-500"],
-[class*="text-teal-600"],
-[class*="text-teal-700"],
-[class*="text-teal-800"],
-[class*="text-teal-900"],
-[class*="text-teal-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-teal-50"],
-[class*="border-teal-100"],
-[class*="border-teal-200"],
-[class*="border-teal-300"],
-[class*="border-teal-400"],
-[class*="border-teal-500"],
-[class*="border-teal-600"],
-[class*="border-teal-700"],
-[class*="border-teal-800"],
-[class*="border-teal-900"],
-[class*="border-teal-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-teal-50"],
-[class*="from-teal-100"],
-[class*="from-teal-200"],
-[class*="from-teal-300"],
-[class*="from-teal-400"],
-[class*="from-teal-500"],
-[class*="from-teal-600"],
-[class*="from-teal-700"],
-[class*="from-teal-800"],
-[class*="from-teal-900"],
-[class*="from-teal-950"], [class*="via-teal-50"],
-[class*="via-teal-100"],
-[class*="via-teal-200"],
-[class*="via-teal-300"],
-[class*="via-teal-400"],
-[class*="via-teal-500"],
-[class*="via-teal-600"],
-[class*="via-teal-700"],
-[class*="via-teal-800"],
-[class*="via-teal-900"],
-[class*="via-teal-950"], [class*="to-teal-50"],
-[class*="to-teal-100"],
-[class*="to-teal-200"],
-[class*="to-teal-300"],
-[class*="to-teal-400"],
-[class*="to-teal-500"],
-[class*="to-teal-600"],
-[class*="to-teal-700"],
-[class*="to-teal-800"],
-[class*="to-teal-900"],
-[class*="to-teal-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-violet-50"],
-[class*="bg-violet-100"],
-[class*="bg-violet-200"],
-[class*="bg-violet-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-violet-400"],
-[class*="bg-violet-500"],
-[class*="bg-violet-600"],
-[class*="bg-violet-700"],
-[class*="bg-violet-800"],
-[class*="bg-violet-900"],
-[class*="bg-violet-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-violet-50"],
-[class*="text-violet-100"],
-[class*="text-violet-200"],
-[class*="text-violet-300"],
-[class*="text-violet-400"],
-[class*="text-violet-500"],
-[class*="text-violet-600"],
-[class*="text-violet-700"],
-[class*="text-violet-800"],
-[class*="text-violet-900"],
-[class*="text-violet-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-violet-50"],
-[class*="border-violet-100"],
-[class*="border-violet-200"],
-[class*="border-violet-300"],
-[class*="border-violet-400"],
-[class*="border-violet-500"],
-[class*="border-violet-600"],
-[class*="border-violet-700"],
-[class*="border-violet-800"],
-[class*="border-violet-900"],
-[class*="border-violet-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-violet-50"],
-[class*="from-violet-100"],
-[class*="from-violet-200"],
-[class*="from-violet-300"],
-[class*="from-violet-400"],
-[class*="from-violet-500"],
-[class*="from-violet-600"],
-[class*="from-violet-700"],
-[class*="from-violet-800"],
-[class*="from-violet-900"],
-[class*="from-violet-950"], [class*="via-violet-50"],
-[class*="via-violet-100"],
-[class*="via-violet-200"],
-[class*="via-violet-300"],
-[class*="via-violet-400"],
-[class*="via-violet-500"],
-[class*="via-violet-600"],
-[class*="via-violet-700"],
-[class*="via-violet-800"],
-[class*="via-violet-900"],
-[class*="via-violet-950"], [class*="to-violet-50"],
-[class*="to-violet-100"],
-[class*="to-violet-200"],
-[class*="to-violet-300"],
-[class*="to-violet-400"],
-[class*="to-violet-500"],
-[class*="to-violet-600"],
-[class*="to-violet-700"],
-[class*="to-violet-800"],
-[class*="to-violet-900"],
-[class*="to-violet-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-fuchsia-50"],
-[class*="bg-fuchsia-100"],
-[class*="bg-fuchsia-200"],
-[class*="bg-fuchsia-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-fuchsia-400"],
-[class*="bg-fuchsia-500"],
-[class*="bg-fuchsia-600"],
-[class*="bg-fuchsia-700"],
-[class*="bg-fuchsia-800"],
-[class*="bg-fuchsia-900"],
-[class*="bg-fuchsia-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-fuchsia-50"],
-[class*="text-fuchsia-100"],
-[class*="text-fuchsia-200"],
-[class*="text-fuchsia-300"],
-[class*="text-fuchsia-400"],
-[class*="text-fuchsia-500"],
-[class*="text-fuchsia-600"],
-[class*="text-fuchsia-700"],
-[class*="text-fuchsia-800"],
-[class*="text-fuchsia-900"],
-[class*="text-fuchsia-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-fuchsia-50"],
-[class*="border-fuchsia-100"],
-[class*="border-fuchsia-200"],
-[class*="border-fuchsia-300"],
-[class*="border-fuchsia-400"],
-[class*="border-fuchsia-500"],
-[class*="border-fuchsia-600"],
-[class*="border-fuchsia-700"],
-[class*="border-fuchsia-800"],
-[class*="border-fuchsia-900"],
-[class*="border-fuchsia-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-fuchsia-50"],
-[class*="from-fuchsia-100"],
-[class*="from-fuchsia-200"],
-[class*="from-fuchsia-300"],
-[class*="from-fuchsia-400"],
-[class*="from-fuchsia-500"],
-[class*="from-fuchsia-600"],
-[class*="from-fuchsia-700"],
-[class*="from-fuchsia-800"],
-[class*="from-fuchsia-900"],
-[class*="from-fuchsia-950"], [class*="via-fuchsia-50"],
-[class*="via-fuchsia-100"],
-[class*="via-fuchsia-200"],
-[class*="via-fuchsia-300"],
-[class*="via-fuchsia-400"],
-[class*="via-fuchsia-500"],
-[class*="via-fuchsia-600"],
-[class*="via-fuchsia-700"],
-[class*="via-fuchsia-800"],
-[class*="via-fuchsia-900"],
-[class*="via-fuchsia-950"], [class*="to-fuchsia-50"],
-[class*="to-fuchsia-100"],
-[class*="to-fuchsia-200"],
-[class*="to-fuchsia-300"],
-[class*="to-fuchsia-400"],
-[class*="to-fuchsia-500"],
-[class*="to-fuchsia-600"],
-[class*="to-fuchsia-700"],
-[class*="to-fuchsia-800"],
-[class*="to-fuchsia-900"],
-[class*="to-fuchsia-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-purple-50"],
-[class*="bg-purple-100"],
-[class*="bg-purple-200"],
-[class*="bg-purple-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-purple-400"],
-[class*="bg-purple-500"],
-[class*="bg-purple-600"],
-[class*="bg-purple-700"],
-[class*="bg-purple-800"],
-[class*="bg-purple-900"],
-[class*="bg-purple-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-purple-50"],
-[class*="text-purple-100"],
-[class*="text-purple-200"],
-[class*="text-purple-300"],
-[class*="text-purple-400"],
-[class*="text-purple-500"],
-[class*="text-purple-600"],
-[class*="text-purple-700"],
-[class*="text-purple-800"],
-[class*="text-purple-900"],
-[class*="text-purple-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-purple-50"],
-[class*="border-purple-100"],
-[class*="border-purple-200"],
-[class*="border-purple-300"],
-[class*="border-purple-400"],
-[class*="border-purple-500"],
-[class*="border-purple-600"],
-[class*="border-purple-700"],
-[class*="border-purple-800"],
-[class*="border-purple-900"],
-[class*="border-purple-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-purple-50"],
-[class*="from-purple-100"],
-[class*="from-purple-200"],
-[class*="from-purple-300"],
-[class*="from-purple-400"],
-[class*="from-purple-500"],
-[class*="from-purple-600"],
-[class*="from-purple-700"],
-[class*="from-purple-800"],
-[class*="from-purple-900"],
-[class*="from-purple-950"], [class*="via-purple-50"],
-[class*="via-purple-100"],
-[class*="via-purple-200"],
-[class*="via-purple-300"],
-[class*="via-purple-400"],
-[class*="via-purple-500"],
-[class*="via-purple-600"],
-[class*="via-purple-700"],
-[class*="via-purple-800"],
-[class*="via-purple-900"],
-[class*="via-purple-950"], [class*="to-purple-50"],
-[class*="to-purple-100"],
-[class*="to-purple-200"],
-[class*="to-purple-300"],
-[class*="to-purple-400"],
-[class*="to-purple-500"],
-[class*="to-purple-600"],
-[class*="to-purple-700"],
-[class*="to-purple-800"],
-[class*="to-purple-900"],
-[class*="to-purple-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="bg-pink-50"],
-[class*="bg-pink-100"],
-[class*="bg-pink-200"],
-[class*="bg-pink-300"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-[class*="bg-pink-400"],
-[class*="bg-pink-500"],
-[class*="bg-pink-600"],
-[class*="bg-pink-700"],
-[class*="bg-pink-800"],
-[class*="bg-pink-900"],
-[class*="bg-pink-950"] {
-  background-color: hsl(210 20% 18%) !important;
-}
-
-[class*="text-pink-50"],
-[class*="text-pink-100"],
-[class*="text-pink-200"],
-[class*="text-pink-300"],
-[class*="text-pink-400"],
-[class*="text-pink-500"],
-[class*="text-pink-600"],
-[class*="text-pink-700"],
-[class*="text-pink-800"],
-[class*="text-pink-900"],
-[class*="text-pink-950"] {
-  color: hsl(var(--foreground)) !important;
-}
-
-[class*="border-pink-50"],
-[class*="border-pink-100"],
-[class*="border-pink-200"],
-[class*="border-pink-300"],
-[class*="border-pink-400"],
-[class*="border-pink-500"],
-[class*="border-pink-600"],
-[class*="border-pink-700"],
-[class*="border-pink-800"],
-[class*="border-pink-900"],
-[class*="border-pink-950"] {
-  border-color: hsl(var(--border)) !important;
-}
-
-[class*="from-pink-50"],
-[class*="from-pink-100"],
-[class*="from-pink-200"],
-[class*="from-pink-300"],
-[class*="from-pink-400"],
-[class*="from-pink-500"],
-[class*="from-pink-600"],
-[class*="from-pink-700"],
-[class*="from-pink-800"],
-[class*="from-pink-900"],
-[class*="from-pink-950"], [class*="via-pink-50"],
-[class*="via-pink-100"],
-[class*="via-pink-200"],
-[class*="via-pink-300"],
-[class*="via-pink-400"],
-[class*="via-pink-500"],
-[class*="via-pink-600"],
-[class*="via-pink-700"],
-[class*="via-pink-800"],
-[class*="via-pink-900"],
-[class*="via-pink-950"], [class*="to-pink-50"],
-[class*="to-pink-100"],
-[class*="to-pink-200"],
-[class*="to-pink-300"],
-[class*="to-pink-400"],
-[class*="to-pink-500"],
-[class*="to-pink-600"],
-[class*="to-pink-700"],
-[class*="to-pink-800"],
-[class*="to-pink-900"],
-[class*="to-pink-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="from-slate-700"],
-[class*="from-slate-800"],
-[class*="from-slate-900"],
-[class*="from-slate-950"], [class*="via-slate-700"],
-[class*="via-slate-800"],
-[class*="via-slate-900"],
-[class*="via-slate-950"], [class*="to-slate-700"],
-[class*="to-slate-800"],
-[class*="to-slate-900"],
-[class*="to-slate-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="from-gray-700"],
-[class*="from-gray-800"],
-[class*="from-gray-900"],
-[class*="from-gray-950"], [class*="via-gray-700"],
-[class*="via-gray-800"],
-[class*="via-gray-900"],
-[class*="via-gray-950"], [class*="to-gray-700"],
-[class*="to-gray-800"],
-[class*="to-gray-900"],
-[class*="to-gray-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="from-zinc-700"],
-[class*="from-zinc-800"],
-[class*="from-zinc-900"],
-[class*="from-zinc-950"], [class*="via-zinc-700"],
-[class*="via-zinc-800"],
-[class*="via-zinc-900"],
-[class*="via-zinc-950"], [class*="to-zinc-700"],
-[class*="to-zinc-800"],
-[class*="to-zinc-900"],
-[class*="to-zinc-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="from-neutral-700"],
-[class*="from-neutral-800"],
-[class*="from-neutral-900"],
-[class*="from-neutral-950"], [class*="via-neutral-700"],
-[class*="via-neutral-800"],
-[class*="via-neutral-900"],
-[class*="via-neutral-950"], [class*="to-neutral-700"],
-[class*="to-neutral-800"],
-[class*="to-neutral-900"],
-[class*="to-neutral-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-[class*="from-stone-700"],
-[class*="from-stone-800"],
-[class*="from-stone-900"],
-[class*="from-stone-950"], [class*="via-stone-700"],
-[class*="via-stone-800"],
-[class*="via-stone-900"],
-[class*="via-stone-950"], [class*="to-stone-700"],
-[class*="to-stone-800"],
-[class*="to-stone-900"],
-[class*="to-stone-950"] {
-  --tw-gradient-from: hsl(var(--card)) var(--tw-gradient-from-position) !important;
-  --tw-gradient-via: hsl(var(--card)) var(--tw-gradient-via-position) !important;
-  --tw-gradient-to: hsl(var(--card)) var(--tw-gradient-to-position) !important;
-}
-
-/* ── decorative glows ──────────────────────────────────────────────────────
-   Screens used to paint large blurred orbs with `bg-primary/20 blur-3xl` and
-   `bg-accent/20 blur-3xl`. When those tokens were colourful that read as a soft
-   ambient glow; now that the palette is neutral, a blurred charcoal orb just
-   smears a dark band across the white page. Decorative blurs therefore fall back
-   to the muted surface, which is invisible on white — the layout keeps its
-   spacing, the smudge goes away. */
-[class*=" bg-primary/"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*=" bg-accent/"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*="bg-cyan-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*="bg-sky-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*="bg-indigo-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*="bg-violet-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*="bg-blue-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*="bg-fuchsia-"]:is([class*="blur-2xl"], [class*="blur-3xl"]),
-[class*="bg-purple-"]:is([class*="blur-2xl"], [class*="blur-3xl"]) {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-/* ── opacity-modified white ink ────────────────────────────────────────────
-   `text-white/70` and friends are how the UI expressed secondary text on dark
-   surfaces. `class~="text-white"` cannot see them (different token), so on the
-   white palette they stayed near-invisible. Each keeps its own opacity so the
-   hierarchy the author intended survives — just as ink instead of white. */
-[class~="text-white/10"] { color: hsl(var(--foreground) / 0.10) !important; }
-[class~="text-white/15"] { color: hsl(var(--foreground) / 0.15) !important; }
-[class~="text-white/20"] { color: hsl(var(--foreground) / 0.20) !important; }
-[class~="text-white/25"] { color: hsl(var(--foreground) / 0.25) !important; }
-[class~="text-white/30"] { color: hsl(var(--foreground) / 0.30) !important; }
-[class~="text-white/35"] { color: hsl(var(--foreground) / 0.35) !important; }
-[class~="text-white/40"] { color: hsl(var(--foreground) / 0.40) !important; }
-[class~="text-white/45"] { color: hsl(var(--foreground) / 0.45) !important; }
-[class~="text-white/50"] { color: hsl(var(--foreground) / 0.50) !important; }
-[class~="text-white/55"] { color: hsl(var(--foreground) / 0.55) !important; }
-[class~="text-white/60"] { color: hsl(var(--foreground) / 0.60) !important; }
-[class~="text-white/65"] { color: hsl(var(--foreground) / 0.65) !important; }
-[class~="text-white/70"] { color: hsl(var(--foreground) / 0.70) !important; }
-[class~="text-white/75"] { color: hsl(var(--foreground) / 0.75) !important; }
-[class~="text-white/80"] { color: hsl(var(--foreground) / 0.80) !important; }
-[class~="text-white/85"] { color: hsl(var(--foreground) / 0.85) !important; }
-[class~="text-white/90"] { color: hsl(var(--foreground) / 0.90) !important; }
-[class~="text-white/95"] { color: hsl(var(--foreground) / 0.95) !important; }
-
-/* ==========================================================================
-   READABILITY PASS - driven by an in-page WCAG contrast audit
-   ==========================================================================
-   A contrast audit of the real page reported 21 failing text nodes. Each cause
-   is fixed here rather than guessed at. */
-
-/* 1. `bg-cyan-500/20` is a 20% TINT, but the earlier mapping handed every hue
-      variant the SOLID charcoal fill, so dark text sat on a dark fill and
-      vanished (1.52:1 - the "الصق نص المحاضرة" button and every selected chip).
-      Tints go back to a light surface so their labels read. */
-[class*=" bg-cyan-300/"],
-[class*=" bg-cyan-400/"],
-[class*=" bg-cyan-500/"],
-[class*=" bg-cyan-600/"],
-[class*=" bg-sky-300/"],
-[class*=" bg-sky-400/"],
-[class*=" bg-sky-500/"],
-[class*=" bg-sky-600/"],
-[class*=" bg-blue-300/"],
-[class*=" bg-blue-400/"],
-[class*=" bg-blue-500/"],
-[class*=" bg-blue-600/"],
-[class*=" bg-indigo-300/"],
-[class*=" bg-indigo-400/"],
-[class*=" bg-indigo-500/"],
-[class*=" bg-indigo-600/"],
-[class*=" bg-teal-300/"],
-[class*=" bg-teal-400/"],
-[class*=" bg-teal-500/"],
-[class*=" bg-teal-600/"],
-[class*=" bg-violet-300/"],
-[class*=" bg-violet-400/"],
-[class*=" bg-violet-500/"],
-[class*=" bg-violet-600/"],
-[class*=" bg-fuchsia-300/"],
-[class*=" bg-fuchsia-400/"],
-[class*=" bg-fuchsia-500/"],
-[class*=" bg-fuchsia-600/"],
-[class*=" bg-purple-300/"],
-[class*=" bg-purple-400/"],
-[class*=" bg-purple-500/"],
-[class*=" bg-purple-600/"],
-[class*=" bg-pink-300/"],
-[class*=" bg-pink-400/"],
-[class*=" bg-pink-500/"],
-[class*=" bg-pink-600/"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-/* 2. Status colours: an amber label on white measured 1.53:1. Status text is
-      darkened to its own readable ink; the pale status backgrounds are left
-      alone so badges keep their meaning. */
-[class~="text-amber-200"], [class*=" text-amber-200/"] { color: #8A5A00 !important; }
-[class~="text-amber-300"], [class*=" text-amber-300/"] { color: #8A5A00 !important; }
-[class~="text-amber-400"], [class*=" text-amber-400/"] { color: #8A5A00 !important; }
-[class~="text-amber-500"], [class*=" text-amber-500/"] { color: #8A5A00 !important; }
-[class~="text-amber-600"], [class*=" text-amber-600/"] { color: #8A5A00 !important; }
-[class~="text-yellow-200"], [class*=" text-yellow-200/"] { color: #8A5A00 !important; }
-[class~="text-yellow-300"], [class*=" text-yellow-300/"] { color: #8A5A00 !important; }
-[class~="text-yellow-400"], [class*=" text-yellow-400/"] { color: #8A5A00 !important; }
-[class~="text-yellow-500"], [class*=" text-yellow-500/"] { color: #8A5A00 !important; }
-[class~="text-yellow-600"], [class*=" text-yellow-600/"] { color: #8A5A00 !important; }
-[class~="text-orange-200"], [class*=" text-orange-200/"] { color: #9A4A00 !important; }
-[class~="text-orange-300"], [class*=" text-orange-300/"] { color: #9A4A00 !important; }
-[class~="text-orange-400"], [class*=" text-orange-400/"] { color: #9A4A00 !important; }
-[class~="text-orange-500"], [class*=" text-orange-500/"] { color: #9A4A00 !important; }
-[class~="text-orange-600"], [class*=" text-orange-600/"] { color: #9A4A00 !important; }
-[class~="text-emerald-200"], [class*=" text-emerald-200/"] { color: #0E6B3F !important; }
-[class~="text-emerald-300"], [class*=" text-emerald-300/"] { color: #0E6B3F !important; }
-[class~="text-emerald-400"], [class*=" text-emerald-400/"] { color: #0E6B3F !important; }
-[class~="text-emerald-500"], [class*=" text-emerald-500/"] { color: #0E6B3F !important; }
-[class~="text-emerald-600"], [class*=" text-emerald-600/"] { color: #0E6B3F !important; }
-[class~="text-green-200"], [class*=" text-green-200/"] { color: #0E6B3F !important; }
-[class~="text-green-300"], [class*=" text-green-300/"] { color: #0E6B3F !important; }
-[class~="text-green-400"], [class*=" text-green-400/"] { color: #0E6B3F !important; }
-[class~="text-green-500"], [class*=" text-green-500/"] { color: #0E6B3F !important; }
-[class~="text-green-600"], [class*=" text-green-600/"] { color: #0E6B3F !important; }
-[class~="text-lime-200"], [class*=" text-lime-200/"] { color: #3F6212 !important; }
-[class~="text-lime-300"], [class*=" text-lime-300/"] { color: #3F6212 !important; }
-[class~="text-lime-400"], [class*=" text-lime-400/"] { color: #3F6212 !important; }
-[class~="text-lime-500"], [class*=" text-lime-500/"] { color: #3F6212 !important; }
-[class~="text-lime-600"], [class*=" text-lime-600/"] { color: #3F6212 !important; }
-[class~="text-red-200"], [class*=" text-red-200/"] { color: #B42318 !important; }
-[class~="text-red-300"], [class*=" text-red-300/"] { color: #B42318 !important; }
-[class~="text-red-400"], [class*=" text-red-400/"] { color: #B42318 !important; }
-[class~="text-red-500"], [class*=" text-red-500/"] { color: #B42318 !important; }
-[class~="text-red-600"], [class*=" text-red-600/"] { color: #B42318 !important; }
-[class~="text-rose-200"], [class*=" text-rose-200/"] { color: #B42318 !important; }
-[class~="text-rose-300"], [class*=" text-rose-300/"] { color: #B42318 !important; }
-[class~="text-rose-400"], [class*=" text-rose-400/"] { color: #B42318 !important; }
-[class~="text-rose-500"], [class*=" text-rose-500/"] { color: #B42318 !important; }
-[class~="text-rose-600"], [class*=" text-rose-600/"] { color: #B42318 !important; }
-
-/* 3. The headline gradient computed to `color: transparent` (1:1 by definition),
-      which is why the page title kept washing out. It is solid ink now - the
-      simplest thing that is always legible. */
-.studio-headline-gradient,
-.neon-text-gradient,
-.text-gradient {
-  background: none !important;
-  -webkit-background-clip: border-box !important;
-  background-clip: border-box !important;
-  -webkit-text-fill-color: currentColor !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-/* 4. Translucent white ink is floored at 62%: below that it fails 4.5:1 on
-      white, so a "secondary" label becomes an unreadable one. */
-[class~="text-white/10"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/15"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/20"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/25"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/30"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/35"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/40"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/45"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/50"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/55"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/60"] { color: hsl(var(--foreground) / 0.62) !important; }
-[class~="text-white/65"] { color: hsl(var(--foreground) / 0.65) !important; }
-[class~="text-white/70"] { color: hsl(var(--foreground) / 0.70) !important; }
-[class~="text-white/75"] { color: hsl(var(--foreground) / 0.75) !important; }
-[class~="text-white/80"] { color: hsl(var(--foreground) / 0.80) !important; }
-[class~="text-white/85"] { color: hsl(var(--foreground) / 0.85) !important; }
-[class~="text-white/90"] { color: hsl(var(--foreground) / 0.90) !important; }
-[class~="text-white/95"] { color: hsl(var(--foreground) / 0.95) !important; }
-
-/* 5. Hand-written greys that sat just under the threshold. */
-[class~="text-[#8A97A8]"], [class~="text-[#8A91A0]"], [class~="text-[#9AA0AE]"] {
-  color: hsl(0 0% 30%) !important;
-}
-
-/* 6. Solid accent fills became charcoal, but a few buttons carried `text-black`
-      (they used to be bright cyan). Black on charcoal measures 1.52:1, so a
-      label on a SOLID accent fill is white. The `:not(.../…)` guard keeps the
-      20% tints - which are light surfaces now - on their dark labels. */
-[class~="text-black"][class*=" bg-cyan-300"]:not([class*=" bg-cyan-300/"]),
-[class~="text-black"][class*=" bg-cyan-400"]:not([class*=" bg-cyan-400/"]),
-[class~="text-black"][class*=" bg-cyan-500"]:not([class*=" bg-cyan-500/"]),
-[class~="text-black"][class*=" bg-cyan-600"]:not([class*=" bg-cyan-600/"]),
-[class~="text-black"][class*=" bg-cyan-700"]:not([class*=" bg-cyan-700/"]),
-[class~="text-black"][class*=" bg-sky-300"]:not([class*=" bg-sky-300/"]),
-[class~="text-black"][class*=" bg-sky-400"]:not([class*=" bg-sky-400/"]),
-[class~="text-black"][class*=" bg-sky-500"]:not([class*=" bg-sky-500/"]),
-[class~="text-black"][class*=" bg-sky-600"]:not([class*=" bg-sky-600/"]),
-[class~="text-black"][class*=" bg-sky-700"]:not([class*=" bg-sky-700/"]),
-[class~="text-black"][class*=" bg-blue-300"]:not([class*=" bg-blue-300/"]),
-[class~="text-black"][class*=" bg-blue-400"]:not([class*=" bg-blue-400/"]),
-[class~="text-black"][class*=" bg-blue-500"]:not([class*=" bg-blue-500/"]),
-[class~="text-black"][class*=" bg-blue-600"]:not([class*=" bg-blue-600/"]),
-[class~="text-black"][class*=" bg-blue-700"]:not([class*=" bg-blue-700/"]),
-[class~="text-black"][class*=" bg-indigo-300"]:not([class*=" bg-indigo-300/"]),
-[class~="text-black"][class*=" bg-indigo-400"]:not([class*=" bg-indigo-400/"]),
-[class~="text-black"][class*=" bg-indigo-500"]:not([class*=" bg-indigo-500/"]),
-[class~="text-black"][class*=" bg-indigo-600"]:not([class*=" bg-indigo-600/"]),
-[class~="text-black"][class*=" bg-indigo-700"]:not([class*=" bg-indigo-700/"]),
-[class~="text-black"][class*=" bg-teal-300"]:not([class*=" bg-teal-300/"]),
-[class~="text-black"][class*=" bg-teal-400"]:not([class*=" bg-teal-400/"]),
-[class~="text-black"][class*=" bg-teal-500"]:not([class*=" bg-teal-500/"]),
-[class~="text-black"][class*=" bg-teal-600"]:not([class*=" bg-teal-600/"]),
-[class~="text-black"][class*=" bg-teal-700"]:not([class*=" bg-teal-700/"]),
-[class~="text-black"][class*=" bg-violet-300"]:not([class*=" bg-violet-300/"]),
-[class~="text-black"][class*=" bg-violet-400"]:not([class*=" bg-violet-400/"]),
-[class~="text-black"][class*=" bg-violet-500"]:not([class*=" bg-violet-500/"]),
-[class~="text-black"][class*=" bg-violet-600"]:not([class*=" bg-violet-600/"]),
-[class~="text-black"][class*=" bg-violet-700"]:not([class*=" bg-violet-700/"]),
-[class~="text-black"][class*=" bg-fuchsia-300"]:not([class*=" bg-fuchsia-300/"]),
-[class~="text-black"][class*=" bg-fuchsia-400"]:not([class*=" bg-fuchsia-400/"]),
-[class~="text-black"][class*=" bg-fuchsia-500"]:not([class*=" bg-fuchsia-500/"]),
-[class~="text-black"][class*=" bg-fuchsia-600"]:not([class*=" bg-fuchsia-600/"]),
-[class~="text-black"][class*=" bg-fuchsia-700"]:not([class*=" bg-fuchsia-700/"]),
-[class~="text-black"][class*=" bg-purple-300"]:not([class*=" bg-purple-300/"]),
-[class~="text-black"][class*=" bg-purple-400"]:not([class*=" bg-purple-400/"]),
-[class~="text-black"][class*=" bg-purple-500"]:not([class*=" bg-purple-500/"]),
-[class~="text-black"][class*=" bg-purple-600"]:not([class*=" bg-purple-600/"]),
-[class~="text-black"][class*=" bg-purple-700"]:not([class*=" bg-purple-700/"]),
-[class~="text-black"][class*=" bg-pink-300"]:not([class*=" bg-pink-300/"]),
-[class~="text-black"][class*=" bg-pink-400"]:not([class*=" bg-pink-400/"]),
-[class~="text-black"][class*=" bg-pink-500"]:not([class*=" bg-pink-500/"]),
-[class~="text-black"][class*=" bg-pink-600"]:not([class*=" bg-pink-600/"]),
-[class~="text-black"][class*=" bg-pink-700"]:not([class*=" bg-pink-700/"]) {
-  color: #FFFFFF !important;
-}
-
-/* 7. The legacy teal accent had the same tint defect as the Tailwind hues:
-      `bg-[#2B8A9E]/10` is a 10% tint but received the solid charcoal fill, so
-      its dark label vanished (1:1 on the dashboard "شحن" chip). */
-[class*=" bg-[#2B8A9E]/"], [class*=" bg-[#1B4F72]/"], [class*=" bg-[#0088cc]/"],
-[class*=" bg-[#16697A]/"], [class*=" bg-[#205f7a]/"] {
-  background-color: hsl(var(--secondary)) !important;
-}
-
-/* 8. Remaining bright literals used as TEXT on white. Each measured under 3:1,
-      so they resolve to readable ink while keeping a hint of their hue. */
-[class~="text-[#F5A524]"], [class~="text-[#F0A020]"] { color: #8A5A00 !important; }
-[class~="text-[#00E5FF]"], [class~="text-[#22D3EE]"], [class~="text-[#06B6D4]"],
-[class~="text-[#3DDC97]"], [class~="text-[#2B8A9E]"] { color: #0F5E6B !important; }
-[class~="text-[#E5484D]"], [class~="text-[#EF4444]"] { color: #B42318 !important; }
-
-/* 9. Light neutral ink: `text-slate-100..300` is near-white and disappears on a
-      white page, so the light end of every neutral ramp maps to real ink. */
-[class~="text-slate-100"], [class~="text-slate-200"], [class~="text-slate-300"],
-[class~="text-gray-100"], [class~="text-gray-200"], [class~="text-gray-300"],
-[class~="text-zinc-100"], [class~="text-zinc-200"], [class~="text-zinc-300"],
-[class~="text-neutral-100"], [class~="text-neutral-200"], [class~="text-neutral-300"],
-[class~="text-stone-100"], [class~="text-stone-200"], [class~="text-stone-300"] {
-  color: hsl(var(--muted-foreground)) !important;
-}
-
-/* 10. `text-muted-foreground/70` measured 3.18:1 — dimming an already-muted
-       colour pushes it under AA. Section labels use the full muted ink. */
-[class~="text-muted-foreground/50"], [class~="text-muted-foreground/60"],
-[class~="text-muted-foreground/70"], [class~="text-muted-foreground/80"],
-[class~="text-muted-foreground/90"] {
-  color: hsl(0 0% 30%) !important;
-}
-
-/* 11. Third-party brand blues/greens used as small labels on white: Google
-       Drive's #4285F4 measured 3.56:1. Each keeps its identity at a darker,
-       readable shade. */
-[class~="text-[#4285F4]"] { color: #1A56C4 !important; }
-[class~="text-[#611f69]"] { color: #4A1650 !important; }
-[class~="text-[#0F9D58]"] { color: #0A6B3C !important; }
-[class~="text-[#EA4335]"] { color: #A5281B !important; }
-[class~="text-[#FBBC05]"] { color: #8A5A00 !important; }
-[class~="text-[#0088cc]"] { color: #15628F !important; }
