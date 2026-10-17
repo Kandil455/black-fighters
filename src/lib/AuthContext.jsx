@@ -189,6 +189,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithTelegram = async (telegramPayload) => {
+    setAuthError(null);
+    try {
+      await authService.loginWithTelegram(telegramPayload);
+      await fetchProfile();
+      window.location.href = '/dashboard';
+    } catch (err) {
+      setAuthError(err);
+      throw err;
+    }
+  };
+
   const register = async ({ email, password, fullName }) => {
     setAuthError(null);
     try {
@@ -270,7 +282,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     user, profile, isAuthenticated, isLoadingAuth, authError, isAdmin, isPremium, authChecked,
-    login, loginWithGoogle, register, verifyOtp, resendOtp, resendVerificationLink, logout, forgotPassword, navigateToLogin, redirectToLogin, me, updateMe, fetchProfile, refreshProfile,
+    login, loginWithGoogle, loginWithTelegram, register, verifyOtp, resendOtp, resendVerificationLink, logout, forgotPassword, navigateToLogin, redirectToLogin, me, updateMe, fetchProfile, refreshProfile,
   }), [user, profile, isAuthenticated, isLoadingAuth, authError, isAdmin, isPremium, authChecked]);
 
   return (

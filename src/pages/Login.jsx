@@ -10,6 +10,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/authErrors";
 import GoogleIcon from "@/components/GoogleIcon";
+import TelegramLoginButton from "@/components/auth/TelegramLoginButton";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -95,11 +96,13 @@ export default function Login() {
             type="button"
             onClick={handleGoogle}
             variant="outline"
-            className="w-full h-11 gap-2.5 mb-5 font-semibold"
+            className="w-full h-11 gap-2.5 mb-3 font-semibold"
           >
             <GoogleIcon className="w-4 h-4" />
             {isEn ? "Continue with Google" : "دخول سريع بـ Google"}
           </Button>
+
+          <TelegramLoginButton className="mb-5" />
 
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-px bg-[#1E222B]" />

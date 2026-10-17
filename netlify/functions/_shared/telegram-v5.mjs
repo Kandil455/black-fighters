@@ -131,6 +131,68 @@ export function verifyTelegramMiniAppInitData(initDataRaw, botToken, options = {
 }
 
 /**
+ * 2b. Telegram Login Widget Verifier (https://core.telegram.org/widgets/login)
+ * Official algorithm:
+ * - secret_key = SHA256(botToken)
+ * - data_check_string = sorted key=value pairs (excluding 'hash') joined by '\n'
+ * - expected_hash = HMAC_SHA256(key=secret_key, msg=data_check_string).hex()
+ */
+export function verifyTelegramLoginWidget(widgetData, botToken, options = {}) {
+  const maxAgeSeconds = Number(options.maxAgeSeconds ?? 86400);
+  const nowSeconds = Number(options.nowSeconds ?? Math.floor(Date.now() / 1000));
+
+  if (!widgetData || typeof widgetData !== 'object') {
+    return { valid: false, error: 'MISSING_WIDGET_DATA' };
+  }
+  if (!botToken || typeof botToken !== 'string') {
+    return { valid: false, error: 'MISSING_BOT_TOKEN' };
+  }
+
+  const receivedHash = String(widgetData.hash || '').trim();
+  if (!receivedHash) {
+    return { valid: false, error: 'MISSING_HASH' };
+  }
+
+  const authDateRaw = Number(widgetData.auth_date || 0);
+  if (!authDateRaw || Math.abs(nowSeconds - authDateRaw) > maxAgeSeconds) {
+    return { valid: false, error: 'EXPIRED_AUTH_DATE', authDate: authDateRaw };
+  }
+
+  const pairs = [];
+  for (const [key, value] of Object.entries(widgetData)) {
+    if (key === 'hash' || value === undefined || value === null || value === '') continue;
+    pairs.push(`${key}=${value}`);
+  }
+  pairs.sort((a, b) => a.localeCompare(b));
+  const dataCheckString = pairs.join('\n');
+
+  const secretKey = crypto.createHash('sha256').update(botToken).digest();
+  const computedHash = crypto
+    .createHmac('sha256', secretKey)
+    .update(dataCheckString)
+    .digest('hex');
+
+  const a = Buffer.from(receivedHash, 'hex');
+  const b = Buffer.from(computedHash, 'hex');
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return { valid: false, error: 'INVALID_HMAC_SIGNATURE' };
+  }
+
+  return {
+    valid: true,
+    user: {
+      id: widgetData.id,
+      first_name: widgetData.first_name || '',
+      last_name: widgetData.last_name || '',
+      username: widgetData.username || '',
+      photo_url: widgetData.photo_url || '',
+    },
+    firebaseUid: widgetData.id ? `tg_${widgetData.id}` : null,
+    authDate: authDateRaw,
+  };
+}
+
+/**
  * Helper to generate valid test/signed initData for unit tests & internal tools
  */
 export function createSignedTelegramInitData(payloadObj, botToken) {

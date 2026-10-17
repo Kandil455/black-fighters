@@ -10,6 +10,7 @@ import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/authErrors";
 import OtpVerify from "@/components/auth/OtpVerify";
+import TelegramLoginButton from "@/components/auth/TelegramLoginButton";
 
 export default function Register() {
   const { register, verifyOtp, resendOtp, resendVerificationLink } = useAuth();
@@ -186,6 +187,16 @@ export default function Register() {
                     ? "Start organizing your lectures and summaries"
                     : "ابدأ تنظيم محاضراتك وملخصاتك في مكان واحد"}
                 </p>
+              </div>
+
+              <TelegramLoginButton className="mb-5" />
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="flex-1 h-px bg-[#1E222B]" />
+                <span className="text-xs text-[#9AA0AE]">
+                  {isEn ? "Or with email" : "أو عبر البريد"}
+                </span>
+                <div className="flex-1 h-px bg-[#1E222B]" />
               </div>
 
               <form onSubmit={handleRegister} className="space-y-4">

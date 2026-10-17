@@ -101,6 +101,31 @@ export const authService = {
     }
   },
 
+  async loginWithTelegram(telegramPayload) {
+    const response = await fetch("/api/telegram-miniapp-auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        typeof telegramPayload === "string"
+          ? { initData: telegramPayload }
+          : { widgetUser: telegramPayload }
+      ),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok || !data?.customToken) {
+      throw new Error(data?.error || "تعذر التحقق من بيانات التيليجرام");
+    }
+    const [{ signInWithCustomToken }, { auth: firebaseAuth }] = await Promise.all([
+      import("firebase/auth"),
+      loadFirebase(),
+    ]);
+    return runAuthOperation(
+      () => signInWithCustomToken(firebaseAuth, data.customToken),
+      "تعذر تسجيل الدخول عبر التيليجرام",
+      1,
+    );
+  },
+
   async loginViaEmailPassword(email, password) {
     const [{ signInWithEmailAndPassword }, { auth: firebaseAuth }] = await Promise.all([
       import("firebase/auth"),
