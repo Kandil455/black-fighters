@@ -20,6 +20,7 @@ import { extractTextFromFile } from "@/lib/fileProcessing";
 import { calculateSummaryCost } from "@/lib/economyCatalog";
 import { analyzeDocument, generateHierarchicalSummary } from "@/lib/summaryPipeline";
 import { saveSummaryDocument } from "@/lib/summaryJobs";
+import { backgroundSummaryTracker } from "@/lib/backgroundSummaryTracker";
 import { generateReviewCardsFromCourse } from "@/lib/reviewCardGen";
 import { notifySlack, buildCourseSlackMessage } from "@/lib/integrations";
 import { useLocale } from "@/lib/LocaleContext";
@@ -27,6 +28,7 @@ import CreateCoursePreview from "@/features/theory/create-course/CreateCoursePre
 import CreateCourseIntro from "@/features/theory/create-course/CreateCourseIntro";
 import { buildChunkPrompt, getGenerationOptions, getProgressMsg } from "@/features/theory/create-course/courseGenerationPrompts";
 import { generateCourseChunk } from "@/features/theory/create-course/courseGenerationApi";
+
 const COLORS = ["cyan", "purple", "green", "orange", "pink"];
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const SUPPORTED_EXTENSIONS = ["pdf", "pptx", "ppt", "docx", "doc", "txt", "csv", "html", "htm", "md", "rtf", "png", "jpg", "jpeg", "webp", "gif", "bmp", "tif", "tiff"];
@@ -38,7 +40,6 @@ export default function CreateCourse() {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
   const [step, setStep] = useState(0);
-  // Which secondary input (if any) is expanded on the upload step.
   const [altMode, setAltMode] = useState(null);
   const [fileName, setFileName] = useState("");
   const [statusText, setStatusText] = useState("");
@@ -46,13 +47,11 @@ export default function CreateCourse() {
   const [preview, setPreview] = useState(null);
   const [fileUrl, setFileUrl] = useState("");
   const [saving, setSaving] = useState(false);
-  const [openChapter, setOpenChapter] = useState(0);
   const [editingChapters, setEditingChapters] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [pendingInput, setPendingInput] = useState(null);
-  const [languageMode, setLanguageMode] = useState("bilingual");
-  const [summaryStyle, setSummaryStyle] = useState("foundational_bilingual");
-  const [popupOpen, setPopupOpen] = useState(false);
+  const [languageMode] = useState("bilingual");
+  const [summaryStyle] = useState("foundational_bilingual");
   const [agentIndex, setAgentIndex] = useState(0);
   const [lastCost, setLastCost] = useState(2);
   const [savedCourseId, setSavedCourseId] = useState(null);
@@ -63,6 +62,7 @@ export default function CreateCourse() {
     try {
       localStorage.removeItem("bf_create_course_preview_draft");
     } catch {}
+    backgroundSummaryTracker.clearJob();
     setStep(0);
     setProgress(0);
     setStatusText("");
@@ -75,19 +75,39 @@ export default function CreateCourse() {
     toast.info(isEn ? "Ready for a new summary" : "جاهز لإنشاء تلخيص جديد ✨");
   };
 
-  // Auto-restore preview draft on mount if available
+  // Auto-restore preview draft or active background summary job on mount
   useEffect(() => {
+    const unsub = backgroundSummaryTracker.subscribe((bg) => {
+      if (bg.active) {
+        setStep(1);
+        setFileName(bg.fileName);
+        setStatusText(bg.statusText);
+        setProgress(bg.progress);
+        setAgentIndex(bg.agentIndex || 0);
+      } else if (bg.completed && bg.preview?.chapters?.length > 0) {
+        setPreview(bg.preview);
+        setFileName(bg.fileName || bg.preview.source_file_name || "ملف محفوظ");
+        setProgress(100);
+        setStep(2);
+      }
+    });
+
     try {
-      const saved = localStorage.getItem("bf_create_course_preview_draft");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.chapters?.length > 0) {
-          setPreview(parsed);
-          setStep(2);
-          setFileName(parsed.source_file_name || "ملف محفوظ");
+      const bgNow = backgroundSummaryTracker.getState();
+      if (!bgNow.active) {
+        const saved = localStorage.getItem("bf_create_course_preview_draft");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.chapters?.length > 0) {
+            setPreview(parsed);
+            setStep(2);
+            setFileName(parsed.source_file_name || "ملف محفوظ");
+          }
         }
       }
     } catch {}
+
+    return unsub;
   }, []);
 
   // Sync preview changes to localStorage so refresh never loses generated summary
@@ -100,6 +120,7 @@ export default function CreateCourse() {
   }, [preview]);
 
   const ensureCanCreate = async () => {
+    if (profile?.id) return true;
     const user = await base44.auth.me();
     return !!user;
   };
@@ -124,7 +145,7 @@ export default function CreateCourse() {
 
   const generateCourseFromText = async (extractedText, name, sourceUrl = "", choices = {}) => {
     const generation = getGenerationOptions(choices, languageMode, summaryStyle);
-    const { language: lang, style, colorLevel, formatOnly, subject } = generation;
+    const { language: lang, style, formatOnly, subject } = generation;
     setFileName(name);
     setFileUrl(sourceUrl);
     setErrorMsg("");
@@ -138,15 +159,20 @@ export default function CreateCourse() {
       }
 
       const stats = getTextStats(extractedText);
-      setStatusText("بنقسّم المحتوى في الخلفية... ⚙️");
+      const initStatus = "بنقسّم المحتوى في الخلفية... ⚙️";
+      setStatusText(initStatus);
+      backgroundSummaryTracker.startJob({ fileName: name, statusText: initStatus });
+
       const chunks = await splitCourseTextAsync(extractedText);
       charge = await chargeSummaryCredits(extractedText, chunks.length);
       setLastCost(charge.cost);
-      toast.success(`تم خصم ${charge.cost} كريدت للتلخيص`);
+      toast.success(`تم خصم ${charge.cost} كريدت للتلخيص — يستمر في الخلفية حتى لو تنقلت بالموقع ⚡`);
 
+      const startStatus = formatOnly ? `بنسّق نصك بالحرف... ${stats.estimatedPages} صفحة ✍️` : `جاري تحليل ${stats.estimatedPages} صفحة واستخراج المفاهيم... 🔍`;
       setAgentIndex(0);
-      setStatusText(formatOnly ? `بنسّق نصك بالحرف... ${stats.estimatedPages} صفحة ✍️` : `وكيل التلخيص بيحلل ${stats.estimatedPages} صفحة... 🔍`);
+      setStatusText(startStatus);
       setProgress(5);
+      backgroundSummaryTracker.updateJob({ agentIndex: 0, statusText: startStatus, progress: 5 });
 
       if (!formatOnly) {
         const practicalRule = choices.includeImages
@@ -160,23 +186,34 @@ export default function CreateCourse() {
           style,
           stylePrompt: fullStylePrompt,
           maxPages: Math.max(4, Math.min(120, Number(choices.maxPages) || Math.ceil(stats.estimatedPages * 0.25) || 12)),
-          colorLevel,
+          colorLevel: "none",
           signal: { get aborted() { return abortRef.current; } },
           onProgress: ({ phase, current = 1, total = 1, round = 1 }) => {
             const ratio = Math.min(1, current / Math.max(1, total));
+            let nextAgent = 0;
+            let nextStatus = "";
+            let nextProgress = 10;
             if (phase === "map" || phase === "map_facts") {
-              setAgentIndex(Math.min(2, Math.floor(ratio * 3)));
-              setStatusText(`تلخيص الجزء ${current} من ${total}...`);
-              setProgress(8 + Math.round(ratio * 62));
-            } else if (phase === "reduce") {
-              setAgentIndex(3);
-              setStatusText(`دمج هرمي — الجولة ${round} (${current}/${total})...`);
-              setProgress(72 + Math.round(ratio * 20));
+              nextAgent = Math.min(2, Math.floor(ratio * 3));
+              nextStatus = `تلخيص الجزء ${current} من ${total}...`;
+              nextProgress = 8 + Math.round(ratio * 62);
+            } else if (phase === "reduce" || phase === "assemble") {
+              nextAgent = 3;
+              nextStatus = `دمج وتنظيم الأبواب — الجولة ${round} (${current}/${total})...`;
+              nextProgress = 72 + Math.round(ratio * 20);
             } else if (phase === "validate") {
-              setAgentIndex(AGENTS.length);
-              setStatusText("مراجعة التغطية واستكمال المعلومات الناقصة...");
-              setProgress(95);
+              nextAgent = AGENTS.length;
+              nextStatus = "مراجعة التغطية واستكمال المعلومات الناقصة...";
+              nextProgress = 95;
             }
+            setAgentIndex(nextAgent);
+            setStatusText(nextStatus);
+            setProgress(nextProgress);
+            backgroundSummaryTracker.updateJob({
+              agentIndex: nextAgent,
+              statusText: nextStatus,
+              progress: nextProgress,
+            });
           },
           invoke: async (payload) => {
             const response = await base44.functions.invoke("generateStudyContent", payload, { timeout: 120_000 });
@@ -193,6 +230,7 @@ export default function CreateCourse() {
           subject: subject.label,
           level: "عام",
           doc_type: "summary",
+          source_file_name: name,
           chapters: markdownToCourseChapters(summaryResult.summary, cleanTitle),
           summary_coverage: summaryResult.coverage,
           summary_fingerprint: summaryResult.fingerprint,
@@ -216,6 +254,8 @@ export default function CreateCourse() {
         setPreview(merged);
         setProgress(100);
         setStep(2);
+        backgroundSummaryTracker.completeJob(merged);
+        toast.success(isEn ? "Smart Summary Completed! 🎉" : "اكتمل تجهيز الملخص الذكي! 🎉");
         return;
       }
 
@@ -225,10 +265,18 @@ export default function CreateCourse() {
         const chunk = chunks[i];
         if (abortRef.current) throw new Error("تم الإلغاء");
 
-        setStatusText(getProgressMsg(i, chunks.length));
+        const nextStatus = getProgressMsg(i, chunks.length);
         const pct = i / chunks.length;
-        setAgentIndex(Math.min(AGENTS.length - 1, Math.floor(pct * AGENTS.length)));
-        setProgress(5 + Math.round((i / chunks.length) * 85));
+        const nextAgent = Math.min(AGENTS.length - 1, Math.floor(pct * AGENTS.length));
+        const nextProgress = 5 + Math.round((i / chunks.length) * 85);
+        setStatusText(nextStatus);
+        setAgentIndex(nextAgent);
+        setProgress(nextProgress);
+        backgroundSummaryTracker.updateJob({
+          agentIndex: nextAgent,
+          statusText: nextStatus,
+          progress: nextProgress,
+        });
 
         let lastErr;
         let completed = false;
@@ -244,7 +292,7 @@ export default function CreateCourse() {
             throw new Error("الـ AI رجع نتيجة فارغة");
           } catch (err) {
             lastErr = err;
-            if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 2000));
+            if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1500));
           }
         }
         if (!completed) throw lastErr || new Error(`فشل تلخيص الجزء ${i + 1}`);
@@ -253,16 +301,17 @@ export default function CreateCourse() {
       if (!results.length) throw new Error("AI لم يرجع نتيجة — جرب مرة تانية");
 
       setAgentIndex(AGENTS.length);
-      setStatusText(formatOnly ? "بنرتّب التنسيق النهائي... ✨" : "وكيل التنظيم بيرتّب الملخص النهائي... ✨");
+      setStatusText(formatOnly ? "بنرتّب التنسيق النهائي... ✨" : "ترتيب الهيكلة النهائية للملخص... ✨");
       setProgress(95);
 
-      const merged = mergeCourseParts(results, name);
+      const merged = { ...mergeCourseParts(results, name), source_file_name: name };
       await base44.functions.invoke("chargeAiJob", { action: "finalize", jobKey: charge.jobKey }).catch(() => {});
       aiJobRef.current = null;
       setPendingInput(null);
       setPreview(merged);
       setProgress(100);
       setStep(2);
+      backgroundSummaryTracker.completeJob(merged);
 
     } catch (err) {
       const raw = err.message || "";
@@ -275,6 +324,7 @@ export default function CreateCourse() {
 
       await refundSummaryCredits(charge);
       aiJobRef.current = null;
+      backgroundSummaryTracker.failJob(msg);
       setErrorMsg(msg);
       setStep(0);
       toast.error(msg);
@@ -291,53 +341,51 @@ export default function CreateCourse() {
     setErrorMsg("");
     setFileName(name);
     setPendingInput({ text, name, sourceUrl: sourceUrl || "", analysis: analyzeDocument(text, name) });
-    setPopupOpen(true);
   };
 
   const handleYouTubeTranscript = ({ text, title, sourceUrl }) => {
     handleText(text, title, sourceUrl);
   };
 
-  const handleFile = async (file) => {
-    if (!file) return;
-    if (!(await ensureCanCreate())) return;
+  const handleFile = async (file, opts = {}) => {
+    if (!file) return false;
 
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!SUPPORTED_EXTENSIONS.includes(ext)) {
       toast.error(`نوع الملف .${ext} مش مدعوم`);
-      return;
+      return false;
     }
     if (file.size > MAX_FILE_SIZE) {
       toast.error("الملف أكبر من 50MB — صغّره أو قسّمه");
-      return;
+      return false;
     }
 
     setFileName(file.name);
-    setStep(1);
-    setProgress(3);
+    setErrorMsg("");
 
-    try {
-      setStatusText("بيقرأ الملف... 📄");
-      const extractedText = await extractTextFromFile(file, {
-        onProgress: ({ current, total, phase }) => setStatusText(
-          phase === "ocr" ? `OCR بيقرأ الصورة... ${current}%` : `بيقرأ صفحة ${current} من ${total}... 📄`
-        ),
-      });
+    // Run auth check and single-pass file extraction concurrently for zero extra latency
+    const [canCreate, extractedText] = await Promise.all([
+      ensureCanCreate(),
+      extractTextFromFile(file, {
+        onProgress: ({ current, total, phase }) => {
+          opts?.onProgress?.({ current, total, phase });
+        },
+      }),
+    ]);
 
-      if (!extractedText || extractedText.trim().length < 50) {
-        throw new Error("الملف فاضي أو المحتوى مش مقروء — جرب ملف تاني أو الصق النص مباشرة");
-      }
+    if (!canCreate) return false;
 
-      setStep(0);
-      setProgress(0);
-      setStatusText("");
-      setPendingInput({ text: extractedText, name: file.name, sourceUrl: "", analysis: analyzeDocument(extractedText, file.name) });
-      setPopupOpen(true);
-    } catch (err) {
-      toast.error(err.message || "حصل خطأ في قراءة الملف");
-      setStep(0);
-      setProgress(0);
+    if (!extractedText || extractedText.trim().length < 50) {
+      throw new Error("الملف فاضي أو المحتوى مش مقروء — جرب ملف تاني أو الصق النص مباشرة");
     }
+
+    setPendingInput({
+      text: extractedText,
+      name: file.name,
+      sourceUrl: "",
+      analysis: analyzeDocument(extractedText, file.name),
+    });
+    return true;
   };
 
   const saveCourse = async () => {
@@ -367,7 +415,6 @@ export default function CreateCourse() {
       });
 
       setSavedCourseId(course.id);
-      // Badge ladder: count the course toward the tiered badges
       try { const { bumpCounter } = await import("@/lib/gamification"); await bumpCounter("courses_created", 1); } catch {}
       try {
         localStorage.removeItem("bf_create_course_preview_draft");
@@ -411,13 +458,11 @@ export default function CreateCourse() {
         if (levelUp) toast.success(`🎉 ارتقيت لمستوى ${newLevelInfo?.current?.icon} ${newLevelInfo?.current?.title}!`);
       } catch {}
 
-      // تحويل التلخيص تلقائياً لبطاقات مراجعة
       try {
         const cardCount = await generateReviewCardsFromCourse(course, preview.chapters || []);
         if (cardCount > 0) toast.success(`اتولّد ${cardCount} بطاقة مراجعة تلقائياً 🧠`);
       } catch {}
 
-      // إشعار Slack تلقائي بالملخص الجديد (لو المستخدم رابط Webhook)
       try {
         const sent = await notifySlack(buildCourseSlackMessage({ ...preview, ...course }));
         if (sent) toast.success("اتبعت إشعار على Slack 💬");
@@ -437,12 +482,9 @@ export default function CreateCourse() {
       <CreateCourseIntro isEn={isEn} step={step} pendingTextLength={pendingInput?.text?.length} />
 
       <AnimatePresence mode="wait">
-        {/* Step 0: Upload — ONE obvious action, alternatives tucked away.
-            Previously the dropzone, the paste-text panel and the YouTube importer
-            all rendered at once, which made the primary path (upload a lecture →
-            get a summary) look like a form to fill in. */}
+        {/* Step 0: Unified Single Window — Either Upload Input OR Unified Summary Options */}
         {step === 0 && (
-          <motion.div key="upload" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+          <motion.div key={pendingInput ? "config" : "upload"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
             {errorMsg && (
               <div className="mb-4 flex items-start gap-3 glass-card rounded-2xl p-4 border border-destructive/30 bg-destructive/5">
                 <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
@@ -450,49 +492,77 @@ export default function CreateCourse() {
               </div>
             )}
 
-            <PremiumUploadDropzone onFile={handleFile} maxSize={MAX_FILE_SIZE} />
+            {pendingInput ? (
+              <AssistantLanguagePopup
+                open={true}
+                inline={true}
+                fileName={pendingInput.name}
+                creditCost={calculateSummaryCost(pendingInput.text?.length || 0)}
+                analysis={pendingInput.analysis}
+                onChangeFile={() => {
+                  setPendingInput(null);
+                  setFileName("");
+                  setErrorMsg("");
+                }}
+                onConfirm={({ language, style, subjectType, maxPages, includeImages }) => {
+                  generateCourseFromText(
+                    pendingInput.text,
+                    pendingInput.name,
+                    pendingInput.sourceUrl,
+                    { language, style, subjectType, colorLevel: "none", maxPages, includeImages }
+                  );
+                }}
+              />
+            ) : (
+              <>
+                <PremiumUploadDropzone
+                  onFile={handleFile}
+                  maxSize={MAX_FILE_SIZE}
+                />
 
-            <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                {isEn ? "or" : "أو"}
-              </span>
-              <span className="h-px flex-1 bg-border" />
-            </div>
+                <div className="flex items-center gap-3">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {isEn ? "or" : "أو"}
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                aria-expanded={altMode === "text"}
-                onClick={() => setAltMode(altMode === "text" ? null : "text")}
-                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
-                  altMode === "text" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
-                }`}
-              >
-                <ClipboardType className="h-4 w-4" />
-                {isEn ? "Paste lecture text" : "الصق نص المحاضرة"}
-              </button>
-              <button
-                type="button"
-                aria-expanded={altMode === "youtube"}
-                onClick={() => setAltMode(altMode === "youtube" ? null : "youtube")}
-                className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
-                  altMode === "youtube" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
-                }`}
-              >
-                <YoutubeIcon size={16} />
-                {isEn ? "Summarise a YouTube lecture" : "لخّص محاضرة من يوتيوب"}
-              </button>
-            </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    aria-expanded={altMode === "text"}
+                    onClick={() => setAltMode(altMode === "text" ? null : "text")}
+                    className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
+                      altMode === "text" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <ClipboardType className="h-4 w-4" />
+                    {isEn ? "Paste lecture text" : "الصق نص المحاضرة"}
+                  </button>
+                  <button
+                    type="button"
+                    aria-expanded={altMode === "youtube"}
+                    onClick={() => setAltMode(altMode === "youtube" ? null : "youtube")}
+                    className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold transition-colors ${
+                      altMode === "youtube" ? "border-primary/40 bg-primary/10 text-primary" : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <YoutubeIcon size={16} />
+                    {isEn ? "Summarise a YouTube lecture" : "لخّص محاضرة من يوتيوب"}
+                  </button>
+                </div>
 
-            {altMode === "text" && <TextPastePanel onSubmit={handleText} />}
-            {altMode === "youtube" && <YouTubeImportPanel onImportTranscript={handleYouTubeTranscript} />}
+                {altMode === "text" && <TextPastePanel onSubmit={handleText} />}
+                {altMode === "youtube" && <YouTubeImportPanel onImportTranscript={handleYouTubeTranscript} />}
+              </>
+            )}
           </motion.div>
         )}
 
-        {/* Step 1: Processing — EPIC LOADER */}
+        {/* Step 1: Processing — Unified Loader */}
         {step === 1 && (
-          <div>
+          <motion.div key="processing" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <CourseGenerationLoader
               fileName={fileName}
               statusText={statusText}
@@ -500,7 +570,7 @@ export default function CreateCourse() {
               onCancel={() => { abortRef.current = true; setStatusText(isEn ? "Stopping process..." : "جاري إيقاف العملية..."); }}
             />
             <AgentPipeline activeIndex={agentIndex} />
-          </div>
+          </motion.div>
         )}
 
         {step === 2 && preview && (
@@ -519,25 +589,6 @@ export default function CreateCourse() {
           />
         )}
       </AnimatePresence>
-
-      <AssistantLanguagePopup
-        open={popupOpen}
-        fileName={pendingInput?.name}
-        creditCost={calculateSummaryCost(pendingInput?.text?.length || 0)}
-        analysis={pendingInput?.analysis}
-        onClose={() => setPopupOpen(false)}
-        onConfirm={({ language, style, subjectType, colorLevel, maxPages, includeImages }) => {
-          setPopupOpen(false);
-          if (pendingInput) {
-            generateCourseFromText(
-              pendingInput.text,
-              pendingInput.name,
-              pendingInput.sourceUrl,
-              { language, style, subjectType, colorLevel, maxPages, includeImages }
-            );
-          }
-        }}
-      />
     </div>
   );
 }

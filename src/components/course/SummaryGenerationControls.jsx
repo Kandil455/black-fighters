@@ -6,15 +6,12 @@ import {
   Sparkles,
   BookOpen,
   Table2,
-  Palette,
-  SlidersHorizontal,
   Send,
   Stethoscope,
   Cpu,
   GraduationCap,
   Flame,
 } from "lucide-react";
-import { STUDY_GUIDE_TEMPLATES } from "@/lib/summaryStudyGuide";
 import { cn } from "@/lib/utils";
 
 export const SUMMARY_STYLE_LIST = [
@@ -66,12 +63,6 @@ const ICONS = {
   comparisons: Table2,
 };
 
-const COLOR_LEVELS = [
-  { id: "calm", label: "هادئ", hint: "هايلايت خفيف للمهم بس" },
-  { id: "balanced", label: "متوازن ✨", hint: "تلوين ذكي حسب الأهمية" },
-  { id: "rich", label: "غني 🎨", hint: "ألوان واضحة لكل فكرة" },
-];
-
 export const SUMMARY_DOMAINS = [
   {
     id: "clinical",
@@ -95,7 +86,7 @@ export const SUMMARY_DOMAINS = [
     hint: "تغطية كاملة لكل فقرات المحاضرة مع جداول مقارنة وفهرس منظم",
     icon: GraduationCap,
     promptAddon:
-      "قدم تغطية أكاديمية شاملة لكل المفاهيم والتعريفات مع تنظيمها في بطاقات ملونة وجداول مقارنة واضحة.",
+      "قدم تغطية أكاديمية شاملة لكل المفاهيم والتعريفات مع تنظيمها في بطاقات وجداول مقارنة واضحة.",
   },
   {
     id: "exam_cram",
@@ -121,23 +112,13 @@ export default function SummaryGenerationControls({
   setSummaryStyle,
   maxPages,
   setMaxPages,
-  colorLevel = "balanced",
-  setColorLevel,
   textLength = 0,
   autoSendTelegram,
   setAutoSendTelegram,
   action,
 }) {
   const recommended = estimateSmartPages(textLength, summaryStyle);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState(() => getSelectedSummaryDomain().id);
-  const [guideTemplate, setGuideTemplate] = useState(() => {
-    try {
-      return localStorage.getItem("bf_guide_template") || "modules_red";
-    } catch {
-      return "modules_red";
-    }
-  });
 
   const [localAutoSend, setLocalAutoSend] = useState(() => {
     try {
@@ -161,12 +142,6 @@ export default function SummaryGenerationControls({
 
   useEffect(() => {
     try {
-      localStorage.setItem("bf_guide_template", guideTemplate);
-    } catch {}
-  }, [guideTemplate]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem("bf_summary_domain", selectedDomain);
     } catch {}
   }, [selectedDomain]);
@@ -180,7 +155,7 @@ export default function SummaryGenerationControls({
           </h4>
           <p className="text-xs text-[#9aa4b2] mt-0.5">
             موصى به لطول المحاضرة:{" "}
-            <strong className="text-[#19f08c] font-mono">{recommended} صفحة</strong>
+            <strong className="text-primary font-mono">{recommended} صفحة</strong>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -190,25 +165,12 @@ export default function SummaryGenerationControls({
             className={cn(
               "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors cursor-pointer",
               effectiveAutoSend
-                ? "border-[#19f08c] bg-[#19f08c]/15 text-[#19f08c]"
+                ? "border-primary bg-primary/15 text-primary"
                 : "border-white/[0.08] bg-white/[0.03] text-[#9aa4b2] hover:text-[#f5f7fa]",
             )}
           >
             <Send className="w-3.5 h-3.5" />
             {effectiveAutoSend ? "إرسال تلقائي لتليجرام: مفعّل ✓" : "إرسال تلقائي لتليجرام"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className={cn(
-              "inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors cursor-pointer",
-              showAdvanced
-                ? "border-[#19f08c]/40 bg-[#19f08c]/10 text-[#19f08c]"
-                : "border-white/[0.07] bg-white/[0.03] text-[#9aa4b2] hover:text-[#f5f7fa]",
-            )}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            {showAdvanced ? "إخفاء الخيارات المتقدمة" : "خيارات التصميم والألوان"}
           </button>
         </div>
       </div>
@@ -230,13 +192,13 @@ export default function SummaryGenerationControls({
                 className={cn(
                   "text-start p-3 rounded-xl border transition-colors cursor-pointer",
                   active
-                    ? "border-[#19f08c] bg-[#19f08c]/10"
+                    ? "border-primary bg-primary/10"
                     : "border-white/[0.07] bg-[#05070a]/70 hover:border-white/[0.15]",
                 )}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <DomIcon
-                    className={cn("w-4 h-4 shrink-0", active ? "text-[#19f08c]" : "text-[#9aa4b2]")}
+                    className={cn("w-4 h-4 shrink-0", active ? "text-primary" : "text-[#9aa4b2]")}
                   />
                   <span className="font-bold text-xs text-[#f5f7fa]">{dom.label}</span>
                 </div>
@@ -265,102 +227,27 @@ export default function SummaryGenerationControls({
                 className={cn(
                   "text-start p-3 rounded-xl border transition-colors cursor-pointer",
                   active
-                    ? "border-[#19f08c] bg-[#19f08c]/10"
+                    ? "border-primary bg-primary/10"
                     : "border-white/[0.07] bg-[#05070a]/70 hover:border-white/[0.15]",
                 )}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Icon
-                    className={cn("w-4 h-4", active ? "text-[#19f08c]" : "text-[#9aa4b2]")}
+                    className={cn("w-4 h-4", active ? "text-primary" : "text-[#9aa4b2]")}
                   />
-                  <span className="font-bold text-xs text-[#f5f7fa]">{s.nameAr}</span>
+                  <span className="font-bold text-xs text-[#f5f7fa]">{s.label}</span>
                   {s.badge && (
-                    <span className="ms-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#19f08c]/15 text-[#19f08c]">
+                    <span className="ms-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
                       {s.badge}
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-[#9aa4b2] leading-snug">{s.descAr}</p>
+                <p className="text-[11px] text-[#9aa4b2] leading-snug">{s.hint}</p>
               </button>
             );
           })}
         </div>
       </div>
-
-      {/* Collapsible Advanced Options */}
-      {showAdvanced && (
-        <div className="space-y-4 pt-3 border-t border-white/[0.07]">
-          {/* Print / Study Guide Template */}
-          <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#f5f7fa] mb-2">
-              <Palette className="w-3.5 h-3.5 text-[#19f08c]" />
-              <span>قالب الطباعة والتصدير</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {STUDY_GUIDE_TEMPLATES.map((tpl) => {
-                const active = guideTemplate === tpl.id;
-                return (
-                  <button
-                    key={tpl.id}
-                    type="button"
-                    onClick={() => setGuideTemplate(tpl.id)}
-                    className={cn(
-                      "text-start p-2.5 rounded-xl border transition-colors cursor-pointer",
-                      active
-                        ? "border-[#19f08c] bg-[#19f08c]/10"
-                        : "border-white/[0.07] bg-[#05070a]/70 hover:border-white/[0.15]",
-                    )}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span
-                        className="w-3.5 h-3.5 rounded-full shrink-0 border border-black/10"
-                        style={{ background: tpl.swatch }}
-                      />
-                      <span className="font-bold text-xs text-[#f5f7fa] truncate">{tpl.nameAr}</span>
-                    </div>
-                    <p className="text-[10px] text-[#9aa4b2] leading-snug line-clamp-1">
-                      {tpl.descAr}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Highlight Density */}
-          {setColorLevel && (
-            <div>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#f5f7fa] mb-2">
-                <Palette className="w-3.5 h-3.5 text-[#19f08c]" />
-                <span>كثافة تلوين المصطلحات</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {COLOR_LEVELS.map((lvl) => {
-                  const active = colorLevel === lvl.id;
-                  return (
-                    <button
-                      key={lvl.id}
-                      type="button"
-                      onClick={() => setColorLevel(lvl.id)}
-                      className={cn(
-                        "p-2.5 rounded-xl border text-start transition-colors cursor-pointer",
-                        active
-                          ? "border-[#19f08c] bg-[#19f08c]/10"
-                          : "border-white/[0.07] bg-[#05070a]/70 hover:border-white/[0.15]",
-                      )}
-                    >
-                      <p className="text-xs font-bold text-[#f5f7fa]">{lvl.label}</p>
-                      <p className="text-[10px] text-[#9aa4b2] mt-0.5 leading-snug">
-                        {lvl.hint}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Max pages + action */}
       <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-white/[0.07]">

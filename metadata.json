@@ -1,5 +1,8 @@
 {
   "name": "Black Fighters — المنصة الذكية للمذاكرة والامتحانات",
   "description": "أنشئ تلخيصات ذكية لمذكراتك ومحاضراتك، واختبر نفسك بكويزات نظرية وعملية، مع بطاقات فلاش كاردز للمراجعة المتباعدة FSRS.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

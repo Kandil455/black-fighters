@@ -3,6 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      (function () {
+        if (typeof window !== "undefined") {
+          window.VE2EFml = window.VE2EFml || function () {};
+          var isExtensionError = function (src, stack, msg) {
+            var s = String(src || "") + " " + String(stack || "") + " " + String(msg || "");
+            return (
+              s.indexOf("chrome-extension://") !== -1 ||
+              s.indexOf("moz-extension://") !== -1 ||
+              s.indexOf("safari-web-extension://") !== -1 ||
+              s.indexOf("VE2EFml") !== -1
+            );
+          };
+          window.addEventListener(
+            "error",
+            function (e) {
+              if (isExtensionError(e.filename, e.error && e.error.stack, e.message)) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                return false;
+              }
+            },
+            true
+          );
+          window.addEventListener(
+            "unhandledrejection",
+            function (e) {
+              var reason = e.reason || {};
+              if (isExtensionError("", reason.stack, reason.message || reason)) {
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                return false;
+              }
+            },
+            true
+          );
+        }
+      })();
+    </script>
     <title>Black Fighters — المنصة الذكية للمذاكرة والامتحانات</title>
     <meta name="description" content="أنشئ تلخيصات ذكية لمذكراتك ومحاضراتك، واختبر نفسك بكويزات نظرية وعملية، مع بطاقات فلاش كاردز وخطة مذاكرة تفاعلية." />
     <meta name="keywords" content="Black Fighters, بلاك فايترز, منصة المحاربين, مذاكرة, امتحانات, تلخيصات ذكية, كويزات, راوند الطوارئ, فلاش كاردز" />

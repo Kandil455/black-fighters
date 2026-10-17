@@ -71,14 +71,17 @@ export async function summaryAgentEdit(user, body) {
 
   const previous = v3 || migrateLegacySummaryMarkdown(sourceMd || "");
   const prompt = [
-    "أنت محرّر أكاديمي خبير. عدّل ملف التلخيص التالي حسب تعليمات الطالب.",
-    "أعد الملف المعدَّل كاملاً بصيغة Markdown فقط — بدون مقدمات وبدون شرح التعديلات.",
-    "احافظ على كل المحتوى غير المتعلق بالتعديل، وبنفس اللغة، ونفس ترتيب الأقسام ما لم يُطلب غير ذلك.",
+    "أنت كبير المحررين الأكاديميين في منصة Black Fighters. مهمتك تنفيذ تعديل دقيق وعالي الجودة على وثيقة التلخيص التالية بناءً على تعليمات الطالب.",
+    "قواعد التحرير الصارمة:",
+    "1. أعد الملف المعدَّل كاملاً بصيغة Markdown نقية فقط — بدون مقدمات أو تعليقات جانبية أو شرح للتعديلات.",
+    "2. حافظ بنسبة 100% على جميع الأقسام والمعلومات والأرقام والجداول غير المشمولة بالتعديل.",
+    "3. التزم بنفس لغة الملف ونفس مستوى العمق الأكاديمي والتنسيق الهيكلي ما لم يطلب الطالب تغيير ذلك صراحةً.",
+    "4. عند إضافة أو توسيع شرح، اعتمد الدقة العلمية وتوضيح الآليات والربط المنطقي بدون حشو.",
     "",
-    `تعليمات التعديل: ${instruction}`,
+    `تعليمات الطالب للتعديل: ${instruction}`,
     "",
-    "── الملف الحالي ──",
-    sourceMd || "(ملف فارغ — أنشئ محتوى ملخص من عنوان الكورس)",
+    "── وثيقة التلخيص الحالية ──",
+    sourceMd || "(ملف فارغ — أنشئ محتوى ملخص أكاديمي شامل ومنظم انطلاقاً من عنوان الكورس)",
   ].join("\n");
 
   // Charge BEFORE spending platform AI tokens; refund on failure.
@@ -92,7 +95,11 @@ export async function summaryAgentEdit(user, body) {
   try {
     await checkAiDailyQuota(user, profile, "heavy");
     metered = true;
-    const reply = await generateText(prompt, serverAiConfig(), "أنت محرر تلخيصات دقيق. أخرج Markdown فقط.");
+    const reply = await generateText(
+      prompt,
+      serverAiConfig(),
+      "أنت محرر أكاديمي خبير في منصة Black Fighters. التزم بالدقة العلمية الصارمة وأخرج نص Markdown المحدث فقط بدون أي غلاف حواري."
+    );
     const revisedMd = String(reply || "").replace(/^```(?:markdown)?\s*|\s*```$/g, "").trim();
     if (!revisedMd) throw new Error("الرد فاضي من الـ AI");
 
@@ -181,12 +188,15 @@ export async function summaryAgentQuiz(user, body) {
   const summaryText = (v3 ? getSummaryDocumentText(v3) : "").slice(0, SUMMARY_TEXT_SLICE);
 
   const prompt = [
-    `أنشئ ${count} أسئلة اختيار من متعدد (MCQ) من محتوى التلخيص التالي.`,
-    "أعد النتيجة JSON فقط بهذا الشكل بالضبط — بدون أي نص إضافي:",
+    `أنت واضع امتحانات جامعية خبير. أنشئ ${count} أسئلة اختيار من متعدد (MCQ) عالية الجودة من محتوى التلخيص التالي فقط.`,
+    "قواعد تصميم الأسئلة:",
+    "- نوّع بين أسئلة الفهم العميق والآليات، التطبيق السريري/العملي، والاستثناءات وفخاخ الامتحانات.",
+    "- صمّم 4 خيارات متقاربة ومنطقية لكل سؤال (مشتتات ذكية غير ساذجة) مع إجابة صحيحة واحدة قطعية.",
+    "- اكتب تفسيراً تعليمياً مختصراً وواضحاً في حقل explanation يوضح سبب صحة الإجابة ولماذا تستبعد البدائل.",
+    "- أعد النتيجة بصيغة JSON Array صالحة فقط بهذا الشكل بالضبط — بدون أي نص خارج JSON:",
     '[{"question":"...","options":["أ","ب","ج","د"],"correct_answer":"أ","explanation":"..."}]',
-    "الأسئلة على المحتوى فقط، بأربع خيارات، وإجابة صحيحة واحدة.",
     "",
-    "── محتوى التلخيص ──",
+    "── محتوى التلخيص المصدر ──",
     summaryText || `عنوان الكورس: ${course?.title}`,
   ].join("\n");
 
@@ -198,7 +208,11 @@ export async function summaryAgentQuiz(user, body) {
   try {
     await checkAiDailyQuota(user, profile, "heavy");
     metered = true;
-    const reply = await generateText(prompt, serverAiConfig(), "أنت مولّد كويزات. أخرج JSON صالحاً فقط.");
+    const reply = await generateText(
+      prompt,
+      serverAiConfig(),
+      "أنت خبير وضع اختبارات أكاديمية. أخرج مصفوفة JSON صالحة فقط بدون أي نص إضافي."
+    );
     const match = String(reply || "").match(/\[[\s\S]*\]/);
     if (!match) throw new Error("الـ AI لم يرجع JSON صالح");
     const questions = normalizeQuestions(JSON.parse(match[0]), count);

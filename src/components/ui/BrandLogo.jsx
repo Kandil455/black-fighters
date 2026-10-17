@@ -1,55 +1,67 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { BlackFightersAnimated } from "@/components/ui/BlackFightersAnimated";
 
 /**
- * Official Black Fighters Spartan Helmet Brand Icon
+ * BrandLogo — Unified Black Fighters brand mark using BlackFightersAnimated
+ * (3D Spin on mount + continuous Glow Pulse).
  */
-export function IIIAKIcon({ size = 32, className = "" }) {
-  return (
-    <div
-      style={{ width: size, height: size }}
-      className={cn("relative shrink-0 flex items-center justify-center select-none rounded-xl overflow-hidden", className)}
-    >
-      <img
-        src="/icons/black-fighters-192.png"
-        alt="Black Fighters"
-        className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(0,242,254,0.5)]"
-      />
-    </div>
-  );
-}
+const SIZES = {
+  sm: { box: "h-9 w-9 rounded-xl", crest: 26, title: "text-sm", tag: "text-[9px]" },
+  md: { box: "h-10 w-10 rounded-xl", crest: 30, title: "text-base", tag: "text-[10px]" },
+  lg: { box: "h-12 w-12 rounded-2xl", crest: 36, title: "text-lg", tag: "text-[10.5px]" },
+  xl: { box: "h-16 w-16 rounded-2xl", crest: 50, title: "text-2xl", tag: "text-xs" },
+};
 
-// Backwards compatibility alias
-export const BFIcon = IIIAKIcon;
-export const BlackFightersIcon = IIIAKIcon;
+export function BrandLogo({
+  size = "md",
+  to,
+  showText = true,
+  subtitle,
+  className,
+  textClassName,
+}) {
+  const s = SIZES[size] || SIZES.md;
 
-export function BrandLogo({ size = 32, showSubtext = true, linkTo = "/dashboard", className = "" }) {
   const content = (
-    <div className={cn("flex items-center gap-3 group select-none", className)}>
-      <div className="transition-transform duration-300 group-hover:scale-110">
-        <IIIAKIcon size={size} />
-      </div>
-      <div>
-        <span
-          className="text-sm sm:text-base font-black text-foreground block tracking-wider font-heading uppercase"
-          dir="ltr"
-        >
-          Black Fighters
-        </span>
-        {showSubtext && (
-          <span className="caption-mono block text-[8px] tracking-[0.25em] text-cyan-400 font-bold">
-            STUDY PLATFORM
-          </span>
+    <span className={cn("inline-flex items-center gap-2.5 select-none group", className)}>
+      <span
+        className={cn(
+          "relative inline-flex shrink-0 items-center justify-center border border-[#19f08c]/40 bg-[#070B12] shadow-[0_0_24px_-6px_rgba(25,240,140,0.45)] transition-colors duration-200 group-hover:border-[#19f08c]/75",
+          s.box
         )}
-      </div>
-    </div>
+      >
+        <BlackFightersAnimated size={s.crest} variant="emerald" />
+      </span>
+
+      {showText && (
+        <span className={cn("leading-tight", textClassName)}>
+          <span className={cn("block font-black tracking-tight text-foreground", s.title)}>
+            Black Fighters
+          </span>
+          {subtitle !== false && (
+            <span
+              className={cn(
+                "block font-semibold uppercase tracking-[0.16em] text-[#19f08c]",
+                s.tag
+              )}
+            >
+              {subtitle || "AI Study Platform"}
+            </span>
+          )}
+        </span>
+      )}
+    </span>
   );
 
-  if (linkTo) {
-    return <Link to={linkTo}>{content}</Link>;
+  if (to) {
+    return (
+      <Link to={to} className="inline-flex items-center focus:outline-none">
+        {content}
+      </Link>
+    );
   }
-
   return content;
 }
 

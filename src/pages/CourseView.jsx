@@ -78,7 +78,7 @@ export default function CourseView() {
   const [showExplanations, setShowExplanations] = useState(true);
   const [summaryStyle, setSummaryStyle] = useState("bilingual_lecture");
   const [summaryMaxPages, setSummaryMaxPages] = useState(30);
-  const [summaryColorLevel, setSummaryColorLevel] = useState("medium");
+  const [summaryColorLevel, setSummaryColorLevel] = useState("none");
   const [purchasing, setPurchasing] = useState(false);
   const [savingDrive, setSavingDrive] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);

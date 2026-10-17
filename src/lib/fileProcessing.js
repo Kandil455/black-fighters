@@ -4,6 +4,21 @@ export const TEXT_EXTENSIONS = ['txt', 'csv', 'html', 'htm', 'md', 'rtf'];
 export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tif', 'tiff'];
 export const EXTRACTABLE_EXTENSIONS = [...TEXT_EXTENSIONS, ...IMAGE_EXTENSIONS, 'pdf', 'docx', 'pptx'];
 
+// Single-pass extraction memoization & in-flight deduplication cache
+// Guarantees any uploaded lecture file is processed ONCE and never re-parsed or re-OCR'd.
+const EXTRACTION_CACHE = new Map();
+const IN_FLIGHT_EXTRACTIONS = new Map();
+
+function getFileCacheKey(file) {
+  if (!file || typeof file !== 'object') return '';
+  return `${file.name || 'unnamed'}:${file.size || 0}:${file.lastModified || 0}`;
+}
+
+export function clearExtractionCache() {
+  EXTRACTION_CACHE.clear();
+  IN_FLIGHT_EXTRACTIONS.clear();
+}
+
 export function getExt(fileName = '') {
   return fileName.split('.').pop()?.toLowerCase() || '';
 }
@@ -30,17 +45,48 @@ function decodeXmlText(str = '') {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
 }
 
+function joinPdfTextItems(items = []) {
+  let out = '';
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const str = item?.str || '';
+    if (!str) {
+      if (item?.hasEOL && !out.endsWith('\n')) out += '\n';
+      continue;
+    }
+    if (!out || out.endsWith('\n') || out.endsWith(' ')) {
+      out += str;
+    } else {
+      const prevChar = out[out.length - 1];
+      const nextChar = str[0];
+      const bothArabic = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(prevChar) &&
+        /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(nextChar);
+      if (bothArabic && str.length <= 2) {
+        out += str;
+      } else {
+        out += ' ' + str;
+      }
+    }
+    if (item?.hasEOL && !out.endsWith('\n')) {
+      out += '\n';
+    }
+  }
+  return out.replace(/[ \t]{2,}/g, ' ').trim();
+}
+
 const PDF_CMAP_CONFIG = {
   cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/',
   cMapPacked: true,
   standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/standard_fonts/',
 };
 
-async function extractPdfTextClient(file) {
+async function extractPdfTextClient(fileOrBuffer, onProgress) {
   const pdfjsLib = await import('pdfjs-dist');
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-  
-  const arrayBuffer = await file.arrayBuffer();
+
+  const arrayBuffer = fileOrBuffer instanceof ArrayBuffer
+    ? fileOrBuffer.slice(0)
+    : await fileOrBuffer.arrayBuffer();
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(arrayBuffer),
     ...PDF_CMAP_CONFIG,
@@ -48,129 +94,164 @@ async function extractPdfTextClient(file) {
     disableFontFace: false,
     isEvalSupported: false,
   });
-  
+
   const pages = [];
-  
+
   try {
     const pdf = await loadingTask.promise;
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const text = content.items.map(item => item.str || '').join(' ').trim();
+      const text = joinPdfTextItems(content.items);
       if (text.length > 10) pages.push(`[صفحة ${i}]\n${text}`);
+      page.cleanup();
+      onProgress?.({ current: i, total: pdf.numPages, phase: 'extract' });
     }
   } finally {
-    // MEMORY LEAK FIX: the loading task keeps the file buffer + parsed page
-    // structures alive (≈3-4× file size) until destroyed. Without this,
-    // repeated uploads piled up hundreds of MB (the '1GB after navigating'
-    // report). Same contract as extractTextWithPagination below.
     await loadingTask.destroy().catch(() => {});
   }
-  
+
   if (!pages.length) throw new Error('scanned_pdf');
   return pages.join('\n\n');
 }
 
-async function extractDocxTextClient(file) {
+async function extractDocxTextClient(fileOrBuffer) {
   const mammoth = await import('mammoth');
-  const arrayBuffer = await file.arrayBuffer();
+  const arrayBuffer = fileOrBuffer instanceof ArrayBuffer
+    ? fileOrBuffer.slice(0)
+    : await fileOrBuffer.arrayBuffer();
   const result = await mammoth.extractRawText({ arrayBuffer });
   return (result.value || '').trim();
 }
 
-async function extractPptxTextClient(file) {
+async function extractPptxTextClient(fileOrBuffer, onProgress) {
   const JSZip = (await import('jszip')).default;
-  const zip = await JSZip.loadAsync(file);
+  const zip = await JSZip.loadAsync(fileOrBuffer);
   const slideFiles = Object.keys(zip.files)
     .filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name))
     .sort((a, b) => Number(a.match(/slide(\d+)/)?.[1] || 0) - Number(b.match(/slide(\d+)/)?.[1] || 0));
 
   const slides = [];
-  for (const name of slideFiles) {
+  for (let i = 0; i < slideFiles.length; i++) {
+    const name = slideFiles[i];
     const xml = await zip.files[name].async('string');
     const parts = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(m => decodeXmlText(m[1]).trim()).filter(Boolean);
     if (parts.length) slides.push(`[Slide ${slides.length + 1}]\n${parts.join('\n')}`);
+    onProgress?.({ current: i + 1, total: slideFiles.length, phase: 'extract' });
   }
   return slides.join('\n\n').trim();
 }
 
 export async function extractTextFromFile(file, { onProgress } = {}) {
   if (!file) throw new Error('اختار ملف الأول');
-  if (file.size > 20 * 1024 * 1024) {
-    throw new Error('حجم الملف كبير جداً (الحد الأقصى هو 20 ميجابايت). يُرجى اختيار ملف أصغر حجماً لضمان سرعة واستقرار المعالجة.');
+  if (file.size > 50 * 1024 * 1024) {
+    throw new Error('حجم الملف كبير جداً (الحد الأقصى هو 50 ميجابايت). يُرجى اختيار ملف أصغر حجماً لضمان سرعة واستقرار المعالجة.');
   }
 
-  const ext = getExt(file.name);
-  let resultText = "";
+  const cacheKey = getFileCacheKey(file);
+  if (cacheKey && EXTRACTION_CACHE.has(cacheKey)) {
+    const cachedText = EXTRACTION_CACHE.get(cacheKey);
+    onProgress?.({ current: 100, total: 100, phase: 'cached' });
+    return cachedText;
+  }
 
-  if (TEXT_EXTENSIONS.includes(ext)) {
-    resultText = await file.text();
-    if (!resultText?.trim()) throw new Error('الملف النصي فاضي');
-  } else if (IMAGE_EXTENSIONS.includes(ext) || file.type?.startsWith('image/')) {
-    const { recognizeImageFile } = await import('./ocr');
-    resultText = await recognizeImageFile(file, {
-      onProgress: (percent) => onProgress?.({ current: percent, total: 100, phase: 'ocr' }),
-    });
-    if (!resultText?.trim()) throw new Error('معرفناش نقرأ نص واضح من الصورة — جرّب صورة أوضح أو الصق النص مباشرة');
-  } else if (!EXTRACTABLE_EXTENSIONS.includes(ext)) {
-    throw new Error(`نوع الملف .${ext} مش مدعوم للقراءة النصية`);
-  } else {
-    // Heavy parsing runs away from the UI thread when possible.
-    try {
-      if (supportsFileWorker()) {
-        try {
-          resultText = await extractFileInWorker(file, ext, onProgress);
-        } catch (workerError) {
-          if (workerError.message === 'scanned_pdf') throw workerError;
-          console.warn('File worker failed; using the compatibility path:', workerError);
-        }
-      }
-      if (!resultText) {
-        if (ext === 'pdf') {
-          resultText = await extractPdfTextClient(file);
-        } else if (ext === 'docx') {
-          resultText = await extractDocxTextClient(file);
-        } else if (ext === 'pptx') {
-          resultText = await extractPptxTextClient(file);
-        }
-      }
+  if (cacheKey && IN_FLIGHT_EXTRACTIONS.has(cacheKey)) {
+    return IN_FLIGHT_EXTRACTIONS.get(cacheKey);
+  }
 
-      // If PDF has no digital text stream or contains garbled/scrambled mojibake fonts, trigger OCR fallback automatically!
-      const { isGarbledOrCorruptedText } = await import('./imageFilter');
-      if (ext === 'pdf' && (!resultText || resultText.trim().length < 40 || isGarbledOrCorruptedText(resultText))) {
-        throw new Error('scanned_pdf');
-      }
-    } catch (clientErr) {
-      console.warn("Client-side text extraction failed; evaluating OCR fallback:", clientErr);
-      
-      if (clientErr.message === 'scanned_pdf' && ext === 'pdf') {
-        const { recognizePdfFile } = await import('./ocr');
-        resultText = await recognizePdfFile(file, {
-          onProgress: (percent, page, totalPages) => onProgress?.({
-            current: page || percent,
-            total: totalPages || 100,
-            phase: 'ocr',
-          }),
-        });
-        if (!resultText?.trim()) {
-          throw new Error('الملف ممسوح ضوئياً (Scanned) أو صوره غير واضحة للتعرف البصري — جرّب نسخة واضحة رقمية أو الصق النص مباشرة.');
+  const extractionPromise = (async () => {
+    const ext = getExt(file.name);
+    let resultText = '';
+
+    if (TEXT_EXTENSIONS.includes(ext)) {
+      resultText = await file.text();
+      onProgress?.({ current: 100, total: 100, phase: 'extract' });
+      if (!resultText?.trim()) throw new Error('الملف النصي فاضي');
+    } else if (IMAGE_EXTENSIONS.includes(ext) || file.type?.startsWith('image/')) {
+      const { recognizeImageFile } = await import('./ocr');
+      resultText = await recognizeImageFile(file, {
+        onProgress: (percent) => onProgress?.({ current: percent, total: 100, phase: 'ocr' }),
+      });
+      if (!resultText?.trim()) throw new Error('معرفناش نقرأ نص واضح من الصورة — جرّب صورة أوضح أو الصق النص مباشرة');
+    } else if (!EXTRACTABLE_EXTENSIONS.includes(ext)) {
+      throw new Error(`نوع الملف .${ext} مش مدعوم للقراءة النصية`);
+    } else {
+      // Read the binary buffer ONCE and reuse it across worker or fallback paths
+      const sharedBuffer = await file.arrayBuffer();
+
+      try {
+        if (supportsFileWorker()) {
+          try {
+            resultText = await extractFileInWorker(sharedBuffer, ext, onProgress);
+          } catch (workerError) {
+            if (workerError.message === 'scanned_pdf') throw workerError;
+            console.warn('File worker failed; using the compatibility path:', workerError);
+          }
         }
-      } else {
-        throw new Error(clientErr?.message?.includes('password') 
-          ? 'الملف محمي بكلمة مرور — يُرجى إزالة الحماية أولاً.' 
-          : 'تعذر استخراج النص تلقائياً من الملف — تأكد أن الملف سليم أو استخدم خيار لصق النص يدوياً.');
+        if (!resultText) {
+          if (ext === 'pdf') {
+            resultText = await extractPdfTextClient(sharedBuffer, onProgress);
+          } else if (ext === 'docx') {
+            resultText = await extractDocxTextClient(sharedBuffer);
+          } else if (ext === 'pptx') {
+            resultText = await extractPptxTextClient(sharedBuffer, onProgress);
+          }
+        }
+
+        // Only trigger OCR fallback when PDF genuinely lacks digital text or has corrupted CID fonts
+        const { isGarbledOrCorruptedText } = await import('./imageFilter');
+        if (ext === 'pdf' && (!resultText || resultText.trim().length < 40 || isGarbledOrCorruptedText(resultText))) {
+          throw new Error('scanned_pdf');
+        }
+      } catch (clientErr) {
+        if (clientErr.message === 'scanned_pdf' && ext === 'pdf') {
+          const { recognizePdfFile } = await import('./ocr');
+          resultText = await recognizePdfFile(file, {
+            onProgress: (percent, page, totalPages) => onProgress?.({
+              current: page || percent,
+              total: totalPages || 100,
+              phase: 'ocr',
+            }),
+          });
+          if (!resultText?.trim()) {
+            throw new Error('الملف ممسوح ضوئياً (Scanned) أو صوره غير واضحة للتعرف البصري — جرّب نسخة واضحة رقمية أو الصق النص مباشرة.');
+          }
+        } else {
+          throw new Error(clientErr?.message?.includes('password')
+            ? 'الملف محمي بكلمة مرور — يُرجى إزالة الحماية أولاً.'
+            : 'تعذر استخراج النص تلقائياً من الملف — تأكد أن الملف سليم أو استخدم خيار لصق النص يدوياً.');
+        }
       }
     }
+
+    // Enforce 50,000 characters limit safely without crashing
+    if (resultText && resultText.length > 50000) {
+      resultText = resultText.slice(0, 50000);
+    }
+
+    if (cacheKey && resultText) {
+      if (EXTRACTION_CACHE.size >= 15) {
+        const oldestKey = EXTRACTION_CACHE.keys().next().value;
+        if (oldestKey) EXTRACTION_CACHE.delete(oldestKey);
+      }
+      EXTRACTION_CACHE.set(cacheKey, resultText);
+    }
+
+    return resultText;
+  })();
+
+  if (cacheKey) {
+    IN_FLIGHT_EXTRACTIONS.set(cacheKey, extractionPromise);
   }
 
-  // Enforce 50,000 characters limit safely without crashing
-  if (resultText && resultText.length > 50000) {
-    resultText = resultText.slice(0, 50000);
+  try {
+    return await extractionPromise;
+  } finally {
+    if (cacheKey) {
+      IN_FLIGHT_EXTRACTIONS.delete(cacheKey);
+    }
   }
-
-  return resultText;
 }
-
 
 function parsePageRanges(input, pageCount) {
   if (!input?.trim()) return Array.from({ length: pageCount }, (_, i) => i);

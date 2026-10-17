@@ -158,46 +158,46 @@ export const PLANS = [
   },
 ];
 
-// باقات شحن الكريدت المباشرة (Credit Refill Packs)
+// باقات شحن الكريدت المباشرة (Credit Refill Packs) — متوافقة مع منحنى التسعير التراكمي التصاعدي
 export const CREDIT_REFILL_PACKS = [
   {
     key: "credits_50",
-    name: "شحن 50 كريدت",
-    credits: 50,
-    price: 15,
+    name: "شحن 100 كريدت",
+    credits: 100,
+    price: 50,
     discount: 0,
     popular: false,
   },
   {
     key: "credits_150",
-    name: "شحن 150 كريدت",
-    credits: 150,
-    price: 39,
-    discount: 10,
+    name: "شحن 250 كريدت",
+    credits: 250,
+    price: 120,
+    discount: 4,
     popular: false,
   },
   {
     key: "credits_400",
-    name: "شحن 400 كريدت ⭐ (باقة الـ 100 ج)",
-    credits: 400,
-    price: 89,
-    discount: 20,
+    name: "شحن 500 كريدت ⭐ (الباقة الطلابية)",
+    credits: 500,
+    price: 235,
+    discount: 6,
     popular: true,
   },
   {
     key: "credits_1000",
     name: "شحن 1,000 كريدت 👑",
     credits: 1000,
-    price: 199,
-    discount: 30,
+    price: 425,
+    discount: 15,
     popular: false,
   },
   {
     key: "credits_2500",
     name: "شحن 2,500 كريدت 🔥",
     credits: 2500,
-    price: 420,
-    discount: 40,
+    price: 905,
+    discount: 28,
     popular: false,
   },
 ];

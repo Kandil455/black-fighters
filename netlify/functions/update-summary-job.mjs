@@ -68,7 +68,8 @@ export const handler = async (event) => {
         jobTitle = String(data.title || data.course_title || "");
       }
     });
-    const artifacts = await getJobArtifacts(ref);
+    const shouldLoadArtifacts = justCompleted || body.status === "completed" || body.includeArtifacts === true;
+    const artifacts = shouldLoadArtifacts ? await getJobArtifacts(ref) : {};
 
     if (justCompleted) {
       // Best-effort, budget-limited by telegram-notify: a Telegram failure must
@@ -77,7 +78,7 @@ export const handler = async (event) => {
         .catch((err) => console.warn("[update-summary-job] notify skipped:", err?.message));
     }
 
-    return json(200, { job: serializeSnapshot(await ref.get()), ...artifacts });
+    return json(200, { ok: true, ...(shouldLoadArtifacts ? { job: serializeSnapshot(await ref.get()), ...artifacts } : {}) });
   } catch (error) {
     return handleError(error);
   }

@@ -1,97 +1,68 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { PROFILE_TITLES } from "@/lib/avatars";
-
-/* لقب متحرك فخم — تدرّج لوني سائل + توهّج + جزيئات حسب الـ fx */
-function TitleFx({ fx, animate }) {
-  if (!animate || !fx || fx === "none" || fx === "shine" || fx === "glow") return null;
-  const items = Array.from({ length: 7 });
-  const color = fx === "fire" || fx === "emberShine" ? "#fb923c" : fx === "love" ? "#f472b6" : fx === "royal" || fx === "supreme" ? "#facc15" : "#a78bfa";
-
-  return (
-    <span className="absolute inset-0 overflow-visible pointer-events-none">
-      {items.map((_, i) => (
-        <motion.span
-          key={i}
-          className="absolute rounded-full"
-          style={{ left: `${5 + (i * 90) / items.length}%`, top: "25%", width: 3 + (i % 3), height: fx === "fire" ? 10 : 3 + (i % 3), background: color, boxShadow: `0 0 8px ${color}` }}
-          animate={{ y: [0, -14], opacity: [0, 1, 0], scale: [0.6, 1.4, 0.4], rotate: [0, 90] }}
-          transition={{ duration: 1.4 + (i % 3) * 0.4, repeat: Infinity, delay: i * 0.22, ease: "easeOut" }}
-        />
-      ))}
-    </span>
-  );
-}
+import { PROFILE_TITLES, TIER_LABELS } from "@/lib/avatars";
+import { usePerformanceMode } from "@/lib/PerformanceContext";
 
 export default function AnimatedTitle({ titleKey, size = "md", className = "", animate = true }) {
+  const { isPowerSaver } = usePerformanceMode();
   const t = PROFILE_TITLES[titleKey];
-  if (!t || titleKey === "none" || !t.text) return null;
+  if (!t || titleKey === "none") return null;
 
+  const displayText = t.text || t.labelAr || t.label;
+  if (!displayText) return null;
+
+  const shouldAnimate = animate && !isPowerSaver;
+  const tierInfo = TIER_LABELS[t.tier || "vanguard"] || TIER_LABELS.vanguard;
+  const primaryColor = (t.grad && t.grad[0]) || tierInfo.color || "#19f08c";
+  const secondaryColor = (t.grad && t.grad[1]) || tierInfo.color || "#fbbf24";
   const grad = t.grad
     ? `linear-gradient(90deg, ${t.grad.join(", ")})`
-    : "linear-gradient(90deg,#fff,#fff)";
+    : `linear-gradient(90deg, #ffffff, ${primaryColor}, ${secondaryColor})`;
 
   const sizeCls =
-    size === "lg" ? "text-base sm:text-lg" :
-    size === "sm" ? "text-[11px]" : "text-sm";
+    size === "lg"
+      ? "text-xs sm:text-sm px-3.5 py-1"
+      : size === "sm"
+      ? "text-[10px] px-2.5 py-0.5"
+      : "text-[11px] sm:text-xs px-3 py-1";
 
-  // ===== رتبة الأدمن الأسطورية — بادج مؤطّر فخم =====
-  if (t.fx === "supreme") {
-    return (
-      <span className={`relative inline-flex items-center ${className}`}>
-        {/* توهّج خلفي نابض */}
-        <motion.span
-          className="absolute -inset-1 rounded-full blur-md"
-          style={{ background: "linear-gradient(90deg,#ffd700,#ff3d3d,#a855f7,#00e5ff,#ffd700)" }}
-          animate={animate ? { opacity: [0.4, 0.8, 0.4] } : { opacity: 0.45 }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.span
-          className="relative inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-black tracking-wider"
-          style={{ borderColor: "#ffd70088", background: "linear-gradient(90deg,#1a1030,#2a0a3a,#0a1a2a)", boxShadow: "0 0 14px rgba(255,215,0,0.35)" }}
-          animate={animate ? { scale: [1, 1.04, 1] } : undefined}
-          transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <span
-            className={`${animate ? "title-flow" : ""} ${sizeCls}`}
-            style={{
-              backgroundImage: grad,
-              backgroundSize: "300% auto",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              color: "transparent",
-            }}
-          >
-            {t.text}
-          </span>
-        </motion.span>
-        <TitleFx fx="supreme" animate={animate} />
-      </span>
-    );
-  }
-
-  const anim = !animate
-    ? ""
-    : t.fx === "glow" || t.fx === "emberShine"
-      ? "title-flow title-glow-pulse"
-      : "title-flow";
+  const isHighTier = ["epic", "legendary", "exclusive"].includes(t.tier) || t.fx === "supreme";
 
   return (
-    <span className={`relative inline-flex items-center font-black tracking-wide ${sizeCls} ${className}`}>
+    <motion.span
+      className={`relative inline-flex items-center gap-1.5 rounded-full border font-black tracking-wider overflow-hidden select-none ${sizeCls} ${className}`}
+      style={{
+        borderColor: `${primaryColor}66`,
+        background: "linear-gradient(135deg, rgba(9,13,22,0.92) 0%, rgba(18,24,38,0.88) 100%)",
+        boxShadow: isHighTier
+          ? `0 0 16px -3px ${primaryColor}55`
+          : `0 0 10px -4px ${primaryColor}33`,
+      }}
+    >
+      {shouldAnimate && (
+        <motion.span
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: `linear-gradient(110deg, transparent 32%, ${primaryColor}28 48%, rgba(255,255,255,0.35) 52%, transparent 68%)`,
+          }}
+          animate={{ x: ["-130%", "130%"] }}
+          transition={{ duration: 2.8, repeat: Infinity, repeatDelay: 1, ease: "easeInOut" }}
+        />
+      )}
+
       <span
-        className={anim}
+        className={`relative z-10 font-black whitespace-nowrap ${shouldAnimate ? "title-flow" : ""}`}
         style={{
           backgroundImage: grad,
+          backgroundSize: "250% auto",
           backgroundClip: "text",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           color: "transparent",
         }}
       >
-        {t.text}
+        {displayText}
       </span>
-      <TitleFx fx={t.fx} animate={animate} />
-    </span>
+    </motion.span>
   );
 }

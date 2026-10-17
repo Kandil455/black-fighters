@@ -1,11 +1,19 @@
 import { PLANS, planCredits, planPrice } from "./plans.js";
 
+/**
+ * Unified Credit Refill Packs — aligned with the Strictly Monotonic Progressive Pricing Curve:
+ * - 100 cr  -> 50 EGP  (0.50 EGP/cr · Base)
+ * - 250 cr  -> 125 EGP (0.50 EGP/cr · Entry)
+ * - 500 cr  -> 235 EGP (0.47 EGP/cr · Save 6%)
+ * - 1000 cr -> 425 EGP (0.425 EGP/cr · Save 15%)
+ * - 2500 cr -> 905 EGP (0.362 EGP/cr · Save 28%)
+ */
 export const CREDIT_PACKS = [
-  { key: "credits_50", name: "شحن 50 كريدت", credits: 50, price: 15, discount: 0, popular: false },
-  { key: "credits_150", name: "شحن 150 كريدت", credits: 150, price: 39, discount: 10, popular: false },
-  { key: "credits_400", name: "شحن 400 كريدت ⭐ (باقة الـ 100 ج)", credits: 400, price: 89, discount: 20, popular: true },
-  { key: "credits_1000", name: "شحن 1,000 كريدت 👑", credits: 1000, price: 199, discount: 30, popular: false },
-  { key: "credits_2500", name: "شحن 2,500 كريدت 🔥", credits: 2500, price: 420, discount: 40, popular: false },
+  { key: "credits_50", name: "شحن 100 كريدت", credits: 100, price: 50, discount: 0, popular: false },
+  { key: "credits_150", name: "شحن 250 كريدت", credits: 250, price: 120, discount: 4, popular: false },
+  { key: "credits_400", name: "شحن 500 كريدت ⭐ (الباقة الطلابية)", credits: 500, price: 235, discount: 6, popular: true },
+  { key: "credits_1000", name: "شحن 1,000 كريدت 👑", credits: 1000, price: 425, discount: 15, popular: false },
+  { key: "credits_2500", name: "شحن 2,500 كريدت 🔥", credits: 2500, price: 905, discount: 28, popular: false },
 ];
 
 /**
@@ -79,8 +87,11 @@ export function calculateSummaryCost(input = 0) {
   return Math.min(50, Math.max(2, cost));
 }
 
-export function calculateOcrCost(pageCount = 0) {
-  return Math.max(1, Math.min(10, Math.ceil((Number(pageCount) || 1) / 10)));
+/**
+ * OCR in PDF Tools is 100% Free (0 Credits)
+ */
+export function calculateOcrCost() {
+  return 0;
 }
 
 export function getPurchasableProduct({ productType, productKey, billing = "monthly" }) {
@@ -103,5 +114,5 @@ export function getPurchasableProduct({ productType, productKey, billing = "mont
 export const AI_COST_RULES = {
   summary: { base: 2, includedChars: 20_000, stepChars: 20_000, cap: 30 },
   quiz: { creditsPerQuestions: 5 },
-  ocr: { creditsPerPages: 10, cap: 10 },
+  ocr: { creditsPerPages: 0, cap: 0 },
 };

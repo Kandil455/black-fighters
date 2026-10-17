@@ -2,10 +2,11 @@ import React from "react";
 import { motion } from "framer-motion";
 import { FileText, Loader2, X, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedNumber } from "@/components/ui/linevault";
 
 export default function CourseGenerationLoader({ fileName, statusText, progress, onCancel }) {
   const safeProgress = Math.max(1, Math.min(100, Number(progress) || 1));
-  const remaining = safeProgress >= 95 ? "أقل من دقيقة" : safeProgress >= 50 ? "حوالي دقيقة" : "1-3 دقائق";
+  const remaining = safeProgress >= 90 ? "ثوانٍ معدودة" : safeProgress >= 50 ? "أقل من دقيقة" : "حوالي دقيقة";
 
   return (
     <motion.section
@@ -23,7 +24,9 @@ export default function CourseGenerationLoader({ fileName, statusText, progress,
         <div className="flex items-start gap-4">
           <div className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-primary/25 bg-primary/8 text-primary">
             <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="absolute -bottom-1 -left-1 rounded-full bg-background px-1.5 text-[10px] font-black text-primary">{safeProgress}%</span>
+            <span className="absolute -bottom-1 -left-1 rounded-full bg-background px-1.5 text-[10px] font-black text-primary tabular-nums">
+              <AnimatedNumber value={safeProgress} suffix="%" />
+            </span>
           </div>
           <div className="min-w-0 flex-1 text-start">
             <p className="text-xs font-bold text-primary">جاري بناء الملخص</p>
@@ -44,7 +47,7 @@ export default function CourseGenerationLoader({ fileName, statusText, progress,
             transition={{ type: "spring", stiffness: 80, damping: 18 }}
           />
         </div>
-        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">تقدر تسيب الصفحة مفتوحة. الأجزاء المكتملة محفوظة، ولو الشبكة قطعت هنكمل من آخر نقطة.</p>
+        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">يستمر التلخيص تلقائياً في الخلفية بأعلى سرعة حتى لو تنقلت داخل المنصة.</p>
       </div>
     </motion.section>
   );

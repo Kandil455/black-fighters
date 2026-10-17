@@ -11,6 +11,7 @@ import OfflineManager from '@/components/OfflineManager';
 import { initSecurityGuard } from '@/lib/securityGuard';
 import { initReferralTracking } from '@/lib/referralService';
 import RemoteLockOverlay from '@/components/RemoteLockOverlay';
+import BackgroundSummaryPill from '@/components/course/BackgroundSummaryPill';
 
 const PremiumUpgradeModal = lazyWithRetry(() => import('@/components/PremiumUpgradeModal'));
 
@@ -41,6 +42,7 @@ export default function App() {
         <PWAUpdater />
         <OfflineManager />
         <PremiumUpgradeHost />
+        <BackgroundSummaryPill />
         <AppRoutes />
       </Router>
       <SonnerToaster theme="dark" position="bottom-center" richColors closeButton />

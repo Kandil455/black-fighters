@@ -197,7 +197,15 @@ export default function PdfTools() {
 
   return (
     <div dir={dir} className="max-w-7xl mx-auto">
-      <div className="mb-8 space-y-1.5">
+      <div className="mb-8 space-y-2">
+        <div className="inline-flex items-center gap-2 rounded-full border border-[#19f08c]/35 bg-[#19f08c]/10 px-3.5 py-1 text-xs font-black text-[#19f08c]">
+          <span>✨</span>
+          <span>
+            {isEn
+              ? "Free Visual PDF Studio & 100% Free OCR (0 Credits)"
+              : "أدوات تعديل الـ PDF المرئية واستخراج النص OCR مجانية ١٠٠٪ بدون خصم كريدتس"}
+          </span>
+        </div>
         <KineticHeading 
           text={isEn ? "PDF & Document Studio 🛠️" : "لوحة أدوات ومستندات PDF 🛠️"} 
           className="text-3xl md:text-4xl font-black heading-display studio-headline-gradient" 
@@ -205,8 +213,8 @@ export default function PdfTools() {
         />
         <KineticParagraph className="text-sm text-muted-foreground">
           {isEn 
-            ? "Summarize, OCR, merge, split, compress, and convert documents in one unified studio"
-            : "تلخيص، استخراج نص، دمج، تقسيم، ضغط وتحويل ملفات في مكان واحد"}
+            ? "Click page thumbnails to delete, rotate, extract, or reorder visually — plus 100% free OCR"
+            : "اضغط على مصغرات الصفحات للحذف أو التدوير أو القص أو الترتيب أمام عينك مباشرة — مع OCR مجاني بالكامل"}
         </KineticParagraph>
       </div>
 
@@ -218,12 +226,19 @@ export default function PdfTools() {
         </div>
 
         <motion.div key={toolId} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} className="glass-card rounded-3xl p-6 border border-primary/30 lg:sticky lg:top-6">
-          <div className="flex items-start gap-3 mb-5">
-            <tool.icon className={`w-7 h-7 ${tool.color}`} />
-            <div>
-              <h2 className="text-xl font-black">{tool.label}</h2>
-              <p className="text-sm text-muted-foreground">{tool.desc}</p>
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div className="flex items-start gap-3">
+              <tool.icon className={`w-7 h-7 ${tool.color}`} />
+              <div>
+                <h2 className="text-xl font-black">{tool.label}</h2>
+                <p className="text-sm text-muted-foreground">{tool.desc}</p>
+              </div>
             </div>
+            {!isAiTool && (
+              <span className="shrink-0 rounded-full border border-[#19f08c]/40 bg-[#19f08c]/15 px-2.5 py-1 text-[10px] font-black text-[#19f08c]">
+                {isEn ? "FREE · 0 CR" : "مجاني · 0 كريدت"}
+              </span>
+            )}
           </div>
 
           <PdfUploadPanel

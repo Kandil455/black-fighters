@@ -15,6 +15,7 @@ import {
   Sparkles,
   Zap,
   Gift,
+  Shield,
 } from "lucide-react";
 import { getReferralLink, shareReferralLink } from "@/lib/referralService";
 import { PaymentIcon } from "@/components/ui/icons";
@@ -22,12 +23,15 @@ import { toast } from "sonner";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import FrameStore from "@/components/profile/FrameStore";
 import BannerStore from "@/components/profile/BannerStore";
+import TitleStore from "@/components/profile/TitleStore";
+import OrbitStore from "@/components/profile/OrbitStore";
 import DecorPicker from "@/components/profile/DecorPicker";
 import AvatarUploader from "@/components/profile/AvatarUploader";
 import Avatar3DOrbit from "@/components/profile/Avatar3DOrbit";
 import Tilt3DCard from "@/components/profile/Tilt3DCard";
 import ProfileBanner from "@/components/profile/ProfileBanner";
 import AnimatedTitle from "@/components/profile/AnimatedTitle";
+import AnimatedDragonFrame from "@/components/profile/AnimatedDragonFrame";
 import MascotSkin from "@/components/course/MascotSkin";
 import MascotSkinStore from "@/components/course/MascotSkinStore";
 import { MASCOT_SKINS } from "@/lib/mascotSkins";
@@ -207,35 +211,42 @@ export default function Profile() {
       <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
         <aside className="space-y-4 lg:sticky lg:top-6">
           <Tilt3DCard enabled={enable3d && !isPowerSaver}>
-            <div
-              className="overflow-hidden rounded-[28px] border bg-card/80 shadow-2xl"
-              style={{ borderColor: `${accentHex}66`, boxShadow: `0 24px 70px ${accentHex}18` }}
+            <AnimatedDragonFrame
+              frame={frame}
+              profileColor={profileColor}
+              isAdmin={isAdmin}
+              enabled={enable3d && !isPowerSaver}
+              showBadge={true}
             >
-              <ProfileBanner banner={banner} className="rounded-none" />
-              <div className={`relative flex flex-col items-center px-6 pb-7 ${banner === "none" ? "pt-8" : "-mt-10 pt-0"}`}>
-                <Avatar3DOrbit model={orbitEffects} size={132}>
-                  <AnimatedAvatar
-                    src={avatar}
-                    isVideo={isVideo}
-                    frame={frame}
-                    size={132}
-                    fallback={user.profile_emoji || "III"}
-                    withSound={isAdmin}
-                  />
-                </Avatar3DOrbit>
-                <h2 className="mt-5 text-xl font-black">{fullName || user.full_name || "Black Fighters Student"}</h2>
-                {titleKey !== "none" && <div className="mt-2"><AnimatedTitle titleKey={titleKey} size="lg" /></div>}
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-bold">
-                  <span className="flex items-center gap-1.5 rounded-full bg-amber-400/10 border border-amber-400/25 px-3 py-1 text-amber-300 font-mono font-bold shadow-sm">
-                    <PaymentIcon size={16} /> {Number(user.credits ?? 10).toLocaleString()} {isEn ? "Credits" : "كريدت"}
-                  </span>
-                  {/* The accent defaults to neon cyan (#00e5ff): 1.54:1 as text on white. It is
-                      kept as the chip's tint but the number itself is ink. */}
-                  <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-foreground" style={{ background: `${accentHex}16` }}><Zap className="h-3.5 w-3.5" /> {user.total_xp ?? 0} XP</span>
-                  {(user.current_streak ?? 0) > 0 && <span className="flex items-center gap-1 rounded-full bg-orange-400/10 px-2.5 py-1 text-orange-300"><Flame className="h-3.5 w-3.5" /> {user.current_streak}</span>}
+              <div
+                className="overflow-hidden rounded-[28px] border bg-card/85 shadow-2xl"
+                style={{ borderColor: `${accentHex}66`, boxShadow: `0 24px 70px ${accentHex}18` }}
+              >
+                <ProfileBanner banner={banner === "none" ? "forest" : banner} className="rounded-none" />
+                <div className="relative flex flex-col items-center px-6 pb-7 -mt-11 pt-0 z-10">
+                  <Avatar3DOrbit model={orbitEffects} size={132}>
+                    <AnimatedAvatar
+                      src={avatar}
+                      isVideo={isVideo}
+                      frame={frame}
+                      size={132}
+                      fallback={user.profile_emoji || "BF"}
+                      withSound={isAdmin}
+                      animate={true}
+                    />
+                  </Avatar3DOrbit>
+                  <h2 className="mt-5 text-xl font-black">{fullName || user.full_name || "Black Fighters Student"}</h2>
+                  {titleKey !== "none" && <div className="mt-2"><AnimatedTitle titleKey={titleKey} size="lg" animate={true} /></div>}
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-bold">
+                    <span className="flex items-center gap-1.5 rounded-full bg-amber-400/10 border border-amber-400/25 px-3 py-1 text-amber-300 font-mono font-bold shadow-sm tabular-nums">
+                      <PaymentIcon size={16} /> {Number(user.credits ?? 10).toLocaleString()} {isEn ? "Credits" : "كريدت"}
+                    </span>
+                    <span className="flex items-center gap-1 rounded-full px-2.5 py-1 text-foreground font-mono tabular-nums" style={{ background: `${accentHex}16` }}><Zap className="h-3.5 w-3.5" /> {Number(user.total_xp ?? 0).toLocaleString()} XP</span>
+                    {(user.current_streak ?? 0) > 0 && <span className="flex items-center gap-1 rounded-full bg-orange-400/10 px-2.5 py-1 text-orange-300 font-mono tabular-nums"><Flame className="h-3.5 w-3.5" /> {user.current_streak}</span>}
+                  </div>
                 </div>
               </div>
-            </div>
+            </AnimatedDragonFrame>
           </Tilt3DCard>
 
           {/* User Display Name Input Card */}
@@ -373,12 +384,14 @@ export default function Profile() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-5 flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl bg-background/50 p-1.5 scrollbar-none">
                 {[
-                  { value: "frames", label: isEn ? "Frames" : "الإطارات", icon: CircleDot },
-                  { value: "banners", label: isEn ? "Banners" : "البانرات", icon: ImageIcon },
-                  { value: "decor", label: isEn ? "Effects" : "التأثيرات", icon: Palette },
+                  { value: "frames", label: isEn ? "RPG Frames" : "الإطارات المتحركة", icon: CircleDot },
+                  { value: "titles", label: isEn ? "Titles" : "الألقاب والشارات", icon: Shield },
+                  { value: "orbits", label: isEn ? "3D Orbits" : "جواهر المدار 3D", icon: Sparkles },
+                  { value: "banners", label: isEn ? "Banners" : "البنرات المتحركة", icon: ImageIcon },
+                  { value: "decor", label: isEn ? "Theme & 3D" : "الثيم والـ3D", icon: Palette },
                   { value: "mascots", label: isEn ? "3D Models" : "المجسمات 3D", icon: Bot },
                 ].map(({ value, label, icon: Icon }) => (
-                  <TabsTrigger key={value} value={value} className="min-h-10 shrink-0 gap-2 rounded-xl px-3 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                  <TabsTrigger key={value} value={value} className="min-h-10 shrink-0 gap-2 rounded-xl px-3 font-bold data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
                     <Icon className="h-4 w-4" /> {label}
                   </TabsTrigger>
                 ))}
@@ -386,6 +399,12 @@ export default function Profile() {
 
               <TabsContent value="frames" className="mt-0">
                 <FrameStore user={user} avatar={avatar} isVideo={isVideo} selected={frame} onSelect={setFrame} onUserUpdate={(patch) => setUser((current) => ({ ...current, ...patch }))} />
+              </TabsContent>
+              <TabsContent value="titles" className="mt-0">
+                <TitleStore user={user} selected={titleKey} onSelect={setTitleKey} onUserUpdate={(patch) => setUser((current) => ({ ...current, ...patch }))} />
+              </TabsContent>
+              <TabsContent value="orbits" className="mt-0">
+                <OrbitStore user={user} selected={orbitEffects} onChange={setOrbitEffects} onUserUpdate={(patch) => setUser((current) => ({ ...current, ...patch }))} />
               </TabsContent>
               <TabsContent value="banners" className="mt-0">
                 <BannerStore user={user} selected={banner} onSelect={setBanner} onUserUpdate={(patch) => setUser((current) => ({ ...current, ...patch }))} />
@@ -398,6 +417,7 @@ export default function Profile() {
                   profileColor={profileColor} onProfileColor={setProfileColor}
                   model3d={orbitEffects} onModel3d={setOrbitEffects}
                   enable3d={enable3d} onEnable3d={setEnable3d}
+                  showStores={false}
                 />
               </TabsContent>
               <TabsContent value="mascots" className="mt-0">

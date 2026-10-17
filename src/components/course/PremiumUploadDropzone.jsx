@@ -1,25 +1,31 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import { FolderOpen, LayoutGrid, List, Rows3, Upload } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  CheckCircle2,
+  FileCheck2,
+  FolderOpen,
+  LayoutGrid,
+  List,
+  RefreshCw,
+  Rows3,
+  ShieldAlert,
+  Sparkles,
+  Upload,
+  SlidersHorizontal,
+} from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/LocaleContext";
 import { usePerformanceMode } from "@/lib/PerformanceContext";
 import { UploadIcon, LightningIcon, BrainIcon, DocumentIcon } from "@/components/ui/icons";
 import { PdfIcon, PptxIcon, DocxIcon, TextFileIcon } from "@/components/ui/FileTypeIcons";
+import { AnimatedNumber } from "@/components/ui/linevault";
+import { scanFileSecurity } from "@/lib/fileSecurityScanner";
 
 /**
- * The lecture-upload control, in THREE layouts.
- *
- * The owner's feedback on the previous version: "الحتة بتاع الرفع دي واخدة مكان
- * كبير وشكلها مقرف… اعملّي كذا شكل أختار منهم". The *action* is unchanged; the
- * *presentation* is now a choice:
- *
- *   hero    — one big inviting target (calmer than before)
- *   split   — drop area beside the format/benefit list
- *   compact — a single slim row, the least vertical space
- *
- * The choice is remembered per browser. Every layout keeps the same drag, click,
- * keyboard and paste-to-upload paths, so switching never removes a capability.
+ * PremiumUploadDropzone — Single-pass lecture upload & extraction control.
+ * Performs file validation + text/OCR extraction in one unified progress pass
+ * and stays in a clean "Ready" state without flashing or re-showing the upload box.
  */
 
 const LAYOUTS = [
@@ -34,23 +40,27 @@ const STORAGE_KEY = "bf_upload_layout";
 function formatSize(bytes) {
   if (!bytes) return "0 MB";
   const mb = bytes / (1024 * 1024);
-  return mb >= 1 ? `${Math.round(mb)} MB` : `${Math.round(bytes / 1024)} KB`;
+  return mb >= 1 ? `${mb.toFixed(mb >= 10 ? 0 : 1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 const FORMATS = [
   { ext: "PDF", labelAr: "مذكرات وكتب", labelEn: "Notes & books", Icon: PdfIcon, tone: "text-rose-300 border-rose-400/30 bg-rose-400/10" },
   { ext: "PPTX", labelAr: "سلايدات", labelEn: "Slides", Icon: PptxIcon, tone: "text-orange-300 border-orange-400/30 bg-orange-400/10" },
   { ext: "DOCX", labelAr: "ملفات Word", labelEn: "Word", Icon: DocxIcon, tone: "text-sky-300 border-sky-400/30 bg-sky-400/10" },
-  { ext: "TXT", labelAr: "نصوص وملاحظات", labelEn: "Text & notes", Icon: TextFileIcon, tone: "text-emerald-300 border-emerald-400/30 bg-emerald-400/10" },
+  { ext: "TXT", labelAr: "نصوص وملاحظات", labelEn: "Text & notes", Icon: TextFileIcon, tone: "text-slate-300 border-slate-400/30 bg-slate-400/10" },
 ];
 
 const BENEFITS = [
-  { Icon: LightningIcon, ar: "تلخيص فوري مكثف", en: "Instant deep summary" },
+  { Icon: LightningIcon, ar: "تلخيص فوري منظم", en: "Instant structured summary" },
   { Icon: BrainIcon, ar: "كويزات MCQ ذكية", en: "Smart MCQ quizzes" },
   { Icon: DocumentIcon, ar: "بطاقات مراجعة", en: "Spaced flashcards" },
 ];
 
-export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 1024 }) {
+export default function PremiumUploadDropzone({
+  onFile,
+  onReopenPopup,
+  maxSize = 50 * 1024 * 1024,
+}) {
   const { locale } = useLocale();
   const { isLite, isPowerSaver } = usePerformanceMode();
   const isEn = locale === "en";
@@ -60,28 +70,120 @@ export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 10
     try { return localStorage.getItem(STORAGE_KEY) || "hero"; } catch { return "hero"; }
   });
 
+  // Single-pass state: "idle" | "processing" | "ready" | "rejected"
+  const [scanState, setScanState] = useState("idle");
+  const [activeFile, setActiveFile] = useState(null);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanLabel, setScanLabel] = useState("");
+  const [securityReport, setSecurityReport] = useState(null);
+
   const chooseLayout = useCallback((id) => {
     setLayout(id);
     try { localStorage.setItem(STORAGE_KEY, id); } catch { /* private mode */ }
   }, []);
 
-  // Paste-to-upload works in every layout.
+  const resetScanner = useCallback(() => {
+    setScanState("idle");
+    setActiveFile(null);
+    setScanProgress(0);
+    setScanLabel("");
+    setSecurityReport(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }, []);
+
+  const processSelectedFile = useCallback(async (file) => {
+    if (!file || scanState === "processing") return;
+    setActiveFile(file);
+    setScanState("processing");
+    setScanProgress(8);
+    setSecurityReport(null);
+    setScanLabel(isEn ? "Checking file integrity..." : "جاري فحص الملف وتجهيزه...");
+
+    try {
+      const report = await scanFileSecurity(file, {
+        maxSize,
+        fast: true,
+        onStage: ({ progress }) => {
+          // Map security check to 8%..35%
+          setScanProgress(Math.min(35, Math.max(8, Math.round(progress * 0.35))));
+        },
+      });
+
+      setSecurityReport(report);
+
+      if (!report.safe) {
+        setScanState("rejected");
+        const msg = isEn ? report.reasonEn : report.reasonAr;
+        toast.error(msg);
+        return;
+      }
+
+      setScanProgress(40);
+      setScanLabel(isEn ? "Reading lecture pages..." : "جاري استخراج محتوى المحاضرة...");
+
+      // Run text extraction inside the SAME progress bar (40%..98%) without switching steps!
+      const ok = await onFile?.(file, {
+        report,
+        onProgress: ({ current = 1, total = 1, phase }) => {
+          const ratio = Math.min(1, Math.max(0, current / Math.max(1, total)));
+          const mapped = 40 + Math.round(ratio * 58);
+          setScanProgress(mapped);
+          if (phase === "ocr") {
+            setScanLabel(
+              isEn
+                ? `Reading scanned pages (${current}%)...`
+                : `جاري قراءة الصفحات المصورة (${current}%)...`
+            );
+          } else {
+            setScanLabel(
+              isEn
+                ? `Reading page ${current} of ${total}...`
+                : `جاري قراءة صفحة ${current} من ${total}...`
+            );
+          }
+        },
+      });
+
+      if (ok === false) {
+        resetScanner();
+        return;
+      }
+
+      setScanProgress(100);
+      setScanState("ready");
+      setScanLabel(isEn ? "Lecture ready for summarization" : "تم تجهيز المحاضرة بنجاح");
+    } catch (err) {
+      setScanState("rejected");
+      const fallbackMsg = err?.message || (isEn ? "Failed to read file" : "تعذر قراءة الملف");
+      setSecurityReport({
+        safe: false,
+        code: "SCAN_ERROR",
+        reasonAr: fallbackMsg,
+        reasonEn: fallbackMsg,
+      });
+      toast.error(fallbackMsg);
+    }
+  }, [isEn, maxSize, onFile, resetScanner, scanState]);
+
   useEffect(() => {
     const onPaste = (event) => {
       const file = event.clipboardData?.files?.[0];
-      if (file) onFile?.(file);
+      if (file) processSelectedFile(file);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [onFile]);
+  }, [processSelectedFile]);
 
-  const openPicker = () => inputRef.current?.click();
+  const openPicker = () => {
+    if (scanState === "processing") return;
+    inputRef.current?.click();
+  };
 
   const handleDrop = (event) => {
     event.preventDefault();
     setDragOver(false);
     const file = event.dataTransfer?.files?.[0];
-    if (file) onFile?.(file);
+    if (file) processSelectedFile(file);
   };
 
   const handleKey = (event) => {
@@ -105,7 +207,7 @@ export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 10
   };
 
   const LayoutSwitcher = (
-    <div className="flex items-center gap-1" role="group" aria-label={isEn ? "Upload box style" : "شكل صندوق الرفع"}>
+    <div className="flex items-center justify-end gap-1" role="group" aria-label={isEn ? "Upload box style" : "شكل صندوق الرفع"}>
       {LAYOUTS.map((item) => {
         const Icon = item.Icon;
         const active = layout === item.id;
@@ -129,30 +231,130 @@ export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 10
     </div>
   );
 
-  const header = (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <span className="text-[11px] font-bold text-muted-foreground">
-        {isEn ? `Up to ${formatSize(maxSize)} per file` : `لغاية ${formatSize(maxSize)} للملف`}
-      </span>
-      {LayoutSwitcher}
-    </div>
-  );
-
   const fileInput = (
     <input
       ref={inputRef}
       type="file"
       accept={ACCEPT}
       className="hidden"
-      onChange={(e) => e.target.files?.[0] && onFile?.(e.target.files[0])}
+      onChange={(e) => e.target.files?.[0] && processSelectedFile(e.target.files[0])}
     />
   );
+
+  // ── Unified Single-Pass Progress / Ready / Rejected View ──
+  if (scanState !== "idle") {
+    const isReady = scanState === "ready";
+    const isRejected = scanState === "rejected";
+
+    return (
+      <div className="space-y-2">
+        {LayoutSwitcher}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            "relative overflow-hidden rounded-3xl border bg-card p-6 sm:p-7 transition-colors",
+            isRejected
+              ? "border-rose-500/45 bg-rose-950/15"
+              : "border-border bg-card",
+          )}
+          aria-live="polite"
+        >
+          <div className="flex flex-col gap-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-[#0E1117]">
+                  {isRejected ? (
+                    <ShieldAlert className="h-7 w-7 text-rose-400" />
+                  ) : isReady ? (
+                    <CheckCircle2 className="h-7 w-7 text-primary" />
+                  ) : (
+                    <FileCheck2 className="h-7 w-7 text-primary" />
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <h4 className="truncate text-base font-black text-foreground">
+                    {activeFile?.name || (isEn ? "Selected File" : "الملف المختار")}
+                  </h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {isRejected
+                      ? (isEn ? securityReport?.reasonEn : securityReport?.reasonAr)
+                      : scanLabel}
+                  </p>
+                </div>
+              </div>
+
+              {!isRejected && (
+                <div className="shrink-0 text-end">
+                  <div className="font-mono text-2xl font-black tabular-nums text-primary">
+                    <AnimatedNumber value={scanProgress} suffix="%" />
+                  </div>
+                  <span className="block text-[10px] font-bold text-muted-foreground">
+                    {formatSize(activeFile?.size || 0)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {!isRejected && (
+              <div className="relative h-2.5 w-full overflow-hidden rounded-full border border-border bg-[#0A0D12] p-0.5">
+                <motion.div
+                  className="h-full w-full rounded-full origin-left rtl:origin-right bg-gradient-to-r from-primary to-cyan-400"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: Math.max(0.05, Math.min(1, scanProgress / 100)) }}
+                  transition={{ type: "spring", stiffness: 120, damping: 22 }}
+                />
+              </div>
+            )}
+
+            {isReady && (
+              <div className="flex flex-wrap items-center justify-end gap-2.5 border-t border-border pt-3">
+                {onReopenPopup && (
+                  <button
+                    type="button"
+                    onClick={onReopenPopup}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground hover:opacity-90 transition-opacity"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    {isEn ? "Summary Options" : "إعدادات التلخيص"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={resetScanner}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/50 px-3.5 py-2 text-xs font-bold text-foreground hover:bg-secondary transition-colors"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {isEn ? "Change file" : "تغيير الملف"}
+                </button>
+              </div>
+            )}
+
+            {isRejected && (
+              <div className="flex flex-wrap items-center justify-end gap-3 border-t border-rose-500/20 pt-3">
+                <button
+                  type="button"
+                  onClick={resetScanner}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/40 bg-rose-500/20 px-3.5 py-2 text-xs font-black text-rose-100 hover:bg-rose-500/30 transition-colors"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {isEn ? "Choose another file" : "اختر ملفاً آخر"}
+                </button>
+              </div>
+            )}
+          </div>
+        </motion.div>
+        {fileInput}
+      </div>
+    );
+  }
 
   // ── compact — one slim row ─────────────────────────────────────────────────
   if (layout === "compact") {
     return (
       <div className="space-y-2">
-        {header}
+        {LayoutSwitcher}
         <div
           {...dropProps}
           className={cn(
@@ -185,7 +387,7 @@ export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 10
   if (layout === "split") {
     return (
       <div className="space-y-2">
-        {header}
+        {LayoutSwitcher}
         <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr]">
           <div
             {...dropProps}
@@ -233,7 +435,7 @@ export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 10
   // ── hero — one big inviting target ────────────────────────────────────────
   return (
     <div className="space-y-2">
-      {header}
+      {LayoutSwitcher}
       <div
         {...dropProps}
         className={cn(
@@ -241,8 +443,6 @@ export default function PremiumUploadDropzone({ onFile, maxSize = 50 * 1024 * 10
           dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/45",
         )}
       >
-        {/* A single soft wash. The previous version layered two infinite "laser"
-            beams and three pulsing glows, which is most of why it read as heavy. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary/[0.06] to-transparent" />
 
         <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-[#0E1117] text-primary">

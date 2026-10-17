@@ -290,11 +290,11 @@ async function generateStructuredSummaryV3({
   const remaining = chunks.map((chunk, index) => ({ chunk, index })).filter(({ index }) => !Array.isArray(parts[index]) || !parts[index].length);
 
   try {
-    await updateSummaryJob(jobId, { status: "running" }).catch(() => {});
+    updateSummaryJob(jobId, { status: "running" }).catch(() => {});
     await processChunksParallel(remaining, async ({ chunk, index }) => {
       if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
       onProgress?.({ phase: "map_facts", current: parts.filter((part) => Array.isArray(part) && part.length).length + 1, total: chunks.length, analysis, jobId });
-      await updateSummaryJob(jobId, { status: "running", chunkIndex: index, chunkStatus: "running" }).catch(() => {});
+      updateSummaryJob(jobId, { status: "running", chunkIndex: index, chunkStatus: "running" }).catch(() => {});
       let result;
       try {
         result = await invoke({
@@ -307,7 +307,7 @@ async function generateStructuredSummaryV3({
           totalChunks: chunks.length,
         });
       } catch (error) {
-        await updateSummaryJob(jobId, { chunkIndex: index, chunkStatus: "failed", error: error?.message || "FACT_EXTRACTION_FAILED" }).catch(() => {});
+        updateSummaryJob(jobId, { chunkIndex: index, chunkStatus: "failed", error: error?.message || "FACT_EXTRACTION_FAILED" }).catch(() => {});
         throw error;
       }
       const model = result?.model_actual || result?.model || "";
@@ -316,18 +316,16 @@ async function generateStructuredSummaryV3({
       if (!facts.length) facts = extractLocalSummaryFacts(chunk, { chunkIndex: index, languageMode: selectedLanguage });
       if (!facts.length) throw new Error(`NO_GROUNDED_FACTS_IN_CHUNK:${index + 1}`);
       parts[index] = facts;
-      await Promise.all([
-        setOfflineSnapshot(snapshotKey, { parts, analysis, jobId, modelNames: [...modelNames], status: "running", updatedAt: Date.now() }).catch(() => {}),
-        updateSummaryJob(jobId, {
-          status: "running",
-          chunkIndex: index,
-          chunkStatus: "completed",
-          chunkOutput: facts,
-          model: model || undefined,
-        }).catch(() => {}),
-      ]);
+      setOfflineSnapshot(snapshotKey, { parts, analysis, jobId, modelNames: [...modelNames], status: "running", updatedAt: Date.now() }).catch(() => {});
+      updateSummaryJob(jobId, {
+        status: "running",
+        chunkIndex: index,
+        chunkStatus: "completed",
+        chunkOutput: facts,
+        model: model || undefined,
+      }).catch(() => {});
       return facts;
-    }, { maxConcurrent: 2 });
+    }, { maxConcurrent: 3 });
 
     if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
     onProgress?.({ phase: "assemble", current: 1, total: 1, analysis, jobId });
@@ -422,7 +420,7 @@ export async function generateHierarchicalSummary({
   style,
   stylePrompt = "",
   maxPages = 12,
-  colorLevel = "medium",
+  colorLevel = "none",
   onProgress,
   signal,
   courseId = "",
@@ -475,9 +473,9 @@ export async function generateHierarchicalSummary({
     const markdown = result?.summary_markdown || result?.text || "";
     if (!markdown.trim()) throw new Error(`الجزء ${index + 1} رجع فارغ`);
     parts[index] = markdown;
-    await setOfflineSnapshot(snapshotKey, { parts, analysis, updatedAt: Date.now() }).catch(() => {});
+    setOfflineSnapshot(snapshotKey, { parts, analysis, updatedAt: Date.now() }).catch(() => {});
     return markdown;
-  }, { maxConcurrent: 2 });
+  }, { maxConcurrent: 3 });
 
   const summary = chunks.length === 1 ? parts[0] : await reduceSummariesHierarchically(
     parts,

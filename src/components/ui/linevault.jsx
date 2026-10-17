@@ -28,6 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/LocaleContext";
+import { BlackFightersCrest } from "@/components/ui/BlackFightersCrest";
+import { BlackFightersAnimated } from "@/components/ui/BlackFightersAnimated";
 
 /**
  * LineVault Physics Motion Dictionary (Section C.2)
@@ -69,8 +71,8 @@ export function LVLogo({
 }) {
   const inner = (
     <span className={cn("inline-flex items-center gap-2.5 select-none group", className)}>
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#19f08c]/40 bg-[#19f08c]/15 font-mono text-xs font-bold text-[#19f08c] shadow-[0_0_24px_-6px_rgba(25,240,140,0.45)] transition-colors duration-150 group-hover:border-[#19f08c]/70">
-        &gt;_
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#19f08c]/40 bg-[#19f08c]/10 shadow-[0_0_24px_-6px_rgba(25,240,140,0.45)] transition-colors duration-150 group-hover:border-[#19f08c]/70">
+        <BlackFightersAnimated size={28} variant="emerald" />
       </span>
       <span className="leading-tight">
         <span className="block font-display text-sm sm:text-base font-bold tracking-tight text-[#f5f7fa] whitespace-nowrap">
@@ -500,8 +502,9 @@ export function AnimatedNumber({
   className,
 }) {
   const reduce = useReducedMotion();
-  const mv = useMotionValue(Number(value) || 0);
-  const spring = useSpring(mv, { stiffness: 180, damping: 26, mass: 0.6 });
+  const targetValue = Number(value) || 0;
+  const mv = useMotionValue(reduce ? targetValue : 0);
+  const spring = useSpring(mv, { stiffness: 140, damping: 24, mass: 0.65 });
   const text = useTransform(spring, (latest) => {
     if (format) return `${prefix}${format(latest)}${suffix}`;
     const num = Number(latest) || 0;
@@ -518,7 +521,7 @@ export function AnimatedNumber({
     else mv.set(target);
   }, [value, reduce, mv]);
 
-  return <motion.span className={cn("tabular", className)}>{text}</motion.span>;
+  return <motion.span className={cn("tabular-nums", className)}>{text}</motion.span>;
 }
 
 const STREAM_POOL = [
@@ -1185,12 +1188,12 @@ export function TierList({
 
 export const CREDIT_CHIPS = [100, 250, 500, 1000, 2500, 5000, 10000];
 const CREDIT_TIERS = [
-  { min_qty: 100, unit_price: 0.5, nameAr: "الشريحة 1 · أساسي", nameEn: "Tier 1 · Standard" },
-  { min_qty: 250, unit_price: 0.44, nameAr: "الشريحة 2 · دفعة طلابية", nameEn: "Tier 2 · Scholar Pack" },
-  { min_qty: 500, unit_price: 0.38, nameAr: "الشريحة 3 · مكثف", nameEn: "Tier 3 · Intensive" },
-  { min_qty: 1000, unit_price: 0.32, nameAr: "الشريحة 4 · دفعة امتحانات", nameEn: "Tier 4 · Exam Vault" },
-  { min_qty: 2500, unit_price: 0.27, nameAr: "الشريحة 5 · مجموعة دراسية", nameEn: "Tier 5 · Study Syndicate" },
-  { min_qty: 5000, unit_price: 0.22, nameAr: "الشريحة 6 · أطلس كامل", nameEn: "Tier 6 · Full Atlas" },
+  { min_qty: 100, max_qty: 250, unit_price: 0.5, nameAr: "الشريحة 1 · أساسي", nameEn: "Tier 1 · Standard" },
+  { min_qty: 250, max_qty: 500, unit_price: 0.44, nameAr: "الشريحة 2 · دفعة طلابية", nameEn: "Tier 2 · Scholar Pack" },
+  { min_qty: 500, max_qty: 1000, unit_price: 0.38, nameAr: "الشريحة 3 · مكثف", nameEn: "Tier 3 · Intensive" },
+  { min_qty: 1000, max_qty: 2500, unit_price: 0.32, nameAr: "الشريحة 4 · دفعة امتحانات", nameEn: "Tier 4 · Exam Vault" },
+  { min_qty: 2500, max_qty: 5000, unit_price: 0.27, nameAr: "الشريحة 5 · مجموعة دراسية", nameEn: "Tier 5 · Study Syndicate" },
+  { min_qty: 5000, max_qty: Infinity, unit_price: 0.22, nameAr: "الشريحة 6 · أطلس كامل", nameEn: "Tier 6 · Full Atlas" },
 ];
 
 export function creditQtySteps(min = 100, max = 10000) {
@@ -1220,25 +1223,47 @@ export function nearestStepIndex(steps, qty) {
   return best;
 }
 
+/**
+ * Strictly Monotonic Progressive Bracket Pricing:
+ * Every additional credit is priced at its bracket's marginal rate so that
+ * buying 2,500 credits is ALWAYS more expensive than buying 2,400 credits
+ * while still rewarding larger quantities with progressive volume savings.
+ */
 export function quoteForCredits(qty) {
-  const safeQty = Math.max(100, Math.min(10000, Math.round(Number(qty) || 100)));
+  const safeQty = Math.max(50, Math.min(10000, Math.round(Number(qty) || 100)));
   const sorted = [...CREDIT_TIERS].sort((a, b) => a.min_qty - b.min_qty);
   const baseUnit = sorted[0].unit_price;
+
   let activeTier = sorted[0];
   for (const t of sorted) {
     if (safeQty >= t.min_qty) activeTier = t;
   }
   const rank = sorted.indexOf(activeTier) + 1;
-  const totalEgp = Math.round(safeQty * activeTier.unit_price);
+
+  // Progressive cumulative bracket calculation (0 -> safeQty)
+  let progressiveTotal = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    const bracketStart = i === 0 ? 0 : sorted[i].min_qty;
+    const bracketEnd = sorted[i].max_qty ?? (sorted[i + 1]?.min_qty || Infinity);
+    if (safeQty > bracketStart) {
+      const taxableInBracket = Math.min(safeQty, bracketEnd) - bracketStart;
+      progressiveTotal += taxableInBracket * sorted[i].unit_price;
+    }
+  }
+
+  const totalEgp = Math.max(1, Math.round(progressiveTotal));
   const baseTotalEgp = Math.round(safeQty * baseUnit);
   const savingsEgp = Math.max(0, baseTotalEgp - totalEgp);
-  const savePct = Math.round((1 - activeTier.unit_price / baseUnit) * 100);
+  const effectiveUnitPrice = Number((totalEgp / safeQty).toFixed(2));
+  const savePct = baseTotalEgp > 0 ? Math.max(0, Math.round((savingsEgp / baseTotalEgp) * 100)) : 0;
   const nextTier = sorted.find((t) => t.min_qty > safeQty) || null;
+
   return {
     qty: safeQty,
     tier: activeTier,
     rank,
-    unitPrice: activeTier.unit_price,
+    unitPrice: effectiveUnitPrice,
+    marginalUnitPrice: activeTier.unit_price,
     totalEgp,
     savingsEgp,
     savePct,

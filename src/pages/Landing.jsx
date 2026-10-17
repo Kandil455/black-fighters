@@ -30,6 +30,7 @@ import {
   rise,
 } from "@/components/ui/linevault";
 import LandingAtlasShowcase from "@/components/atlas/LandingAtlasShowcase";
+import { BlackFightersAnimated } from "@/components/ui/BlackFightersAnimated";
 import { cn } from "@/lib/utils";
 
 const HOW_IT_WORKS_STEPS = [
@@ -300,7 +301,10 @@ export default function Landing() {
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
             {/* Column 1: Copy + CTAs + 3 AnimatedNumber Counters */}
             <div className="lg:col-span-7 space-y-6">
-              <motion.div {...reveal(0)}>
+              <motion.div {...reveal(0)} className="flex items-center gap-3.5">
+                <div className="grid size-12 shrink-0 place-items-center rounded-2xl border border-[#19f08c]/40 bg-[#19f08c]/10">
+                  <BlackFightersAnimated size={38} variant="emerald" />
+                </div>
                 <span className="glass inline-flex items-center gap-2.5 rounded-full px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#19f08c]">
                   <span className="pulse-dot" />
                   <span>VERIFIED ACADEMIC ENGINE · V5 ATLAS × LINEVAULT</span>

@@ -18,6 +18,36 @@ function decodeXmlText(str = "") {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
 }
 
+function joinPdfTextItems(items = []) {
+  let out = "";
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const str = item?.str || "";
+    if (!str) {
+      if (item?.hasEOL && !out.endsWith("\n")) out += "\n";
+      continue;
+    }
+    if (!out || out.endsWith("\n") || out.endsWith(" ")) {
+      out += str;
+    } else {
+      // Avoid inserting artificial spaces inside connected Arabic glyph fragments
+      const prevChar = out[out.length - 1];
+      const nextChar = str[0];
+      const bothArabic = /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(prevChar) &&
+        /[\u0600-\u06FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(nextChar);
+      if (bothArabic && str.length <= 2) {
+        out += str;
+      } else {
+        out += " " + str;
+      }
+    }
+    if (item?.hasEOL && !out.endsWith("\n")) {
+      out += "\n";
+    }
+  }
+  return out.replace(/[ \t]{2,}/g, " ").trim();
+}
+
 async function extractPdf(buffer) {
   const pdfjs = await import("pdfjs-dist");
   ensurePdfWorker(pdfjs);
@@ -30,15 +60,18 @@ async function extractPdf(buffer) {
     isEvalSupported: false,
   }).promise;
   const pages = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const text = content.items.map((item) => item.str || "").join(" ").trim();
-    if (text.length > 10) pages.push(`[صفحة ${i}]\n${text}`);
-    page.cleanup();
-    self.postMessage({ type: "progress", progress: Math.round((i / pdf.numPages) * 100), current: i, total: pdf.numPages });
+  try {
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const text = joinPdfTextItems(content.items);
+      if (text.length > 10) pages.push(`[صفحة ${i}]\n${text}`);
+      page.cleanup();
+      self.postMessage({ type: "progress", progress: Math.round((i / pdf.numPages) * 100), current: i, total: pdf.numPages });
+    }
+  } finally {
+    await pdf.destroy();
   }
-  await pdf.destroy();
   if (!pages.length) throw new Error("scanned_pdf");
   return pages.join("\n\n");
 }
