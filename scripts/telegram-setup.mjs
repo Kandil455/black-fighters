@@ -52,13 +52,29 @@ if (!token) {
 }
 
 async function api(method, payload = {}) {
-  const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json().catch(() => ({}));
-  return data;
+  const hasPayload = Object.keys(payload).length > 0;
+  let body;
+  if (hasPayload) {
+    const form = new FormData();
+    for (const [key, val] of Object.entries(payload)) {
+      if (val === undefined || val === null) continue;
+      form.append(key, typeof val === "object" ? JSON.stringify(val) : String(val));
+    }
+    body = form;
+  }
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+        method: "POST",
+        ...(body ? { body } : {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      return data;
+    } catch (err) {
+      if (attempt === 4) throw err;
+      await new Promise((r) => setTimeout(r, 600 * attempt));
+    }
+  }
 }
 
 async function showInfo() {
