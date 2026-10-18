@@ -429,44 +429,175 @@ function optionText(option) {
   return option ?? "";
 }
 
+/**
+ * Strips leading option labels (A), (B), 0:, 1., أ-, الخيار ب:, etc.) and normalizes
+ * Arabic/Latin characters WITHOUT stripping meaningful short words, numbers, or negations.
+ */
+export function cleanOptionComparisonKey(value = "") {
+  return compactOption(String(value || ""))
+    .replace(/^\s*(?:option|choice|خيار|الاختيار|الخيار)\s+[A-Fa-f1-6أابجدهو]\s*[\).:\-–]?\s*/i, "")
+    .replace(/^\s*\d+\s*[:.)\-]\s*/, "")
+    .toLowerCase()
+    .replace(ARABIC_DIACRITICS, "")
+    .replace(/[\u0640]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/[^a-z0-9\u0600-\u06FF%+<>=\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Matches a candidate answer string (from `correct_answer` or extracted from `explanation`)
+ * against the array of options using exact, prefix-stripped, substring, and token-overlap matching.
+ */
+export function matchTextAgainstOptions(rawCandidate = "", options = []) {
+  if (!Array.isArray(options) || options.length < 2) return -1;
+  const raw = String(rawCandidate ?? "").trim();
+  if (!raw) return -1;
+
+  // 1. Check if raw is purely an option letter or label like "B", "(C)", "Option B", "الخيار ج"
+  const pureLetterMatch = raw.match(
+    /^(?:(?:option|choice|answer|خيار|الخيار|الاختيار|الإجابة|الاجابة|حرف)\s*)?[\(\[«"']?([A-Fa-fأابجدهو]|هـ)[\)\]»"'.:\-]?$/i
+  );
+  if (pureLetterMatch?.[1]) {
+    const l = pureLetterMatch[1];
+    const mapped = OPTION_LETTERS[l] ?? OPTION_LETTERS[l.toLowerCase()];
+    if (mapped !== undefined && mapped >= 0 && mapped < options.length) {
+      return mapped;
+    }
+  }
+
+  // 2. Check if raw starts with a letter prefix AND has option text, e.g. "B) Mitral stenosis" or "Option C (Hyperkalemia)"
+  const optKeys = options.map((opt) => cleanOptionComparisonKey(optionText(opt)));
+  const candKey = cleanOptionComparisonKey(raw);
+
+  if (candKey.length >= 1) {
+    // 2a. Exact normalized match
+    const exactIdx = optKeys.findIndex((k) => k.length > 0 && k === candKey);
+    if (exactIdx >= 0) return exactIdx;
+
+    // 2b. Exact normalized stem match (fallback)
+    const candStem = normalizedStem(compactOption(raw));
+    if (candStem.length >= 2) {
+      const stemExactIdx = options.findIndex(
+        (opt) => normalizedStem(compactOption(optionText(opt))) === candStem
+      );
+      if (stemExactIdx >= 0) return stemExactIdx;
+    }
+
+    // 2c. Substring containment match — pick the longest / most specific matching option
+    let bestContainsIdx = -1;
+    let bestContainsScore = 0;
+    for (let i = 0; i < optKeys.length; i++) {
+      const k = optKeys[i];
+      if (!k || k.length < 2) continue;
+      if (candKey.includes(k) && k.length >= 3) {
+        // Ensure word boundary for short keys so "in" doesn't match "insulin"
+        const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const boundaryRegex = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`, "i");
+        if (boundaryRegex.test(candKey)) {
+          const score = k.length * 2 + (candKey.indexOf(k) === 0 ? 15 : 0);
+          if (score > bestContainsScore) {
+            bestContainsScore = score;
+            bestContainsIdx = i;
+          }
+        }
+      } else if (k.includes(candKey) && candKey.length >= 4) {
+        const escaped = candKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const boundaryRegex = new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`, "i");
+        if (boundaryRegex.test(k)) {
+          const score = candKey.length;
+          if (score > bestContainsScore) {
+            bestContainsScore = score;
+            bestContainsIdx = i;
+          }
+        }
+      }
+    }
+    if (bestContainsIdx >= 0) return bestContainsIdx;
+
+    // 2d. Token overlap score for slightly paraphrased or punctuated option strings
+    const candTokens = candKey.split(" ").filter((t) => t.length >= 2);
+    if (candTokens.length >= 2) {
+      let bestOverlapIdx = -1;
+      let bestOverlap = 0;
+      let secondBestOverlap = 0;
+      for (let i = 0; i < optKeys.length; i++) {
+        const oTokens = optKeys[i].split(" ").filter((t) => t.length >= 2);
+        if (!oTokens.length) continue;
+        const oSet = new Set(oTokens);
+        const hits = candTokens.filter((t) => oSet.has(t)).length;
+        const ratio = hits / Math.max(candTokens.length, oTokens.length);
+        if (ratio > bestOverlap) {
+          secondBestOverlap = bestOverlap;
+          bestOverlap = ratio;
+          bestOverlapIdx = i;
+        } else if (ratio > secondBestOverlap) {
+          secondBestOverlap = ratio;
+        }
+      }
+      if (bestOverlap >= 0.7 && bestOverlap - secondBestOverlap >= 0.25) {
+        return bestOverlapIdx;
+      }
+    }
+  }
+
+  // 3. If raw started with a letter like "B) ..." and text didn't match, fall back to the letter
+  const leadingLetter = raw.match(/^[\(\[]?([A-Fa-fأابجدهو])[\)\].:\-–]\s+/)?.[1];
+  if (leadingLetter && leadingLetter in OPTION_LETTERS) {
+    const idx = OPTION_LETTERS[leadingLetter];
+    if (idx >= 0 && idx < options.length) return idx;
+  }
+
+  return -1;
+}
+
 function parseCorrectIndex(raw, options, zeroBased = false) {
-  if (typeof raw === "number" && Number.isFinite(raw)) return zeroBased ? raw : (raw >= 1 ? raw - 1 : raw);
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    if (zeroBased) {
+      return raw >= 0 && raw < options.length ? raw : (raw === options.length ? raw - 1 : -1);
+    }
+    return raw >= 1 && raw <= options.length ? raw - 1 : (raw === 0 ? 0 : -1);
+  }
   const value = String(raw ?? "").trim();
   if (!value) return -1;
   if (/^\d+$/.test(value)) {
     const n = Number(value);
-    return zeroBased ? n : (n >= 1 && n <= options.length ? n - 1 : n);
+    if (zeroBased) {
+      return n >= 0 && n < options.length ? n : (n === options.length ? n - 1 : -1);
+    }
+    return n >= 1 && n <= options.length ? n - 1 : (n === 0 ? 0 : -1);
   }
   if (value in OPTION_LETTERS) return OPTION_LETTERS[value];
   const letter = value.match(/^[\(\[]?([A-Fa-fأابجدهو])[\)\].:-]?$/)?.[1];
   if (letter && letter in OPTION_LETTERS) return OPTION_LETTERS[letter];
-  const exact = options.findIndex((option) => normalizedStem(optionText(option)) === normalizedStem(value));
-  if (exact >= 0) return exact;
-  const contains = options.findIndex((option) => normalizedStem(optionText(option)).includes(normalizedStem(value)) || normalizedStem(value).includes(normalizedStem(optionText(option))));
-  return contains;
+  return matchTextAgainstOptions(value, options);
 }
 
 const RECONCILE_STOP_WORDS = new Set([
   "the", "and", "for", "with", "that", "this", "from", "are", "was", "were", "have", "has", "had",
   "which", "what", "when", "where", "who", "whom", "whose", "why", "how", "into", "onto", "upon",
-  "about", "above", "below", "between", "among", "through", "during", "before", "after", "under",
-  "over", "again", "further", "then", "once", "here", "there", "all", "any", "both", "each", "few",
+  "about", "between", "among", "through", "during",
+  "again", "further", "then", "once", "here", "there", "all", "any", "both", "each", "few",
   "more", "most", "other", "some", "such", "only", "own", "same", "than", "too", "very", "can",
   "will", "just", "should", "now", "also", "may", "might", "must", "would", "could", "does", "did",
+  "because", "since", "therefore", "thus", "hence", "correct", "answer", "option", "choice", "question",
   "في", "من", "إلى", "الى", "على", "عن", "مع", "هذا", "هذه", "ذلك", "تلك", "الذي", "التي", "الذين",
   "هو", "هي", "هم", "كان", "كانت", "يكون", "تكون", "أن", "ان", "إن", "إذ", "إذا", "او", "أو", "ثم",
-  "كل", "بعض", "غير", "بين", "فوق", "تحت", "أثناء", "اثناء", "بعد", "قبل", "عند", "لا", "لم", "لن",
+  "كل", "بعض", "بين", "أثناء", "اثناء", "عند", "لان", "لأن", "حيث", "الاجابه", "الإجابة", "الخيار", "الصحيح", "الصحيحه",
 ]);
 
 function normalizeTokenRoot(word = "") {
-  let w = String(word).toLowerCase().replace(ARABIC_DIACRITICS, "").replace(/[^a-z0-9\u0600-\u06FF]/g, "");
+  let w = String(word).toLowerCase().replace(ARABIC_DIACRITICS, "").replace(/[\u0640]/g, "").replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[^a-z0-9\u0600-\u06FF]/g, "");
   if (w.length > 5) {
     w = w.replace(/(?:ation|ition|sion|ment|ness|ance|ence|ingly|edly|es|ed|ing|ly|al|ic|ous|ive|s)$/, "");
   } else if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) {
     w = w.slice(0, -1);
   }
   if (/^[\u0600-\u06FF]+$/.test(w) && w.length > 4) {
-    w = w.replace(/^(?:وال|بال|كال|فال|لل|ال)/, "").replace(/(?:ات|ون|ين|ان|ية|ها|هم|هن|كم)$/, "");
+    w = w.replace(/^(?:وال|بال|كال|فال|لل|ال)/, "").replace(/(?:ات|ون|ين|ان|يه|ها|هم|هن|كم)$/, "");
   }
   return w;
 }
@@ -475,98 +606,288 @@ function extractRootTokens(text = "") {
   return String(text || "")
     .split(/[\s,.;:!?()[\]{}"'«»/\\+\-_]+/)
     .map(normalizeTokenRoot)
-    .filter((t) => t.length >= 3 && !RECONCILE_STOP_WORDS.has(t));
+    .filter((t) => t.length >= 2 && !RECONCILE_STOP_WORDS.has(t));
+}
+
+function extractRootBigrams(tokens = []) {
+  const bigrams = [];
+  for (let i = 0; i < tokens.length - 1; i++) {
+    bigrams.push(`${tokens[i]}_${tokens[i + 1]}`);
+  }
+  return bigrams;
+}
+
+function isNegationClause(sentence = "") {
+  return /\b(?:is\s+incorrect|is\s+wrong|is\s+false|are\s+incorrect|are\s+wrong|not\s+the\s+correct|not\s+correct|cannot\s+be|ruled\s+out|excluded|is\s+not\s+seen|does\s+not\s+cause|never\s+causes|contrary\s+to)\b|غير\s+صحيح|غير\s+صحيحة|إجابة\s+خاطئة|اجابه\s+خاطئه|خاطئ|خاطئة|يستبعد|تستبعد|مستبعد|ليس\s+هو|ليست\s+هي|وليس|لا\s+يسبب|لا\s+تسبب|لا\s+يعد/i.test(
+    sentence
+  );
+}
+
+function truncateAtContrastOrReason(phrase = "") {
+  const cut = String(phrase || "")
+    .split(
+      /\b(?:because|since|as\s+it|while|whereas|unlike|rather\s+than|is\s+incorrect|is\s+wrong|which\s+is\s+wrong|not\s+option|not\s+choice)\b|(?:لأن|لان|حيث\s+أن|حيث\s+ان|بينما|وليس|في\s+حين|أما\s|اما\s|خاطئ|غير\s+صحيح|بسبب\s+أن)/i
+    )[0]
+    .trim();
+  return cut || phrase.trim();
 }
 
 export function verifyIndexWithExplanation(options = [], currentIndex = 0, explanation = "", questionStem = "") {
   if (!Array.isArray(options) || options.length < 2) return currentIndex;
-  const expText = String(explanation || "").trim();
-  if (expText.length < 15) return currentIndex;
-
-  // 1. Check explicit declaration: "The correct answer is X" / "الإجابة الصحيحة هي X"
-  const explicitMatch = expText.match(/(?:correct\s+(?:answer|option|choice)\s+is|right\s+answer\s+is|الإجابة\s+الصحيحة\s+هي|الخيار\s+الصحيح\s+هو)\s*[:\-]?\s*["'«]?([^.،;\n"'»]+)/i);
-  if (explicitMatch?.[1]) {
-    const target = normalizedStem(explicitMatch[1]);
-    if (target.length >= 2) {
-      const idx = options.findIndex((opt) => {
-        const s = normalizedStem(optionText(opt));
-        return s === target || (s.length >= 4 && target.includes(s)) || (target.length >= 4 && s.includes(target));
-      });
-      if (idx >= 0) return idx;
-    }
-  }
-
-  // 2. Sentence-level thesis verification (Opening affirmative statement vs distractor elimination)
-  const sentences = expText.split(/(?<=[.!?؟])\s+|\n+/).map((s) => s.trim()).filter((s) => s.length >= 8);
-  const firstSentence = sentences[0] || expText;
-  const hasOpeningNegation = /\b(?:is\s+incorrect|is\s+wrong|is\s+false|are\s+incorrect|are\s+wrong|not\s+the\s+correct|cannot\s+be|never)\b|غير\s+صحيح|إجابة\s+خاطئة|خاطئ\s+لأن/i.test(firstSentence);
-  if (hasOpeningNegation) return currentIndex;
-
-  const stemRoots = new Set(extractRootTokens(questionStem));
-  const optTokenSets = options.map((opt) => new Set(extractRootTokens(optionText(opt)).filter((t) => !stemRoots.has(t))));
-
-  // Identify tokens strictly unique to each option i
-  const uniqueOptTokens = optTokenSets.map((set, i) =>
-    [...set].filter((tok) => optTokenSets.every((otherSet, j) => i === j || !otherSet.has(tok)))
-  );
-
-  // Require at least the candidate and current option to have distinctive tokens
-  const firstSentRoots = new Set(extractRootTokens(firstSentence));
-  const allExpRoots = new Set(extractRootTokens(expText));
-
-  const firstSentHits = uniqueOptTokens.map((tokens) => tokens.filter((t) => firstSentRoots.has(t)).length);
-  const totalExpHits = uniqueOptTokens.map((tokens) => tokens.filter((t) => allExpRoots.has(t)).length);
-
   const safeCurrent = currentIndex >= 0 && currentIndex < options.length ? currentIndex : 0;
-  if (firstSentHits[safeCurrent] > 0) {
-    return safeCurrent;
+  const expText = String(explanation || "").trim();
+  if (expText.length < 6) return safeCurrent;
+
+  // ─── LAYER 1: Explicit Answer / Option Declarations in Explanation ───
+  const declarationPatterns = [
+    /(?:the\s+)?(?:correct|right|best|true|winning|accurate)\s+(?:answer|option|choice|diagnosis|treatment|response)\s*(?:is|are|:|-|—|–)\s*["'«]?([^\n.;!]+)/i,
+    /^\s*(?:correct\s+answer|right\s+answer|answer|choice|option|solution)\s*[:\-—–]\s*["'«]?([^\n.;!]+)/i,
+    /(?:الإجابة|الاجابة|الخيار|الاختيار|الجواب|الحل)\s+(?:الصحيحة|الصحيح|النموذجية|النموذجي|الأدق|الادق|السليم|الصائبة)(?:\s+هي|\s+هو)?\s*[:\-—–]?\s*["'«]?([^\n.;!،]+)/i,
+    /(?:الإجابة|الاجابة|الجواب|الحل)\s+(?:هي|هو)\s*[:\-—–]?\s*["'«]?([^\n.;!،]+)/i,
+    /^\s*(?:الإجابة|الاجابة|الجواب|الحل)\s*[:\-—–]\s*["'«]?([^\n.;!،]+)/i,
+    /["'«(]?([^.\n,;()]{2,90}?)["'»)]?\s+is\s+(?:the\s+)?(?:correct|right|best|true)\s+(?:answer|option|choice)/i,
+    /(?:تعتبر|تعد|يعتبر|يعد|إن)\s+["'«(]?([^.\n،;]{2,90}?)["'»)]?\s+(?:هو|هي)\s+(?:الإجابة|الاجابة|الخيار)\s+(?:الصحيحة|الصحيح|الأدق)/i,
+  ];
+
+  for (const regex of declarationPatterns) {
+    const match = expText.match(regex);
+    if (match?.[1]) {
+      const candidateClause = truncateAtContrastOrReason(match[1]);
+      const matchedIdx = matchTextAgainstOptions(candidateClause, options);
+      if (matchedIdx >= 0 && matchedIdx < options.length) {
+        return matchedIdx;
+      }
+    }
   }
 
-  // Find options that have unique keyword hits in the opening thesis sentence
-  const positiveCandidates = [];
+  // Check explicit option letter declaration: "Option B is correct" / "الخيار ب هو الصحيح"
+  const explicitLetterPatterns = [
+    /\b(?:option|choice|answer)\s+\(?([A-Fa-f])\)?\s*(?:\(([^)]{2,80})\))?\s+is\s+(?:the\s+)?(?:correct|right|true|best)/i,
+    /^\s*\(?([A-Fa-f])\)?\s*[\).:\-]\s*([^.\n]{2,80}?)\s+is\s+(?:the\s+)?(?:correct|right|true)/i,
+    /(?:الخيار|الاختيار|الإجابة|الاجابة|حرف)\s*\(?([A-Fa-fأابجدهو])\)?\s*(?:\(([^)]{2,80})\))?\s+(?:هو\s+|هي\s+)?(?:الصحيح|الصحيحة|الأصح|الادق|صحيح|صحيحة)/i,
+  ];
+  for (const regex of explicitLetterPatterns) {
+    const m = expText.match(regex);
+    if (m) {
+      if (m[2]) {
+        const byText = matchTextAgainstOptions(m[2], options);
+        if (byText >= 0) return byText;
+      }
+      const l = m[1];
+      const byLetter = OPTION_LETTERS[l] ?? OPTION_LETTERS[l?.toLowerCase()];
+      if (byLetter !== undefined && byLetter >= 0 && byLetter < options.length) {
+        return byLetter;
+      }
+    }
+  }
+
+  // ─── LAYER 2: Sentence-Level Phrase, Bigram & Distinctive Token Scoring ───
+  const sentences = expText
+    .split(/(?<=[.!?؟])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 6);
+  if (!sentences.length) return safeCurrent;
+
+  const optKeys = options.map((opt) => cleanOptionComparisonKey(optionText(opt)));
+  const stemTokens = new Set(extractRootTokens(questionStem));
+  const optTokensList = options.map((opt) => extractRootTokens(optionText(opt)));
+  const optBigramsList = optTokensList.map((tokens) => extractRootBigrams(tokens));
+
+  // Compute inverse option frequency for each token so tokens shared by all 4 options get weight 0,
+  // while tokens in 1 option get weight 1.0, and tokens in 2 options (symmetric pairs) get weight 0.5
+  const tokenOptionFreq = new Map();
+  optTokensList.forEach((tokens) => {
+    for (const t of new Set(tokens)) {
+      tokenOptionFreq.set(t, (tokenOptionFreq.get(t) || 0) + 1);
+    }
+  });
+
+  const bigramOptionFreq = new Map();
+  optBigramsList.forEach((bigrams) => {
+    for (const bg of new Set(bigrams)) {
+      bigramOptionFreq.set(bg, (bigramOptionFreq.get(bg) || 0) + 1);
+    }
+  });
+
+  const scoreOptionInSentence = (optIdx, sentence) => {
+    const sentKey = cleanOptionComparisonKey(sentence);
+    const optKey = optKeys[optIdx];
+    let score = 0;
+
+    // 1. Exact option phrase containment inside the sentence
+    if (optKey && optKey.length >= 3 && sentKey.includes(optKey)) {
+      const escaped = optKey.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`, "i").test(sentKey)) {
+        score += 6 + Math.min(4, optKey.split(" ").length);
+      }
+    }
+
+    // 2. Distinctive bigram hits (crucial for symmetric options like "increased preload" vs "decreased preload")
+    const sentTokens = extractRootTokens(sentence);
+    const sentBigrams = new Set(extractRootBigrams(sentTokens));
+    for (const bg of optBigramsList[optIdx]) {
+      const freq = bigramOptionFreq.get(bg) || 1;
+      if (freq < options.length && sentBigrams.has(bg)) {
+        score += freq === 1 ? 3.5 : 1.75;
+      }
+    }
+
+    // 3. Distinctive token hits weighted by rarity across options
+    const sentTokenSet = new Set(sentTokens);
+    for (const tok of optTokensList[optIdx]) {
+      const freq = tokenOptionFreq.get(tok) || 1;
+      if (freq >= options.length) continue; // Appears in every option -> not discriminative
+      if (sentTokenSet.has(tok)) {
+        const stemPenalty = stemTokens.has(tok) ? 0.4 : 1.0;
+        const rarityWeight = freq === 1 ? 2.0 : freq === 2 ? 0.9 : 0.4;
+        score += rarityWeight * stemPenalty;
+      }
+    }
+
+    return score;
+  };
+
+  // Evaluate first sentence (opening thesis) and all sentences
+  const firstSent = sentences[0];
+  const firstSentNegated = isNegationClause(firstSent);
+  const firstSentClause = firstSentNegated ? firstSent : truncateAtContrastOrReason(firstSent);
+  const firstScores = options.map((_, i) => (firstSentNegated ? 0 : scoreOptionInSentence(i, firstSentClause)));
+
+  const affirmativeScores = new Array(options.length).fill(0);
+  const negatedScores = new Array(options.length).fill(0);
+
+  sentences.forEach((sent, sIdx) => {
+    const weight = sIdx === 0 ? 1.5 : 1.0;
+    if (isNegationClause(sent)) {
+      for (let i = 0; i < options.length; i++) {
+        negatedScores[i] += scoreOptionInSentence(i, sent) * weight;
+      }
+    } else {
+      const cleanClause = truncateAtContrastOrReason(sent);
+      for (let i = 0; i < options.length; i++) {
+        affirmativeScores[i] += scoreOptionInSentence(i, cleanClause) * weight;
+      }
+    }
+  });
+
+  // Case A: Opening sentence is affirmative and strongly points to a single option `bestFirstIdx`
+  let bestFirstIdx = -1;
+  let bestFirstScore = 0;
+  let secondFirstScore = 0;
   for (let i = 0; i < options.length; i++) {
-    if (firstSentHits[i] > 0 && uniqueOptTokens[i].length > 0) {
-      positiveCandidates.push(i);
+    if (firstScores[i] > bestFirstScore) {
+      secondFirstScore = bestFirstScore;
+      bestFirstScore = firstScores[i];
+      bestFirstIdx = i;
+    } else if (firstScores[i] > secondFirstScore) {
+      secondFirstScore = firstScores[i];
     }
   }
 
-  if (positiveCandidates.length === 1) {
-    const candidateIdx = positiveCandidates[0];
-    const laterText = sentences.slice(1).join(" ");
-    const laterRoots = new Set(extractRootTokens(laterText));
-    const currentInLater = uniqueOptTokens[safeCurrent]?.some((t) => laterRoots.has(t));
-    const currentAbsentEverywhere = totalExpHits[safeCurrent] === 0 && uniqueOptTokens[safeCurrent]?.length > 0;
-    const isOneBasedOffset = safeCurrent === candidateIdx + 1;
-
-    if (currentInLater || currentAbsentEverywhere || isOneBasedOffset) {
-      return candidateIdx;
+  if (
+    bestFirstIdx >= 0 &&
+    bestFirstIdx !== safeCurrent &&
+    bestFirstScore >= 2.0 &&
+    bestFirstScore >= secondFirstScore * 1.6 &&
+    firstScores[safeCurrent] < bestFirstScore * 0.4
+  ) {
+    // Verify bestFirstIdx is not negated later while safeCurrent is affirmed
+    if (negatedScores[bestFirstIdx] <= affirmativeScores[bestFirstIdx]) {
+      return bestFirstIdx;
     }
+  }
+
+  // Case B: `safeCurrent` is explicitly negated/ruled out in the explanation, or has 0 affirmative support,
+  // while another option `bestNetIdx` has strong net affirmative support
+  const netScores = options.map((_, i) => affirmativeScores[i] - negatedScores[i] * 1.2);
+  let bestNetIdx = -1;
+  let bestNetScore = 0;
+  let secondNetScore = -Infinity;
+  for (let i = 0; i < options.length; i++) {
+    if (netScores[i] > bestNetScore) {
+      secondNetScore = bestNetScore;
+      bestNetScore = netScores[i];
+      bestNetIdx = i;
+    } else if (netScores[i] > secondNetScore) {
+      secondNetScore = netScores[i];
+    }
+  }
+
+  const currentIsNegated = negatedScores[safeCurrent] >= 2.0 && negatedScores[safeCurrent] > affirmativeScores[safeCurrent];
+  const currentIsUnsupported = affirmativeScores[safeCurrent] < 0.8;
+
+  if (
+    bestNetIdx >= 0 &&
+    bestNetIdx !== safeCurrent &&
+    bestNetScore >= 2.0 &&
+    bestNetScore - secondNetScore >= 1.2 &&
+    (currentIsNegated || currentIsUnsupported)
+  ) {
+    return bestNetIdx;
   }
 
   return safeCurrent;
 }
 
 function findCorrectIndex(item, options) {
-  // 1. Check explicit text answer field first (prevents 1-based vs 0-based numeric index off-by-one bugs)
-  const textCandidates = [item?.correct_answer_text, item?.correct_option_text, item?.correct_answer, item?.answer];
+  const opts = Array.isArray(options) ? options : [];
+
+  // 1. Check explicit text answer field FIRST (immune to 1-based vs 0-based numeric index bugs in DeepSeek/LLMs)
+  const textCandidates = [
+    item?.correct_answer_text,
+    item?.correct_option_text,
+    item?.correct_answer,
+    item?.correctAnswer,
+    item?.answer_text,
+    item?.answer,
+  ];
   for (const cand of textCandidates) {
     if (typeof cand === "string") {
       const trimmed = cand.trim();
       if (trimmed.length >= 2 && !/^\d+$/.test(trimmed) && !/^[\(\[]?[A-Fa-fأابجدهو][\)\].:-]?$/.test(trimmed)) {
-        const target = normalizedStem(trimmed);
-        const exactIdx = (options || []).findIndex((opt) => normalizedStem(optionText(opt)) === target);
-        if (exactIdx >= 0) return exactIdx;
+        const matchedIdx = matchTextAgainstOptions(trimmed, opts);
+        if (matchedIdx >= 0 && matchedIdx < opts.length) return matchedIdx;
       }
     }
   }
 
+  // 2. Check explicit option letter fields (e.g. "correct_letter": "B", "correct_answer_label": "ج")
+  const letterCandidates = [
+    item?.correct_letter,
+    item?.correct_answer_label,
+    item?.answer_label,
+    item?.correct_answer,
+    item?.correctAnswer,
+    item?.answer,
+  ];
+  for (const cand of letterCandidates) {
+    if (typeof cand === "string") {
+      const trimmed = cand.trim();
+      const letterMatch = trimmed.match(/^[\(\[]?([A-Fa-fأابجدهو]|هـ)[\)\].:\-]?$/i);
+      if (letterMatch?.[1]) {
+        const l = letterMatch[1];
+        const idx = OPTION_LETTERS[l] ?? OPTION_LETTERS[l.toLowerCase()];
+        if (idx !== undefined && idx >= 0 && idx < opts.length) return idx;
+      }
+    }
+  }
+
+  // 3. Check options marked with `is_correct` boolean
+  const marked = opts.findIndex(
+    (option) => option && typeof option === "object" && coerceBoolean(option.is_correct ?? option.correct ?? option.isCorrect, false)
+  );
+  if (marked >= 0) return marked;
+
+  // 4. Check 0-based indexed fields
   const indexedFields = ["correct_index", "correctIndex", "correctOption", "answer_index", "answerIndex"];
   for (const field of indexedFields) {
-    if (item?.[field] !== undefined && item?.[field] !== null) return parseCorrectIndex(item[field], options, true);
+    if (item?.[field] !== undefined && item?.[field] !== null) {
+      const parsed = parseCorrectIndex(item[field], opts, true);
+      if (parsed >= 0 && parsed < opts.length) return parsed;
+    }
   }
-  const marked = options.findIndex((option) => option && typeof option === "object" && coerceBoolean(option.is_correct ?? option.correct ?? option.isCorrect, false));
-  if (marked >= 0) return marked;
-  return parseCorrectIndex(item?.correct ?? item?.correct_answer ?? item?.answer, options, false);
+
+  return parseCorrectIndex(item?.correct ?? item?.correct_answer ?? item?.answer, opts, false);
 }
 
 export function reconcileQuestionAnswer(item) {
@@ -580,36 +901,36 @@ export function reconcileQuestionAnswer(item) {
     options,
     safeInitial,
     item.explanation || item.exp || item.rationale || "",
-    item.question || item.q || item.text || ""
+    item.question || item.q || item.text || item.question_text || ""
   );
-  if (verifiedIdx !== item.correct_index) {
-    return {
-      ...item,
-      correct_index: verifiedIdx,
-      correct: verifiedIdx,
-      correctOption: verifiedIdx,
-      correct_answer: options[verifiedIdx] || item.correct_answer,
-    };
-  }
-  return item;
+  const finalIdx = verifiedIdx >= 0 && verifiedIdx < options.length ? verifiedIdx : safeInitial;
+  return {
+    ...item,
+    correct_index: finalIdx,
+    correct: finalIdx,
+    correctIndex: finalIdx,
+    correctOption: finalIdx,
+    correct_answer: options[finalIdx] || item.correct_answer,
+  };
 }
 
 function normalizeOptions(options, correctIndex, maxOptions = 4) {
   const unique = [];
   const seen = new Set();
   const original = Array.isArray(options) ? options : [];
-  const correctText = compactOption(optionText(original[correctIndex]));
+  const safeIdx = correctIndex >= 0 && correctIndex < original.length ? correctIndex : -1;
+  const correctText = safeIdx >= 0 ? compactOption(optionText(original[safeIdx])) : "";
 
   for (const option of original) {
     const text = compactOption(optionText(option));
-    const key = normalizedStem(text);
+    const key = cleanOptionComparisonKey(text) || normalizedStem(text);
     if (!text || key.length < 1 || seen.has(key)) continue;
     seen.add(key);
     unique.push(text);
   }
 
   let normalizedCorrect = correctText
-    ? unique.findIndex((option) => normalizedStem(option) === normalizedStem(correctText))
+    ? matchTextAgainstOptions(correctText, unique)
     : -1;
 
   if (unique.length > maxOptions) {
@@ -789,6 +1110,8 @@ export function normalizeQuizResult(raw, {
       question,
       options,
       correct_index: correctIndex,
+      correct: correctIndex,
+      correct_answer: options[correctIndex] || "",
       explanation,
       difficulty: normalizeDifficulty(item?.difficulty, difficulty),
       topic: compact(item?.topic || item?.chapter || ""),
@@ -925,15 +1248,15 @@ export function verifyAndPrepareQuizQuestions(questions = [], sourceText = "") {
           ? ["الخيار الأول", "الخيار الثاني", "الخيار الثالث", "الخيار الرابع"]
           : ["Option A", "Option B", "Option C", "Option D"]);
 
-    const rawCorrect = Number.isInteger(reconciled.correct_index)
-      ? reconciled.correct_index
-      : Number.isInteger(reconciled.correct)
-        ? reconciled.correct
-        : -1;
+    const resolvedIdx = findCorrectIndex(reconciled, finalOpts);
+    const baseIdx = resolvedIdx >= 0 && resolvedIdx < finalOpts.length ? resolvedIdx : 0;
 
-    const verifiedCorrect = rawCorrect >= 0 && rawCorrect < finalOpts.length
-      ? verifyIndexWithExplanation(finalOpts, rawCorrect, reconciled.explanation || "", cleanStem)
-      : -1;
+    const verifiedCorrect = verifyIndexWithExplanation(
+      finalOpts,
+      baseIdx,
+      reconciled.explanation || "",
+      cleanStem
+    );
 
     const hasValidAnswer = verifiedCorrect >= 0 && verifiedCorrect < finalOpts.length;
     const safeCorrectIndex = hasValidAnswer ? verifiedCorrect : 0;
@@ -961,6 +1284,7 @@ export function verifyAndPrepareQuizQuestions(questions = [], sourceText = "") {
       options: finalOpts,
       correct_index: hasValidAnswer ? safeCorrectIndex : -1,
       correct: hasValidAnswer ? safeCorrectIndex : -1,
+      correct_answer: correctOptionText,
       explanation,
       flaggedForAsymmetry: symmetry.flaggedForAsymmetry,
       asymmetryReason: symmetry.asymmetryReason,
@@ -1017,10 +1341,10 @@ export function buildQuizPerformance(questions = [], answers = []) {
 
 /**
  * Normalizes output from the Universal Free Text Exam Parser (Track G / PROMPTS.textExamParser).
- * Ensures zero data loss, supports 2 to 6 options, matches labels, flags missing answers,
+ * Ensures zero data loss, supports 2 to 6 options, matches labels, reconciles explanation & answer text,
  * and audits distractor symmetry without blocking any question.
  */
-export function normalizeUniversalParsedQuiz(rawResult, sourceText = "") {
+export function normalizeUniversalParsedQuiz(rawResult, _sourceText = "") {
   const rawList = Array.isArray(rawResult)
     ? rawResult
     : Array.isArray(rawResult?.questions)
@@ -1036,43 +1360,41 @@ export function normalizeUniversalParsedQuiz(rawResult, sourceText = "") {
     // 1. Process options: can be array of strings or array of { label, text }
     const rawOptions = Array.isArray(q.options) ? q.options : [];
     const options = rawOptions.map((opt) => {
-      if (typeof opt === "string") return opt.trim();
+      if (typeof opt === "string") return compactOption(opt.trim());
       if (opt && typeof opt === "object") {
         const text = String(opt.text || opt.title || opt.value || "").trim();
-        const label = String(opt.label || "").trim();
-        if (label && (text.startsWith(`${label}`) || text.startsWith(`${label})`) || text.startsWith(`${label}.`))) {
-          return text;
-        }
-        return label ? `${label}) ${text}` : text;
+        return compactOption(text);
       }
-      return String(opt || "").trim();
+      return compactOption(String(opt || "").trim());
     }).filter(Boolean);
 
-    // 2. Identify correct index based on correct_answer_label
-    const targetLabel = String(q.correct_answer_label || q.answer || "").trim().toLowerCase();
-    let correctIndex = -1;
+    // 2. Identify correct index using text answer first, then label, then index, then explanation
+    let correctIndex = findCorrectIndex(q, options);
 
-    if (targetLabel) {
-      rawOptions.forEach((opt, optIdx) => {
-        if (correctIndex !== -1) return;
-        const optLabel = typeof opt === "object" ? String(opt.label || "").trim().toLowerCase() : "";
-        const optText = typeof opt === "string" ? opt.toLowerCase() : String(opt?.text || "").toLowerCase();
+    if (correctIndex === -1) {
+      const targetLabel = String(q.correct_answer_label || q.correct_letter || q.answer || "").trim().toLowerCase();
+      if (targetLabel) {
+        rawOptions.forEach((opt, optIdx) => {
+          if (correctIndex !== -1) return;
+          const optLabel = typeof opt === "object" ? String(opt.label || "").trim().toLowerCase() : "";
+          const optText = typeof opt === "string" ? opt.toLowerCase() : String(opt?.text || "").toLowerCase();
 
-        if (optLabel && (optLabel === targetLabel || optLabel.replace(/[\)\.\:]/g, "").trim() === targetLabel.replace(/[\)\.\:]/g, "").trim())) {
-          correctIndex = optIdx;
-        } else if (optText.startsWith(`${targetLabel})`) || optText.startsWith(`${targetLabel}.`)) {
-          correctIndex = optIdx;
+          if (optLabel && (optLabel === targetLabel || optLabel.replace(/[\)\.\:]/g, "").trim() === targetLabel.replace(/[\)\.\:]/g, "").trim())) {
+            correctIndex = optIdx;
+          } else if (optText.startsWith(`${targetLabel})`) || optText.startsWith(`${targetLabel}.`)) {
+            correctIndex = optIdx;
+          }
+        });
+
+        if (correctIndex === -1) {
+          const cleanLabel = targetLabel.replace(/[\)\.\:\-]/g, "").trim();
+          const engIdx = ENGLISH_LETTERS.indexOf(cleanLabel);
+          if (engIdx !== -1 && engIdx < options.length) correctIndex = engIdx;
+          const arIdx = ARABIC_LETTERS.indexOf(cleanLabel);
+          if (arIdx !== -1 && arIdx < options.length) correctIndex = arIdx;
+          const numIdx = parseInt(cleanLabel, 10);
+          if (!isNaN(numIdx) && numIdx >= 1 && numIdx <= options.length) correctIndex = numIdx - 1;
         }
-      });
-
-      if (correctIndex === -1) {
-        const cleanLabel = targetLabel.replace(/[\)\.\:\-]/g, "").trim();
-        const engIdx = ENGLISH_LETTERS.indexOf(cleanLabel);
-        if (engIdx !== -1 && engIdx < options.length) correctIndex = engIdx;
-        const arIdx = ARABIC_LETTERS.indexOf(cleanLabel);
-        if (arIdx !== -1 && arIdx < options.length) correctIndex = arIdx;
-        const numIdx = parseInt(cleanLabel, 10);
-        if (!isNaN(numIdx) && numIdx >= 1 && numIdx <= options.length) correctIndex = numIdx - 1;
       }
     }
 
@@ -1080,22 +1402,36 @@ export function normalizeUniversalParsedQuiz(rawResult, sourceText = "") {
       correctIndex = q.correct_index;
     }
 
+    const explanation = String(q.explanation || q.reason || q.rationale || "").trim();
+    if (explanation.length >= 6 && options.length >= 2) {
+      const verified = verifyIndexWithExplanation(
+        options,
+        correctIndex >= 0 ? correctIndex : 0,
+        explanation,
+        questionStem
+      );
+      if (verified >= 0 && verified < options.length) {
+        correctIndex = verified;
+      }
+    }
+
     const needsReview = Boolean(
-      q.needs_review ||
       correctIndex === -1 ||
       options.length < 2 ||
       !questionStem
     );
 
-    const reviewReason = q.review_reason || (
-      correctIndex === -1
-        ? "لم يتم العثور على الإجابة الصحيحة في النص الأصلي — حدد الإجابة يدوياً بنقرة واحدة"
-        : options.length < 2
-        ? "السؤال يحتوي على أقل من خيارين"
-        : null
-    );
+    const reviewReason = needsReview
+      ? (q.review_reason || (
+          correctIndex === -1
+            ? "لم يتم العثور على الإجابة الصحيحة في النص الأصلي — حدد الإجابة يدوياً بنقرة واحدة"
+            : options.length < 2
+            ? "السؤال يحتوي على أقل من خيارين"
+            : null
+        ))
+      : null;
 
-    const symmetry = checkDistractorSymmetry(options, correctIndex);
+    const symmetry = checkDistractorSymmetry(options, correctIndex >= 0 ? correctIndex : 0);
 
     return {
       id: `uq_${Date.now()}_${idx}`,
@@ -1103,7 +1439,8 @@ export function normalizeUniversalParsedQuiz(rawResult, sourceText = "") {
       options,
       correct_index: correctIndex,
       correct: correctIndex,
-      explanation: q.explanation || "",
+      correct_answer: correctIndex >= 0 ? options[correctIndex] : "",
+      explanation,
       difficulty: q.difficulty || "medium",
       type: "mcq",
       needs_review: needsReview,

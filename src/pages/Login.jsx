@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
 import { Button } from "@/components/ui/button";
@@ -14,13 +14,32 @@ import TelegramLoginButton from "@/components/auth/TelegramLoginButton";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { login, loginWithGoogle, isAuthenticated } = useAuth();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
 
+  const resolveRedirectTarget = () => {
+    const fromQuery = searchParams.get("redirect");
+    const fromState = location.state?.from;
+    let fromStorage = null;
+    try {
+      fromStorage = sessionStorage.getItem("bf_post_auth_redirect");
+    } catch {}
+    const candidate = fromQuery || fromState || fromStorage || "/dashboard";
+    return typeof candidate === "string" && candidate.startsWith("/")
+      ? candidate
+      : "/dashboard";
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/dashboard", { replace: true });
+      const target = resolveRedirectTarget();
+      try {
+        sessionStorage.removeItem("bf_post_auth_redirect");
+      } catch {}
+      navigate(target, { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -43,7 +62,11 @@ export default function Login() {
     setLoading(true);
     try {
       await login(currentEmail, currentPassword);
-      navigate("/dashboard");
+      const target = resolveRedirectTarget();
+      try {
+        sessionStorage.removeItem("bf_post_auth_redirect");
+      } catch {}
+      navigate(target);
     } catch (err) {
       toast.error(
         authErrorMessage(

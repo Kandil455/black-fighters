@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import TelegramLoginButton from "@/components/auth/TelegramLoginButton";
 
 export default function Register() {
   const { register, verifyOtp, resendOtp, resendVerificationLink } = useAuth();
+  const [searchParams] = useSearchParams();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
 
@@ -83,7 +84,17 @@ export default function Register() {
   const handleVerify = async (otpCode) => {
     await verifyOtp({ email, otpCode, password, fullName: name });
     toast.success(isEn ? "Account verified successfully!" : "تم تأكيد حسابك!");
-    window.location.href = "/dashboard";
+    let redirectTarget = searchParams.get("redirect");
+    try {
+      if (!redirectTarget) {
+        redirectTarget = sessionStorage.getItem("bf_post_auth_redirect");
+      }
+      sessionStorage.removeItem("bf_post_auth_redirect");
+    } catch {}
+    window.location.href =
+      redirectTarget && redirectTarget.startsWith("/")
+        ? redirectTarget
+        : "/dashboard";
   };
 
   return (

@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { PLANS, planPrice, planCredits } from "@/lib/plans";
 import { CREDIT_PACKS } from "@/lib/economyCatalog";
@@ -44,29 +45,30 @@ const PLAN_COMPARISON_ROWS = [
     featureAr: "رصيد الكريدتس الشهري",
     featureEn: "Monthly AI Credits",
     free: "10",
-    starter: "350",
-    pro: "900",
-    supreme: "2,500",
+    starter: "100",
+    pro: "250",
+    supreme: "500",
   },
   {
-    featureAr: "تلخيص المحاضرات والكتب PDF (1–1,000 صفحة)",
-    featureEn: "PDF Lecture & Book Summaries (1–1,000p)",
-    free: "محدود",
+    featureAr: "تلخيص المحاضرات والكتب PDF (صغير · متوسط · كبير)",
+    featureEn: "PDF Lecture & Book Summaries (Small · Medium · Large)",
+    freeAr: "محدود",
+    freeEn: "Limited",
     starter: "✔",
     pro: "✔",
     supreme: "✔",
   },
   {
-    featureAr: "المدقق الرقمي المزدوج للجرعات (Cross-Family Verifier)",
-    featureEn: "Cross-Family Dosage Verifier",
-    free: "—",
+    featureAr: "اختيار لغة الملخص (Bilingual · إنجليزي · عربي)",
+    featureEn: "Summary Output Language (Bilingual · EN · AR)",
+    free: "✔",
     starter: "✔",
     pro: "✔",
     supreme: "✔",
   },
   {
-    featureAr: "معمل العملي والصور (OSCE / OSPE)",
-    featureEn: "Practical Lab & Image Quizzes",
+    featureAr: "معمل العملي والصور والكويزات التفاعلية",
+    featureEn: "Practical Lab & Interactive Quizzes",
     free: "—",
     starter: "✔",
     pro: "✔",
@@ -91,6 +93,7 @@ const PLAN_COMPARISON_ROWS = [
 ];
 
 export default function Subscriptions() {
+  const [searchParams] = useSearchParams();
   const { profile, user, isAdmin } = useAuth();
   const currentAccount = profile || user;
   const isSubscribed =
@@ -114,10 +117,48 @@ export default function Subscriptions() {
   const isEn = locale === "en";
 
   const [billing, setBilling] = useState("monthly");
-  const [selectedPlan, setSelectedPlan] = useState(
-    PLANS.find((plan) => plan.popular) || PLANS[1] || PLANS[0]
-  );
+  const [selectedPlan, setSelectedPlan] = useState(() => {
+    const rawParam = (searchParams.get("plan") || "").toLowerCase();
+    const normalizedKey = rawParam === "elite" ? "supreme" : rawParam;
+    if (normalizedKey) {
+      const matched = PLANS.find((p) => p.key === normalizedKey);
+      if (matched) return matched;
+    }
+    return PLANS.find((plan) => plan.popular) || PLANS[1] || PLANS[0];
+  });
   const [selectedPack, setSelectedPack] = useState(null);
+
+  useEffect(() => {
+    const rawParam = (searchParams.get("plan") || "").toLowerCase();
+    const normalizedKey = rawParam === "elite" ? "supreme" : rawParam;
+    if (normalizedKey) {
+      const matched = PLANS.find((p) => p.key === normalizedKey);
+      if (matched) {
+        setSelectedPlan(matched);
+        setTimeout(() => {
+          document
+            .getElementById("smart-terminal")
+            ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }, 150);
+      }
+    }
+    const creditsParam = Number(searchParams.get("credits") || 0);
+    if (creditsParam >= 50) {
+      const preset = CREDIT_PACKS.find((c) => c.credits === creditsParam);
+      if (preset) {
+        setSelectedPack(preset);
+      } else {
+        const unitPrice = creditsParam >= 2500 ? 0.35 : creditsParam >= 1000 ? 0.42 : creditsParam >= 500 ? 0.47 : 0.5;
+        setSelectedPack({
+          key: `custom_${creditsParam}`,
+          name: `شحن ${creditsParam.toLocaleString()} كريدت مخصص`,
+          nameEn: `Custom ${creditsParam.toLocaleString()} Credits Pack`,
+          credits: creditsParam,
+          price: Math.round(creditsParam * unitPrice),
+        });
+      }
+    }
+  }, [searchParams]);
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [checkoutWindow, setCheckoutWindow] = useState(() => {
     const start = Date.now();
@@ -416,7 +457,7 @@ export default function Subscriptions() {
               {isEn ? "Semester & Monthly Plans" : "الباقات الشهرية والسنوية"}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
-              {PLANS.map((plan) => (
+              {PLANS.filter((plan) => !plan.isEmergency).map((plan) => (
                 <PlanCard
                   key={plan.key}
                   plan={plan}
@@ -461,7 +502,7 @@ export default function Subscriptions() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-[#f5f7fa] truncate">
-                        {pack.name}
+                        {isEn ? pack.nameEn || pack.name : pack.name}
                       </span>
                       <span
                         className={cn(
@@ -534,7 +575,11 @@ export default function Subscriptions() {
                       {isEn ? row.featureEn : row.featureAr}
                     </td>
                     <td className="py-3 px-3 text-center font-mono tabular text-[#9aa4b2]">
-                      {row.free}
+                      {row.freeEn || row.freeAr
+                        ? isEn
+                          ? row.freeEn
+                          : row.freeAr
+                        : row.free}
                     </td>
                     <td className="py-3 px-3 text-center font-mono tabular text-[#f5f7fa]">
                       {row.starter}
@@ -637,7 +682,7 @@ export default function Subscriptions() {
                     <div className="p-3.5 rounded-2xl bg-[#19f08c]/[0.07] border border-[#19f08c]/35 flex items-center justify-between gap-2">
                       <div>
                         <span className="text-xs font-semibold text-[#f5f7fa] block">
-                          {selectedPack.name}
+                          {isEn ? selectedPack.nameEn || selectedPack.name : selectedPack.name}
                         </span>
                         <span className="text-xs font-mono tabular text-[#19f08c]">
                           +{selectedPack.credits.toLocaleString()}{" "}
@@ -757,12 +802,12 @@ export default function Subscriptions() {
                       )}
                     >
                       <span>{m.icon}</span>
-                      <span>{m.label}</span>
+                      <span>{isEn ? m.labelEn || m.label : m.label}</span>
                     </button>
                   ))}
                 </div>
 
-                {/* LineVault CopyField for Exact Amount & Transfer Number */}
+                {/* CopyField for Exact Amount & Transfer Number */}
                 <CopyField
                   label={isEn ? "Send Exact Amount" : "أرسل بالضبط"}
                   value={String(totalPrice)}
@@ -775,7 +820,7 @@ export default function Subscriptions() {
                 <CopyField
                   label={
                     isEn
-                      ? `Transfer Number (${paymentInfo.label})`
+                      ? `Transfer Number (${paymentInfo.labelEn || paymentInfo.label})`
                       : `رقم التحويل (${paymentInfo.label})`
                   }
                   value={paymentInfo.number}

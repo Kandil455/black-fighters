@@ -1,18 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
   ShieldCheck,
-  Sparkles,
   Layers,
-  Cpu,
   ChevronDown,
   Lock,
-  CheckCircle2,
-  Zap,
   BookOpen,
+  Play,
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
@@ -31,6 +28,7 @@ import {
 } from "@/components/ui/linevault";
 import LandingAtlasShowcase from "@/components/atlas/LandingAtlasShowcase";
 import { BlackFightersAnimated } from "@/components/ui/BlackFightersAnimated";
+import PromoVideoModal from "@/components/marketing/PromoVideoModal";
 import { cn } from "@/lib/utils";
 
 const HOW_IT_WORKS_STEPS = [
@@ -72,20 +70,20 @@ const TRUST_PILLARS = [
     titleAr: "تدقيق مزدوج ضد الهلوسة (Cross-Family Verifier)",
     titleEn: "Cross-Family Hallucination Guard",
     descAr:
-      "لا نعتمد على نموذج واحد أبداً؛ النموذج المدقق ينتمي لعائلة مختلفة تماماً لمراجعة كل جرعة ورقم صفحة قبل عرضها لك.",
+      "لا نعتمد على نموذج واحد أبداً؛ النموذج المدقق ينتمي لعائلة مختلفة تماماً لمراجعة كل معلومة ورقم صفحة قبل عرضها لك.",
     descEn:
-      "Primary generation and verification never share the same model family—eliminating silent dosage or numeric hallucinations.",
-    metric: "99.4% VERIFIED",
+      "Primary generation and verification never share the same model family—eliminating silent numeric or factual hallucinations.",
+    metric: "VERIFIED ACCURACY",
   },
   {
     icon: Layers,
-    titleAr: "معمارية التلخيص الهرمي (1..1,000 صفحة)",
-    titleEn: "1,000-Page Hierarchical Architecture",
+    titleAr: "معمارية التلخيص الهرمي الشامل",
+    titleEn: "Hierarchical Multi-Size Architecture",
     descAr:
-      "توليد متوازٍ للفصول مع سجل مصطلحات موحد (Glossary Lock) يضمن عدم اقتطاع أي فقرة في منتصف المحاضرات الطويلة.",
+      "توليد متوازٍ للفصول مع سجل مصطلحات موحد يضمن استخراج كل الفيتشرز والتفاصيل دون اقتطاع أي فقرة في المحاضرات الطويلة.",
     descEn:
-      "Parallel plate synthesis with global glossary locking ensures zero middle-of-book truncation across massive PDFs.",
-    metric: ">= 95% COVERAGE",
+      "Parallel chapter synthesis with global glossary locking ensures every feature and concept is captured without truncation.",
+    metric: "ZERO OMISSIONS",
   },
   {
     icon: Lock,
@@ -103,74 +101,74 @@ const PRICING_PLANS = [
   {
     key: "starter",
     nameAr: "باقة الانطلاق (Starter)",
-    nameEn: "Starter Vault",
+    nameEn: "Starter Plan",
     badgeAr: "للطلاب",
-    badgeEn: "SCHOLAR",
-    price: "99",
+    badgeEn: "STARTER",
+    price: "80",
     descAr: "مثالية لتلخيص محاضرات الأسبوع والكويزات الدورية بتدقيق كامل.",
-    descEn: "Ideal for weekly lecture summaries, verified notes, and rapid quizzes.",
+    descEn: "Ideal for weekly lecture summaries, structured notes, and rapid quizzes.",
     featuresAr: [
-      "350 نقطة كريدت شهرياً",
-      "تلخيص المحاضرات والكتب حتى 300 صفحة",
-      "المدقق الرقمي المزدوج للجرعات (Cross-Family Verifier)",
-      "كويزات نظرية وعملي (OSCE / OSPE)",
+      "100 نقطة كريدت شهرياً",
+      "تلخيص محاضرات بأحجام (صغير، متوسط، كبير)",
+      "اختيار لغة الملخص (Bilingual أو إنجليزي أو عربي)",
+      "كويزات تفاعلية وبطاقات مراجعة ذكية",
       "تصدير PDF جاهز للطباعة",
     ],
     featuresEn: [
-      "350 monthly AI credits",
-      "Hierarchical PDF summaries up to 300 pages",
-      "Cross-Family dosage & citation verifier",
-      "Theory & Practical (OSCE / OSPE) quizzes",
+      "100 monthly AI credits",
+      "Small, Medium & Large lecture summaries",
+      "Bilingual (EN+AR), English, or Arabic output",
+      "Interactive quizzes & smart flashcards",
       "Print-ready PDF export",
     ],
     recommended: false,
   },
   {
     key: "pro",
-    nameAr: "باقة برو (Pro Atlas)",
-    nameEn: "Pro Atlas",
+    nameAr: "باقة برو (Pro)",
+    nameEn: "Pro Plan",
     badgeAr: "الأكثر اختياراً",
-    badgeEn: "RECOMMENDED",
-    price: "199",
-    descAr: "القوة الكاملة لقارئ الأطلس V5، تلخيص الكتب الضخمة، واستوديو يوتيوب.",
-    descEn: "Full Atlas V5 reader power, massive reference books, and YouTube AI Studio.",
+    badgeEn: "MOST POPULAR",
+    price: "150",
+    descAr: "القوة الكاملة لتلخيص المحاضرات والمراجع الضخمة واستوديو يوتيوب.",
+    descEn: "Full power for dense lectures, reference books, and YouTube AI Studio.",
     featuresAr: [
-      "900 نقطة كريدت شهرياً",
-      "تلخيص المراجع الضخمة (من 1 حتى 1,000 صفحة)",
-      "قارئ الأطلس V5 مع شرائط التسميع التفاعلي (Declassify)",
+      "250 نقطة كريدت شهرياً",
+      "تلخيص المحاضرات والمراجع الطويلة بدقة شاملة",
       "استوديو تلخيص محاضرات يوتيوب بالذكاء الاصطناعي",
-      "تصدير PDF للطباعة + ملف HTML تفاعلي يعمل بدون إنترنت",
+      "خرائط ذهنية تفاعلية وبنك أسئلة شامل",
+      "تصدير PDF للطباعة + ملف HTML يعمل بدون إنترنت",
     ],
     featuresEn: [
-      "900 monthly AI credits",
-      "1 to 1,000-page reference book pipeline",
-      "Atlas V5 Reader with interactive Declassify bars",
+      "250 monthly AI credits",
+      "Comprehensive lecture & textbook pipeline",
       "YouTube AI Lecture Summarizer Studio",
+      "Interactive Mind Maps & full question bank",
       "Printable PDF + standalone offline HTML export",
     ],
     recommended: true,
   },
   {
     key: "supreme",
-    nameAr: "باقة القمة (Supreme Vault)",
-    nameEn: "Supreme Vault",
-    badgeAr: "للمراجع الكبرى",
-    badgeEn: "INSTITUTIONAL",
-    price: "399",
-    descAr: "أقصى سعة كريدت للدفعات الطبية والمجموعات الدراسية ووضع طوارئ الامتحانات.",
-    descEn: "Maximum credit capacity for medical syndicates and exam-night triage.",
+    nameAr: "باقة القمة (Supreme)",
+    nameEn: "Supreme Plan",
+    badgeAr: "للمراجع المكثفة",
+    badgeEn: "MAXIMUM POWER",
+    price: "250",
+    descAr: "أقصى سعة كريدت للمذاكرة المكثفة والمراجع الكبرى طوال الشهر.",
+    descEn: "Maximum credit capacity for heavy academic loads and full textbooks.",
     featuresAr: [
-      "2,500 نقطة كريدت شهرياً",
+      "500 نقطة كريدت شهرياً",
       "أولوية قصوى على أسرع نماذج التوليد والتدقيق",
-      "فتح راوند الطوارئ ليلة الامتحان (Exam Night Triage)",
-      "خريطة السيطرة المعرفية الكاملة (FSRS v4.5 + BKT)",
-      "دعم فني مباشر ومشاركة غير محدودة للمذكرات",
+      "تلخيص شامل للمحاضرات والكتب بدون حد أقصى للصفحات",
+      "جدولة المراجعة المتباعدة الذكية (FSRS v4.5)",
+      "دعم فني مباشر ومشاركة غير محدودة للملخصات",
     ],
     featuresEn: [
-      "2,500 monthly AI credits",
-      "Priority routing on flagship synthesis & verifier models",
-      "Exam-Night Emergency Triage Mode unlocked",
-      "Full Territory Mastery Map (FSRS v4.5 + BKT)",
+      "500 monthly AI credits",
+      "Priority routing on flagship synthesis models",
+      "Full-depth summaries for massive lectures & books",
+      "Smart spaced-repetition review scheduler (FSRS v4.5)",
       "Direct priority support & unlimited sharing",
     ],
     recommended: false,
@@ -179,28 +177,28 @@ const PRICING_PLANS = [
 
 const FAQ_ITEMS = [
   {
-    qAr: "كيف يمنع Black Fighters الهلوسة في الجرعات والأرقام الطبية؟",
-    qEn: "How does Black Fighters prevent dosage and numeric hallucinations?",
-    aAr: "نطبق معمارية المدقق العابر للعائلات (Cross-Family Verifier): النموذج الذي يولّد الملخص لا يُسمح له بتدقيق نفسه، بل يراجع مخرجاته نموذج ثانٍ من عائلة مختلفة تماماً ويطابق كل رقم وجرعة بالنص الأصلي المستخرج من الصفحة مع إرفاق شارة الصفحة (✓ p.13).",
-    aEn: "We enforce Cross-Family Verification: the primary generator model never verifies its own output. A second model from a distinct model family cross-checks every dosage and number against the raw PDF page and attaches a verified page badge.",
+    qAr: "كيف تضمن المنصة عدم ضياع أي معلومة أو خاصية (Feature) في المحاضرة؟",
+    qEn: "How does Black Fighters ensure zero omitted features in my lecture?",
+    aAr: "يقوم محرك التحليل باستخراج جميع التعريفات، الخصائص (Features)، القوانين، والجداول من كل فقرة في المحاضرة أولاً، ثم يبني الملخص بالحجم الذي تختاره (صغير، متوسط، أو كبير شامل) مع مراجعة آلية للتأكد من شمول كل النقاط.",
+    aEn: "Our pipeline extracts all definitions, features, mechanisms, formulas, and tables from every section of your lecture first, then structures your summary in your chosen size (Small, Medium, or Large) with automated verification.",
   },
   {
-    qAr: "هل أستطيع رفع كتاب أو مرجع كامل من 500 أو 1,000 صفحة؟",
-    qEn: "Can I upload a 500 or 1,000-page reference book?",
-    aAr: "نعم. خط أنابيب التلخيص الهرمي ذو الـ 9 مراحل يقسم المرجع إلى فصول ولوحات علمية (Plates) متوازية مع سجل مصطلحات موحد (Glossary Registry) يمنع ضياع أي تفاصيل في منتصف الكتاب.",
-    aEn: "Yes. Our 9-stage hierarchical pipeline partitions books into parallel chapters and Atlas Plates with a locked Glossary Registry, ensuring >= 95% structural coverage without middle-of-book truncation.",
+    qAr: "هل أستطيع تحديد لغة التلخيص بشكل مستقل عن لغة الموقع؟",
+    qEn: "Can I choose the summary output language independently of the site language?",
+    aAr: "نعم بالتأكيد. يمكنك تصفح الموقع بالإنجليزية أو العربية، وعند رفع أي محاضرة تحدد أنت لغة التلخيص الناتج: ثنائي اللغة (Bilingual يحفظ المصطلحات الإنجليزية مع شرح عربي واضح)، أو إنجليزي بالكامل، أو عربي بالكامل.",
+    aEn: "Yes. Regardless of whether you browse the platform in English or Arabic, you explicitly choose the output language for every summary: Bilingual (English technical terms + Arabic explanation), 100% English, or 100% Arabic.",
   },
   {
-    qAr: "كيف يعمل منزلق الكريدت اللوغاريتمي والخصم الكمي؟",
-    qEn: "How does the logarithmic credit configurator work?",
-    aAr: "يمكنك اختيار أي كمية كريدت من 100 حتى 10,000 نقطة عبر المنزلق التفاعلي. كلما زادت الكمية انتقلت تلقائياً إلى شريحة خصم أعلى يصل توفيرها إلى 56%، والرصيد المشحون لا ينتهي أبداً.",
-    aEn: "Dial any credit volume between 100 and 10,000 credits. As volume increases, unit cost drops automatically across 6 tiers (up to 56% off), and top-up credits never expire.",
+    qAr: "كيف يعمل منزلق الكريدت والخصم الكمي؟",
+    qEn: "How does the credit configurator and volume discount work?",
+    aAr: "يمكنك اختيار أي باقة شهرية أو شحن أي كمية كريدت إضافية عبر المنزلق التفاعلي. كلما زادت الكمية انخفض سعر النقطة تلقائياً، والرصيد الإضافي المشحون لا ينتهي.",
+    aEn: "You can subscribe to a monthly plan or dial any custom credit volume using the interactive slider. As volume increases, unit cost drops automatically, and top-up credits never expire.",
   },
   {
     qAr: "ما هي وسائل الدفع المتاحة وكيف يتم التفعيل؟",
     qEn: "What payment methods are supported and how fast is activation?",
-    aAr: "ندعم فودافون كاش، إنستاباي (InstaPay)، عملة USDT TRC20، ونجوم تيليجرام (Telegram Stars). تُحجز التسعيرة لمدة 15 دقيقة في محطة الدفع الفورية ويُضاف الرصيد لدفتر حسابك فور التأكيد.",
-    aEn: "We support Vodafone Cash, InstaPay, USDT TRC20, and Telegram Stars. Your quote is locked for 15 minutes in the live checkout terminal and credited atomically upon verification.",
+    aAr: "ندعم فودافون كاش، إنستاباي (InstaPay)، عملة USDT TRC20، ونجوم تيليجرام. اختر باقتك من الصفحة الرئيسية وسيتم تحويلك مباشرة لإتمام التفعيل الفوري.",
+    aEn: "We support Vodafone Cash, InstaPay, USDT TRC20, and Telegram Stars. Select your plan and complete activation directly in the checkout terminal.",
   },
 ];
 
@@ -210,6 +208,27 @@ export default function Landing() {
   const navigate = useNavigate();
   const isAr = locale === "ar";
   const [openFaq, setOpenFaq] = useState(0);
+  const [promoOpen, setPromoOpen] = useState(false);
+
+  // Auto-open the cinematic promo showcase for new visitors
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem("bf_promo_showcase_seen_v1");
+      if (!seen) {
+        const timer = setTimeout(() => {
+          setPromoOpen(true);
+        }, 650);
+        return () => clearTimeout(timer);
+      }
+    } catch {}
+  }, []);
+
+  const handleClosePromo = () => {
+    setPromoOpen(false);
+    try {
+      localStorage.setItem("bf_promo_showcase_seen_v1", "true");
+    } catch {}
+  };
 
   const primaryRoute = isAuthenticated ? "/dashboard" : "/register";
   const ArrowIcon = dir === "rtl" ? ArrowLeft : ArrowRight;
@@ -219,7 +238,7 @@ export default function Landing() {
       dir={dir}
       className="min-h-screen bg-[#05070a] text-[#f5f7fa] relative overflow-x-hidden selection:bg-[#19f08c]/20"
     >
-      {/* Silent LineVault Ambient Backdrop */}
+      {/* Ambient Backdrop */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#05070a]"
@@ -228,7 +247,7 @@ export default function Landing() {
         <div className="absolute inset-0 bg-grid opacity-80" />
       </div>
 
-      {/* 1. Sticky Glass Header (3-Zone Contract) */}
+      {/* 1. Sticky Glass Header */}
       <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#05070a]/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3.5 sm:px-6">
           <LVLogo to="/" label="Black Fighters" />
@@ -244,13 +263,13 @@ export default function Landing() {
               href="#atlas-reader"
               className="hover:text-[#f5f7fa] transition-colors whitespace-nowrap shrink-0"
             >
-              {isAr ? "قارئ الأطلس V5" : "Atlas V5 Reader"}
+              {isAr ? "خطوات التلخيص والمذاكرة" : "Smart Workflow"}
             </a>
             <a
               href="#configurator"
               className="hover:text-[#f5f7fa] transition-colors whitespace-nowrap shrink-0"
             >
-              {isAr ? "حاسبة الرصيد" : "Credit Vault"}
+              {isAr ? "حاسبة الرصيد" : "Credit Calculator"}
             </a>
             <a
               href="#pricing"
@@ -266,7 +285,15 @@ export default function Landing() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setPromoOpen(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 px-3 py-2 text-xs font-extrabold text-blue-300 transition cursor-pointer"
+            >
+              <Play className="w-3.5 h-3.5 fill-current text-blue-400" />
+              <span>{isAr ? "فيديو المنصة" : "Platform Video"}</span>
+            </button>
             <LVLangSwitch />
             {!isAuthenticated && (
               <Link
@@ -295,7 +322,7 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* 2. Two-Column LineVault Hero */}
+      {/* 2. Two-Column Black Fighters Hero */}
       <section className="relative pt-12 pb-20 sm:pt-20 sm:pb-28">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
@@ -307,7 +334,11 @@ export default function Landing() {
                 </div>
                 <span className="glass inline-flex items-center gap-2.5 rounded-full px-3.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#19f08c]">
                   <span className="pulse-dot" />
-                  <span>VERIFIED ACADEMIC ENGINE · V5 ATLAS × LINEVAULT</span>
+                  <span>
+                    {isAr
+                      ? "منصة التلخيص والمذاكرة الذكية · BLACK FIGHTERS"
+                      : "SMART LECTURE & EXAM PLATFORM · BLACK FIGHTERS"}
+                  </span>
                 </span>
               </motion.div>
 
@@ -317,13 +348,13 @@ export default function Landing() {
               >
                 <span className="block text-gradient">
                   {isAr
-                    ? "حوّل أضخم المحاضرات والكتب"
-                    : "Turn 1,000-page lectures into"}
+                    ? "ارفع محاضرتك واختر حجم التلخيص"
+                    : "Upload your lecture & choose your summary size"}
                 </span>
                 <span className="block text-gradient-emerald mt-1.5">
                   {isAr
-                    ? "إلى أطلس علمي مدقق في ثوانٍ."
-                    : "a cross-verified clinical atlas."}
+                    ? "كل المهم والفيتشرز بطريقة منظمة."
+                    : "every key feature organized with zero omissions."}
                 </span>
               </motion.h1>
 
@@ -332,8 +363,8 @@ export default function Landing() {
                 className="max-w-2xl text-sm sm:text-base lg:text-lg text-[#9aa4b2] leading-relaxed"
               >
                 {isAr
-                  ? "من صفحة واحدة حتى 1,000 صفحة — تلخيص هرمي متعدد النماذج، تدقيق عابر للعائلات يمنع الهلوسة الرقمية، وشرائط استدعاء نشط مرتبطة بخوارزمية FSRS v4.5 في مساحة عمل LineVault الهادئة."
-                  : "Hierarchical multi-model summarization, cross-family dosage verification, and FSRS v4.5 spaced repetition in a calm LineVault workspace."}
+                  ? "سواء كانت محاضرتك قصيرة مليئة بالتفاصيل أو مرجعاً كبيراً — اختر بضغطة واحدة حجم التلخيص (صغير، متوسط، أو كبير) وحدد لغة الملخص (ثنائي اللغة، إنجليزي، أو عربي) مع كويزات تفاعلية وبطاقات مراجعة."
+                  : "Whether your lecture is concise and dense or a comprehensive textbook — choose your summary size (Small, Medium, or Large) and output language (Bilingual, English, or Arabic) with instant quizzes and flashcards."}
               </motion.p>
 
               <motion.div
@@ -341,7 +372,7 @@ export default function Landing() {
                 className="flex flex-wrap items-center gap-3.5 pt-2"
               >
                 <Link
-                  to={primaryRoute}
+                  to={isAuthenticated ? "/create" : "/register"}
                   className="btn-primary-glow inline-flex h-12 items-center gap-2.5 rounded-xl px-6 text-sm sm:text-base font-bold whitespace-nowrap"
                 >
                   <span>
@@ -349,13 +380,25 @@ export default function Landing() {
                   </span>
                   <ArrowIcon className="w-4 h-4" />
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => setPromoOpen(true)}
+                  className="inline-flex h-12 items-center gap-2.5 rounded-xl border border-blue-500/45 bg-gradient-to-r from-blue-600/25 to-emerald-500/20 px-5 text-sm font-extrabold text-white hover:from-blue-600/40 hover:to-emerald-500/30 shadow-[0_0_25px_rgba(37,99,235,0.28)] transition cursor-pointer whitespace-nowrap"
+                >
+                  <span className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center text-white shadow">
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                  </span>
+                  <span>
+                    {isAr ? "شاهد فيديو المنصة التفاعلي" : "Watch Platform Film (0:40)"}
+                  </span>
+                </button>
                 <a
-                  href="#atlas-reader"
-                  className="glass inline-flex h-12 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#f5f7fa] hover:border-[#19f08c]/40 hover:bg-white/[0.05] transition-colors whitespace-nowrap"
+                  href="#pricing"
+                  className="glass inline-flex h-12 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-[#f5f7fa] hover:border-[#19f08c]/40 hover:bg-white/[0.05] transition-colors whitespace-nowrap"
                 >
                   <BookOpen className="w-4 h-4 text-[#19f08c]" />
                   <span>
-                    {isAr ? "جرّب قارئ الأطلس الحيّ" : "Explore Live Atlas Reader"}
+                    {isAr ? "باقات الاشتراك" : "View Plans"}
                   </span>
                 </a>
               </motion.div>
@@ -367,43 +410,43 @@ export default function Landing() {
               >
                 <div className="glass rounded-2xl p-3.5 sm:p-4">
                   <div
+                    className="font-mono text-xl sm:text-2xl font-bold text-[#19f08c] tabular"
+                    dir="ltr"
+                  >
+                    <AnimatedNumber value={3} suffix={isAr ? " أحجام" : " Sizes"} />
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
+                    {isAr ? "صغير · متوسط · كبير" : "Small · Medium · Large"}
+                  </p>
+                </div>
+
+                <div className="glass rounded-2xl p-3.5 sm:p-4">
+                  <div
+                    className="font-mono text-xl sm:text-2xl font-bold text-[#f5f7fa] tabular"
+                    dir="ltr"
+                  >
+                    <AnimatedNumber value={3} suffix={isAr ? " أنظمة لغة" : " Languages"} />
+                  </div>
+                  <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
+                    {isAr ? "ثنائي اللغة · EN · عربي" : "Bilingual · English · Arabic"}
+                  </p>
+                </div>
+
+                <div className="glass rounded-2xl p-3.5 sm:p-4">
+                  <div
                     className="font-mono text-xl sm:text-2xl font-bold text-[#f5f7fa] tabular"
                     dir="ltr"
                   >
                     <AnimatedNumber value={1000} suffix="p" />
                   </div>
                   <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
-                    {isAr ? "سعة التلخيص الهرمي" : "Max Book Capacity"}
-                  </p>
-                </div>
-
-                <div className="glass rounded-2xl p-3.5 sm:p-4">
-                  <div
-                    className="font-mono text-xl sm:text-2xl font-bold text-[#19f08c] tabular"
-                    dir="ltr"
-                  >
-                    <AnimatedNumber value={99.4} decimals={1} suffix="%" />
-                  </div>
-                  <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
-                    {isAr ? "دقة مطابقة الجرعات" : "Dosage Verification"}
-                  </p>
-                </div>
-
-                <div className="glass rounded-2xl p-3.5 sm:p-4">
-                  <div
-                    className="font-mono text-xl sm:text-2xl font-bold text-[#f5f7fa] tabular"
-                    dir="ltr"
-                  >
-                    <AnimatedNumber value={56} prefix="-" suffix="%" />
-                  </div>
-                  <p className="text-[11px] sm:text-xs text-[#9aa4b2] mt-1">
-                    {isAr ? "خصم المنزلق الكمي" : "Volume Tier Savings"}
+                    {isAr ? "سعة تلخيص المحاضرات والكتب" : "Max Lecture & Book Capacity"}
                   </p>
                 </div>
               </motion.div>
             </div>
 
-            {/* Column 2: Live LineStream Terminal */}
+            {/* Column 2: Interactive Lecture & Summary Size Showcase */}
             <motion.div {...reveal(0.2)} className="lg:col-span-5">
               <LineStream locale={locale} />
             </motion.div>
@@ -414,16 +457,16 @@ export default function Landing() {
       {/* 3. HowItWorks (01..03 Glass Cards) */}
       <Section
         id="how-it-works"
-        eyebrow={isAr ? "هندسة التلخيص والتدقيق" : "PIPELINE ARCHITECTURE"}
+        eyebrow={isAr ? "خطوات بسيطة وسريعة" : "STREAMLINED WORKFLOW"}
         title={
           isAr
-            ? "ثلاث خطوات تحول الفوضى إلى أطلس مدقق"
-            : "Three stages from raw PDF to verified mastery"
+            ? "ثلاث خطوات تحول محاضرتك إلى ملخص متكامل"
+            : "Three steps from lecture file to complete mastery"
         }
         subtitle={
           isAr
-            ? "صممنا كل مرحلة لتعالج نقاط الضعف في أدوات الذكاء الاصطناعي التقليدية والمذكرات اليدوية."
-            : "Engineered to eliminate truncation, numeric hallucinations, and passive reading."
+            ? "ارفع ملفك، اختر حجم ولغة التلخيص، وابدأ المذاكرة وحل الأسئلة فوراً."
+            : "Upload your file, pick your summary size and output language, and start studying immediately."
         }
       >
         <div className="grid gap-6 md:grid-cols-3">
@@ -457,19 +500,19 @@ export default function Landing() {
         </div>
       </Section>
 
-      {/* 4. Live Interactive Atlas Reader Showcase */}
+      {/* 4. Live Interactive Workflow Showcase */}
       <Section
         id="atlas-reader"
-        eyebrow={isAr ? "قارئ الأطلس التفاعلي V5" : "ATLAS V5 INTERACTIVE READER"}
+        eyebrow={isAr ? "معاينة ذكية حية" : "INTERACTIVE AI ENGINE"}
         title={
           isAr
-            ? "جرّب بنفسك: شرح تأسيسي واستدعاء نشط داخل الملخص"
-            : "Experience live Active Recall and verified citations"
+            ? "استكشف كيف ينظم الذكاء الاصطناعي محاضرتك"
+            : "See how our AI structures every lecture detail"
         }
         subtitle={
           isAr
-            ? "فعّل وضع التسميع الذاتي (Declassify) لإخفاء المعلومات والجرعات الحرجة واختبر ذاكرتك قبل الامتحان."
-            : "Toggle Declassify mode below to mask critical mechanisms and dosages, then click to reveal."
+            ? "تنقّل بين المراحل الثلاث لمشاهدة كيف يتم استخراج الفيتشرز وتنسيق الجداول وتوليد الأسئلة التفاعلية."
+            : "Switch between the three live stages below to see extraction, multi-language synthesis, and instant quizzes in action."
         }
       >
         <LandingAtlasShowcase locale={locale} />
@@ -494,7 +537,9 @@ export default function Landing() {
       >
         <LVConfigurator
           locale={locale}
-          onSelectCustomPack={() => navigate("/subscriptions")}
+          onSelectCustomPack={(pack) =>
+            navigate(`/subscriptions?credits=${pack?.credits || ""}`)
+          }
         />
       </Section>
 
@@ -509,8 +554,8 @@ export default function Landing() {
         }
         subtitle={
           isAr
-            ? "اشترك في باقة شهرية أو اشحن رصيداً إضافياً لا ينتهي في أي وقت عبر فودافون كاش أو إنستاباي أو تيليجرام."
-            : "Choose a monthly vault plan or top up non-expiring credits anytime via InstaPay, Vodafone Cash, or Telegram Stars."
+            ? "اختر باقتك الشهرية وسيتم توجيهك مباشرة لتأكيدها، أو اشحن رصيداً إضافياً لا ينتهي في أي وقت."
+            : "Select your monthly plan to proceed directly to checkout, or top up non-expiring credits anytime."
         }
       >
         <div className="grid gap-6 lg:grid-cols-3">
@@ -527,7 +572,7 @@ export default function Landing() {
                 ctaLabel={
                   isAr ? "اختر هذه الباقة" : "Select Plan"
                 }
-                to="/subscriptions"
+                to={`/subscriptions?plan=${plan.key}`}
                 recommended={plan.recommended}
                 className="h-full"
               />
@@ -671,7 +716,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 10. Quiet LineVault Footer */}
+      {/* 10. Quiet Black Fighters Footer */}
       <footer className="border-t border-white/[0.07] bg-[#05070a] py-10">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <LVLogo
@@ -680,8 +725,8 @@ export default function Landing() {
             showSubtitle
             subtitle={
               isAr
-                ? "أطلس المذاكرة العلمي المدقق · V5 LINEVAULT"
-                : "CROSS-VERIFIED ACADEMIC ATLAS · V5"
+                ? "منصة التلخيص والمذاكرة الذكية · BLACK FIGHTERS"
+                : "SMART LECTURE & EXAM PLATFORM · BLACK FIGHTERS"
             }
           />
           <div className="flex flex-wrap items-center gap-6 text-xs text-[#9aa4b2]">
@@ -700,6 +745,23 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      <PromoVideoModal
+        open={promoOpen}
+        onClose={handleClosePromo}
+        isEn={!isAr}
+        onSelectPlan={() => {
+          const pricingEl = document.getElementById("pricing");
+          if (pricingEl) {
+            pricingEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          } else {
+            navigate("/subscriptions");
+          }
+        }}
+        onTryUpload={() => {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
     </div>
   );
 }

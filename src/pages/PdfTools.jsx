@@ -64,7 +64,7 @@ export default function PdfTools() {
   const abortRef = useRef(null);
 
   // إعدادات التلخيص
-  const [summaryTemplate, setSummaryTemplate] = useState("exam_revision_sheet");
+  const [summaryTemplate, setSummaryTemplate] = useState("complete_study_guide");
   const [summarySubject, setSummarySubject] = useState("auto");
   const [summaryColorLevel, setSummaryColorLevel] = useState("medium");
 

@@ -11,10 +11,12 @@ import {
   Search,
   Sparkles,
   Headphones,
-  ShieldAlert,
   User,
   CreditCard,
   HelpCircle,
+  ChevronLeft,
+  ChevronRight,
+  FolderKanban,
 } from "lucide-react";
 import { hasEmergencyAccess } from "@/lib/emergencyAccess";
 
@@ -46,6 +48,7 @@ import { playClick } from "@/lib/sounds";
 
 const routePrefetchers = {
   "/dashboard": () => import("@/pages/Dashboard"),
+  "/planner": () => import("@/pages/StudyPlanner"),
   "/create": () => import("@/pages/CreateCourse"),
   "/youtube-ai": () => import("@/pages/YouTubeAIStudio"),
   "/tools": () => import("@/pages/PdfTools"),
@@ -76,7 +79,24 @@ export default function Layout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("bf_sidebar_collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
   useSmoothScroll(false);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("bf_sidebar_collapsed", next ? "1" : "0");
+      } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handler = (e) => {
@@ -107,6 +127,7 @@ export default function Layout() {
       title: locale === "ar" ? "اليوم والمكتبة" : "Today & Library",
       items: [
         { to: "/dashboard", label: locale === "ar" ? "اليوم والمقررات" : "Today & Courses", icon: DocumentIcon },
+        { to: "/planner", label: locale === "ar" ? "حافظة البلوكات وجدول المذاكرة" : "Block Vault & Planner", icon: FolderKanban },
         { to: "/create", label: locale === "ar" ? "رفع محاضرة جديدة" : "Upload Lecture", icon: SummaryNoteIcon },
       ],
     },
@@ -124,9 +145,6 @@ export default function Layout() {
       items: [
         { to: "/review", label: locale === "ar" ? "المراجعة الذكية (FSRS)" : "FSRS Review", icon: FlameIcon },
         { to: "/stats", label: locale === "ar" ? "خريطة السيطرة والأداء" : "Mastery & Stats", icon: TrophyIcon },
-        ...(isEmergencyAllowed
-          ? [{ to: "/emergency", label: locale === "ar" ? "راوند الطوارئ" : "Emergency Triage", icon: ShieldAlert }]
-          : []),
       ],
     },
     {
@@ -148,12 +166,24 @@ export default function Layout() {
     },
   ];
 
+  const CollapseArrowIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
+  const ExpandArrowIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
+
   const sidebar = (
     <div className="flex flex-col h-full select-none bg-[#090c11] text-[#f5f7fa]">
       <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.08]">
         <LVLogo to="/dashboard" label="Black Fighters" />
         <div className="flex items-center gap-1.5">
           <NotificationBell />
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title={locale === "ar" ? "إخفاء القائمة الجانبية" : "Collapse sidebar"}
+            aria-label={locale === "ar" ? "إخفاء القائمة الجانبية" : "Collapse sidebar"}
+            className="hidden md:inline-flex w-7 h-7 rounded-lg items-center justify-center bg-[#0e131b] border border-white/10 text-[#9aa4b2] hover:text-[#19f08c] hover:border-[#19f08c]/40 transition-colors cursor-pointer"
+          >
+            <CollapseArrowIcon className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -175,6 +205,18 @@ export default function Layout() {
         <div className="bg-[#0e131b] p-0.5 rounded-xl border border-white/[0.08] flex items-center text-xs font-medium">
           <button
             type="button"
+            onClick={() => setLocale("en")}
+            className={cn(
+              "flex-1 py-1.5 px-2 rounded-lg font-mono flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
+              locale === "en"
+                ? "bg-[#19f08c] text-[#03150c] font-bold"
+                : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+            )}
+          >
+            <span>English</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setLocale("ar")}
             className={cn(
               "flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
@@ -184,18 +226,6 @@ export default function Layout() {
             )}
           >
             <span>العربية</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setLocale("en")}
-            className={cn(
-              "flex-1 py-1.5 px-2 rounded-lg font-mono flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
-              locale === "en"
-                ? "bg-[#19f08c] text-[#03150c] font-bold"
-                : "text-[#9aa4b2] hover:text-[#f5f7fa]"
-            )}
-          >
-            <span>EN</span>
           </button>
         </div>
       </div>
@@ -283,9 +313,9 @@ export default function Layout() {
               <Sparkles className="w-3.5 h-3.5 text-[#19f08c] shrink-0" />
               <span className="text-xs font-semibold text-[#f5f7fa] truncate">
                 {isPro
-                  ? profile?.subscription_plan_name || (locale === "en" ? "Pro Vault" : "باقة برو نشطة")
+                  ? profile?.subscription_plan_name || (locale === "en" ? "Pro Plan" : "باقة برو نشطة")
                   : locale === "en"
-                  ? "Free Vault"
+                  ? "Free Plan"
                   : "الباقة المجانية"}
               </span>
             </div>
@@ -375,12 +405,48 @@ export default function Layout() {
         <NeonBackground />
 
         <aside
-          className={`hidden md:flex fixed inset-y-0 start-0 ${
-            dir === "rtl" ? "border-e" : "border-s"
-          } w-64 lg:w-64 border-white/[0.08] bg-[#090c11] z-30 flex-col`}
+          className={cn(
+            "hidden md:flex fixed inset-y-0 start-0 w-64 lg:w-64 border-white/[0.08] bg-[#090c11] z-30 flex-col transition-transform duration-200 ease-out",
+            dir === "rtl" ? "border-e" : "border-s",
+            sidebarCollapsed && (dir === "rtl" ? "translate-x-full" : "-translate-x-full")
+          )}
         >
           {sidebar}
+
+          {/* Side Edge Collapse Arrow Handle when sidebar is open */}
+          {!sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              title={locale === "ar" ? "إخفاء الستارة الجانبية" : "Hide Sidebar"}
+              aria-label={locale === "ar" ? "إخفاء الستارة الجانبية" : "Hide Sidebar"}
+              className={cn(
+                "hidden md:flex absolute top-1/2 -translate-y-1/2 z-40 h-14 w-5 items-center justify-center bg-[#0e131b] border border-white/15 text-[#9aa4b2] hover:text-[#19f08c] hover:border-[#19f08c]/50 transition-colors cursor-pointer shadow-lg",
+                dir === "rtl"
+                  ? "-left-5 rounded-s-xl border-e-0"
+                  : "-right-5 rounded-e-xl border-s-0"
+              )}
+            >
+              <CollapseArrowIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
         </aside>
+
+        {/* Side Edge Expand Tab when sidebar is collapsed */}
+        {sidebarCollapsed && (
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title={locale === "ar" ? "إظهار الستارة الجانبية" : "Show Sidebar"}
+            aria-label={locale === "ar" ? "إظهار الستارة الجانبية" : "Show Sidebar"}
+            className={cn(
+              "hidden md:flex fixed top-1/2 -translate-y-1/2 start-0 z-40 h-16 w-6 items-center justify-center bg-[#0e131b] border border-[#19f08c]/40 text-[#19f08c] hover:bg-[#19f08c] hover:text-[#03150c] transition-colors cursor-pointer shadow-[0_0_20px_rgba(25,240,140,0.25)]",
+              dir === "rtl" ? "rounded-s-xl border-e-0" : "rounded-e-xl border-s-0"
+            )}
+          >
+            <ExpandArrowIcon className="w-4 h-4 stroke-[2.5]" />
+          </button>
+        )}
 
         <header className="md:hidden sticky top-0 z-40 bg-[#05070a]/85 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
           <LVLogo to="/dashboard" label="Black Fighters" />
@@ -425,7 +491,7 @@ export default function Layout() {
             >
               <div className="p-3 border-b border-white/[0.08] flex items-center justify-between">
                 <span className="text-xs font-semibold text-[#9aa4b2]">
-                  {locale === "ar" ? "مراكز القيادة" : "Command Hubs"}
+                  {locale === "ar" ? "القائمة الرئيسية" : "Main Menu"}
                 </span>
                 <button
                   type="button"
@@ -440,7 +506,12 @@ export default function Layout() {
           </div>
         )}
 
-        <main className="md:ms-64 relative z-10 p-4 sm:p-6 md:p-8 pb-28 md:pb-16 max-w-6xl mx-auto">
+        <main
+          className={cn(
+            "relative z-10 p-4 sm:p-6 md:p-8 pb-28 md:pb-16 max-w-6xl mx-auto transition-[margin] duration-200",
+            sidebarCollapsed ? "md:ms-0" : "md:ms-64"
+          )}
+        >
           <RouteBackBar />
           <PageTransition />
         </main>

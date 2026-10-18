@@ -1,36 +1,51 @@
 import { adminDb, FieldValue } from "./firebase-admin.mjs";
 
 // ─── SECURITY: server-only AI keys (never hardcoded, never VITE_-exposed) ────
-export function serverAiConfig(preferVision = false) {
-  const cleanKey = (k) => String(k || "").replace(/["']/g, "").trim();
-  const geminiKey = cleanKey(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "BF_SERVER_MANAGED_GEMINI_KEY");
-  const zaiKey = cleanKey(process.env.ZAI_API_KEY || "BF_SERVER_MANAGED_ZAI_KEY");
-  const groqKey = cleanKey(process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY);
-  const openrouterKey = cleanKey(process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY);
+export function serverAiConfig(_preferVision = false) {
+  const cleanKey = (k) => {
+    const val = String(k || "").replace(/["']/g, "").trim();
+    if (val === "BF_SERVER_MANAGED_GEMINI_KEY" || val === "BF_SERVER_MANAGED_ZAI_KEY") return "";
+    return val;
+  };
+  const deepseekKey = cleanKey(
+    process.env.DEEPSEEK_API_KEY ||
+    process.env.VITE_DEEPSEEK_API_KEY ||
+    process.env.CODECRAFT_KEY ||
+    process.env.VITE_CODECRAFT_KEY ||
+    process.env.APMIX_KEY ||
+    process.env.VITE_APMIX_KEY
+  );
 
-  if (preferVision) {
-    if (geminiKey) {
-      return { provider: "gemini", api_key: geminiKey, model: process.env.GEMINI_VISION_MODEL || "gemini-3.5-flash-lite" };
-    }
-    if (zaiKey) {
-      return { provider: "zai", api_key: zaiKey, model: "glm-4.6v-flash" };
-    }
-  }
+  return {
+    provider: "deepseek",
+    api_key: deepseekKey || "",
+    model: "DeepSeek-V4.1-Flash-1017",
+  };
+}
 
-  // Hierarchy: Gemini 3.5 -> Z.ai (glm-4.7-flash) -> Groq -> OpenRouter
-  if (geminiKey) {
-    return { provider: "gemini", api_key: geminiKey, model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite" };
-  }
-  if (zaiKey) {
-    return { provider: "zai", api_key: zaiKey, model: process.env.ZAI_MODEL || "glm-4.7-flash" };
-  }
-  if (groqKey) {
-    return { provider: "groq", api_key: groqKey, model: process.env.GROQ_MODEL || "openai/gpt-oss-120b" };
-  }
-  if (openrouterKey) {
-    return { provider: "openrouter", api_key: openrouterKey, model: process.env.OPENROUTER_MODEL || "openrouter/free" };
-  }
-  throw new Error("NO_API_KEY");
+export async function resolveServerAiConfig(preferVision = false, uid = "") {
+  const base = serverAiConfig(preferVision);
+  if (base.api_key) return base;
+  try {
+    if (uid) {
+      const userSettingsSnap = await adminDb.collection("userSettings").doc(uid).get();
+      const userKey = String(userSettingsSnap.data()?.api_key || "").trim();
+      if (userKey && !userKey.includes("•")) {
+        return { provider: "deepseek", api_key: userKey, model: "DeepSeek-V4.1-Flash-1017" };
+      }
+    }
+    const adminSnap = await adminDb.collection("adminConfig").limit(10).get();
+    const docs = adminSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const active = docs.find((d) => d.is_active && d.api_key) || docs.find((d) => d.id === "default" && d.api_key) || docs.find((d) => d.api_key);
+    if (active?.api_key && !String(active.api_key).includes("•")) {
+      return {
+        provider: "deepseek",
+        api_key: String(active.api_key).trim(),
+        model: "DeepSeek-V4.1-Flash-1017",
+      };
+    }
+  } catch {}
+  return base;
 }
 
 

@@ -15,7 +15,6 @@ import {
   BookOpen,
   Send,
   Brain,
-  Trash2,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,7 +25,7 @@ import { awardXP } from "@/lib/xpSystem";
 import { toast } from "sonner";
 import QuizPrep from "@/components/course/QuizPrep";
 import { useBadges } from "@/lib/BadgeContext";
-import { buildQuizPerformance } from "@/lib/quizQuality";
+import { buildQuizPerformance, reconcileQuestionAnswer } from "@/lib/quizQuality";
 import {
   getMistakeVaultItems,
   recordMistake,
@@ -57,7 +56,10 @@ const getOptionStyle = (i, correct, selected, answered) => {
 
 export default function ModernQuizView({ quiz, course, onJumpToSummary }) {
   const { showBadges } = useBadges();
-  const allQuestions = quiz?.questions || [];
+  const allQuestions = React.useMemo(
+    () => (quiz?.questions || []).map((q) => reconcileQuestionAnswer(q)),
+    [quiz?.questions]
+  );
   const [questions, setQuestions] = useState(allQuestions);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);

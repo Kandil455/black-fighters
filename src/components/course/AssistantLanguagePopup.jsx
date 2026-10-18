@@ -4,174 +4,175 @@ import SummaryTemplateSelector from "@/components/pdf/SummaryTemplateSelector";
 import {
   FileText,
   Zap,
-  Globe,
-  Languages,
-  BookOpen,
+  Sparkles,
   RefreshCw,
+  Globe,
+  Check,
 } from "lucide-react";
-import { PaymentIcon } from "@/components/ui/icons";
+import { useLocale } from "@/lib/LocaleContext";
 
-const LANG_OPTIONS = [
+const OUTPUT_LANGUAGES = [
   {
     id: "bilingual",
-    title: "ثنائي اللغة (إنجليزي + عربي)",
-    desc: "المصطلحات العلمية بالإنجليزي مع شرح عربي واضح ومبسط تحت كل نقطة.",
-    icon: Languages,
-  },
-  {
-    id: "ar",
-    title: "عربي فقط",
-    desc: "كل الشرح والتعريفات والأمثلة بالعربي الواضح بالكامل.",
-    icon: BookOpen,
+    titleEn: "Bilingual (English + Arabic)",
+    titleAr: "ثنائي اللغة (Bilingual EN + AR)",
+    descEn:
+      "Preserves English scientific terms, headings & definitions alongside clear Arabic explanation.",
+    descAr:
+      "يحفظ المصطلحات العلمية والعناوين والتعريفات بالإنجليزية مع شرح عربي واضح ومفصل لكل نقطة.",
   },
   {
     id: "en",
-    title: "English Only",
-    desc: "Full summary, definitions, and high-yield notes in clean English.",
-    icon: Globe,
+    titleEn: "English Only",
+    titleAr: "إنجليزي فقط (English Only)",
+    descEn:
+      "Generates the entire summary, headings, bullet points, and tables 100% in academic English.",
+    descAr:
+      "يكتب الملخص بالكامل (العناوين، الشرح، النقاط، والجداول) باللغة الإنجليزية الأكاديمية فقط.",
+  },
+  {
+    id: "ar",
+    titleEn: "Arabic Only",
+    titleAr: "عربي فقط (Arabic Only)",
+    descEn:
+      "Generates the entire summary and explanations in clear academic Arabic.",
+    descAr:
+      "يكتب الملخص والشرح بالكامل باللغة العربية الفصحى الواضحة والسلسة.",
   },
 ];
 
-/**
- * AssistantLanguagePopup — Unified, single-window summary configuration studio.
- * Supports `inline` mode for rendering inside the unified CreateCourse window
- * without opening a separate popup dialog, with zero coloring pickers and zero green side text.
- */
 export default function AssistantLanguagePopup({
   open,
-  inline = false,
-  fileName,
   onConfirm,
   onClose,
   onChangeFile,
+  fileName,
   creditCost = 2,
   analysis = null,
+  inline = false,
+  initialLanguage = "bilingual",
+  initialStyle = "complete_study_guide",
 }) {
-  const [selectedLang, setSelectedLang] = useState("bilingual");
-  const [selectedStyle, setSelectedStyle] = useState("foundational_bilingual");
-  const [subjectType, setSubjectType] = useState("auto");
-  const [maxPages, setMaxPages] = useState(12);
+  const { locale, dir } = useLocale();
+  const isEn = locale === "en";
+  const [selectedLang, setSelectedLang] = useState(
+    initialLanguage || "bilingual"
+  );
+  const [selectedStyle, setSelectedStyle] = useState(
+    initialStyle || "complete_study_guide"
+  );
 
   useEffect(() => {
-    if (!analysis) return;
-    if (analysis.language) setSelectedLang(analysis.language);
-    const rec = analysis.recommendation || {};
-    const styleCandidate = rec.templateId || analysis.recommendedStyle || "foundational_bilingual";
-    setSelectedStyle(
-      styleCandidate === "exam_revision_sheet" || styleCandidate === "atlas_cram"
-        ? "atlas_cram"
-        : styleCandidate === "comparison_classification"
-          ? "comparison_classification"
-          : "foundational_bilingual"
-    );
-    setSubjectType(rec.subjectType || analysis.subjectType || "auto");
-    const estPages = Number(rec.suggestedMaxPages || analysis.estimatedPages || analysis.pages || 16);
-    setMaxPages(Math.max(10, Math.min(150, Math.ceil(estPages * 0.85) || 16)));
-  }, [analysis]);
+    if (initialLanguage) setSelectedLang(initialLanguage);
+  }, [initialLanguage]);
 
-  const handleStart = () => {
-    onConfirm?.({
-      language: selectedLang,
-      style: selectedStyle,
-      subjectType,
+  useEffect(() => {
+    if (initialStyle) setSelectedStyle(initialStyle);
+  }, [initialStyle]);
+
+  const triggerStart = (styleId = selectedStyle, langId = selectedLang) => {
+    onConfirm({
+      language: langId,
+      style: styleId,
+      subjectType: analysis?.subjectType || "auto",
       colorLevel: "none",
-      maxPages,
+      maxPages: Math.max(25, analysis?.estimatedPages || 25),
       includeImages: true,
     });
   };
 
-  const detectedPages = analysis?.estimatedPages || analysis?.pages || 0;
-  const subjectNames = {
-    medical: "طبي وسريري",
-    engineering: "هندسي وعلمي",
-    law: "قانوني",
-    business: "إدارة وأعمال",
-    languages: "لغات",
-    humanities: "نظري وأدبي",
-    auto: "أكاديمي شامل",
-  };
-  const autoSubjectLabel = subjectNames[subjectType] || "أكاديمي شامل";
-
-  const content = (
+  const innerContent = (
     <div
-      dir="rtl"
-      className={
-        inline
-          ? "w-full flex flex-col overflow-hidden border border-white/10 bg-[#080C14] rounded-3xl shadow-2xl"
-          : "flex-1 flex flex-col overflow-hidden"
-      }
+      dir={dir}
+      className="relative rounded-3xl overflow-hidden border border-primary/30 bg-gradient-to-b from-card via-card to-background shadow-2xl"
     >
-      {/* Top Header */}
-      <div className="shrink-0 p-5 pb-4 border-b border-white/10 bg-[#0B101B]">
+      <div className="h-1.5 w-full bg-gradient-to-r from-cyan-400 via-primary to-emerald-500" />
+
+      <div className="p-5 sm:p-6 space-y-5">
+        {/* Header + File pill */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg sm:text-xl font-black text-foreground">
-              إعداد التلخيص الذكي (خطوتين فقط ⚡)
-            </h2>
-            {fileName && (
-              <div className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground max-w-full flex-wrap">
-                <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="truncate font-semibold text-foreground/90">{fileName}</span>
-                {detectedPages > 0 && (
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                    (~{detectedPages} صفحة مصدر)
-                  </span>
-                )}
-                <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                  ضبط تلقائي: {autoSubjectLabel} • ~{maxPages} صفحة ملخص
-                </span>
-              </div>
-            )}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg font-black text-foreground truncate">
+                {isEn
+                  ? "Configure Summary Language & Size"
+                  : "حدد لغة التلخيص وحجمه للبدء"}
+              </h3>
+              {fileName && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {fileName}
+                  {analysis?.estimatedPages
+                    ? ` · ~${analysis.estimatedPages} ${
+                        isEn ? "pages" : "صفحة"
+                      }`
+                    : ""}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/35 bg-amber-500/10 px-3 py-1 text-xs font-black text-amber-300">
-              <PaymentIcon size={14} />
-              <span>{creditCost} كريدت</span>
-            </span>
-
-            <button
-              type="button"
-              onClick={handleStart}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow hover:opacity-95 transition-opacity cursor-pointer"
-            >
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-xs">
               <Zap className="w-3.5 h-3.5" />
-              <span>تلخيص فوري ⚡</span>
-            </button>
+              {creditCost} {isEn ? "Cr" : "كريدت"}
+            </span>
+            {inline && onChangeFile && (
+              <button
+                type="button"
+                onClick={onChangeFile}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-xl border border-border hover:border-primary/40 transition-colors cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                {isEn ? "Change File" : "تغيير الملف"}
+              </button>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Unified Single Body — Only 2 clear questions */}
-      <div className={inline ? "p-5 space-y-5" : "flex-1 overflow-y-auto overscroll-contain p-5 space-y-5"}>
-        {/* 1. Language Selection */}
-        <div>
-          <p className="text-xs font-black text-muted-foreground mb-2.5">
-            ١. اختر لغة الملخص:
-          </p>
+        {/* 1. Summary Output Language Selection (Bilingual / English / Arabic) */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black text-foreground/90 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-primary" />
+              {isEn
+                ? "1. Choose Summary Output Language"
+                : "١. اختر لغة التلخيص الناتج"}
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              {isEn
+                ? "Independent of site interface language"
+                : "تحدد لغة كتابة الملخص نفسه"}
+            </span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {LANG_OPTIONS.map((opt) => {
-              const Icon = opt.icon;
+            {OUTPUT_LANGUAGES.map((opt) => {
               const active = selectedLang === opt.id;
               return (
                 <button
                   key={opt.id}
                   type="button"
                   onClick={() => setSelectedLang(opt.id)}
-                  className={`text-right p-3.5 rounded-2xl border transition-colors flex flex-col gap-1 cursor-pointer ${
+                  className={`text-start p-3.5 rounded-2xl border transition-colors cursor-pointer flex flex-col justify-between gap-1.5 ${
                     active
-                      ? "border-primary bg-primary/10"
-                      : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
+                      ? "border-primary bg-primary/15 shadow-[0_0_20px_rgba(25,240,140,0.15)]"
+                      : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/20"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs sm:text-sm font-black text-foreground flex items-center gap-1.5">
-                      <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
-                      {opt.title}
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-xs sm:text-sm font-black text-foreground">
+                      {isEn ? opt.titleEn : opt.titleAr}
                     </span>
+                    {active && (
+                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    {opt.desc}
+                    {isEn ? opt.descEn : opt.descAr}
                   </p>
                 </button>
               );
@@ -179,58 +180,49 @@ export default function AssistantLanguagePopup({
           </div>
         </div>
 
-        {/* 2. Summary Focus (3 clear options) */}
+        {/* 2. Summary Size Cards (Small / Medium / Large) */}
         <SummaryTemplateSelector
           value={selectedStyle}
           onChange={setSelectedStyle}
         />
-      </div>
 
-      {/* Static Footer Action */}
-      <div className="shrink-0 p-4 border-t border-white/10 bg-[#0B101B] flex items-center justify-between gap-3">
-        {inline && onChangeFile ? (
+        {/* Immediate Start CTA */}
+        <div className="flex items-center gap-2 pt-1">
+          {!inline && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-11 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-bold text-muted-foreground transition-colors cursor-pointer"
+            >
+              {isEn ? "Cancel" : "إلغاء"}
+            </button>
+          )}
           <button
             type="button"
-            onClick={onChangeFile}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+            onClick={() => triggerStart(selectedStyle, selectedLang)}
+            className="flex-1 h-12 rounded-2xl bg-gradient-to-r from-primary via-cyan-500 to-emerald-500 hover:opacity-95 text-primary-foreground font-black text-sm shadow-lg shadow-primary/25 transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>تغيير الملف</span>
+            <Sparkles className="w-4 h-4" />
+            <span>
+              {isEn ? "Start Summarizing Now" : "ابدأ التلخيص الآن"}
+            </span>
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors cursor-pointer"
-          >
-            إلغاء
-          </button>
-        )}
-
-        <button
-          type="button"
-          onClick={handleStart}
-          className="flex-1 sm:flex-initial min-w-[200px] inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-black text-primary-foreground shadow-lg hover:opacity-95 transition-opacity cursor-pointer"
-        >
-          <Zap className="w-4 h-4" />
-          <span>ابدأ التلخيص الآن ({creditCost} كريدت)</span>
-        </button>
+        </div>
       </div>
     </div>
   );
 
   if (inline) {
-    if (!open) return null;
-    return content;
+    return innerContent;
   }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose?.()}>
       <DialogContent
-        dir="rtl"
-        className="w-[calc(100vw-1rem)] max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden border border-white/10 bg-[#080C14] p-0 rounded-3xl shadow-2xl"
+        dir={dir}
+        className="max-w-2xl p-0 overflow-hidden border-0 bg-transparent shadow-none"
       >
-        {content}
+        {innerContent}
       </DialogContent>
     </Dialog>
   );

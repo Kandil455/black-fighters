@@ -422,11 +422,10 @@ test('V4 Rebirth + V5 Atlas Full Platform Wiring (HelpCenter, Landing Showcase, 
   assert.match(helpSrc, /shortcuts-faq/);
   assert.match(helpSrc, /changelog/);
 
-  // 2. LandingAtlasShowcase.jsx 4-tab live demo + comparison table
+  // 2. LandingAtlasShowcase.jsx interactive workflow scenes
   const showcaseSrc = fs.readFileSync(path.join(ROOT, 'src/components/atlas/LandingAtlasShowcase.jsx'), 'utf8');
-  assert.match(showcaseSrc, /DEMO_TABS/);
-  assert.match(showcaseSrc, /COMPARISON_ROWS/);
-  assert.match(showcaseSrc, /Cross-Family Verifier/);
+  assert.match(showcaseSrc, /WORKFLOW_SCENES/);
+  assert.match(showcaseSrc, /Bilingual/);
 
   // 3. Telegram MiniApp Auth endpoint
   const miniAppAuthSrc = fs.readFileSync(path.join(ROOT, 'netlify/functions/telegram-miniapp-auth.mjs'), 'utf8');

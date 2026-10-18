@@ -17,13 +17,31 @@ export async function testAiKey(provider, apiKey) {
           "User-Agent": "curl/7.88.1",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-5",
+          model: "DeepSeek-V4.1-Flash-1017",
           messages: [{ role: "user", content: "ping" }],
           max_tokens: 5,
         }),
       });
       if (!res.ok) throw new Error("مفتاح CodeCraft غير صالح أو لا يمكن الوصول للسيرفر");
       return true;
+    }
+
+    if (provider === "deepseek") {
+      const r1 = await fetch("https://api.deepseek.com/v1/models", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      }).catch(() => ({ ok: false }));
+      if (r1.ok) return true;
+      const r2 = await fetch("https://codecraftapi.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: "DeepSeek-V4.1-Flash-1017", messages: [{ role: "user", content: "ping" }], max_tokens: 5 }),
+      }).catch(() => ({ ok: false }));
+      if (r2.ok) return true;
+      const r3 = await fetch("https://api.apmix.ai/v1/models", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      }).catch(() => ({ ok: false }));
+      if (r3.ok) return true;
+      throw new Error("مفتاح DeepSeek غير صالح");
     }
 
     if (provider === "openrouter") {

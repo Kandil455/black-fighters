@@ -181,6 +181,12 @@ export const SUMMARY_TEMPLATE_REGISTRY = Object.freeze({
 });
 
 export const SUMMARY_TEMPLATE_ALIASES = Object.freeze({
+  small: "atlas_cram",
+  summary_small: "atlas_cram",
+  medium: "foundational_bilingual",
+  summary_medium: "foundational_bilingual",
+  large: "complete_study_guide",
+  summary_large: "complete_study_guide",
   atlas_foundational: "foundational_bilingual",
   foundational: "foundational_bilingual",
   standard: "foundational_bilingual",

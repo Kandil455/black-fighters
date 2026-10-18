@@ -45,9 +45,9 @@ export default function Settings() {
   const { profile, refreshProfile, isAdmin } = useAuth();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
-  const [provider, setProvider] = useState("gemini");
+  const [provider, setProvider] = useState("deepseek");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState("DeepSeek-V4.1-Flash-1017");
   const [saving, setSaving] = useState(false);
 
   const { data: settings = [], isLoading } = useQuery({
@@ -60,8 +60,8 @@ export default function Settings() {
 
   useEffect(() => {
     if (current && isAlphaAdmin) {
-      setProvider(current.provider || "gemini");
-      setModel(current.model || "");
+      setProvider("deepseek");
+      setModel("DeepSeek-V4.1-Flash-1017");
       setApiKey(current.api_key ? "••••••••••••••••" : "");
     }
   }, [current, isAlphaAdmin]);
@@ -77,17 +77,16 @@ export default function Settings() {
 
     setSaving(true);
     try {
-      // Test the key before saving it
-      await testAiKey(provider, keyToSave);
+      await testAiKey("deepseek", keyToSave);
 
-      const data = { provider, api_key: keyToSave, model: model || getDefaultModel(provider), is_active: true };
+      const data = { provider: "deepseek", api_key: keyToSave, model: "DeepSeek-V4.1-Flash-1017", is_active: true };
       if (current) {
         await base44.entities.UserSettings.update(current.id, data);
       } else {
         await base44.entities.UserSettings.create(data);
       }
       queryClient.invalidateQueries({ queryKey: ["userSettings"] });
-      toast.success("اتحفظ! هنستخدم المفتاح بتاعك دلوقتي ✅");
+      toast.success("اتحفظ مفتاح DeepSeek-V4.1-Flash-1017 بنجاح! ✅");
     } catch (e) {
       toast.error(e.message || "المفتاح غير صالح");
     } finally {
@@ -163,12 +162,12 @@ export default function Settings() {
                 onChange={(e) => setApiKey(e.target.value)}
               />
               <a
-                href={PROVIDERS[provider].keyUrl}
+                href={PROVIDERS.deepseek.keyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1"
               >
-                <ExternalLink className="w-3 h-3" /> {isEn ? "Get free API key here" : "اعمل مفتاح مجاني من هنا"}
+                <ExternalLink className="w-3 h-3" /> {isEn ? "Get API key here" : "احصل على مفتاح API من هنا"}
               </a>
             </div>
 

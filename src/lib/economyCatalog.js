@@ -9,11 +9,11 @@ import { PLANS, planCredits, planPrice } from "./plans.js";
  * - 2500 cr -> 905 EGP (0.362 EGP/cr · Save 28%)
  */
 export const CREDIT_PACKS = [
-  { key: "credits_50", name: "شحن 100 كريدت", credits: 100, price: 50, discount: 0, popular: false },
-  { key: "credits_150", name: "شحن 250 كريدت", credits: 250, price: 120, discount: 4, popular: false },
-  { key: "credits_400", name: "شحن 500 كريدت ⭐ (الباقة الطلابية)", credits: 500, price: 235, discount: 6, popular: true },
-  { key: "credits_1000", name: "شحن 1,000 كريدت 👑", credits: 1000, price: 425, discount: 15, popular: false },
-  { key: "credits_2500", name: "شحن 2,500 كريدت 🔥", credits: 2500, price: 905, discount: 28, popular: false },
+  { key: "credits_50", name: "شحن 100 كريدت", nameEn: "100 Credits Pack", credits: 100, price: 50, discount: 0, popular: false },
+  { key: "credits_150", name: "شحن 250 كريدت", nameEn: "250 Credits Pack", credits: 250, price: 120, discount: 4, popular: false },
+  { key: "credits_400", name: "شحن 500 كريدت ⭐ (الباقة الطلابية)", nameEn: "500 Credits Pack ⭐ (Student Choice)", credits: 500, price: 235, discount: 6, popular: true },
+  { key: "credits_1000", name: "شحن 1,000 كريدت 👑", nameEn: "1,000 Credits Pack 👑", credits: 1000, price: 425, discount: 15, popular: false },
+  { key: "credits_2500", name: "شحن 2,500 كريدت 🔥", nameEn: "2,500 Credits Pack 🔥", credits: 2500, price: 905, discount: 28, popular: false },
 ];
 
 /**

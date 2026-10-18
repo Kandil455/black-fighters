@@ -422,9 +422,9 @@ export default function Admin() {
   const queryClient = useQueryClient();
   const { profile, isAdmin } = useAuth();
   const [tab, setTab] = useState("overview");
-  const [provider, setProvider] = useState("gemini");
+  const [provider, setProvider] = useState("deepseek");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState("DeepSeek-V4.1-Flash-1017");
   const [savingKey, setSavingKey] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -493,13 +493,13 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    const existing = configs.find(c => c.provider === provider);
+    const existing = configs.find(c => c.provider === provider) || configs.find(c => c.is_active) || configs[0];
     if (existing) {
-      setModel(existing.model || "");
+      setModel("DeepSeek-V4.1-Flash-1017");
       setApiKey(existing.api_key ? "••••••••••••••••" : "");
     } else {
       setApiKey("");
-      setModel("");
+      setModel("DeepSeek-V4.1-Flash-1017");
     }
   }, [provider, configs]);
 
@@ -509,7 +509,7 @@ export default function Admin() {
   const filteredUsers = allUsers.filter(u => !search || u.email?.toLowerCase().includes(search.toLowerCase()) || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.id?.toLowerCase().includes(search.toLowerCase()));
 
   const saveKey = async () => {
-    const existing = configs.find(c => c.provider === provider);
+    const existing = configs.find(c => c.provider === "deepseek") || configs.find(c => c.is_active) || configs[0];
     let keyToSave = apiKey.trim();
     if (keyToSave.includes("•")) {
       keyToSave = existing?.api_key || "";
@@ -518,14 +518,19 @@ export default function Admin() {
 
     setSavingKey(true);
     try {
-      // Test the key before saving
-      await testAiKey(provider, keyToSave);
+      await testAiKey("deepseek", keyToSave);
 
-      const data = { provider, api_key: keyToSave, model: model || PROVIDERS[provider]?.models?.[0]?.id, enabled_models: existing?.enabled_models || PROVIDERS[provider]?.models?.map(m => m.id), is_active: true };
+      const data = {
+        provider: "deepseek",
+        api_key: keyToSave,
+        model: "DeepSeek-V4.1-Flash-1017",
+        enabled_models: ["DeepSeek-V4.1-Flash-1017"],
+        is_active: true,
+      };
       if (existing) await base44.entities.AdminConfig.update(existing.id, data);
       else await base44.entities.AdminConfig.create(data);
       queryClient.invalidateQueries({ queryKey: ["adminConfigs"] });
-      toast.success("تم حفظ مفتاح الـ AI بنجاح وهو قيد العمل الآن ✅");
+      toast.success("تم حفظ مفتاح DeepSeek-V4.1-Flash-1017 بنجاح وهو قيد العمل الآن ✅");
     } catch (e) {
       toast.error(e.message || "لم يتم حفظ المفتاح");
     } finally {

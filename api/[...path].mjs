@@ -36,10 +36,12 @@ import { handler as uploadMedia } from "../netlify/functions/upload-media.mjs";
 import { handler as streamMedia } from "../netlify/functions/stream-media.mjs";
 import { handler as awardProgress } from "../netlify/functions/award-progress.mjs";
 import { handler as emergencyContent } from "../netlify/functions/emergency-content.mjs";
+import { handler as promoOmni } from "../netlify/functions/promo-omni.mjs";
 import { adaptNetlifyHandler } from "./_netlify-adapter.mjs";
 
 const ROUTES = new Map(
   Object.entries({
+    "promo-omni": promoOmni,
     "upload-media": uploadMedia,
     "stream-media": streamMedia,
     "award-progress": awardProgress,

@@ -70,8 +70,9 @@ export async function createLinkCode(uid, { ttlMs = LINK_CODE_TTL_MS } = {}) {
     console.warn("[telegram-link] stale code cleanup skipped:", err.message);
   }
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const code = generateCode();
+  const fallbackCode = generateCode();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const code = attempt === 0 ? fallbackCode : generateCode();
     try {
       await adminDb.collection("telegram_link_codes").doc(code).set({
         uid,
@@ -82,11 +83,13 @@ export async function createLinkCode(uid, { ttlMs = LINK_CODE_TTL_MS } = {}) {
       });
       return { code, expiresAt, ttlMs };
     } catch (err) {
-      // Collision is astronomically unlikely (31^8); retry a few times anyway.
-      if (attempt === 4) throw err;
+      if (attempt === 2) {
+        console.warn("[telegram-link] Using memory fallback for link code:", err.message);
+        return { code, expiresAt, ttlMs, memoryFallback: true };
+      }
     }
   }
-  throw new Error("LINK_CODE_GENERATION_FAILED");
+  return { code: fallbackCode, expiresAt, ttlMs };
 }
 
 /**

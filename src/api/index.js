@@ -336,34 +336,35 @@ export const entities = {
 // Keep the AI SDK out of the login/dashboard startup bundle. It is loaded only
 // when the user actually runs an AI action.
 const DEFAULT_MODELS = {
-  groq:       'openai/gpt-oss-120b',
-  gemini:     'gemini-3.5-flash-lite',
-  codecraft:  'claude-sonnet-5',
-  openrouter: 'openrouter/free',
+  groq:       'DeepSeek-V4.1-Flash-1017',
+  deepseek:   'DeepSeek-V4.1-Flash-1017',
+  gemini:     'DeepSeek-V4.1-Flash-1017',
+  codecraft:  'DeepSeek-V4.1-Flash-1017',
+  apmix:      'DeepSeek-V4.1-Flash-1017',
+  openrouter: 'DeepSeek-V4.1-Flash-1017',
 };
 
 // SECURITY: no hardcoded provider keys in client code. Client-side AI is for BYO-key users
 // (their own UserSettings key or AdminConfig); everyone else goes through /api/ai server-side.
-const DEFAULT_GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || "";
-const DEFAULT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+const DEFAULT_DEEPSEEK_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || import.meta.env.VITE_CODECRAFT_KEY || import.meta.env.VITE_APMIX_KEY || "";
+
+function normalizeSelectedModel(_provider, _rawModel) {
+  return "DeepSeek-V4.1-Flash-1017";
+}
 
 /**
  * AI config priority:
- * 1. User's personal key (UserSettings) — if they set their own key
- * 2. Admin's active config (AdminConfig collection — multi-provider)
- * 3. Environment Variables (VITE_GROQ_API_KEY / VITE_GEMINI_API_KEY)
- * 4. Ultra-Fast Platform default: Groq LPU (~700ms response time)
+ * Exclusively uses DeepSeek-V4.1-Flash-1017 across the platform.
  */
 export async function getAiConfig() {
   try {
     // 1️⃣ User's own key (premium users can set their own)
     const userSettings = await UserSettings.get().catch(() => null);
     if (userSettings?.api_key && !userSettings.api_key.includes("•")) {
-      const p = userSettings.provider || "groq";
       return {
-        provider: p,
+        provider: "deepseek",
         api_key:  userSettings.api_key,
-        model:    userSettings.model || DEFAULT_MODELS[p] || "openai/gpt-oss-120b",
+        model:    "DeepSeek-V4.1-Flash-1017",
       };
     }
   } catch {}
@@ -374,35 +375,26 @@ export async function getAiConfig() {
     const activeConfig = configs.find(c => c.is_active) || configs.find(c => c.id === 'default');
     
     if (activeConfig?.api_key && !String(activeConfig.api_key).includes("•")) {
-      const p = activeConfig.provider || "groq";
       return {
-        provider: p,
+        provider: "deepseek",
         api_key:  activeConfig.api_key,
-        model:    activeConfig.model || DEFAULT_MODELS[p] || "openai/gpt-oss-120b",
+        model:    "DeepSeek-V4.1-Flash-1017",
       };
     }
   } catch {}
 
-  // 3️⃣ Client-accessible Environment Variables Fallback (Fastest first)
+  // 3️⃣ Client-accessible Environment Variables Fallback
   const viteEnv = import.meta.env || {};
-  if (viteEnv.VITE_GROQ_API_KEY) {
-    return { provider: "groq", api_key: viteEnv.VITE_GROQ_API_KEY, model: "openai/gpt-oss-120b" };
-  }
-  if (viteEnv.VITE_GEMINI_API_KEY) {
-    return { provider: "gemini", api_key: viteEnv.VITE_GEMINI_API_KEY, model: "gemini-3.5-flash-lite" };
-  }
-  if (viteEnv.VITE_APMIX_KEY) {
-    return { provider: "apmix", api_key: viteEnv.VITE_APMIX_KEY, model: "claude-sonnet-4-6-free" };
-  }
-  if (viteEnv.VITE_OPENROUTER_API_KEY) {
-    return { provider: "openrouter", api_key: viteEnv.VITE_OPENROUTER_API_KEY, model: "openrouter/free" };
-  }
+  const envKey =
+    viteEnv.VITE_DEEPSEEK_API_KEY ||
+    viteEnv.VITE_CODECRAFT_KEY ||
+    viteEnv.VITE_APMIX_KEY ||
+    DEFAULT_DEEPSEEK_KEY;
 
-  // 4️⃣ Ultra-Fast Platform Flagship Default: Groq (sub-second response ~700ms)
   return {
-    provider: "groq",
-    api_key:  DEFAULT_GROQ_KEY,
-    model:    "openai/gpt-oss-120b",
+    provider: "deepseek",
+    api_key:  envKey,
+    model:    "DeepSeek-V4.1-Flash-1017",
   };
 }
 

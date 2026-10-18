@@ -6,7 +6,6 @@ import {
   Check,
   Volume2,
   Square,
-  Download,
   Pencil,
   Save,
   X,

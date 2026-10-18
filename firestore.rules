@@ -263,7 +263,7 @@ service cloud.firestore {
         && request.resource.data.status == 'waiting';
       allow update: if isAuthed()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-          ['participants', 'status', 'updated_at', 'winner_id', 'finished_at']
+          ['participants', 'status', 'started_at', 'time_limit_minutes', 'updated_at', 'winner_id', 'finished_at']
         )
         && request.resource.data.participants.size() >= resource.data.participants.size()
         && request.resource.data.participants.size() <= 2
@@ -271,7 +271,7 @@ service cloud.firestore {
           // (a) join: append own entry, all existing entries untouched
           (request.resource.data.participants.size() == resource.data.participants.size() + 1
             && request.resource.data.participants[0] == resource.data.participants[0]
-            && request.resource.data.participants[resource.data.participants.size() - 1].user_id == request.auth.uid)
+            && request.resource.data.participants[request.resource.data.participants.size() - 1].user_id == request.auth.uid)
           // (b) same size: each entry either owned by the caller or unchanged
           || (request.resource.data.participants.size() == resource.data.participants.size()
             && ((request.auth.uid == request.resource.data.participants[0].user_id)
@@ -362,6 +362,14 @@ service cloud.firestore {
       allow create: if isAdmin() || (isAuthed() && request.resource.data.user_id == request.auth.uid);
       allow update: if (isAdmin() || isOwner(resource.data.user_id))
         && request.resource.data.user_id == resource.data.user_id;
+    }
+
+    // ─── Shared Smart Batch Cache for Lecture Artifacts & Hybrid Quiz Banks ───
+    match /globalLectureCache/{hashId} {
+      allow read: if isAuthed();
+      allow create, update: if isAuthed()
+        && request.resource.data.content_hash == hashId;
+      allow delete: if isAdmin();
     }
 
     // Default deny for everything else

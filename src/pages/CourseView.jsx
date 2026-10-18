@@ -43,6 +43,7 @@ import {
   localAnalyzeQuizSource,
   normalizeQuizResult,
   normalizeQuizSourceAnalysis,
+  verifyAndPrepareQuizQuestions,
   QUIZ_MAX_QUESTIONS,
 } from "@/lib/quizQuality";
 
@@ -357,6 +358,7 @@ export default function CourseView() {
           requireExplanation: showExplanations,
           sourceText: text,
         });
+        finalResult.questions = verifyAndPrepareQuizQuestions(finalResult.questions || [], text);
         finalResult.quiz_mode = quizMode;
         finalResult.quiz_profile = quizProfile;
         finalResult.source_analysis = quizSourceAnalysis;
@@ -388,18 +390,34 @@ export default function CourseView() {
         const { bumpCounter } = await import("@/lib/gamification");
         if (type === "summary") await bumpCounter("summaries_created", 1);
       } catch {}
-      if (reusedCachedSummary) {
+      if (reusedCachedSummary || (finalResult?.cache_hit && !finalResult?.hybrid_cache)) {
         await base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }).catch(() => {});
-        toast.info("تم استرجاع الملخص المحفوظ بدون خصم كريدتس");
+        toast.success(
+          isEn
+            ? "⚡ Smart Batch Cache Hit! Loaded instantly with 0 tokens consumed."
+            : "⚡ Smart Cache Hit — تم استرجاع المحتوى فوراً من كاش الدفعة (توفير 100% من التوكنز)!"
+        );
       } else {
         await base44.functions.invoke("chargeAiJob", { action: "finalize", jobKey: chargedJob.jobKey }).catch(() => {});
+        if (finalResult?.hybrid_cache) {
+          toast.success(
+            isEn
+              ? `⚡ Hybrid Quiz Cache: Combined ${finalResult.cached_questions_used || 0} batch-cached questions + ${finalResult.newly_generated_questions || 0} fresh AI questions!`
+              : `⚡ الكاش الهجين الذكي: تم دمج ${finalResult.cached_questions_used || 0} أسئلة من كاش الدفعة مع ${finalResult.newly_generated_questions || 0} أسئلة جديدة!`
+          );
+        } else {
+          toast.success(
+            chunks.length > 1
+              ? isEn
+                ? `Generated from ${chunks.length} sections! ✨`
+                : `اتولّد من ${chunks.length} أجزاء بنجاح! ✨`
+              : isEn
+                ? "Generated successfully! ✨"
+                : "اتولّد بنجاح! ✨"
+          );
+        }
       }
       chargedJob = null;
-      toast.success(
-        chunks.length > 1
-          ? `اتولّد من ${chunks.length} أجزاء بنجاح! ✨`
-          : "اتولّد بنجاح! ✨"
-      );
 
       const xpAction = type === "summary" ? "generate_summary"
         : type === "flashcards" ? "generate_flashcards" : null;
@@ -703,6 +721,16 @@ function summaryToTelegramText(summaryRow) {
       }
 
       // Server-side export: bot token + chat-id lookup never touch the client
+      const cachedChatId =
+        profile?.telegram_chat_id ||
+        (() => {
+          try {
+            return localStorage.getItem("bf_tg_chat_id") || "";
+          } catch {
+            return "";
+          }
+        })();
+
       const res = await invokeSecureFunction("export-to-telegram", {
         title: course?.title || "ملخص دراسي",
         type: activeType,
@@ -710,31 +738,61 @@ function summaryToTelegramText(summaryRow) {
         summaryHtml,
         questions,
         deliveryMode,
+        chatId: cachedChatId || null,
       });
 
       if (res.data?.success) {
-        toast.success(res.data.message || "تم التصدير إلى التيليجرام بنجاح! تفقد البوت 🤖");
+        toast.success(
+          res.data.message ||
+            (isEn
+              ? "Exported to Telegram Bot successfully! 🤖"
+              : "تم التصدير إلى التيليجرام بنجاح! تفقد البوت 🤖"),
+          res.data?.telegramShareUrl
+            ? {
+                action: {
+                  label: isEn ? "Share on Telegram" : "مشاركة عبر تيليجرام",
+                  onClick: () => window.open(res.data.telegramShareUrl, "_blank", "noopener,noreferrer"),
+                },
+              }
+            : undefined
+        );
       } else if (res.data?.error === "NO_TELEGRAM_LINKED") {
-        toast.error(res.data.message, {
-          action: {
-            label: "ربط البوت",
-            onClick: () => { openTelegramLinkWithCode().catch((e) => toast.error(e?.message || "تعذر إنشاء كود الربط")); },
-          },
-        });
+        toast.info(
+          isEn
+            ? "Telegram Bot not linked yet — opening quick Telegram share & bot link!"
+            : "حسابك غير مربوط بالبوت بعد — يمكنك ربط البوت أو المشاركة المباشرة عبر تيليجرام 🤖",
+          {
+            action: {
+              label: isEn ? "Link Bot 🤖" : "ربط البوت 🤖",
+              onClick: () => {
+                openTelegramLinkWithCode().catch((e) =>
+                  toast.error(e?.message || "تعذر إنشاء كود الربط")
+                );
+              },
+            },
+          }
+        );
+        if (res.data?.telegramShareUrl) {
+          window.open(res.data.telegramShareUrl, "_blank", "noopener,noreferrer");
+        }
       } else {
-        toast.error(res.data?.message || "فشل التصدير للتيليجرام");
+        toast.error(res.data?.message || (isEn ? "Telegram export failed" : "فشل التصدير للتيليجرام"));
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message;
       if (msg && (msg.includes("غير مربوط") || msg.includes("NO_TELEGRAM_LINKED"))) {
         toast.error(msg, {
           action: {
-            label: "ربط البوت",
-            onClick: () => { openTelegramLinkWithCode().catch((e) => toast.error(e?.message || "تعذر إنشاء كود الربط")); },
+            label: isEn ? "Link Bot" : "ربط البوت",
+            onClick: () => {
+              openTelegramLinkWithCode().catch((e) =>
+                toast.error(e?.message || "تعذر إنشاء كود الربط")
+              );
+            },
           },
         });
       } else {
-        toast.error(msg || "حصل خطأ في التصدير للتيليجرام");
+        toast.error(msg || (isEn ? "Error exporting to Telegram" : "حصل خطأ في التصدير للتيليجرام"));
       }
     } finally {
       setExportingTelegram(false);

@@ -44,7 +44,7 @@ export default function AssistantChat({ onClose }) {
     {
       role: "assistant",
       content: isEn
-        ? "Welcome! I am your Black Fighters × LineVault AI assistant. Ask me to explain any scientific concept, organize your daily study order, or guide you through the platform."
+        ? "Welcome! I am your Black Fighters AI academic assistant. Ask me to explain any scientific concept, organize your daily study order, or guide you through the platform."
         : "أهلاً بك يا بطل! أنا مساعد Black Fighters الذكي. اسألني عن شرح أي مفهوم علمي، أو تنظيم جدول مذاكرتك اليومي، أو أي أداة داخل المنصة.",
     },
   ]);
@@ -113,7 +113,7 @@ export default function AssistantChat({ onClose }) {
                 ? "Synthesizing answer..."
                 : "جاري تجهيز الإجابة..."
               : isEn
-              ? "LineVault Academic Copilot"
+              ? "Black Fighters Academic Copilot"
               : "مساعدك الأكاديمي الفوري"}
           </p>
         </div>

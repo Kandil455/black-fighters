@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   CheckCircle2,
   FileCheck2,
@@ -9,7 +9,6 @@ import {
   RefreshCw,
   Rows3,
   ShieldAlert,
-  Sparkles,
   Upload,
   SlidersHorizontal,
 } from "lucide-react";

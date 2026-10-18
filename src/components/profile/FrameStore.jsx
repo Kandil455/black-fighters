@@ -48,12 +48,12 @@ export default function FrameStore({ user, avatar, isVideo, selected, onSelect, 
         <div>
           <h3 className="text-base font-black flex items-center gap-2">
             <Flame className="w-4 h-4 text-primary" />
-            {isEn ? "Animated Avatar Frames" : "متجر الإطارات المتحركة"}
+            {isEn ? "Artistic Avatar Frames (10 Exclusive Designs)" : "إطارات البروفايل الفنية (١٠ تصميمات حصرية)"}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             {isEn
-              ? "Choose and equip animated frames for your avatar."
-              : "اختر الإطار المناسب لبروفايلك وفعّله بضغطة واحدة."}
+              ? "Hand-crafted layered artistic frames — equip your favorite style in one click."
+              : "إطارات فنية مرسومة بدقة عالية وشفافية كاملة — اختر إطارك المفضل وفعّله بضغطة واحدة."}
           </p>
         </div>
         <span className="flex items-center gap-1.5 text-xs font-black text-amber-300 bg-amber-400/10 border border-amber-400/30 px-3.5 py-1.5 rounded-xl font-mono tabular-nums">
@@ -64,7 +64,7 @@ export default function FrameStore({ user, avatar, isVideo, selected, onSelect, 
       {/* Filter Bar */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {[
-          { id: "all", label: isEn ? "All Frames" : "كل الإطارات" },
+          { id: "all", label: isEn ? "All Frames (10)" : "كل الإطارات (١٠)" },
           { id: "unlocked", label: isEn ? "Owned" : "المملوكة" },
           { id: "legendary", label: isEn ? "Legendary" : "الأسطورية" },
           { id: "epic", label: isEn ? "Epic" : "الملحمية" },

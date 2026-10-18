@@ -184,7 +184,7 @@ export default function TelegramPanel() {
   // Load initial simulation preview on mount
   useEffect(() => {
     handleRunSimulation("/summary");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const persist = useCallback(

@@ -213,14 +213,42 @@ const MESSAGES = {
   },
 };
 
+const LOCALE_STORAGE_KEY = "bf_locale_v2";
+
+function syncHtmlLocale(lang) {
+  if (typeof document === "undefined") return;
+  const valid = lang === "ar" ? "ar" : "en";
+  document.documentElement.lang = valid;
+  document.documentElement.dir = valid === "ar" ? "rtl" : "ltr";
+  document.documentElement.dataset.locale = valid;
+}
+
 export function LocaleProvider({ children }) {
-  const [locale, setLocaleState] = useState(() => localStorage.getItem("iiiak_locale") || "ar");
+  const [locale, setLocaleState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
+      if (saved === "ar" || saved === "en") {
+        syncHtmlLocale(saved);
+        return saved;
+      }
+      localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+      localStorage.setItem("bf_locale", "en");
+      localStorage.setItem("iiiak_locale", "en");
+    } catch {}
+    syncHtmlLocale("en");
+    return "en";
+  });
   const [isDual, setIsDual] = useState(() => localStorage.getItem("iiiak_dual_mode") === "true");
 
   const setLocale = (next) => {
-    const valid = next === "en" ? "en" : "ar";
+    const valid = next === "ar" ? "ar" : "en";
     setLocaleState(valid);
-    localStorage.setItem("iiiak_locale", valid);
+    syncHtmlLocale(valid);
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, valid);
+      localStorage.setItem("bf_locale", valid);
+      localStorage.setItem("iiiak_locale", valid);
+    } catch {}
   };
 
   const toggleDual = () => {
@@ -232,8 +260,7 @@ export function LocaleProvider({ children }) {
   };
 
   useEffect(() => {
-    document.documentElement.lang = locale;
-    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
+    syncHtmlLocale(locale);
   }, [locale]);
 
   const value = useMemo(() => ({

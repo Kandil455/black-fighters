@@ -3,12 +3,11 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
   BookOpen,
   Flame,
-  Sparkles,
   Search,
   FolderPlus,
   Folder,
@@ -17,7 +16,6 @@ import {
   ArrowRight,
   Layers,
   Coins,
-  CheckCircle2,
   Play,
 } from "lucide-react";
 import CourseCard from "@/components/CourseCard";
@@ -31,6 +29,7 @@ import {
   LVBadge,
 } from "@/components/ui/linevault";
 import { groupCoursesBySubject } from "@/components/dashboard/subjectClassifier";
+import PromoVideoModal from "@/components/marketing/PromoVideoModal";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +46,8 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState("grid");
   const [newFolderName, setNewFolderName] = useState("");
   const [showFolderInput, setShowFolderInput] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
+  const navigate = useNavigate();
 
   const { data: courses = [], isLoading: loadingCourses } = useQuery({
     queryKey: ["courses", user?.id],
@@ -220,8 +221,8 @@ export default function Dashboard() {
         <PageHeader
           eyebrow={
             isEn
-              ? "LINEVAULT ACADEMIC COMMAND CENTER"
-              : "مركز القيادة الأكاديمي · LINEVAULT V5"
+              ? "BLACK FIGHTERS ACADEMIC COMMAND CENTER"
+              : "مركز القيادة الأكاديمي · BLACK FIGHTERS"
           }
           title={
             isEn
@@ -234,15 +235,36 @@ export default function Dashboard() {
               : "تابع خطة مذاكرتك اليومية، راجع بطاقات الذاكرة المتباعدة، وافتح ملخصاتك المدققة."
           }
           actions={
-            <Link
-              to="/create"
-              className="btn-primary-glow inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4" />
-              <span>
-                {isEn ? "Upload New Lecture" : "رفع محاضرة جديدة"}
-              </span>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPromoOpen(true)}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 text-xs sm:text-sm font-bold text-blue-300 transition cursor-pointer whitespace-nowrap"
+              >
+                <Play className="w-4 h-4 fill-current text-blue-400" />
+                <span>
+                  {isEn ? "Platform Video" : "فيديو المنصة"}
+                </span>
+              </button>
+              <Link
+                to="/planner"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[#19f08c]/40 bg-[#19f08c]/12 hover:bg-[#19f08c]/20 text-xs sm:text-sm font-bold text-[#19f08c] transition cursor-pointer whitespace-nowrap"
+              >
+                <Layers className="w-4 h-4 text-[#19f08c]" />
+                <span>
+                  {isEn ? "Block Vault & AI Planner" : "حافظة البلوكات وجدول المذاكرة 🎙️"}
+                </span>
+              </Link>
+              <Link
+                to="/create"
+                className="btn-primary-glow inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" />
+                <span>
+                  {isEn ? "Upload New Lecture" : "رفع محاضرة جديدة"}
+                </span>
+              </Link>
+            </div>
           }
         />
 
@@ -600,6 +622,14 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      <PromoVideoModal
+        open={promoOpen}
+        onClose={() => setPromoOpen(false)}
+        isEn={isEn}
+        onSelectPlan={() => navigate("/subscriptions")}
+        onTryUpload={() => navigate("/create")}
+      />
     </div>
   );
 }

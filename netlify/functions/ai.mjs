@@ -1,7 +1,7 @@
 import { generateText, generateMultimodal, runAiChat, runGenerateStudyContent } from "../../src/lib/ai.js";
 import { adminDb, requireUser } from "./_shared/firebase-admin.mjs";
 import { handleError, json, parseBody } from "./_shared/http.mjs";
-import { serverAiConfig, checkAiDailyQuota, isPremiumProfile, isAdminProfile } from "./_shared/server-ai.mjs";
+import { serverAiConfig, resolveServerAiConfig, checkAiDailyQuota, isPremiumProfile, isAdminProfile } from "./_shared/server-ai.mjs";
 import { chargeLightUsage } from "./_shared/billing.mjs";
 import { runSummaryAgentAction } from "./_shared/summary-agent-core.mjs";
 
@@ -87,7 +87,7 @@ export const handler = async (event) => {
     const { name, payload = {} } = parseBody(event);
     assertPayloadLimits(payload);
     const hasMedia = Array.isArray(payload.mediaParts) && payload.mediaParts.length > 0;
-    const config = serverAiConfig(hasMedia);
+    const config = await resolveServerAiConfig(hasMedia, user.uid);
     const profileSnap = await adminDb.collection("users").doc(user.uid).get();
     const profile = profileSnap.exists ? profileSnap.data() : {};
 

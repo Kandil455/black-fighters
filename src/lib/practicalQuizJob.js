@@ -81,28 +81,35 @@ class PracticalQuizJobManager {
         await Promise.all(
           batch.map(async (item, batchIdx) => {
             try {
-              // Safely select Gemini key or leave blank for secure server proxy
+              // Safely select Gemini key if Gemini is the active provider, or preserve DeepSeek / active provider config
               const isCandidateGeminiKey = (k) => {
                 if (!k || typeof k !== "string") return false;
                 const clean = k.replace(/^["']|["']$/g, "").trim();
-                return clean.length >= 15 && !clean.startsWith("gsk_") && !clean.startsWith("sk-or-") && !clean.startsWith("apx_") && clean !== "none";
+                return clean.length >= 20 && !clean.startsWith("sk-") && !clean.startsWith("gsk_") && !clean.startsWith("apx_") && clean !== "none";
               };
               const validGeminiPool = (GEMINI_KEYS_POOL || []).filter(isCandidateGeminiKey);
               const userKeyIsGemini = isCandidateGeminiKey(baseAiConfig?.api_key);
-              const keyIndex = validGeminiPool.length > 0 ? ((i + batchIdx) % validGeminiPool.length) : 0;
-              const chosenKey = validGeminiPool[keyIndex] || (userKeyIsGemini ? baseAiConfig.api_key : "");
+              const isGeminiActive = (!baseAiConfig?.provider || baseAiConfig.provider === "gemini") && (validGeminiPool.length > 0 || userKeyIsGemini);
 
-              const rotatedConfig = {
+              let effectiveConfig = {
                 ...baseAiConfig,
-                provider: "gemini",
-                model: "gemini-3.5-flash-lite",
-                api_key: chosenKey,
+                model: baseAiConfig?.model || "DeepSeek-V4.1-Flash-1017",
               };
+              if (isGeminiActive) {
+                const keyIndex = validGeminiPool.length > 0 ? ((i + batchIdx) % validGeminiPool.length) : 0;
+                const chosenKey = validGeminiPool[keyIndex] || (userKeyIsGemini ? baseAiConfig.api_key : "");
+                effectiveConfig = {
+                  ...baseAiConfig,
+                  provider: "gemini",
+                  model: baseAiConfig?.model || "gemini-3.5-flash-lite",
+                  api_key: chosenKey,
+                };
+              }
 
               let questions = await generateImageQuiz(
                 item.img,
                 { numQuestions: item.count, difficulty, customExplanation: item.img.contextText, language },
-                rotatedConfig
+                effectiveConfig
               );
               if (!questions || questions.length === 0) {
                 // Retry once so no approved image is ever dropped
@@ -113,12 +120,19 @@ class PracticalQuizJobManager {
                 );
               }
               if (questions && questions.length > 0) {
+                let prepared = questions;
                 try {
                   const { verifyAndPrepareQuizQuestions } = await import("./quizQuality");
-                  quizzesMap[item.img.id] = verifyAndPrepareQuizQuestions(questions, item.img.contextText || "");
+                  prepared = verifyAndPrepareQuizQuestions(questions, item.img.contextText || "");
                 } catch {
-                  quizzesMap[item.img.id] = questions;
+                  prepared = questions;
                 }
+                // Strictly bind every question to its exact parent image ID and slide number
+                quizzesMap[item.img.id] = prepared.map((q) => ({
+                  ...q,
+                  imageId: item.img.id,
+                  pageOrSlideNumber: item.img.pageOrSlideNumber,
+                }));
               }
             } catch (qErr) {
               console.warn(`[practicalQuizJob] Failed for image ${item.img.id}:`, qErr);

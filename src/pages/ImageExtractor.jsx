@@ -267,23 +267,30 @@ export default function ImageExtractor() {
 
     const targetTotal = Math.max(1, Math.min(250, Number(totalQuestions) || 10));
 
-    // Rank images by clinical importance & context density
+    // Rank images by direct caption availability, visual clinical signature, & context density
     const scoredImages = keptList.map((img) => {
-      const text = (img.contextText || "").toLowerCase();
-      let score = Math.min(text.length, 300);
+      const text = `${img.directCaption || ""} ${img.embeddedOcrText || ""} ${img.contextText || ""}`.toLowerCase();
+      let score = Math.min(text.length, 280);
+      if (img.directCaption && img.directCaption.length >= 6) {
+        score += 120; // Strong preference for figures with direct bound captions
+      }
+      if (img.edgeDensity && img.edgeDensity > 0.06) {
+        score += 45;
+      }
       const clinicalKeywords = [
         "ecg", "ekg", "x-ray", "ct", "mri", "ultrasound", "us", "pathology", "histology",
         "syndrome", "triad", "diagnosis", "sign", "symptom", "treatment", "management",
         "emergency", "shock", "fracture", "artery", "nerve", "lesion", "carcinoma", "staging",
-        "تشخيص", "أشعة", "رسم قلب", "علاج", "عرض", "علامة", "متلازمة", "طوارئ", "كسر", "شريان", "وريد"
+        "fig", "figure", "table", "diagram", "arrow",
+        "تشخيص", "أشعة", "رسم قلب", "علاج", "عرض", "علامة", "متلازمة", "طوارئ", "كسر", "شريان", "وريد", "شكل", "صورة", "سهم"
       ];
       clinicalKeywords.forEach((kw) => {
-        if (text.includes(kw)) score += 60;
+        if (text.includes(kw)) score += 55;
       });
       return { img, score };
     });
 
-    // Sort descending by clinical relevance score
+    // Sort descending by clinical relevance score to pick best stations
     scoredImages.sort((a, b) => b.score - a.score);
 
     // Plan distribution of questions
@@ -307,6 +314,9 @@ export default function ImageExtractor() {
         allocation.push({ img: scoredImages[i].img, count: counts[i] });
       }
     }
+
+    // Order selected OSCE stations chronologically by slide/page number
+    allocation.sort((a, b) => (a.img.pageOrSlideNumber || 1) - (b.img.pageOrSlideNumber || 1));
 
     // Delegate to global background manager (runs concurrently, updates widget, auto-saves to IndexedDB)
     practicalQuizJob.startJob({

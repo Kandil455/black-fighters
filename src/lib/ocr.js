@@ -33,7 +33,7 @@ export async function recognizeImageFile(file, { onProgress, signal } = {}) {
     
     onProgress?.(50);
     const aiText = await ocrImageWithVisionAI(dataUrl, {
-      model: "gemini-3.5-flash-lite",
+      model: "DeepSeek-V4.1-Flash-1017",
       max_tokens: 2500,
     });
 
@@ -118,11 +118,11 @@ export async function recognizePdfFile(file, { onProgress, signal } = {}) {
 
             const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
-            // Try fast AI vision OCR first
+            // Try fast AI vision OCR first (DeepSeek-V4.1-Flash-1017)
             let pageResult = "";
             try {
               pageResult = await ocrImageWithVisionAI(dataUrl, {
-                model: "gemini-3.5-flash-lite",
+                model: "DeepSeek-V4.1-Flash-1017",
                 max_tokens: 2000,
               });
             } catch (pageAiErr) {

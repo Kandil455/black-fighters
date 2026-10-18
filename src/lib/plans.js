@@ -1,240 +1,232 @@
-// src/lib/plans.js
-// خطط الاشتراك وباقات التوكنات - حسابات Alpha لمنصة Zeta
-// تكلفة الـ API الأساسية: 35 دولار سنوياً لكل 100 مليون توكن شهرياً
-// هامش ربح أكثر من 50% (3x تسعير)
-// معادلة التوكنات: 100 جنيه مصري = 1,000,000 توكن
-
-export const YEARLY_DISCOUNT = 2 / 12; // شهرين مجاناً عند الدفع السنوي
-
-export const TOKEN_RATE = {
-  pricePerMillion: 100, // 100 جنيه لكل 1M توكن
-  baseCostPer100MPerYearUSD: 35,
-  profitMultiplier: 3.0,
-};
-
-export const REFERRAL_REWARDS = {
-  creditsPerInvite: 10,
-  targetInvitesForFreePlan: 40,
-  freePlanRewardValueEGP: 100,
-  freePlanGrantedKey: "pro",
-};
-
 export const PLANS = [
   {
     key: "free",
-    name: "Free",
-    nameAr: "المجاني",
-    monthly: 0,
-    credits: 10,
-    tokens: 0,
-    dailyOperations: 2,
     tier: "free",
-    features: [
-      "هدية ترحيبية: ١٠ كريدت مجاناً للبدء فوراً",
-      "محركات ذكاء اصطناعي سريعة ومجانية ⚡",
-      "عمليتين في اليوم (تلخيصين أو كويزين)",
-      "نظام إحالات: ١٠ كريدت لكل صديق تدعوه 🎁",
-      "ادعُ ٤٠ صديق واحصل على اشتراك ١٠٠ ج مجاناً 👑"
-    ],
-    featuresEn: [
-      "Welcome Gift: 10 Credits Free",
-      "Fast & reliable free AI engines ⚡",
-      "2 AI operations / day (summaries or quizzes)",
-      "Referral: +10 Credits per friend",
-      "Invite 40 friends to get 100 EGP Plan Free 👑"
-    ],
+    name: "Free",
+    nameEn: "Free Plan",
+    nameAr: "مجاني",
+    tagline: "هدية التسجيل لتجربة كل أدوات المنصة",
+    taglineEn: "Starter welcome credits to explore the platform",
+    monthly: 0,
+    yearly: 0,
+    monthlyCredits: 10,
+    yearlyCredits: 10,
+    color: "from-slate-500 to-zinc-600",
+    border: "border-white/15",
+    glow: "",
+    badge: "مجاني للجميع",
+    badgeEn: "FREE TIER",
     popular: false,
+    cta: "باقتك الأساسية",
+    ctaEn: "Default Free Plan",
+    highlights: [
+      "10 كريدت مجاني هدية فور تسجيل الحساب",
+      "تلخيص محاضرة مجاناً بأحجام (صغير، متوسط، كبير)",
+      "تجربة الكويزات الذكية وبطاقات المراجعة",
+      "دخول مجتمع وتحديات Black Fighters",
+    ],
+    highlightsEn: [
+      "10 free welcome credits upon registration",
+      "Summarize lectures in Small, Medium, or Large sizes",
+      "Try smart quizzes & active-recall flashcards",
+      "Access the Black Fighters study community",
+    ],
+    limits: {
+      aiSummariesPerMonth: 2,
+      quizzesPerDay: 3,
+      youtubePerMonth: 1,
+      imageExtractorPerMonth: 1,
+      flashcardDecks: 3,
+      storageMB: 100,
+    },
   },
   {
     key: "starter",
-    name: "Starter",
-    nameAr: "البداية الذكية",
-    monthly: 49,
-    credits: 250,
-    tokens: 0,
     tier: "starter",
-    features: [
-      "الوصول الحصري لبوت التيليجرام (@Black_Fighters_FREE_bot) 🤖",
-      "امتحان كويزات النظري (EBE) والعملي (OSPE) بالتيليجرام",
-      "٢٥٠ كريدت شهرياً لكافة العمليات ⚡",
-      "محركات AI متقدمة لتلخيص المحاضرات والكتب واليوتيوب",
-      "معالجة ملفات حتى 80 صفحة",
-      "بدون قيود على عدد العمليات اليومية"
-    ],
-    featuresEn: [
-      "Exclusive Telegram Bot Access (@Black_Fighters_FREE_bot) 🤖",
-      "Take EBE Theory & OSPE Quizzes inside Telegram",
-      "250 credits / month ⚡",
-      "Advanced AI engines for lectures, books & YouTube",
-      "Files up to 80 pages",
-      "No daily rate limits"
-    ],
+    name: "Starter",
+    nameEn: "Starter Plan",
+    nameAr: "ستارتر",
+    tagline: "للبدء السريع والمذاكرة الأسبوعية المنتظمة",
+    taglineEn: "Ideal for weekly lecture summaries and regular quizzes",
+    monthly: 80,
+    yearly: 800,
+    monthlyCredits: 100,
+    yearlyCredits: 1200,
+    color: "from-cyan-500 to-blue-600",
+    border: "border-cyan-500/40",
+    glow: "shadow-[0_0_30px_rgba(6,182,212,0.18)]",
+    badge: "اقتصادي للطلاب ⚡",
+    badgeEn: "STUDENT VALUE ⚡",
     popular: false,
+    cta: "اشترك في Starter",
+    ctaEn: "Select Starter",
+    highlights: [
+      "100 كريدت فور التفعيل (أو 1,200 سنوياً)",
+      "تلخيص المحاضرات بأحجام (صغير، متوسط، كبير)",
+      "اختيار لغة الملخص (Bilingual أو إنجليزي أو عربي)",
+      "كويزات ذكية وبطاقات مراجعة تلقائية",
+      "تصدير PDF جاهز للطباعة",
+    ],
+    highlightsEn: [
+      "100 monthly credits (or 1,200 yearly)",
+      "Small, Medium, and Large lecture summaries",
+      "Bilingual (EN+AR), English, or Arabic summary output",
+      "Smart practice quizzes & flashcards",
+      "Print-ready PDF export",
+    ],
+    limits: {
+      aiSummariesPerMonth: 35,
+      quizzesPerDay: 15,
+      youtubePerMonth: 10,
+      imageExtractorPerMonth: 15,
+      flashcardDecks: 25,
+      storageMB: 1024,
+    },
   },
   {
     key: "pro",
-    name: "Pro",
-    nameAr: "الاحترافية المتقدمة",
-    monthly: 89,
-    credits: 600,
-    tokens: 0,
     tier: "pro",
-    discountPercent: 15,
+    name: "Pro",
+    nameEn: "Pro Plan",
+    nameAr: "برو",
+    tagline: "الباقة الاحترافية الأكثر اختياراً للمذاكرة المكثفة",
+    taglineEn: "Our most popular plan for intensive lectures & reference books",
+    monthly: 150,
+    yearly: 1500,
+    monthlyCredits: 250,
+    yearlyCredits: 3000,
+    color: "from-purple-500 via-fuchsia-500 to-cyan-500",
+    border: "border-purple-500/50",
+    glow: "shadow-[0_0_40px_rgba(168,85,247,0.28)]",
+    badge: "الأكثر شعبية 🔥",
+    badgeEn: "MOST POPULAR 🔥",
     popular: true,
-    features: [
-      "الوصول الحصري لبوت التيليجرام (@Black_Fighters_FREE_bot) 🤖",
-      "امتحان كويزات النظري (EBE) والعملي (OSPE) بالتيليجرام",
-      "٦٠٠ كريدت شهرياً ⚡",
-      "محركات AI فائقة الذكاء للاختبارات والأسئلة المعقدة ⭐",
-      "أعلى سرعة ودقة جراحية في التلخيص والامتحانات",
-      "ملفات وسلايدات ومذكرات غير محدودة",
-      "تصدير PDF و Word واستخراج الصور التوضيحية"
+    cta: "اشترك في Pro الآن",
+    ctaEn: "Select Pro Plan",
+    highlights: [
+      "250 كريدت شهرياً (أو 3,000 كريدت سنوياً)",
+      "تلخيص شامل للمحاضرات والمراجع الطويلة",
+      "استوديو تلخيص محاضرات يوتيوب بالذكاء الاصطناعي",
+      "خرائط ذهنية تفاعلية + بنك أسئلة شامل",
+      "تصدير PDF للطباعة + ملف HTML يعمل بدون إنترنت",
     ],
-    featuresEn: [
-      "Exclusive Telegram Bot Access (@Black_Fighters_FREE_bot) 🤖",
-      "Take EBE Theory & OSPE Quizzes inside Telegram",
-      "600 credits / month ⚡",
-      "Ultra-smart AI engines for exams & complex reasoning ⭐",
-      "Top speed & surgical exam precision",
-      "Unlimited files, slides & quizzes",
-      "Full PDF tools & Diagram extractor"
+    highlightsEn: [
+      "250 monthly credits (or 3,000 yearly)",
+      "Comprehensive summaries for dense lectures & books",
+      "YouTube AI Lecture Summarizer Studio",
+      "Interactive Mind Maps & full question bank",
+      "Printable PDF + standalone offline HTML export",
     ],
+    limits: {
+      aiSummariesPerMonth: -1,
+      quizzesPerDay: -1,
+      youtubePerMonth: -1,
+      imageExtractorPerMonth: -1,
+      flashcardDecks: -1,
+      storageMB: 5120,
+    },
   },
   {
     key: "supreme",
-    name: "Supreme",
-    nameAr: "قمة Zeta المطلقة",
-    monthly: 149,
-    credits: 1500,
-    tokens: 0,
     tier: "supreme",
-    isElite: true,
-    discountPercent: 30,
-    features: [
-      "الوصول الحصري لبوت التيليجرام (@Black_Fighters_FREE_bot) 🤖",
-      "امتحان كويزات النظري (EBE) والعملي (OSPE) بالتيليجرام",
-      "١,٥٠٠ كريدت شهرياً ⚡",
-      "أقصى قدرة معالجة وسرعة استجابة غير محدودة 👑",
-      "دعم معالجة الكتب الضخمة ومقاطع اليوتيوب الطويلة جداً",
-      "تحليل معمق للمسائل والامتحانات النهائية الصعبة",
-      "أولوية قصوى في سيرفرات التوليد ودعم VIP مباشر"
+    name: "Supreme",
+    nameEn: "Supreme Plan",
+    nameAr: "سوبريم",
+    tagline: "القوة القصوى للدفعات والمراجع الضخمة طوال العام",
+    taglineEn: "Maximum credit capacity for heavy academic loads & textbooks",
+    monthly: 250,
+    yearly: 2500,
+    monthlyCredits: 500,
+    yearlyCredits: 6000,
+    color: "from-amber-400 via-orange-500 to-rose-500",
+    border: "border-amber-400/60",
+    glow: "shadow-[0_0_45px_rgba(251,191,36,0.3)]",
+    badge: "القوة القصوى 👑",
+    badgeEn: "MAXIMUM POWER 👑",
+    popular: false,
+    cta: "امتلك القوة الكاملة Supreme",
+    ctaEn: "Select Supreme Plan",
+    highlights: [
+      "500 كريدت شهرياً (أو 6,000 كريدت سنوياً)",
+      "أولوية قصوى على أسرع نماذج التوليد والتدقيق",
+      "تلخيص شامل للمحاضرات والكتب بدون حد أقصى للصفحات",
+      "جدولة المراجعة المتباعدة الذكية (FSRS v4.5)",
+      "دعم VIP مباشر ومشاركة غير محدودة للملخصات",
     ],
-    featuresEn: [
-      "Exclusive Telegram Bot Access (@Black_Fighters_FREE_bot) 🤖",
-      "Take EBE Theory & OSPE Quizzes inside Telegram",
-      "1,500 credits / month ⚡",
-      "Maximum processing throughput & unlocked generation speed 👑",
-      "Support for massive textbooks & long YouTube lectures",
-      "Deep exam synthesis & complex problem solving",
-      "Top server priority & 24/7 VIP support"
+    highlightsEn: [
+      "500 monthly credits (or 6,000 yearly)",
+      "Priority routing on flagship AI synthesis models",
+      "Full-depth summaries for massive lectures & books",
+      "Smart spaced-repetition review scheduler (FSRS v4.5)",
+      "Direct VIP support & unlimited summary sharing",
     ],
+    limits: {
+      aiSummariesPerMonth: -1,
+      quizzesPerDay: -1,
+      youtubePerMonth: -1,
+      imageExtractorPerMonth: -1,
+      flashcardDecks: -1,
+      storageMB: 15360,
+    },
   },
   {
     key: "emergency_round",
-    name: "Emergency Round",
-    nameAr: "راوند الطوارئ",
-    monthly: 99,
-    credits: 100,
-    tokens: 0,
     tier: "emergency",
     isEmergency: true,
-    features: [
-      "🚨 وصول كامل لقسم راوند الطوارئ بالموقع وبوت التيليجرام",
-      "📄 ملفات وملازم حصرية تُعرض بصيغة HTML أو PDF تفاعلي",
-      "📝 كويزات الطوارئ وبنوك الأسئلة المعدّة حصرياً بواسطة Alpha",
-      "🤖 حل كويزات الطوارئ تفاعلياً بداخل بوت التيليجرام (@Black_Fighters_FREE_bot)",
-      "⚡ ١٠٠ كريدت شهرياً لكافة أدوات الذكاء الاصطناعي بالمنصة",
-      "🔔 إشعارات وتنبيهات فورية عند رفع أي محتوى طوارئ جديد"
-    ],
-    featuresEn: [
-      "🚨 Full exclusive access to Emergency Round hub & Telegram bot",
-      "📄 Exclusive study files rendered as responsive HTML or interactive PDF",
-      "📝 Alpha's verified Emergency quizzes & exam question banks",
-      "🤖 Interactive Telegram bot quiz polls (@Black_Fighters_FREE_bot)",
-      "⚡ 100 monthly credits for all platform AI features",
-      "🔔 Instant push alerts whenever new emergency material is published"
-    ],
-    popular: false,
-  },
-];
-
-// باقات شحن الكريدت المباشرة (Credit Refill Packs) — متوافقة مع منحنى التسعير التراكمي التصاعدي
-export const CREDIT_REFILL_PACKS = [
-  {
-    key: "credits_50",
-    name: "شحن 100 كريدت",
+    name: "Emergency Round",
+    nameEn: "Emergency Round",
+    nameAr: "راوند الطوارئ",
+    tagline: "باقة مستقلة لمحتوى الطوارئ",
+    taglineEn: "Standalone emergency course pack",
+    monthly: 99,
+    yearly: 99,
     credits: 100,
-    price: 50,
-    discount: 0,
+    monthlyCredits: 100,
+    yearlyCredits: 100,
+    color: "from-rose-500 to-orange-500",
+    border: "border-rose-500/40",
+    glow: "",
+    badge: "باقة مستقلة",
+    badgeEn: "STANDALONE",
     popular: false,
-  },
-  {
-    key: "credits_150",
-    name: "شحن 250 كريدت",
-    credits: 250,
-    price: 120,
-    discount: 4,
-    popular: false,
-  },
-  {
-    key: "credits_400",
-    name: "شحن 500 كريدت ⭐ (الباقة الطلابية)",
-    credits: 500,
-    price: 235,
-    discount: 6,
-    popular: true,
-  },
-  {
-    key: "credits_1000",
-    name: "شحن 1,000 كريدت 👑",
-    credits: 1000,
-    price: 425,
-    discount: 15,
-    popular: false,
-  },
-  {
-    key: "credits_2500",
-    name: "شحن 2,500 كريدت 🔥",
-    credits: 2500,
-    price: 905,
-    discount: 28,
-    popular: false,
+    cta: "اشترك الآن",
+    ctaEn: "Select Plan",
+    highlights: ["100 كريدت"],
+    highlightsEn: ["100 credits"],
+    limits: {
+      aiSummariesPerMonth: 20,
+      quizzesPerDay: 20,
+      youtubePerMonth: 5,
+      imageExtractorPerMonth: 5,
+      flashcardDecks: 10,
+      storageMB: 500,
+    },
   },
 ];
 
-export const TOKEN_REFILL_PACKS = CREDIT_REFILL_PACKS;
-
-export function yearlyPrice(monthly) {
-  if (monthly === 0) return 0;
-  return Math.round(monthly * 12 * (1 - YEARLY_DISCOUNT));
-}
-
-export function yearlyMonthlyEquivalent(monthly) {
-  if (monthly === 0) return 0;
-  return Math.round((monthly * 12 * (1 - YEARLY_DISCOUNT)) / 12);
+export function getPlanByKey(key = "free") {
+  if (key === "elite") key = "supreme";
+  return (
+    PLANS.find((p) => p.key === key || p.tier === key) || PLANS[0]
+  );
 }
 
 export function planPrice(plan, billing = "monthly") {
-  return billing === "yearly" ? yearlyPrice(plan.monthly) : plan.monthly;
+  if (!plan) return 0;
+  return billing === "yearly" ? plan.yearly : plan.monthly;
 }
 
-export function planDurationDays(billing = "monthly") {
-  return billing === "yearly" ? 365 : 30;
+export function planCredits(plan, billing = "monthly") {
+  if (!plan) return 0;
+  return billing === "yearly"
+    ? plan.yearlyCredits || plan.monthlyCredits * 12
+    : plan.monthlyCredits || 0;
 }
 
-export function planCredits(plan, billingOrDays = "monthly") {
-  const months = typeof billingOrDays === "number"
-    ? Math.max(1, Math.round(billingOrDays / 30))
-    : billingOrDays === "yearly" ? 12 : 1;
-  return (plan.credits || 0) * months;
-}
+export const REFERRAL_REWARDS = {
+  creditsPerInvite: 10,
+  tokensPerInvite: 10000,
+  targetInvitesForFreePlan: 40,
+  freePlanKey: "starter",
+};
 
-export function formatTokens(tokens) {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(tokens % 1_000_000 === 0 ? 0 : 1)}M`;
-  }
-  if (tokens >= 1000) {
-    return `${(tokens / 1000).toFixed(0)}K`;
-  }
-  return `${tokens}`;
-}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -35,6 +35,7 @@ const SUPPORTED_EXTENSIONS = ["pdf", "pptx", "ppt", "docx", "doc", "txt", "csv",
 
 export default function CreateCourse() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
   const { showBadges } = useBadges();
   const { locale, dir } = useLocale();
@@ -50,8 +51,28 @@ export default function CreateCourse() {
   const [editingChapters, setEditingChapters] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [pendingInput, setPendingInput] = useState(null);
-  const [languageMode] = useState("bilingual");
-  const [summaryStyle] = useState("foundational_bilingual");
+  const [languageMode, setLanguageMode] = useState(() => {
+    const qLang = searchParams.get("lang");
+    if (qLang === "bilingual" || qLang === "en" || qLang === "ar") return qLang;
+    try {
+      const saved = JSON.parse(localStorage.getItem("bf_preferred_summary_config") || "{}");
+      if (saved.language === "bilingual" || saved.language === "en" || saved.language === "ar") {
+        return saved.language;
+      }
+    } catch {}
+    return "bilingual";
+  });
+  const [summaryStyle, setSummaryStyle] = useState(() => {
+    const qStyle = searchParams.get("style") || searchParams.get("size");
+    if (qStyle === "small" || qStyle === "atlas_cram") return "atlas_cram";
+    if (qStyle === "medium" || qStyle === "foundational_bilingual") return "foundational_bilingual";
+    if (qStyle === "large" || qStyle === "complete_study_guide") return "complete_study_guide";
+    try {
+      const saved = JSON.parse(localStorage.getItem("bf_preferred_summary_config") || "{}");
+      if (saved.style) return saved.style;
+    } catch {}
+    return "complete_study_guide";
+  });
   const [agentIndex, setAgentIndex] = useState(0);
   const [lastCost, setLastCost] = useState(2);
   const [savedCourseId, setSavedCourseId] = useState(null);
@@ -388,6 +409,16 @@ export default function CreateCourse() {
     return true;
   };
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.__bfPendingLandingFile) {
+      const pendingFile = window.__bfPendingLandingFile;
+      window.__bfPendingLandingFile = null;
+      handleFile(pendingFile).catch((err) => {
+        console.warn("Pending landing file error:", err);
+      });
+    }
+  }, []);
+
   const saveCourse = async () => {
     if (saving) return;
     if (savedCourseId) {
@@ -499,12 +530,16 @@ export default function CreateCourse() {
                 fileName={pendingInput.name}
                 creditCost={calculateSummaryCost(pendingInput.text?.length || 0)}
                 analysis={pendingInput.analysis}
+                initialLanguage={languageMode}
+                initialStyle={summaryStyle}
                 onChangeFile={() => {
                   setPendingInput(null);
                   setFileName("");
                   setErrorMsg("");
                 }}
                 onConfirm={({ language, style, subjectType, maxPages, includeImages }) => {
+                  setLanguageMode(language);
+                  setSummaryStyle(style);
                   generateCourseFromText(
                     pendingInput.text,
                     pendingInput.name,

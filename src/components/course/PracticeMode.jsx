@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, RotateCcw, Target, ArrowRight, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { reconcileQuestionAnswer } from "@/lib/quizQuality";
 
 const QUESTION_TIME = 30;
 
 export default function PracticeMode({ quiz }) {
-  const allQuestions = quiz?.questions || [];
+  const allQuestions = (quiz?.questions || []).map((q) => reconcileQuestionAnswer(q));
   const [questions] = useState(() => [...allQuestions].sort(() => Math.random() - 0.5).slice(0, Math.min(10, allQuestions.length)));
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);

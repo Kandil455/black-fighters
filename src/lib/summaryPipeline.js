@@ -24,6 +24,7 @@ import {
   startSummaryJob,
   updateSummaryJob,
 } from "./summaryJobs.js";
+import { getCachedArtifact, setCachedArtifact } from "./smartCache.js";
 
 const ARABIC = /[\u0600-\u06ff]/g;
 const ENGLISH = /[A-Za-z]/g;
@@ -114,7 +115,7 @@ function uniqueSnippets(items, max = 16) {
 export function extractCriticalItems(text) {
   const segments = String(text || "").split(/\n+|(?<=[.!؟])\s+/).map((item) => item.trim()).filter(Boolean);
   return {
-    definitions: uniqueSnippets(segments.filter((line) => /\b(?:definition|defined as|refers to|means|is an?|are)\b|(?:تعريف|يُعر[ّ]?ف|يعرف|يُقصد|هو عبارة|هي عبارة|يعني)/i.test(line))),
+    definitions: uniqueSnippets(segments.filter((line) => /\b(?:definition|defined as|refers to|means|is an?|are|feature|features|characteristic|properties)\b|(?:تعريف|يُعر[ّ]?ف|يعرف|يُقصد|هو عبارة|هي عبارة|يعني|خصائص|مميزات|سمات|شروط)/i.test(line)), 24),
     formulas: uniqueSnippets(segments.filter((line) => /(?:^|\s)[A-Za-z][A-Za-z0-9_()]*\s*=|[=±×÷∑√]|(?:equation|formula|law|معادلة|قانون)/i.test(line))),
     examples: uniqueSnippets(segments.filter((line) => /\b(?:example|for example|e\.g\.|case study)\b|(?:مثال|على سبيل المثال|حالة تطبيقية)/i.test(line))),
     pages: [...new Set([...String(text || "").matchAll(/\[صفحة\s+(\d+)\]/gi)].map((match) => Number(match[1])))].sort((a, b) => a - b),
@@ -165,11 +166,18 @@ export function buildCoverageReport(source, summary, options = {}) {
   const sectionHighlightCounts = String(summary || "").split(/(?=^##\s+)/gm)
     .map((section) => (section.match(/==(?:green|yellow|cyan|orange|red):[^=]+==/gi) || []).length);
   const colorPolicyOk = sectionHighlightCounts.every((count) => count <= colorLimit);
+  const styleKey = String(options.style || "");
+  const targetThreshold = styleKey === "complete_study_guide" || styleKey === "large"
+    ? 90
+    : styleKey === "atlas_cram" || styleKey === "small"
+      ? 74
+      : 82;
   return {
     score,
+    targetThreshold,
     checkedTerms: terms.length,
-    missing: missing.slice(0, 12),
-    missingDefinitions: missingDefinitions.slice(0, 6),
+    missing: missing.slice(0, 14),
+    missingDefinitions: missingDefinitions.slice(0, 8),
     missingFormulas: missingFormulas.slice(0, 6),
     missingExamples: missingExamples.slice(0, 6),
     definitionCount: critical.definitions.length,
@@ -191,7 +199,7 @@ export function buildCoverageReport(source, summary, options = {}) {
       sectionHighlightCounts,
     },
     requiresStructureRepair: !bilingualLayoutOk,
-    requiresRepair: score < 78 || missingFormulas.length > 0 || missingDefinitions.length > 3 || !bilingualLayoutOk,
+    requiresRepair: score < targetThreshold || missingFormulas.length > 0 || missingDefinitions.length > 2 || !bilingualLayoutOk,
   };
 }
 
@@ -220,6 +228,27 @@ async function generateStructuredSummaryV3({
   courseId = "",
 }) {
   const snapshotKey = `summary-job:v3:${fingerprint}:${selectedStyle}:${selectedLanguage}:${maxPages}:${colorLevel}`;
+  const batchArtifactKey = `full_summary_v3__${selectedLanguage}__${selectedStyle}__${colorLevel}`;
+
+  // 0. Check Shared Batch Cache (`globalLectureCache` + LocalStorage)
+  const batchCached = await getCachedArtifact(text, batchArtifactKey).catch(() => null);
+  if (batchCached?.summary && batchCached?.document) {
+    return {
+      summary: batchCached.summary,
+      document: batchCached.document,
+      facts: batchCached.facts || [],
+      analysis: batchCached.analysis || analysis,
+      coverage: batchCached.coverage || buildCoverageReport(text, batchCached.summary, { language: selectedLanguage, style: selectedStyle, colorLevel }),
+      validation: batchCached.validation,
+      fingerprint,
+      chunks: chunks.length,
+      jobId: batchCached.jobId || "",
+      resumed: true,
+      cacheHit: true,
+      pipelineVersion: "summary-v3",
+    };
+  }
+
   const saved = await getOfflineSnapshot(snapshotKey).catch(() => null);
   if (saved?.status === "completed" && saved.document && saved.summary) {
     return {
@@ -350,8 +379,18 @@ async function generateStructuredSummaryV3({
 
     if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
     onProgress?.({ phase: "assemble", current: 1, total: 1, analysis, jobId });
-    const dynamicMaxPages = Math.max(maxPages, Math.ceil(chunks.length * 4), Math.ceil((analysis?.estimatedPages || 12) * 0.85));
-    let facts = mergeSummaryFacts(parts, { maxFacts: Math.min(1200, Math.max(60, dynamicMaxPages * 18)) });
+    const isLargeTier = selectedStyle === "complete_study_guide" || selectedStyle === "large";
+    const isSmallTier = selectedStyle === "atlas_cram" || selectedStyle === "small";
+    const pageScale = isLargeTier ? 1.25 : isSmallTier ? 0.75 : 0.95;
+    const dynamicMaxPages = Math.max(
+      maxPages,
+      Math.ceil(chunks.length * (isLargeTier ? 6 : 4)),
+      Math.ceil((analysis?.estimatedPages || 12) * pageScale)
+    );
+    const factsPerPageBudget = isLargeTier ? 26 : isSmallTier ? 18 : 22;
+    let facts = mergeSummaryFacts(parts, {
+      maxFacts: Math.min(1800, Math.max(80, dynamicMaxPages * factsPerPageBudget)),
+    });
     let assembled = null;
     for (let attempt = 0; attempt < 5 && facts.length >= 3; attempt += 1) {
       assembled = assembleSummaryDocumentFromFacts(facts, {
@@ -413,6 +452,21 @@ async function generateStructuredSummaryV3({
           pipelineVersion: "summary-v3",
         },
       }).catch(() => {}),
+      setCachedArtifact(
+        text,
+        batchArtifactKey,
+        {
+          document: assembled.document,
+          summary: assembled.markdown,
+          facts: assembled.facts,
+          analysis,
+          coverage,
+          validation: assembled.validation,
+          jobId,
+          pipelineVersion: "summary-v3",
+        },
+        { meta: { fileName, language: selectedLanguage, style: selectedStyle } }
+      ).catch(() => {}),
     ]);
     return {
       summary: assembled.markdown,
@@ -452,7 +506,13 @@ export async function generateHierarchicalSummary({
   const selectedLanguage = language || analysis.language;
   const selectedStyle = style || analysis.recommendedStyle;
   const fingerprint = await fingerprintText(text);
-  const chunks = await splitCourseTextAsync(text, SUMMARY_CHUNK_SIZE);
+  const chunkTargetSize =
+    selectedStyle === "complete_study_guide" || selectedStyle === "large"
+      ? Math.max(1800, Math.round(SUMMARY_CHUNK_SIZE * 0.65))
+      : selectedStyle === "foundational_bilingual" || selectedStyle === "medium"
+        ? Math.max(2200, Math.round(SUMMARY_CHUNK_SIZE * 0.85))
+        : SUMMARY_CHUNK_SIZE;
+  const chunks = await splitCourseTextAsync(text, chunkTargetSize);
   if (isFeatureEnabled("summary_pipeline_v3", featureFlags)) {
     return generateStructuredSummaryV3({
       text,
@@ -586,6 +646,10 @@ export async function generateHierarchicalSummary({
     }
   }
 
-  await setOfflineSnapshot(snapshotKey, { parts, summary: finalSummary, analysis, coverage, status: "completed", updatedAt: Date.now() }).catch(() => {});
+  const batchV2Key = `full_summary_v2__${selectedLanguage}__${selectedStyle}__${colorLevel}`;
+  await Promise.all([
+    setOfflineSnapshot(snapshotKey, { parts, summary: finalSummary, analysis, coverage, status: "completed", updatedAt: Date.now() }).catch(() => {}),
+    setCachedArtifact(text, batchV2Key, { summary: finalSummary, analysis, coverage }, { meta: { fileName, language: selectedLanguage, style: selectedStyle } }).catch(() => {}),
+  ]);
   return { summary: finalSummary, analysis, coverage, fingerprint, chunks: chunks.length };
 }

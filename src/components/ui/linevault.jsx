@@ -66,7 +66,7 @@ export function LVLogo({
   to,
   label = "Black Fighters",
   showSubtitle = false,
-  subtitle = "V5 ATLAS × LINEVAULT",
+  subtitle = "SMART STUDY PLATFORM",
   className,
 }) {
   const inner = (
@@ -108,18 +108,6 @@ export function LVLangSwitch({ className }) {
     >
       <button
         type="button"
-        onClick={() => setLocale("ar")}
-        className={cn(
-          "px-2.5 py-1 rounded-full font-sans font-semibold transition-colors duration-150 cursor-pointer whitespace-nowrap",
-          locale === "ar"
-            ? "bg-[#19f08c] text-[#03150c]"
-            : "text-[#9aa4b2] hover:text-[#f5f7fa]"
-        )}
-      >
-        عربي
-      </button>
-      <button
-        type="button"
         onClick={() => setLocale("en")}
         className={cn(
           "px-2.5 py-1 rounded-full font-mono font-semibold transition-colors duration-150 cursor-pointer whitespace-nowrap",
@@ -129,6 +117,18 @@ export function LVLangSwitch({ className }) {
         )}
       >
         EN
+      </button>
+      <button
+        type="button"
+        onClick={() => setLocale("ar")}
+        className={cn(
+          "px-2.5 py-1 rounded-full font-sans font-semibold transition-colors duration-150 cursor-pointer whitespace-nowrap",
+          locale === "ar"
+            ? "bg-[#19f08c] text-[#03150c]"
+            : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+        )}
+      >
+        عربي
       </button>
     </div>
   );
@@ -140,6 +140,7 @@ export const LVCard = forwardRef(function LVCard(
     padding = "p-6",
     variant = "default",
     accent = false,
+    highlight = false,
     interactive = false,
     as: Comp = "div",
     children,
@@ -147,7 +148,8 @@ export const LVCard = forwardRef(function LVCard(
   },
   ref
 ) {
-  const resolvedVariant = accent && variant === "default" ? "highlight" : variant;
+  const resolvedVariant =
+    (accent || highlight) && variant === "default" ? "highlight" : variant;
   return (
     <Comp
       ref={ref}
@@ -524,156 +526,480 @@ export function AnimatedNumber({
   return <motion.span className={cn("tabular-nums", className)}>{text}</motion.span>;
 }
 
-const STREAM_POOL = [
+const SAMPLE_LECTURES = [
   {
-    plate: "PLATE-01",
-    termEn: "Ventricular Phase 2 Plateau",
-    termAr: "طور الهضبة — قنوات L-type Ca2+",
-    citation: "✓ p.12",
-    status: "VERIFIED",
+    id: "lec1",
+    ext: "PDF",
+    nameEn: "Lecture_01_Cell_Signaling.pdf",
+    nameAr: "محاضرة_01_إشارات_الخلية.pdf",
+    pagesEn: "24 pages · Lecture Slides",
+    pagesAr: "٢٤ صفحة · سلايدز محاضرة",
   },
   {
-    plate: "PLATE-02",
-    termEn: "Amiodarone IV Loading Dose",
-    termAr: "150–300 mg IV bolus over 10 min",
-    citation: "✓ p.13",
-    status: "VERIFIED",
+    id: "lec2",
+    ext: "PPTX",
+    nameEn: "Chapter_04_Pharmacology.pptx",
+    nameAr: "الفصل_الرابع_علم_الأدوية.pptx",
+    pagesEn: "42 slides · Illustrated Notes",
+    pagesAr: "٤٢ شريحة · مذكرة دراسية",
   },
   {
-    plate: "PLATE-03",
-    termEn: "Starling Law Preload Relation",
-    termAr: "حجم نهاية الانبساط EDV وقوة الانقباض",
-    citation: "✓ p.19",
-    status: "VERIFIED",
-  },
-  {
-    plate: "PLATE-04",
-    termEn: "SA Node Pacemaker Funny Current (If)",
-    termAr: "دخول الصوديوم التلقائي في المرحلة 4",
-    citation: "✓ p.24",
-    status: "VERIFIED",
-  },
-  {
-    plate: "PLATE-05",
-    termEn: "Heparin vs Warfarin Monitoring",
-    termAr: "مقارنة aPTT مقابل PT/INR ومضادات التسمم",
-    citation: "✓ p.31",
-    status: "VERIFIED",
-  },
-  {
-    plate: "PLATE-06",
-    termEn: "Atropine Muscarinic Blockade",
-    termAr: "تثبيط العصب الحائر ورفع نبض العقدة الجيبية",
-    citation: "✓ p.38",
-    status: "VERIFIED",
-  },
-  {
-    plate: "PLATE-07",
-    termEn: "FSRS v4.5 Memory Stability",
-    termAr: "جدولة الاستدعاء النشط بنسبة إتقان 96%",
-    citation: "✓ p.44",
-    status: "VERIFIED",
-  },
-  {
-    plate: "PLATE-08",
-    termEn: "Digoxin Na+/K+ ATPase Inhibition",
-    termAr: "زيادة الكالسيوم داخل الخلية وتنبيه العصب الحائر",
-    citation: "✓ p.52",
-    status: "VERIFIED",
-  },
-  {
-    plate: "PLATE-09",
-    termEn: "Beta-1 Selective Blockers (Metoprolol)",
-    termAr: "خفض استهلاك الأكسجين القلبي ومعدل النبض",
-    citation: "✓ p.61",
-    status: "VERIFIED",
+    id: "lec3",
+    ext: "PDF",
+    nameEn: "Full_Module_Reference.pdf",
+    nameAr: "مرجع_المادة_الشامل.pdf",
+    pagesEn: "120 pages · Full Reference",
+    pagesAr: "١٢٠ صفحة · مرجع كامل",
   },
 ];
 
-export function LineStream({ locale = "ar" }) {
+const PREVIEW_SIZES = [
+  {
+    id: "small",
+    styleId: "atlas_cram",
+    labelEn: "Small",
+    labelAr: "صغير",
+    subEn: "Focused Essentials",
+    subAr: "نقاط مركّزة",
+    descEn: "Captures every essential concept, feature, definition, and formula in a concise format.",
+    descAr: "يجيب كل المهم والفيتشرز والتعريفات والقوانين في نقاط مركّزة وسريعة.",
+    samples: {
+      bilingual: [
+        {
+          tag: "Bilingual · Core",
+          title: "1. Receptor Tyrosine Kinases (RTKs) — مستقبلات التيروزين كيناز",
+          detail: "High-affinity cell surface receptors (مستقبلات سطح خلوية عالية الألفة) that dimerize and autophosphorylate upon ligand binding to trigger intracellular cascades.",
+        },
+        {
+          tag: "All Features",
+          title: "2. Key Features & Mechanism — الخصائص والآلية الأساسية",
+          detail: "• Extracellular ligand-binding domain (نطاق خارجي لارتباط الليجند) • Transmembrane α-helix (حلزون عابر للغشاء) • Cytosolic kinase domain (نطاق كيناز داخلي).",
+        },
+      ],
+      en: [
+        {
+          tag: "Core Definition",
+          title: "1. Receptor Tyrosine Kinases (RTKs)",
+          detail: "High-affinity cell surface receptors for polypeptide growth factors, cytokines, and hormones that dimerize and autophosphorylate upon ligand binding.",
+        },
+        {
+          tag: "Key Features",
+          title: "2. Essential Structural & Functional Features",
+          detail: "• Extracellular ligand-binding domain • Single hydrophobic transmembrane alpha-helix • Intracellular tyrosine kinase catalytic domain.",
+        },
+      ],
+      ar: [
+        {
+          tag: "تعريف أساسي",
+          title: "١. مستقبلات التيروزين كيناز (RTKs)",
+          detail: "مستقبلات سطحية عالية الألفة لعوامل النمو والهرمونات، تزدوج وتفسفر ذاتياً فور ارتباط الجزيء الإشاري لتنشيط المسارات داخل الخلية.",
+        },
+        {
+          tag: "كل الفيتشرز",
+          title: "٢. الخصائص التركيبية والوظيفية الأساسية",
+          detail: "• نطاق خارجي لارتباط الجزيء الإشاري • حلزون واحد عابر للغشاء الخلوي • نطاق تحفيزي داخلي لنشاط إنزيم التيروزين كيناز.",
+        },
+      ],
+    },
+  },
+  {
+    id: "medium",
+    styleId: "foundational_bilingual",
+    labelEn: "Medium",
+    labelAr: "متوسط",
+    subEn: "Balanced Study Guide",
+    subAr: "متوازن ومفصّل",
+    descEn: "Structured explanation of all concepts, mechanisms, features, examples, and comparison tables.",
+    descAr: "شرح منظم ومتوازن لكل المحاور، الآليات، الفيتشرز، الأمثلة، وجداول المقارنة.",
+    samples: {
+      bilingual: [
+        {
+          tag: "Bilingual · Mechanism",
+          title: "1. Signal Transduction Pathway — مسار نقل الإشارة الخلوية",
+          detail: "Step 1: Ligand binding induces receptor dimerization (ازدواج المستقبل) → Step 2: Cross-phosphorylation of tyrosine residues → Step 3: Recruitment of SH2-domain proteins (Grb2/SOS) activating Ras-MAPK.",
+        },
+        {
+          tag: "Features & Table",
+          title: "2. GPCRs vs. RTKs Comparison — مقارنة شاملة للخصائص",
+          detail: "GPCRs: 7-transmembrane helices, G-protein coupled (ثواني) | RTKs: Single transmembrane pass, intrinsic enzyme activity, regulates gene transcription & cell growth.",
+        },
+        {
+          tag: "Exam Focus",
+          title: "3. Clinical Correlation & Applied Examples — تطبيقات وأمثلة",
+          detail: "Gain-of-function mutations in EGFR/HER2 (طفرات زيادة النشاط) drive uncontrolled proliferation; targeted by Monoclonal Antibodies & TKIs.",
+        },
+      ],
+      en: [
+        {
+          tag: "Step-by-Step Mechanism",
+          title: "1. Signal Transduction & Ras-MAPK Cascade",
+          detail: "Step 1: Ligand binding induces conformational dimerization → Step 2: Autophosphorylation of cytosolic tails → Step 3: SH2-domain adapter (Grb2/SOS) converts Ras-GDP to active Ras-GTP.",
+        },
+        {
+          tag: "Comparison Table",
+          title: "2. GPCRs vs. RTKs Structural & Kinetic Differences",
+          detail: "GPCRs: 7-pass transmembrane, heterotrimeric G-proteins, rapid second messengers (cAMP/IP3) | RTKs: 1-pass transmembrane, intrinsic kinase, regulates transcription.",
+        },
+        {
+          tag: "Clinical Correlation",
+          title: "3. Oncogenic Mutations & Targeted Therapy",
+          detail: "Constitutive dimerization of HER2/EGFR drives uncontrolled mitogenesis; clinically inhibited by Trastuzumab and small-molecule Tyrosine Kinase Inhibitors.",
+        },
+      ],
+      ar: [
+        {
+          tag: "آلية خطوة بخطوة",
+          title: "١. خطوات نقل الإشارة وتنشيط مسار Ras-MAPK",
+          detail: "١: ارتباط العامل المحفز يسبب ازدواج المستقبل ← ٢: الفسفرة الذاتية لأذيال التيروزين ← ٣: ارتباط بروتينات SH2 (Grb2/SOS) وتحويل Ras إلى الصورة النشطة.",
+        },
+        {
+          tag: "جدول مقارنات",
+          title: "٢. مقارنة شاملة بين مستقبلات GPCRs ومستقبلات RTKs",
+          detail: "مستقبلات GPCR: تعبر الغشاء 7 مرات وتعمل عبر بروتين G والرسل الثانوية السريعة | مستقبلات RTK: تعبر الغشاء مرة واحدة وتمتلك نشاطاً إنزيمياً ذاتياً ينظم نسخ الجينات.",
+        },
+        {
+          tag: "تطبيقات وأمثلة",
+          title: "٣. الأهمية الإكلينيكية والأدوية الموجهة",
+          detail: "الطفرات النشطة في مستقبلات EGFR وHER2 تؤدي لانقسام خلوي غير منضبط، وتُعالج بالأجسام المضادة أحادية النسيلة ومثبطات التيروزين كيناز.",
+        },
+      ],
+    },
+  },
+  {
+    id: "large",
+    styleId: "complete_study_guide",
+    labelEn: "Large",
+    labelAr: "كبير",
+    subEn: "Comprehensive Guide",
+    subAr: "شامل المحاضرة بالكامل",
+    descEn: "Complete, organized breakdown of the entire lecture in chapters, points, and tables with zero details left behind.",
+    descAr: "تنظيم شامل ومرتب لكامل المحاضرة في أبواب ونقاط وجداول مقارنة دون ترك أي تفصيلة صغيرة أو كبيرة.",
+    samples: {
+      bilingual: [
+        {
+          tag: "Full Chapter · Bilingual",
+          title: "1. Complete Architecture & All Domains — الهيكلة الكاملة وجميع النطاقات",
+          detail: "Covers all 5 receptor families (EGFR, Insulin Receptor, PDGFR, VEGFR, FGFR) with exact domain structures, disulfide bonds, and ATP-binding cleft mechanisms explained in English and Arabic.",
+        },
+        {
+          tag: "Every Feature",
+          title: "2. Downstream Cascades (MAPK, PI3K-Akt, PLCγ) — كافة المسارات والفيتشرز",
+          detail: "• Ras-Raf-MEK-ERK transcriptional regulation • PI3K → PIP3 → Akt/mTOR survival signaling • PLCγ → IP3 + DAG calcium release • Negative feedback via Ubiquitination (Cbl) & PTPs.",
+        },
+        {
+          tag: "Master Tables & Quiz",
+          title: "3. Master Comparison Matrix & Exam Bank — الجداول الشاملة والأسئلة",
+          detail: "Full receptor classification table, affinities, second messengers, pathology correlations, plus auto-generated flashcards and exam questions covering every paragraph.",
+        },
+      ],
+      en: [
+        {
+          tag: "Complete Hierarchy",
+          title: "1. Full Receptor Families & Molecular Architecture",
+          detail: "Exhaustive breakdown of EGFR, Insulin Receptor (α2β2 tetramer), PDGFR, VEGFR, and FGFR subfamilies, detailing extracellular Ig-like/cysteine-rich domains and activation loop kinetics.",
+        },
+        {
+          tag: "All Pathways & Features",
+          title: "2. Parallel Downstream Pathways & Termination Mechanisms",
+          detail: "• Ras-Raf-MEK-ERK mitogenic cascade • PI3K-Akt-mTOR survival & metabolic pathway • PLCγ-PKC intracellular Ca2+ mobilization • Receptor downregulation via Cbl-mediated endocytosis and PTPs.",
+        },
+        {
+          tag: "Master Tables & Quiz",
+          title: "3. Master Differential Tables & Complete Question Bank",
+          detail: "Structured comparison tables across all receptor classes, physiological ligands, genetic disorders, pharmacological inhibitors, and complete active-recall quiz bank.",
+        },
+      ],
+      ar: [
+        {
+          tag: "هيكلة شاملة",
+          title: "١. التصنيف الكامل للعائلات والتركيب الجزيئي التفصيلي",
+          detail: "شرح تفصيلي شامل لعائلات EGFR ومستقبل الإنسولين الرباعي وPDGFR وVEGFR وFGFR مع توضيح النطاقات الغنية بالسيستين وحركية حلقة التنشيط وموقع ارتباط الـ ATP.",
+        },
+        {
+          tag: "كافة المسارات والفيتشرز",
+          title: "٢. المسارات المتوازية وآليات إنهاء الإشارة بالتفصيل",
+          detail: "• مسار Ras-Raf-MEK-ERK للانقسام الخلوي • مسار PI3K-Akt-mTOR للبقاء والأيض • مسار PLCγ وإطلاق الكالسيوم • آليات التثبيط الراجع والبلعمة الخلوية عبر بروتين Cbl وإنزيمات الفوسفاتاز.",
+        },
+        {
+          tag: "جداول شاملة وكويز",
+          title: "٣. الجداول المجمعة وبنك الأسئلة الشامل للمحاضرة",
+          detail: "جداول مقارنة شاملة لكل العائلات، الروابط الفسيولوجية، الأمراض الوراثية، والأدوية المثبطة، مع بطاقات مراجعة وأسئلة تغطي كل فقرة في المحاضرة.",
+        },
+      ],
+    },
+  },
+];
+
+const PREVIEW_LANGS = [
+  { id: "bilingual", labelEn: "Bilingual (EN + AR)", labelAr: "ثنائي اللغة (EN + عربي)" },
+  { id: "en", labelEn: "English", labelAr: "إنجليزي" },
+  { id: "ar", labelEn: "Arabic", labelAr: "عربي" },
+];
+
+export function LineStream({ locale = "en" }) {
   const isAr = locale === "ar";
-  const [offset, setOffset] = useState(0);
+  const [selectedFileIdx, setSelectedFileIdx] = useState(0);
+  const [customFile, setCustomFile] = useState(null);
+  const [activeSizeIdx, setActiveSizeIdx] = useState(2);
+  const [selectedOutLang, setSelectedOutLang] = useState("bilingual");
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
+    if (paused) return;
     const id = setInterval(() => {
-      setOffset((prev) => (prev + 1) % STREAM_POOL.length);
-    }, 1600);
+      setActiveSizeIdx((prev) => (prev + 1) % PREVIEW_SIZES.length);
+    }, 4500);
     return () => clearInterval(id);
-  }, []);
+  }, [paused]);
 
-  const visibleRows = useMemo(() => {
-    const rows = [];
-    for (let i = 0; i < 7; i++) {
-      const idx = (offset + i) % STREAM_POOL.length;
-      rows.push({ ...STREAM_POOL[idx], key: `${STREAM_POOL[idx].plate}-${offset + i}` });
-    }
-    return rows;
-  }, [offset]);
+  const currentFile = SAMPLE_LECTURES[selectedFileIdx] || SAMPLE_LECTURES[0];
+  const currentSize = PREVIEW_SIZES[activeSizeIdx] || PREVIEW_SIZES[2];
+  const blocks =
+    currentSize.samples?.[selectedOutLang] ||
+    currentSize.samples?.bilingual ||
+    [];
+
+  const displayExt = customFile
+    ? (customFile.name.split(".").pop() || "FILE").toUpperCase().slice(0, 4)
+    : currentFile.ext;
+  const displayName = customFile
+    ? customFile.name
+    : isAr
+    ? currentFile.nameAr
+    : currentFile.nameEn;
+  const displayMeta = customFile
+    ? `${(customFile.size / (1024 * 1024)).toFixed(2)} MB · ${
+        isAr ? "جاهز للتلخيص الفوري" : "Ready to summarize"
+      }`
+    : isAr
+    ? currentFile.pagesAr
+    : currentFile.pagesEn;
+
+  const targetCreateUrl = `/create?size=${currentSize.id}&style=${currentSize.styleId}&lang=${selectedOutLang}`;
 
   return (
-    <div className="glass-strong rounded-2xl p-4 sm:p-5 overflow-hidden">
-      <div className="flex items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-white/[0.08]">
-        <div className="flex items-center gap-2.5">
-          <span className="pulse-dot" />
-          <span className="font-mono text-xs font-semibold tracking-wider text-[#19f08c]">
-            LIVE ATLAS STREAM
-          </span>
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="glass-strong rounded-3xl p-4 sm:p-5 overflow-hidden border border-white/10 shadow-2xl"
+    >
+      {/* 1. Interactive Lecture File Selector + Upload Trigger */}
+      <div className="pb-3.5 mb-3.5 border-b border-white/[0.08]">
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#19f08c]/15 border border-[#19f08c]/35 text-[#19f08c] font-mono text-[11px] font-bold">
+              {displayExt}
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-bold text-[#f5f7fa] truncate">
+                {displayName}
+              </p>
+              <p className="text-[11px] text-[#9aa4b2] truncate">{displayMeta}</p>
+            </div>
+          </div>
+
+          <label className="shrink-0 rounded-xl border border-[#19f08c]/45 bg-[#19f08c]/15 hover:bg-[#19f08c]/25 px-3 py-1.5 text-[11px] font-bold text-[#19f08c] transition-colors cursor-pointer">
+            <span>{isAr ? "اختر ملفك" : "Choose File"}</span>
+            <input
+              type="file"
+              accept=".pdf,.pptx,.ppt,.docx,.doc,.txt,.md,.png,.jpg,.jpeg,.webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) {
+                  setCustomFile(f);
+                  setPaused(true);
+                  if (typeof window !== "undefined") {
+                    window.__bfPendingLandingFile = f;
+                  }
+                }
+              }}
+            />
+          </label>
         </div>
-        <span className="font-mono text-[11px] text-[#9aa4b2]" dir="ltr">
-          CROSS-FAMILY VERIFIER · V5
-        </span>
+
+        {/* Sample Lecture Switcher Pills */}
+        <div className="grid grid-cols-3 gap-1.5">
+          {SAMPLE_LECTURES.map((file, idx) => {
+            const active = !customFile && idx === selectedFileIdx;
+            return (
+              <button
+                key={file.id}
+                type="button"
+                onClick={() => {
+                  setCustomFile(null);
+                  if (typeof window !== "undefined") {
+                    window.__bfPendingLandingFile = null;
+                  }
+                  setSelectedFileIdx(idx);
+                  setPaused(true);
+                }}
+                className={cn(
+                  "rounded-lg px-2 py-1.5 text-[11px] font-medium truncate border transition-colors cursor-pointer",
+                  active
+                    ? "border-[#19f08c]/50 bg-[#19f08c]/15 text-[#19f08c] font-semibold"
+                    : "border-white/[0.07] bg-white/[0.02] text-[#9aa4b2] hover:text-[#f5f7fa]"
+                )}
+              >
+                {isAr ? `نموذج محاضرة ${idx + 1}` : `Sample Lecture ${idx + 1}`}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="space-y-2 min-h-[348px]">
-        <AnimatePresence mode="popLayout" initial={false}>
-          {visibleRows.map((item) => (
-            <motion.div
-              key={item.key}
-              layout
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 12 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-[#05070a]/70 px-3.5 py-2.5"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="font-mono text-[10px] font-semibold text-[#19f08c]"
-                    dir="ltr"
-                  >
-                    {item.plate}
+      {/* 2. Summary Size Selector (Small / Medium / Large) */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between text-[11px] text-[#9aa4b2] mb-1.5">
+          <span className="font-semibold text-[#f5f7fa]">
+            {isAr ? "١. اختر حجم التلخيص:" : "1. Summary Size:"}
+          </span>
+          <span className="text-[#19f08c] font-semibold">
+            {isAr ? currentSize.subAr : currentSize.subEn}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-2xl bg-[#05070a]/90 border border-white/[0.08]">
+          {PREVIEW_SIZES.map((sz, idx) => {
+            const isSelected = idx === activeSizeIdx;
+            return (
+              <button
+                key={sz.id}
+                type="button"
+                onClick={() => {
+                  setActiveSizeIdx(idx);
+                  setPaused(true);
+                }}
+                className={cn(
+                  "rounded-xl py-2 px-2 text-center transition-colors duration-150 cursor-pointer",
+                  isSelected
+                    ? "bg-[#19f08c] text-[#03150c] font-bold shadow-sm"
+                    : "text-[#9aa4b2] hover:text-[#f5f7fa] hover:bg-white/[0.04]"
+                )}
+              >
+                <div className="text-xs font-extrabold truncate">
+                  {isAr ? sz.labelAr : sz.labelEn}
+                </div>
+                <div
+                  className={cn(
+                    "text-[10px] truncate mt-0.5",
+                    isSelected ? "text-[#03150c]/85 font-semibold" : "text-[#9aa4b2]"
+                  )}
+                >
+                  {isAr ? sz.subAr : sz.subEn}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 3. Summary Output Language Selector */}
+      <div className="mb-3">
+        <div className="flex items-center justify-between text-[11px] text-[#9aa4b2] mb-1.5">
+          <span className="font-semibold text-[#f5f7fa]">
+            {isAr ? "٢. لغة التلخيص الناتج:" : "2. Summary Output Language:"}
+          </span>
+          <span className="text-[10px] font-mono text-[#19f08c]">
+            {selectedOutLang === "bilingual"
+              ? isAr
+                ? "مصطلحات EN + شرح عربي"
+                : "EN Terms + Arabic Explanation"
+              : selectedOutLang === "en"
+              ? isAr
+                ? "إنجليزي بالكامل"
+                : "100% Pure English"
+              : isAr
+              ? "عربي بالكامل"
+              : "100% Pure Arabic"}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {PREVIEW_LANGS.map((lg) => {
+            const active = selectedOutLang === lg.id;
+            return (
+              <button
+                key={lg.id}
+                type="button"
+                onClick={() => {
+                  setSelectedOutLang(lg.id);
+                  setPaused(true);
+                }}
+                className={cn(
+                  "rounded-xl py-1.5 px-2 text-[11px] font-semibold border transition-colors cursor-pointer truncate",
+                  active
+                    ? "border-[#19f08c]/60 bg-[#19f08c]/15 text-[#19f08c]"
+                    : "border-white/[0.08] bg-[#05070a]/60 text-[#9aa4b2] hover:text-[#f5f7fa]"
+                )}
+              >
+                {isAr ? lg.labelAr : lg.labelEn}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. Animated Live Preview of Generated Structure */}
+      <div
+        className="min-h-[218px]"
+        dir={selectedOutLang === "en" ? "ltr" : "rtl"}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${currentSize.id}-${selectedOutLang}-${selectedFileIdx}-${Boolean(customFile)}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-2"
+          >
+            {blocks.map((item, i) => (
+              <div
+                key={`${currentSize.id}-${selectedOutLang}-${i}`}
+                className="rounded-xl border border-white/[0.07] bg-[#05070a]/80 px-3.5 py-2.5 hover:border-[#19f08c]/35 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-bold text-[#f5f7fa] truncate">
+                    {item.title}
                   </span>
                   <span
-                    className="font-mono text-xs font-semibold text-[#f5f7fa] truncate"
                     dir="ltr"
+                    className="shrink-0 rounded-md bg-white/[0.05] border border-white/10 px-2 py-0.5 text-[10px] font-mono text-[#19f08c]"
                   >
-                    {item.termEn}
+                    {item.tag}
                   </span>
                 </div>
-                <p className="text-xs text-[#9aa4b2] truncate mt-0.5">
-                  {item.termAr}
+                <p className="text-[11px] text-[#9aa4b2] leading-relaxed">
+                  {item.detail}
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0" dir="ltr">
-                <span className="rounded-full border border-[#19f08c]/35 bg-[#19f08c]/12 px-2 py-0.5 font-mono text-[11px] font-semibold text-[#19f08c]">
-                  {item.citation}
-                </span>
-              </div>
-            </motion.div>
-          ))}
+            ))}
+          </motion.div>
         </AnimatePresence>
       </div>
 
-      <div className="mt-3.5 pt-3 border-t border-white/[0.08] flex items-center justify-between text-[11px] font-mono text-[#9aa4b2]">
-        <span>
-          {isAr
-            ? "تدقيق آلي مزدوج ضد الهلوسة الرقمية"
-            : "Dual-model dosage & page verification"}
+      {/* 5. Direct Action CTA */}
+      <div className="mt-3.5 pt-3 border-t border-white/[0.08] flex items-center justify-between gap-3">
+        <span className="text-[11px] text-[#9aa4b2] truncate">
+          {isAr ? currentSize.descAr : currentSize.descEn}
         </span>
-        <span className="text-[#19f08c]" dir="ltr">
-          99.4% ACCURACY
-        </span>
+        <Link
+          to={targetCreateUrl}
+          onClick={() => {
+            try {
+              localStorage.setItem(
+                "bf_preferred_summary_config",
+                JSON.stringify({
+                  size: currentSize.id,
+                  style: currentSize.styleId,
+                  language: selectedOutLang,
+                })
+              );
+            } catch {}
+          }}
+          className="btn-primary-glow rounded-xl px-3.5 py-2 text-xs font-bold text-[#03150c] shrink-0 whitespace-nowrap"
+        >
+          {isAr ? "ابدأ التلخيص فوراً ←" : "Start Summarizing →"}
+        </Link>
       </div>
     </div>
   );

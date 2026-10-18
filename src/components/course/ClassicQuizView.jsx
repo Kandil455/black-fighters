@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { awardBadge } from "@/lib/gamification";
 import QuizPrep from "@/components/course/QuizPrep";
 import { useBadges } from "@/lib/BadgeContext";
-import { buildQuizPerformance } from "@/lib/quizQuality";
+import { buildQuizPerformance, reconcileQuestionAnswer } from "@/lib/quizQuality";
 
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 const QUESTION_TIME = 45; // seconds per question
@@ -35,7 +35,10 @@ const getOptionStyle = (i, correct, selected, answered) => {
 
 export default function QuizView({ quiz, course }) {
   const { showBadges } = useBadges();
-  const allQuestions = quiz?.questions || [];
+  const allQuestions = React.useMemo(
+    () => (quiz?.questions || []).map((q) => reconcileQuestionAnswer(q)),
+    [quiz?.questions]
+  );
   const [questions, setQuestions] = useState(allQuestions);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
