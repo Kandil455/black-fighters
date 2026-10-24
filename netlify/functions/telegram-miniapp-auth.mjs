@@ -1,15 +1,15 @@
 import { adminAuth, adminDb, FieldValue } from "./_shared/firebase-admin.mjs";
-import { getBotToken } from "./_shared/telegram-engine.mjs";
+import { getBotToken, getBotUsername } from "./_shared/telegram-engine.mjs";
+import { createLoginSession, pollLoginSession } from "./_shared/telegram-link.mjs";
 import { verifyTelegramMiniAppInitData, verifyTelegramLoginWidget } from "./_shared/telegram-v5.mjs";
 import { json, parseBody } from "./_shared/http.mjs";
 
 /**
- * BLACK FIGHTERS V5 «Al-Atlas» — Telegram Auth Endpoint (Mini App + Login Widget)
- * Verifies either:
- * 1) Telegram WebApp.initData via HMAC-SHA256 (`WebAppData` key)
- * 2) Telegram Login Widget payload via HMAC-SHA256 (`SHA256(botToken)` key)
- * Resolves or links the user in Firestore, sets `telegram_id` & `telegram_chat_id`,
- * and issues a Firebase Custom Token (`customToken`).
+ * BLACK FIGHTERS V5 «Al-Atlas» — Telegram Auth Endpoint (Mini App + Login Widget + Bot Handshake)
+ * Supports:
+ * 1) Telegram Bot Handshake login sessions: create_login_session & poll_login_session
+ * 2) Telegram WebApp.initData via HMAC-SHA256 (`WebAppData` key)
+ * 3) Telegram Login Widget payload via HMAC-SHA256 (`SHA256(botToken)` key)
  */
 export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
@@ -21,6 +21,29 @@ export const handler = async (event) => {
 
   try {
     const body = parseBody(event);
+    const action = String(body?.action || "");
+
+    // ── Direct Bot Handshake Session: Create ──
+    if (action === "create_login_session") {
+      const { code, expiresAt, ttlMs } = await createLoginSession();
+      const botUsername = getBotUsername();
+      return json(200, {
+        ok: true,
+        code,
+        expiresAt,
+        ttlMs,
+        botUsername,
+        deepLink: `https://t.me/${botUsername}?start=login_${code}`,
+        command: `/login ${code}`,
+      });
+    }
+
+    // ── Direct Bot Handshake Session: Poll ──
+    if (action === "poll_login_session") {
+      const result = await pollLoginSession(body?.code);
+      return json(200, result);
+    }
+
     const initData = String(body?.initData || "").trim();
     const widgetUser = body?.widgetUser && typeof body.widgetUser === "object" ? body.widgetUser : null;
     const botToken = getBotToken();

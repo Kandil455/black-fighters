@@ -7,6 +7,8 @@ import {
   openTelegramLink,
 } from "@/lib/telegramClient";
 import { useLocale } from "@/lib/LocaleContext";
+import { useAuth } from "@/lib/AuthContext";
+import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { cn } from "@/lib/utils";
 
 export default function TelegramLinkAction({
@@ -16,6 +18,7 @@ export default function TelegramLinkAction({
   className = "",
 }) {
   const { locale } = useLocale();
+  const { refreshProfile } = useAuth();
   const isEn = locale === "en";
   const [pending, setPending] = useState(false);
   const [code, setCode] = useState("");
@@ -28,6 +31,41 @@ export default function TelegramLinkAction({
     const id = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
   }, [secondsLeft]);
+
+  // Live Auto-Detection Polling: detects when the user taps Start in the bot
+  useEffect(() => {
+    if (!code) return undefined;
+    let cancelled = false;
+
+    const intervalId = setInterval(async () => {
+      if (cancelled) return;
+      try {
+        const { data } = await invokeSecureFunction("telegram-link", {
+          action: "status",
+          code,
+        });
+        if (data?.linked && !cancelled) {
+          clearInterval(intervalId);
+          setCode("");
+          setSecondsLeft(0);
+          toast.success(
+            isEn
+              ? "Telegram account linked successfully! ✅"
+              : "تم ربط حساب التيليجرام بنجاح! ✅"
+          );
+          onChange?.({ linked: true });
+          refreshProfile?.().catch?.(() => {});
+        }
+      } catch (err) {
+        // silent polling error
+      }
+    }, 2500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [code, isEn, onChange, refreshProfile]);
 
   const handleLink = useCallback(async () => {
     setPending(true);

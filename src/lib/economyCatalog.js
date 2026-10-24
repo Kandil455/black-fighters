@@ -94,20 +94,104 @@ export function calculateOcrCost() {
   return 0;
 }
 
-export function getPurchasableProduct({ productType, productKey, billing = "monthly" }) {
+const CUSTOM_CREDIT_TIERS = [
+  { min_qty: 100, max_qty: 250, unit_price: 0.5 },
+  { min_qty: 250, max_qty: 500, unit_price: 0.44 },
+  { min_qty: 500, max_qty: 1000, unit_price: 0.38 },
+  { min_qty: 1000, max_qty: 2500, unit_price: 0.32 },
+  { min_qty: 2500, max_qty: 5000, unit_price: 0.27 },
+  { min_qty: 5000, max_qty: Infinity, unit_price: 0.22 },
+];
+
+export function resolveCreditPack(packKey = "") {
+  const key = String(packKey || "").trim();
+  if (!key) return null;
+  const preset = CREDIT_PACKS.find((item) => item.key === key);
+  if (preset) return preset;
+
+  const customMatch = key.match(/^custom_(\d+)$/);
+  if (!customMatch) return null;
+  const rawQty = Number(customMatch[1]);
+  if (!Number.isFinite(rawQty) || rawQty < 50 || rawQty > 10000) return null;
+  const safeQty = Math.round(rawQty);
+
+  let progressiveTotal = 0;
+  for (let i = 0; i < CUSTOM_CREDIT_TIERS.length; i++) {
+    const bracketStart = i === 0 ? 0 : CUSTOM_CREDIT_TIERS[i].min_qty;
+    const bracketEnd = CUSTOM_CREDIT_TIERS[i].max_qty ?? Infinity;
+    if (safeQty > bracketStart) {
+      const taxableInBracket = Math.min(safeQty, bracketEnd) - bracketStart;
+      progressiveTotal += taxableInBracket * CUSTOM_CREDIT_TIERS[i].unit_price;
+    }
+  }
+  const price = Math.max(1, Math.round(progressiveTotal));
+  const baseTotal = Math.round(safeQty * 0.5);
+  const discount = baseTotal > 0 ? Math.max(0, Math.round(((baseTotal - price) / baseTotal) * 100)) : 0;
+
+  return {
+    key: `custom_${safeQty}`,
+    name: `شحن ${safeQty.toLocaleString()} كريدت مخصص`,
+    nameEn: `Custom ${safeQty.toLocaleString()} Credits Pack`,
+    credits: safeQty,
+    price,
+    discount,
+    popular: false,
+  };
+}
+
+export function getPurchasableProduct({
+  productType,
+  productKey,
+  billing = "monthly",
+  extraPackKey = "",
+  upgradeFromPlanKey = "",
+} = {}) {
   if (productType === "credits") {
-    const pack = CREDIT_PACKS.find((item) => item.key === productKey);
-    return pack ? { ...pack, productType: "credits", amount: pack.price } : null;
+    const pack = resolveCreditPack(productKey);
+    if (!pack || Number(pack.price) <= 0) return null;
+    return {
+      ...pack,
+      productType: "credits",
+      amount: Number(pack.price),
+      grantedCredits: Number(pack.credits),
+    };
   }
   const plan = PLANS.find((item) => item.key === productKey);
-  if (!plan) return null;
+  if (!plan || plan.key === "free" || plan.tier === "free") return null;
+
+  let baseAmount = Number(planPrice(plan, billing) || 0);
+  if (baseAmount <= 0) return null;
+
+  if (upgradeFromPlanKey && !plan.isEmergency) {
+    const prevPlan = PLANS.find(
+      (p) => p.key === upgradeFromPlanKey && p.tier !== "free" && !p.isEmergency
+    );
+    if (prevPlan && prevPlan.key !== plan.key) {
+      const prevCost = Number(planPrice(prevPlan, billing) || 0);
+      if (baseAmount > prevCost && prevCost > 0) {
+        baseAmount = Math.max(1, baseAmount - prevCost);
+      }
+    }
+  }
+
+  const extraPack = extraPackKey ? resolveCreditPack(extraPackKey) : null;
+  const extraPrice = extraPack ? Number(extraPack.price || 0) : 0;
+  const extraCredits = extraPack ? Number(extraPack.credits || 0) : 0;
+  const baseCredits = Number(planCredits(plan, billing) || 0);
+  const totalCredits = baseCredits + extraCredits;
+  const totalAmount = baseAmount + extraPrice;
+
   return {
     ...plan,
+    name: extraPack ? `${plan.name} + ${extraPack.name}` : plan.name,
     productType: "subscription",
     billing,
-    amount: planPrice(plan, billing),
-    grantedCredits: planCredits(plan, billing),
+    amount: totalAmount,
+    credits: totalCredits,
+    grantedCredits: totalCredits,
     durationDays: billing === "yearly" ? 365 : 30,
+    extraPackKey: extraPack?.key || "",
+    upgradeFromPlanKey: upgradeFromPlanKey || "",
   };
 }
 

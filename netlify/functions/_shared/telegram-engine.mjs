@@ -1,7 +1,8 @@
 import { adminDb, FieldValue } from "./firebase-admin.mjs";
 import { executePaymentDecision } from "./payment-processor.mjs";
-import { spendCreditsAtomic } from "./server-ai.mjs";
-import { consumeLinkCode, unlinkTelegram } from "./telegram-link.mjs";
+import { spendCreditsAtomic, resolveServerAiConfig } from "./server-ai.mjs";
+import { consumeLinkCode, unlinkTelegram, approveLoginSession } from "./telegram-link.mjs";
+import { generateText } from "../../src/lib/ai.js";
 import {
   startQuizSession,
   rememberQuestionPoll,
@@ -927,7 +928,39 @@ Rules:
 Source Content:
 ${text.slice(0, 15000)}`;
 
-  // 1. Try Gemini 2.5 Flash Lite first
+  // 1. Try DeepSeek first via server config
+  try {
+    const aiConf = await resolveServerAiConfig();
+    const deepseekReply = await generateText(prompt, aiConf);
+    if (deepseekReply) {
+      const clean = deepseekReply.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+      const s = clean.indexOf("{");
+      const e = clean.lastIndexOf("}");
+      if (s >= 0 && e > s) {
+        const parsed = JSON.parse(clean.slice(s, e + 1));
+        const qList = Array.isArray(parsed) ? (parsed[0]?.questions || parsed) : parsed.questions;
+        if (Array.isArray(qList) && qList.length > 0) {
+          return {
+            title: parsed.title || titleHint || "Medical High-Yield Quiz",
+            questions: qList.map((q) => {
+              const verifiedIdx = resolveVerifiedTelegramCorrectIndex(q);
+              return {
+                q: q.q || q.question,
+                options: q.options || [],
+                correct: verifiedIdx,
+                correct_index: verifiedIdx,
+                exp: q.exp || q.explanation || "Correct answer.",
+              };
+            }),
+          };
+        }
+      }
+    }
+  } catch (deepseekErr) {
+    console.warn("[TelegramEngine] DeepSeek text quiz fallback:", deepseekErr.message);
+  }
+
+  // 2. Try Gemini fallback
   const geminiKey = getGeminiKey();
   if (geminiKey) {
     try {
@@ -1099,11 +1132,6 @@ Rules:
  * Black Fighters AI Real-time Medical & Academic Companion
  */
 export async function askBlackFightersAi(query) {
-  const geminiKey = getGeminiKey();
-  if (!geminiKey) {
-    return "عذراً يا بطل! خدمة الذكاء الاصطناعي قيد التحديث المؤقت.";
-  }
-
   const prompt = `You are Black Fighters AI, the supreme academic and medical AI companion for the Black Fighters platform.
 You speak in a natural, charismatic, intelligent, and motivating Egyptian tone — like a brilliant academic mentor and study partner.
 User message / query: "${query}".
@@ -1118,29 +1146,50 @@ Instructions:
    - Format cleanly using Telegram HTML ONLY (<b>, <i>, <code>). Never use markdown asterisks (* or **). Never use markdown headers (#).
 5. Max 300 words. Keep it high-yield, authentic, and sharp.`;
 
+  // 1. Primary: Try DeepSeek
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (answer) {
-        return answer
-          .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-          .replace(/\*(.*?)\*/g, "<i>$1</i>")
-          .replace(/```(?:html)?([\s\S]*?)```/gi, "<code>$1</code>")
-          .replace(/#{1,6}\s*(.*)/g, "<b>$1</b>")
-          .trim();
-      }
+    const aiConf = await resolveServerAiConfig();
+    const deepseekReply = await generateText(prompt, aiConf);
+    if (deepseekReply) {
+      return deepseekReply
+        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+        .replace(/\*(.*?)\*/g, "<i>$1</i>")
+        .replace(/```(?:html)?([\s\S]*?)```/gi, "<code>$1</code>")
+        .replace(/#{1,6}\s*(.*)/g, "<b>$1</b>")
+        .trim();
     }
-  } catch (err) {
-    console.warn("[TelegramEngine] Black Fighters AI error:", err.message);
+  } catch (deepseekErr) {
+    console.warn("[TelegramEngine] DeepSeek ask error, trying fallback:", deepseekErr.message);
   }
+
+  // 2. Fallback: Try Gemini
+  const geminiKey = getGeminiKey();
+  if (geminiKey) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (answer) {
+          return answer
+            .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+            .replace(/\*(.*?)\*/g, "<i>$1</i>")
+            .replace(/```(?:html)?([\s\S]*?)```/gi, "<code>$1</code>")
+            .replace(/#{1,6}\s*(.*)/g, "<b>$1</b>")
+            .trim();
+        }
+      }
+    } catch (err) {
+      console.warn("[TelegramEngine] Gemini AI fallback error:", err.message);
+    }
+  }
+
   return "⚡ استلمت استفسارك يا بطل! يمكنك مناقشة هذا السؤال بتفصيل أكبر وحل اختباراته مباشرة عبر مساعد Black Fighters في المنصة.";
 }
 
@@ -1151,9 +1200,6 @@ export const askTojiMedicalAi = askBlackFightersAi;
  * Executive Medical Summary Generator
  */
 export async function generateMedicalSummary(topicOrText, mode = "concise") {
-  const geminiKey = getGeminiKey();
-  if (!geminiKey) return "تعذر توليد التلخيص حالياً.";
-
   let modeInstructions = "";
   if (mode === "detailed") {
     modeInstructions = `Provide a comprehensive, in-depth study breakdown:
@@ -1189,28 +1235,48 @@ ${modeInstructions}
 
 Format using Telegram HTML ONLY (<b>, <i>, <code>). Never use markdown asterisks (* or **). Never use markdown hashes (#).`;
 
+  // 1. Primary: Try DeepSeek
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const summary = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (summary) {
-        return summary
-          .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-          .replace(/\*(.*?)\*/g, "<i>$1</i>")
-          .replace(/#{1,6}\s*(.*)/g, "<b>$1</b>")
-          .trim();
-      }
+    const aiConf = await resolveServerAiConfig();
+    const deepseekReply = await generateText(prompt, aiConf);
+    if (deepseekReply) {
+      return deepseekReply
+        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+        .replace(/\*(.*?)\*/g, "<i>$1</i>")
+        .replace(/#{1,6}\s*(.*)/g, "<b>$1</b>")
+        .trim();
     }
-  } catch (err) {
-    console.warn("[TelegramEngine] Summary error:", err.message);
+  } catch (deepseekErr) {
+    console.warn("[TelegramEngine] DeepSeek summary fallback:", deepseekErr.message);
   }
+
+  // 2. Fallback: Try Gemini
+  const geminiKey = getGeminiKey();
+  if (geminiKey) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const summary = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (summary) {
+          return summary
+            .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+            .replace(/\*(.*?)\*/g, "<i>$1</i>")
+            .replace(/#{1,6}\s*(.*)/g, "<b>$1</b>")
+            .trim();
+        }
+      }
+    } catch (err) {
+      console.warn("[TelegramEngine] Gemini Summary fallback error:", err.message);
+    }
+  }
+
   return "تعذر إتمام التلخيص بالذكاء الاصطناعي حالياً.";
 }
 
@@ -2443,7 +2509,7 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
       await answerCallback(cb.id);
       return sendStyledMessage(
         chatId,
-        `💎 <b>باقات واشتراكات Black Fighters الرسمية:</b>\n━━━━━━━━━━━━━━━━━━━━\n• <b>Starter:</b> 29 EGP (250K توكن + وصول البوت الذكي)\n• <b>Pro ⭐:</b> 59 EGP (Claude Sonnet 5 + كويزات وتلخيص غير محدود)\n• <b>Supreme Alpha 👑:</b> 99 EGP (كافة الـ 31 موديل + أولوية قصوى ودعم VIP)\n• <b>🚨 راوند الطوارئ (Emergency Round):</b> 99 EGP (ملازم HTML + كويزات شرق بورسعيد الأهلية EPNU)`,
+        `💎 <b>باقات واشتراكات Black Fighters الرسمية:</b>\n━━━━━━━━━━━━━━━━━━━━\n• <b>Starter:</b> 80 EGP (100 كريدت + وصول البوت الذكي وملازم PDF)\n• <b>Pro ⭐:</b> 150 EGP (250 كريدت + DeepSeek وجميع الموديلات + تصدير HTML كامل)\n• <b>Supreme Alpha 👑:</b> 250 EGP (500 كريدت + أولوية قصوى ودعم VIP مباشر)\n• <b>🚨 راوند الطوارئ (Emergency Round):</b> 99 EGP (ملازم HTML تفاعلية + بنك كويزات شرق بورسعيد الأهلية EPNU)`,
         {
           inline_keyboard: [
             [{ text: "🚀 ترقية حسابي في التطبيق", web_app: { url: `${getAppBaseUrl()}/subscriptions` } }],
@@ -2463,6 +2529,40 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
     const msg = update.message;
     const chatId = msg.chat?.id;
     const text = (msg.text || "").trim();
+
+    // ── Direct Login via deep link (`/start login_<code>`) or command (`/login <code>`) ──
+    if (text.startsWith("/start login_") || text.startsWith("/login")) {
+      const code = text.replace("/start login_", "").replace(/^\/login\s*/i, "").trim();
+      if (!code) {
+        return sendStyledMessage(
+          chatId,
+          `💡 <b>لتسجيل الدخول الفوري في المنصة:</b>\n━━━━━━━━━━━━━━━━━━━━\nاضغط على «تسجيل الدخول بالتيليجرام» في الموقع، أو اكتب الكود هنا:\n<code>/login الكود</code>`,
+          { inline_keyboard: [[{ text: "🌐 فتح صفحة الدخول", url: `${getAppBaseUrl()}/login` }]] }
+        );
+      }
+      const loginRes = await approveLoginSession(code, chatId, msg.from || {});
+      if (loginRes.ok) {
+        return sendStyledMessage(
+          chatId,
+          `✅ <b>أهلاً بك يا ${loginRes.userName || "محارب"}!</b> 🚀\n━━━━━━━━━━━━━━━━━━━━\nتم تسجيل دخولك وربط حساب التيليجرام بمنصة Black Fighters بنجاح.\n\nارجع الآن لصفحة المتصفح — تم فتح حسابك تلقائياً وبدء الجلسة.`,
+          {
+            inline_keyboard: [
+              [{ text: "🌐 فتح لوحة التحكم", url: `${getAppBaseUrl()}/dashboard` }],
+              [{ text: "🔙 القائمة الرئيسية للبوت", callback_data: "cmd_menu" }],
+            ],
+          }
+        );
+      }
+      return sendStyledMessage(
+        chatId,
+        `⚠️ <b>كود تسجيل الدخول غير صالح أو انتهت صلاحيته!</b>\nارجع للمتصفح واضغط «تسجيل الدخول بالتيليجرام» للحصول على كود جديد.`,
+        {
+          inline_keyboard: [
+            [{ text: "🌐 فتح صفحة الدخول", url: `${getAppBaseUrl()}/login` }],
+          ],
+        }
+      );
+    }
 
     // ── Account Linking via deep link (`/start link_<code>`) ──
     // The payload is a short-lived single-use CODE, never a uid and never an

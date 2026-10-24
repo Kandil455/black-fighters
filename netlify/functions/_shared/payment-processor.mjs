@@ -45,6 +45,8 @@ export async function executePaymentDecision({
       productType: payment.product_type || "subscription",
       productKey: payment.product_key || payment.plan_key,
       billing: payment.billing_cycle || (Number(payment.duration_days) >= 365 ? "yearly" : "monthly"),
+      extraPackKey: payment.extra_pack_key || "",
+      upgradeFromPlanKey: payment.upgrade_from_plan_key || "",
     });
 
     if (!product || Number(payment.amount) !== Number(product.amount)) {

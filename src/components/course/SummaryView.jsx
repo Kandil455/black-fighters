@@ -41,6 +41,8 @@ import { detectTextDir, renderStudyGuideHtml } from "@/lib/summaryStudyGuide";
 import AtlasSummaryReader from "@/components/atlas/AtlasSummaryReader";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { recordMistake } from "@/lib/mistakeVault";
+import { AI_SUMMARY_EDIT_COST } from "@/lib/creditCosts";
+import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   Eye,
@@ -701,6 +703,7 @@ export default function SummaryView({
   generatingType,
 }) {
   const { isEn } = useLocale();
+  const { refreshProfile } = useAuth();
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -930,7 +933,28 @@ export default function SummaryView({
     const baseText = (editing ? draft : text).trim();
     if (!instruction || !baseText || aiUpdating) return;
     setAiUpdating(true);
+    const jobKey = `summary_edit_${course?.id || "doc"}_${Date.now().toString(36)}`;
+    let chargedCost = 0;
     try {
+      const chargeRes = await base44.functions.invoke("chargeAiJob", {
+        action: "charge",
+        jobKey,
+        task: "summary_edit",
+        cost: AI_SUMMARY_EDIT_COST,
+        charCount: baseText.length,
+        courseId: course?.id || "",
+      });
+      if (!chargeRes?.data?.ok) {
+        const errMsg =
+          chargeRes?.data?.error === "INSUFFICIENT_CREDITS"
+            ? `رصيد الكريدتس غير كافٍ لتعديل الملخص بالذكاء الاصطناعي (مطلوب ${AI_SUMMARY_EDIT_COST} كريدت)`
+            : chargeRes?.data?.message ||
+              chargeRes?.data?.error ||
+              "تعذر خصم الكريدتس لتعديل الملخص";
+        throw new Error(errMsg);
+      }
+      chargedCost = Number(chargeRes?.data?.charged || AI_SUMMARY_EDIT_COST);
+
       const targetNote = activeAiSection
         ? `\nركّز التعديل على القسم المعنون "${activeAiSection}" أولاً مع الحفاظ على باقي الأقسام كما هي ما لم يلزم الربط.`
         : "";
@@ -949,9 +973,33 @@ ${baseText.slice(0, 18000)}
       if (!updated) throw new Error(res?.data?.error || "لم يرجع المساعد نصاً معدلاً");
       setDraft(updated);
       await saveSummaryContent(updated);
+      await base44.functions
+        .invoke("chargeAiJob", {
+          action: "finalize",
+          jobKey,
+          task: "summary_edit",
+          cost: chargedCost,
+        })
+        .catch(() => {});
+      refreshProfile?.().catch?.(() => {});
       setAiInstruction("");
-      toast.success(isEn ? "Summary updated by AI ✨" : "تم تحديث الملخص بالذكاء الاصطناعي ✨");
+      toast.success(
+        isEn
+          ? `Summary updated by AI ✨ (-${chargedCost} credits)`
+          : `تم تحديث الملخص بالذكاء الاصطناعي ✨ (تم خصم ${chargedCost} كريدت)`
+      );
     } catch (err) {
+      if (chargedCost > 0) {
+        await base44.functions
+          .invoke("chargeAiJob", {
+            action: "refund",
+            jobKey,
+            task: "summary_edit",
+            cost: chargedCost,
+          })
+          .catch(() => {});
+        refreshProfile?.().catch?.(() => {});
+      }
       toast.error(err.message || (isEn ? "Failed to edit summary" : "فشل تعديل الملخص"));
     } finally {
       setAiUpdating(false);
@@ -1098,7 +1146,78 @@ ${baseText.slice(0, 18000)}
           "fixed inset-0 z-50 bg-background/98 backdrop-blur-md overflow-y-auto p-3 sm:p-6 md:p-8"
       )}
     >
-      {/* Top Smart Reader Toolbar */}
+      {/* Fullscreen Summary-Only Distraction-Free Header Bar */}
+      {isFullscreen ? (
+        <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#19f08c]/30 bg-[#05070a]/95 px-4 py-2.5 shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <BookOpen className="size-4 text-[#19f08c] shrink-0" />
+            <span className="font-display text-sm font-extrabold text-[#f5f7fa] truncate">
+              {course?.title || (isEn ? "Focused Summary Reader" : "وضع عرض الملخص المكبّر فقط")}
+            </span>
+            <span className="hidden sm:inline-block rounded-md border border-[#19f08c]/30 bg-[#19f08c]/10 px-2 py-0.5 text-[10px] font-bold text-[#19f08c]">
+              {isEn ? "Summary Only Mode" : "عرض التلخيص فقط بدون أدوات"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center rounded-xl border border-white/[0.08] bg-white/[0.04] p-0.5">
+              <button
+                type="button"
+                onClick={() => setFontSize((f) => Math.max(13, f - 1))}
+                title={isEn ? "Smaller text" : "تصغير الخط"}
+                className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] transition-colors cursor-pointer"
+              >
+                <ZoomOut className="size-3.5" />
+              </button>
+              <span className="px-2 font-mono text-[11px] font-bold text-[#f5f7fa] tabular">
+                {fontSize}px
+              </span>
+              <button
+                type="button"
+                onClick={() => setFontSize((f) => Math.min(26, f + 1))}
+                title={isEn ? "Larger text" : "تكبير الخط"}
+                className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] transition-colors cursor-pointer"
+              >
+                <ZoomIn className="size-3.5" />
+              </button>
+            </div>
+
+            {viewMode === "smart_cards" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsWideLayout((w) => !w)}
+                className={cn(
+                  "gap-1.5 rounded-xl text-xs h-8",
+                  isWideLayout && "border-[#19f08c]/50 bg-[#19f08c]/10 text-[#19f08c]"
+                )}
+              >
+                <Columns2 className="w-3.5 h-3.5" />
+                <span>
+                  {isWideLayout
+                    ? isEn
+                      ? "Show Index"
+                      : "إظهار الفهرس"
+                    : isEn
+                    ? "Hide Index"
+                    : "إخفاء الفهرس"}
+                </span>
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsFullscreen(false)}
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold border-amber-400/50 bg-amber-400/15 text-amber-300 hover:bg-amber-400/25 transition-colors cursor-pointer"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              <span>{isEn ? "Exit Fullscreen (Esc)" : "✕ إغلاق وضع التلخيص المكبّر (Esc)"}</span>
+            </Button>
+          </div>
+        </div>
+      ) : (
+      /* Top Smart Reader Toolbar */
       <div className="glass rounded-[1.25rem] p-4 space-y-3 border border-white/[0.08]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* View Mode Toggle: Smart Cards vs Active Recall Reader vs Print Template */}
@@ -1346,8 +1465,8 @@ ${baseText.slice(0, 18000)}
               )}
               <span>
                 {isEn
-                  ? "Deep Expand Summary (AI)"
-                  : "🔍 تكبير وتوسيع الشرح بالتفصيل"}
+                  ? `Deep Expand Summary (${AI_SUMMARY_EDIT_COST} credits)`
+                  : `🔍 تكبير وتوسيع الشرح بالتفصيل (${AI_SUMMARY_EDIT_COST} كريدت)`}
               </span>
             </button>
 
@@ -1796,7 +1915,7 @@ ${baseText.slice(0, 18000)}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
             <span className="inline-flex items-center gap-1 text-xs font-bold text-[#19f08c] shrink-0 me-1">
               <Sparkles className="size-3.5" />
-              {isEn ? "Smart Refine:" : "تحسين ذكي:"}
+              {isEn ? `Smart Refine (${AI_SUMMARY_EDIT_COST} cr):` : `تعديل ذكي (${AI_SUMMARY_EDIT_COST} كريدت):`}
             </span>
             {[
               isEn ? "Expand & explain deeply" : "كبّر واشرح كل نقطة بالتفصيل والأمثلة",
@@ -1829,8 +1948,8 @@ ${baseText.slice(0, 18000)}
               }}
               placeholder={
                 isEn
-                  ? "Or type custom edit instruction..."
-                  : "أو اكتب أي أمر للذكاء الاصطناعي (مثال: كبّر شرح الصدمة وأضف جدول أدوية)..."
+                  ? `Custom AI edit (${AI_SUMMARY_EDIT_COST} credits)...`
+                  : `أو اكتب أي تعديل للذكاء الاصطناعي (${AI_SUMMARY_EDIT_COST} كريدت)...`
               }
               className="h-8 flex-1 rounded-lg border border-white/[0.07] bg-[#05070a]/80 px-3 text-xs text-[#f5f7fa] placeholder:text-[#667080] focus:border-[#19f08c] focus:outline-none"
             />
@@ -1838,17 +1957,21 @@ ${baseText.slice(0, 18000)}
               size="sm"
               onClick={() => handleAiEdit()}
               disabled={!aiInstruction.trim() || aiUpdating}
-              className="h-8 px-3 rounded-lg text-xs font-bold shrink-0"
+              className="h-8 px-3 rounded-lg text-xs font-bold shrink-0 gap-1"
             >
               {aiUpdating ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Send className="w-3.5 h-3.5" />
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span className="text-[10px]">({AI_SUMMARY_EDIT_COST} كريدت)</span>
+                </>
               )}
             </Button>
           </div>
         </div>
       </div>
+      )}
 
       {/* Editor Mode */}
       {editing ? (
@@ -2071,98 +2194,104 @@ ${baseText.slice(0, 18000)}
                           p. {section.sourceRefs.slice(0, 3).join(", ")} ·
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleExpandSection(section)}
-                        disabled={expandingSectionId === section.id}
-                        className="rounded-lg border border-sky-500/35 bg-sky-500/10 px-2.5 py-1 text-[11px] font-bold text-sky-400 hover:bg-sky-500/20 transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
-                        title={
-                          isEn
-                            ? "Expand & explain this unit in detail with AI"
-                            : "كبّر واشرح هذه الجزئية بالتفصيل والأمثلة"
-                        }
-                      >
-                        {expandingSectionId === section.id ? (
-                          <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                          <Sparkles className="size-3" />
-                        )}
-                        {isEn ? "Expand Unit" : "➕ كبّر واشرح الجزئية"}
-                      </button>
+                      {!isFullscreen && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleExpandSection(section)}
+                            disabled={expandingSectionId === section.id}
+                            className="rounded-lg border border-sky-500/35 bg-sky-500/10 px-2.5 py-1 text-[11px] font-bold text-sky-400 hover:bg-sky-500/20 transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                            title={
+                              isEn
+                                ? `Expand & explain this unit in detail with AI (${AI_SUMMARY_EDIT_COST} credits)`
+                                : `كبّر واشرح هذه الجزئية بالتفصيل والأمثلة (${AI_SUMMARY_EDIT_COST} كريدت)`
+                            }
+                          >
+                            {expandingSectionId === section.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Sparkles className="size-3" />
+                            )}
+                            {isEn
+                              ? `Expand Unit (${AI_SUMMARY_EDIT_COST} cr)`
+                              : `➕ كبّر واشرح الجزئية (${AI_SUMMARY_EDIT_COST} كريدت)`}
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSectionDrillId(sectionDrillId === section.id ? null : section.id)
-                        }
-                        className={cn(
-                          "rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1",
-                          sectionDrillId === section.id
-                            ? "border-[#19f08c] bg-[#19f08c] text-[#03150c]"
-                            : "border-[#19f08c]/35 bg-[#19f08c]/10 text-[#19f08c] hover:bg-[#19f08c]/20",
-                        )}
-                      >
-                        <Target className="size-3" />
-                        {sectionDrillId === section.id
-                          ? isEn
-                            ? "Hide Quick Quiz"
-                            : "إخفاء أسئلة الجزئية"
-                          : isEn
-                          ? "Quiz This Unit"
-                          : "اختبرني في هذه الجزئية"}
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSectionDrillId(sectionDrillId === section.id ? null : section.id)
+                            }
+                            className={cn(
+                              "rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1",
+                              sectionDrillId === section.id
+                                ? "border-[#19f08c] bg-[#19f08c] text-[#03150c]"
+                                : "border-[#19f08c]/35 bg-[#19f08c]/10 text-[#19f08c] hover:bg-[#19f08c]/20",
+                            )}
+                          >
+                            <Target className="size-3" />
+                            {sectionDrillId === section.id
+                              ? isEn
+                                ? "Hide Quick Quiz"
+                                : "إخفاء أسئلة الجزئية"
+                              : isEn
+                              ? "Quiz This Unit"
+                              : "اختبرني في هذه الجزئية"}
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => copySectionText(section)}
-                        className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1"
-                        title={isEn ? "Copy unit text" : "نسخ نص هذه الوحدة"}
-                      >
-                        <Copy className="size-3" />
-                        {isEn ? "Copy" : "نسخ"}
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => copySectionText(section)}
+                            className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1"
+                            title={isEn ? "Copy unit text" : "نسخ نص هذه الوحدة"}
+                          >
+                            <Copy className="size-3" />
+                            {isEn ? "Copy" : "نسخ"}
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleSendSectionToTelegram(section)}
-                        disabled={sendingSectionId === section.id}
-                        className="rounded-lg border border-white/[0.1] bg-[#05070a]/70 px-2.5 py-1 text-[11px] font-bold text-[#f5f7fa] hover:border-[#19f08c]/40 hover:text-[#19f08c] transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
-                      >
-                        {sendingSectionId === section.id ? (
-                          <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                          <Send className="size-3" />
-                        )}
-                        {isEn ? "Send to Bot" : "إرسال للبوت"}
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSendSectionToTelegram(section)}
+                            disabled={sendingSectionId === section.id}
+                            className="rounded-lg border border-white/[0.1] bg-[#05070a]/70 px-2.5 py-1 text-[11px] font-bold text-[#f5f7fa] hover:border-[#19f08c]/40 hover:text-[#19f08c] transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                          >
+                            {sendingSectionId === section.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Send className="size-3" />
+                            )}
+                            {isEn ? "Send to Bot" : "إرسال للبوت"}
+                          </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveAiSection(
-                            activeAiSection === section.title ? "" : section.title
-                          );
-                          toast.info(
-                            isEn
-                              ? `Selected "${section.title}" for AI refinement`
-                              : `تم تحديد قسم "${section.title}" للتعديل الذكي`
-                          );
-                        }}
-                        className={cn(
-                          "rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer",
-                          activeAiSection === section.title
-                            ? "border-primary bg-primary/15 text-primary"
-                            : "border-border bg-card text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {activeAiSection === section.title
-                          ? isEn
-                            ? "✓ Selected for AI"
-                            : "✓ محدد للتعديل الذكي"
-                          : isEn
-                          ? "Refine unit"
-                          : "تعديل الوحدة"}
-                      </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveAiSection(
+                                activeAiSection === section.title ? "" : section.title
+                              );
+                              toast.info(
+                                isEn
+                                  ? `Selected "${section.title}" for AI refinement`
+                                  : `تم تحديد قسم "${section.title}" للتعديل الذكي`
+                              );
+                            }}
+                            className={cn(
+                              "rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer",
+                              activeAiSection === section.title
+                                ? "border-primary bg-primary/15 text-primary"
+                                : "border-border bg-card text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {activeAiSection === section.title
+                              ? isEn
+                                ? "✓ Selected for AI"
+                                : "✓ محدد للتعديل الذكي"
+                              : isEn
+                              ? "Refine unit"
+                              : "تعديل الوحدة"}
+                          </button>
+                        </>
+                      )}
 
                       <button
                         type="button"
@@ -2193,7 +2322,7 @@ ${baseText.slice(0, 18000)}
                   </div>
 
                   {/* Instant 1-Click Section Micro-Quiz Drawer */}
-                  {sectionDrillId === section.id && (
+                  {!isFullscreen && sectionDrillId === section.id && (
                     <div className="border-b border-[#19f08c]/25 bg-[#05070a]/90 p-5 space-y-3">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-[#19f08c] flex items-center gap-1.5">

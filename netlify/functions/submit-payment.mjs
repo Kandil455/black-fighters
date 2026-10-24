@@ -25,6 +25,8 @@ export const handler = async (event) => {
       user_email: user.email || "",
       product_type: product.productType,
       product_key: body.productKey,
+      extra_pack_key: product.extraPackKey || body.extraPackKey || "",
+      upgrade_from_plan_key: product.upgradeFromPlanKey || body.upgradeFromPlanKey || "",
       plan_key: product.productType === "subscription" ? body.productKey : "",
       plan_name: product.name,
       billing_cycle: body.billing || "monthly",

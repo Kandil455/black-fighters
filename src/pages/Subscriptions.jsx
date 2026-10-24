@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { PLANS, planPrice, planCredits } from "@/lib/plans";
-import { CREDIT_PACKS } from "@/lib/economyCatalog";
+import { CREDIT_PACKS, resolveCreditPack } from "@/lib/economyCatalog";
 import { PAYMENT_INFO } from "@/lib/paymentInfo";
 import { optimizeImageToDataUrl } from "@/lib/storage";
 import PlanCard from "@/components/subscriptions/PlanCard";
@@ -120,19 +120,19 @@ export default function Subscriptions() {
   const [selectedPlan, setSelectedPlan] = useState(() => {
     const rawParam = (searchParams.get("plan") || "").toLowerCase();
     const normalizedKey = rawParam === "elite" ? "supreme" : rawParam;
-    if (normalizedKey) {
-      const matched = PLANS.find((p) => p.key === normalizedKey);
+    if (normalizedKey && normalizedKey !== "free") {
+      const matched = PLANS.find((p) => p.key === normalizedKey && p.key !== "free" && p.tier !== "free");
       if (matched) return matched;
     }
-    return PLANS.find((plan) => plan.popular) || PLANS[1] || PLANS[0];
+    return PLANS.find((plan) => plan.popular && plan.key !== "free") || PLANS.find((p) => p.key !== "free");
   });
   const [selectedPack, setSelectedPack] = useState(null);
 
   useEffect(() => {
     const rawParam = (searchParams.get("plan") || "").toLowerCase();
     const normalizedKey = rawParam === "elite" ? "supreme" : rawParam;
-    if (normalizedKey) {
-      const matched = PLANS.find((p) => p.key === normalizedKey);
+    if (normalizedKey && normalizedKey !== "free") {
+      const matched = PLANS.find((p) => p.key === normalizedKey && p.key !== "free" && p.tier !== "free");
       if (matched) {
         setSelectedPlan(matched);
         setTimeout(() => {
@@ -145,17 +145,10 @@ export default function Subscriptions() {
     const creditsParam = Number(searchParams.get("credits") || 0);
     if (creditsParam >= 50) {
       const preset = CREDIT_PACKS.find((c) => c.credits === creditsParam);
-      if (preset) {
-        setSelectedPack(preset);
-      } else {
-        const unitPrice = creditsParam >= 2500 ? 0.35 : creditsParam >= 1000 ? 0.42 : creditsParam >= 500 ? 0.47 : 0.5;
-        setSelectedPack({
-          key: `custom_${creditsParam}`,
-          name: `شحن ${creditsParam.toLocaleString()} كريدت مخصص`,
-          nameEn: `Custom ${creditsParam.toLocaleString()} Credits Pack`,
-          credits: creditsParam,
-          price: Math.round(creditsParam * unitPrice),
-        });
+      const resolved = preset || resolveCreditPack(`custom_${creditsParam}`);
+      if (resolved) {
+        setSelectedPack(resolved);
+        if (!normalizedKey) setSelectedPlan(null);
       }
     }
   }, [searchParams]);
@@ -180,7 +173,17 @@ export default function Subscriptions() {
   const paymentInfo = PAYMENT_INFO[method];
 
   const selectPlan = (plan) => {
-    setSelectedPlan(plan);
+    if (!plan || plan.key === "free" || plan.tier === "free") {
+      toast.info(
+        isEn
+          ? "The Free Tier is automatically active on sign-up and cannot be purchased."
+          : "الباقة المجانية مفعّلة تلقائياً عند التسجيل ولا يتم الدفع لها."
+      );
+      return;
+    }
+    setSelectedPlan((prev) =>
+      prev?.key === plan.key && selectedPack ? null : plan
+    );
   };
 
   const toggleCreditPack = (pack) => {
@@ -188,11 +191,13 @@ export default function Subscriptions() {
   };
 
   const handleSelectCustomPack = (customPack) => {
-    setSelectedPack(customPack);
+    const verifiedPack = resolveCreditPack(customPack?.key) || customPack;
+    setSelectedPack(verifiedPack);
+    setSelectedPlan(null);
     toast.success(
       isEn
-        ? `Added ${customPack.credits.toLocaleString()} custom credits to invoice`
-        : `تمت إضافة ${customPack.credits.toLocaleString()} نقطة مخصصة إلى الفاتورة`
+        ? `Selected ${verifiedPack.credits.toLocaleString()} custom credits (${verifiedPack.price} EGP)`
+        : `تم تجهيز فاتورة شحن ${verifiedPack.credits.toLocaleString()} نقطة (${verifiedPack.price} ج.م)`
     );
     document
       .getElementById("smart-terminal")
@@ -324,11 +329,27 @@ export default function Subscriptions() {
 
     setSubmitting(true);
     try {
-      const isSub = selectedPlan && selectedPlan.key !== "free";
+      const isSub = Boolean(
+        selectedPlan &&
+          selectedPlan.key !== "free" &&
+          selectedPlan.tier !== "free"
+      );
+      if (!isSub && !selectedPack) {
+        throw new Error(
+          isEn
+            ? "Please select a paid plan or credit pack first"
+            : "يرجى اختيار باقة مدفوعة أو باقة شحن كريدتس أولاً"
+        );
+      }
       const productType = isSub ? "subscription" : "credits";
       const productKey = isSub
         ? selectedPlan.key
         : selectedPack?.key || "credits_50";
+      const extraPackKey = isSub && selectedPack ? selectedPack.key : "";
+      const upgradeFromPlanKey =
+        isSub && isUpgradingMainPlan && currentMainPlan
+          ? currentMainPlan.key
+          : "";
 
       const compositeNote = [
         note.trim(),
@@ -343,6 +364,8 @@ export default function Subscriptions() {
       await base44.functions.invoke("submitPayment", {
         productType,
         productKey,
+        extraPackKey,
+        upgradeFromPlanKey,
         billing,
         method,
         senderNumber: cleanedNumber,
@@ -643,40 +666,50 @@ export default function Subscriptions() {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-sm text-[#f5f7fa]">
-                        {selectedPlan?.nameAr && !isEn
-                          ? `${selectedPlan.name} (${selectedPlan.nameAr})`
-                          : selectedPlan?.name}
-                      </span>
-                      <span className="font-mono tabular font-semibold text-sm text-[#f5f7fa]">
-                        {planCost === 0
-                          ? isEn
-                            ? "Free"
-                            : "مجاناً"
-                          : `${planCost} ${isEn ? "EGP" : "ج.م"}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-[#9aa4b2] pt-1.5 border-t border-white/[0.07]">
-                      <span>
-                        {isEn ? "Included Credits" : "رصيد الكريدتس المرفق"}
-                      </span>
-                      <span className="font-mono tabular text-[#19f08c] font-semibold">
-                        +{includedCredits.toLocaleString()}
-                      </span>
-                    </div>
-                    {isUpgradingMainPlan && (
-                      <div className="flex items-center justify-between text-xs text-[#19f08c] pt-1.5 border-t border-white/[0.07]">
-                        <span>
-                          {isEn ? "Upgrade Difference Discount" : "خصم فرق الترقية"}
+                  {selectedPlan && (
+                    <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-sm text-[#f5f7fa]">
+                          {selectedPlan?.nameAr && !isEn
+                            ? `${selectedPlan.name} (${selectedPlan.nameAr})`
+                            : selectedPlan?.name}
                         </span>
-                        <span className="font-mono tabular">
-                          -{upgradeDiscount} {isEn ? "EGP" : "ج.م"}
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono tabular font-semibold text-sm text-[#f5f7fa]">
+                            {planCost} {isEn ? "EGP" : "ج.م"}
+                          </span>
+                          {selectedPack && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPlan(null)}
+                              title={isEn ? "Remove plan (buy credits only)" : "إزالة الباقة وشحن كريدتس فقط"}
+                              className="p-1 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] transition-colors cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-[#9aa4b2] pt-1.5 border-t border-white/[0.07]">
+                        <span>
+                          {isEn ? "Included Credits" : "رصيد الكريدتس المرفق"}
+                        </span>
+                        <span className="font-mono tabular text-[#19f08c] font-semibold">
+                          +{includedCredits.toLocaleString()}
                         </span>
                       </div>
-                    )}
-                  </div>
+                      {isUpgradingMainPlan && (
+                        <div className="flex items-center justify-between text-xs text-[#19f08c] pt-1.5 border-t border-white/[0.07]">
+                          <span>
+                            {isEn ? "Upgrade Difference Discount" : "خصم فرق الترقية"}
+                          </span>
+                          <span className="font-mono tabular">
+                            -{upgradeDiscount} {isEn ? "EGP" : "ج.م"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {selectedPack && (
                     <div className="p-3.5 rounded-2xl bg-[#19f08c]/[0.07] border border-[#19f08c]/35 flex items-center justify-between gap-2">
@@ -695,8 +728,16 @@ export default function Subscriptions() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setSelectedPack(null)}
-                          className="p-1 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] cursor-pointer"
+                          onClick={() => {
+                            setSelectedPack(null);
+                            if (!selectedPlan) {
+                              setSelectedPlan(
+                                PLANS.find((p) => p.popular && p.key !== "free") ||
+                                  PLANS.find((p) => p.key !== "free")
+                              );
+                            }
+                          }}
+                          className="p-1 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] transition-colors cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>

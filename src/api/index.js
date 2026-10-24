@@ -552,13 +552,15 @@ export const functions = {
             }
           }
 
-          const quoted = payload.task === "quiz"
-            ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 5))
-            : payload.task === "quiz_audit"
-              ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 10))
-              : payload.task === "flashcards"
-                ? Math.max(1, Math.min(10, Math.ceil((Number(payload.charCount) || 1) / 40_000)))
-                : calculateSummaryCost(payload.charCount || 0);
+          const quoted = payload.task === "summary_edit"
+            ? 3
+            : payload.task === "quiz"
+              ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 5))
+              : payload.task === "quiz_audit"
+                ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 10))
+                : payload.task === "flashcards"
+                  ? Math.max(1, Math.min(10, Math.ceil((Number(payload.charCount) || 1) / 40_000)))
+                  : calculateSummaryCost(payload.charCount || 0);
           const cost = Number(payload.cost ?? payload.amount) || quoted;
 
           if (payload.action === "refund") {
@@ -609,7 +611,7 @@ export const functions = {
           const u = await Users.me().catch(() => null);
           const userPlan = (u?.subscription_plan || "free").toLowerCase();
           const isAdmin = u?.role === "admin" || u?.email === "ibrahimkandil000@gmail.com";
-          const targetModel = aiConfig?.model || "gemini-3.6-flash";
+          const targetModel = aiConfig?.model || "DeepSeek-V4.1-Flash-1017";
           if (!isAdmin && !canUserAccessModel(targetModel, userPlan)) {
             const tierMeta = TIER_INFO[getModelTier(targetModel)] || { name: "أعلى" };
             throw new Error(`نموذج [${targetModel}] يتطلب باقة [${tierMeta.nameAr || tierMeta.name}]. يرجى ترقية باقتك للوصول لهذا النموذج!`);
@@ -628,7 +630,7 @@ export const functions = {
           const u = await Users.me().catch(() => null);
           const userPlan = (u?.subscription_plan || "free").toLowerCase();
           const isAdmin = u?.role === "admin" || u?.email === "ibrahimkandil000@gmail.com";
-          const targetModel = aiConfig?.model || "gemini-3.6-flash";
+          const targetModel = aiConfig?.model || "DeepSeek-V4.1-Flash-1017";
           if (!isAdmin && !canUserAccessModel(targetModel, userPlan)) {
             const tierMeta = TIER_INFO[getModelTier(targetModel)] || { name: "أعلى" };
             throw new Error(`نموذج [${targetModel}] يتطلب باقة [${tierMeta.nameAr || tierMeta.name}]. يرجى ترقية باقتك للوصول لهذا النموذج!`);

@@ -1,8 +1,10 @@
 import { calculateOcrCost, calculateSummaryCost } from "../../src/lib/economyCatalog.js";
+import { AI_SUMMARY_EDIT_COST } from "../../src/lib/creditCosts.js";
 import { adminDb, FieldValue, requireUser } from "./_shared/firebase-admin.mjs";
 import { handleError, json, parseBody } from "./_shared/http.mjs";
 
 function quotedCost(body) {
+  if (body.task === "summary_edit") return Math.max(1, Number(body.cost ?? body.amount) || AI_SUMMARY_EDIT_COST);
   if (body.task === "image_ocr") return Math.max(1, Math.ceil((Number(body.imageCount) || 1) / 5));
   if (body.task === "ocr") return calculateOcrCost(body.pageCount);
   if (body.task === "quiz") return Math.max(1, Math.ceil((Number(body.questionCount) || 10) / 5));

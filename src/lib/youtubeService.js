@@ -44,6 +44,15 @@ export const GEMINI_KEYS_POOL = [
 // OpenAI-Compatible Providers Pool (BYO-key and Server fallback)
 export const OPENAI_PROVIDERS_POOL = [
   {
+    name: "DEEPSEEK",
+    baseUrl: "https://api.deepseek.com/v1",
+    apiKey:
+      getEnvVal("DEEPSEEK_API_KEY") ||
+      getEnvVal("CODECRAFT_KEY") ||
+      getEnvVal("APMIX_KEY"),
+    models: ["DeepSeek-V4.1-Flash-1017", "deepseek-chat"],
+  },
+  {
     name: "GROQ",
     baseUrl: "https://api.groq.com/openai/v1",
     apiKey: getEnvVal("GROQ_API_KEY"),
@@ -378,16 +387,37 @@ export async function callResilientAI({
 }) {
   let lastError = null;
 
-  // 1. Build Gemini models priority list
+  // 1. Primary: Try DeepSeek / OpenAI-Compatible Provider First
+  for (const provider of OPENAI_PROVIDERS_POOL) {
+    const key = customKey || provider.apiKey;
+    if (!key && provider.apiKey !== "none") continue;
+    for (const model of provider.models) {
+      try {
+        const text = await callOpenAICompatible({
+          baseUrl: provider.baseUrl,
+          apiKey: key,
+          model,
+          systemInstruction,
+          userPrompt,
+          maxTokens: Math.min(maxOutputTokens, 8192),
+        });
+        if (text && text.trim().length > 0) {
+          return text;
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn(`[AI Engine Primary] Provider ${provider.name} model "${model}" failed:`, err.message);
+      }
+    }
+  }
+
+  // 2. Secondary Fallback: Try Gemini Rotation Pool (Model x Key)
   const modelsToTry = [
     preferredModel,
     ...GEMINI_MODELS_POOL.filter((m) => m !== preferredModel),
   ];
-
-  // 2. Build Gemini keys list
   const keysToTry = customKey ? [customKey, ...GEMINI_KEYS_POOL] : GEMINI_KEYS_POOL;
 
-  // 3. Try Gemini Rotation Pool (Model x Key)
   for (const model of modelsToTry) {
     for (const key of keysToTry) {
       try {
@@ -404,30 +434,6 @@ export async function callResilientAI({
       } catch (err) {
         lastError = err;
         console.warn(`[AI Engine Rotation] Gemini model "${model}" failed, rotating to next...`, err.message);
-      }
-    }
-  }
-
-  // 4. Automatic Fallback to OpenAI-Compatible Providers Pool (APMIX.AI, AIMLAPI, etc.)
-  for (const provider of OPENAI_PROVIDERS_POOL) {
-    if (!provider.apiKey && provider.apiKey !== "none") continue;
-    for (const model of provider.models) {
-      try {
-        console.info(`[AI Engine Fallback] Trying ${provider.name} model "${model}"...`);
-        const text = await callOpenAICompatible({
-          baseUrl: provider.baseUrl,
-          apiKey: provider.apiKey,
-          model,
-          systemInstruction,
-          userPrompt,
-          maxTokens: Math.min(maxOutputTokens, 8192),
-        });
-        if (text && text.trim().length > 0) {
-          return text;
-        }
-      } catch (err) {
-        lastError = err;
-        console.warn(`[AI Engine Fallback] Provider ${provider.name} model "${model}" failed:`, err.message);
       }
     }
   }

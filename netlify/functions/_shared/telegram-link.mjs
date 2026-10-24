@@ -17,7 +17,7 @@
  */
 
 import crypto from "node:crypto";
-import { adminDb, FieldValue } from "./firebase-admin.mjs";
+import { adminAuth, adminDb, FieldValue } from "./firebase-admin.mjs";
 
 export const LINK_CODE_TTL_MS = 10 * 60 * 1000;
 
@@ -211,4 +211,179 @@ export async function unlinkTelegram(uid) {
     console.error("[telegram-link] unlink failed:", err.message);
     return { ok: false, error: "UNLINK_FAILED" };
   }
+}
+
+/**
+ * Checks if a user or code is currently linked.
+ */
+export async function checkUserLinkStatus(uid, rawCode = "") {
+  if (!uid) return { ok: false, linked: false };
+  try {
+    const snap = await adminDb.collection("users").doc(uid).get();
+    if (!snap.exists) return { ok: true, linked: false };
+    const data = snap.data() || {};
+    const linked = Boolean(data.telegram_chat_id);
+    return {
+      ok: true,
+      linked,
+      telegramChatId: data.telegram_chat_id || "",
+      telegramUsername: data.telegram_username || "",
+    };
+  } catch (err) {
+    console.warn("[telegram-link] checkUserLinkStatus error:", err.message);
+    return { ok: false, linked: false, error: err.message };
+  }
+}
+
+/**
+ * Creates a short-lived Telegram Login Session for web QR/bot handshake sign-in.
+ */
+export async function createLoginSession({ ttlMs = LINK_CODE_TTL_MS } = {}) {
+  const code = generateCode();
+  const now = Date.now();
+  const expiresAt = now + ttlMs;
+
+  await adminDb.collection("telegram_login_sessions").doc(code).set({
+    code,
+    status: "pending",
+    created_at: new Date(now).toISOString(),
+    expires_at: expiresAt,
+    uid: null,
+    chat_id: null,
+  });
+
+  return { code, expiresAt, ttlMs };
+}
+
+/**
+ * Approves a login session when user taps `/start login_<code>` or `/login <code>` in Telegram bot.
+ */
+export async function approveLoginSession(rawCode, chatId, telegramUser = {}) {
+  const code = normalizeLinkCode(rawCode);
+  if (!code) return { ok: false, error: "INVALID_CODE" };
+  if (!chatId) return { ok: false, error: "MISSING_CHAT_ID" };
+
+  const chatIdStr = String(chatId);
+  const sessionRef = adminDb.collection("telegram_login_sessions").doc(code);
+  const snap = await sessionRef.get();
+  if (!snap.exists) return { ok: false, error: "INVALID_SESSION" };
+
+  const session = snap.data() || {};
+  const now = Date.now();
+  if (session.status === "approved" || session.status === "consumed") {
+    return { ok: true, alreadyApproved: true, uid: session.uid };
+  }
+  if (!session.expires_at || Number(session.expires_at) < now) {
+    return { ok: false, error: "SESSION_EXPIRED" };
+  }
+
+  // Find existing user by telegram_id or telegram_chat_id, or create a new user
+  const tgIdStr = telegramUser?.id ? String(telegramUser.id) : chatIdStr;
+  let uid = `tg_${tgIdStr}`;
+  let userDoc = null;
+
+  try {
+    let userSnap = await adminDb
+      .collection("users")
+      .where("telegram_id", "==", tgIdStr)
+      .limit(1)
+      .get();
+    if (userSnap.empty) {
+      userSnap = await adminDb
+        .collection("users")
+        .where("telegram_chat_id", "==", chatIdStr)
+        .limit(1)
+        .get();
+    }
+    if (!userSnap.empty) {
+      uid = userSnap.docs[0].id;
+      userDoc = userSnap.docs[0].data();
+    }
+  } catch (err) {
+    console.warn("[telegram-link] user lookup error in approveLoginSession:", err.message);
+  }
+
+  const displayName =
+    [telegramUser?.first_name, telegramUser?.last_name].filter(Boolean).join(" ") ||
+    telegramUser?.username ||
+    "Fighter";
+
+  const userRef = adminDb.collection("users").doc(uid);
+  const baseUserFields = {
+    telegram_id: tgIdStr,
+    telegram_chat_id: chatIdStr,
+    telegram_username: telegramUser?.username || "",
+    updated_date: FieldValue.serverTimestamp(),
+  };
+
+  if (!userDoc) {
+    baseUserFields.full_name = displayName;
+    baseUserFields.role = "user";
+    baseUserFields.subscription_plan = "free";
+    baseUserFields.subscription_status = "inactive";
+    baseUserFields.credits = 15;
+    baseUserFields.created_date = FieldValue.serverTimestamp();
+  }
+
+  await userRef.set(baseUserFields, { merge: true });
+
+  await sessionRef.set(
+    {
+      status: "approved",
+      uid,
+      chat_id: chatIdStr,
+      telegram_user: {
+        id: tgIdStr,
+        username: telegramUser?.username || "",
+        first_name: telegramUser?.first_name || "",
+      },
+      approved_at: new Date(now).toISOString(),
+    },
+    { merge: true }
+  );
+
+  return { ok: true, uid, chatId: chatIdStr, userName: displayName };
+}
+
+/**
+ * Polls a login session from the browser; if approved, mints a Firebase customToken.
+ */
+export async function pollLoginSession(rawCode) {
+  const code = normalizeLinkCode(rawCode);
+  if (!code) return { ok: false, error: "INVALID_CODE" };
+
+  const sessionRef = adminDb.collection("telegram_login_sessions").doc(code);
+  const snap = await sessionRef.get();
+  if (!snap.exists) return { ok: false, error: "INVALID_SESSION" };
+
+  const session = snap.data() || {};
+  const now = Date.now();
+  if (!session.expires_at || Number(session.expires_at) < now) {
+    return { ok: false, status: "expired" };
+  }
+
+  if (session.status !== "approved") {
+    return { ok: true, status: session.status || "pending" };
+  }
+
+  const uid = session.uid;
+  if (!uid) return { ok: false, error: "MISSING_UID_IN_APPROVED_SESSION" };
+
+  let customToken = null;
+  try {
+    customToken = await adminAuth.createCustomToken(uid, {
+      telegram_id: session.chat_id || "",
+      telegram_username: session.telegram_user?.username || "",
+    });
+  } catch (tokenErr) {
+    console.warn("[telegram-link] customToken generation failed:", tokenErr.message);
+  }
+
+  return {
+    ok: true,
+    status: "approved",
+    uid,
+    customToken,
+    telegramUser: session.telegram_user || {},
+  };
 }

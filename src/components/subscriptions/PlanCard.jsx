@@ -29,15 +29,20 @@ export default function PlanCard({
     ? plan.highlightsEn || plan.highlights || []
     : plan.highlights || [];
 
+  const isFreePlan = plan.key === "free" || plan.tier === "free" || price <= 0;
+
   return (
     <LVCard
-      interactive
-      highlight={selected || plan.popular}
+      interactive={!isFreePlan}
+      highlight={!isFreePlan && (selected || plan.popular)}
       padding="p-5 sm:p-6"
-      onClick={() => onSelect?.(plan)}
+      onClick={() => {
+        if (!isFreePlan) onSelect?.(plan);
+      }}
       className={cn(
         "relative flex flex-col justify-between h-full transition-colors duration-150",
-        selected && "border-[#19f08c] ring-1 ring-[#19f08c]/40"
+        !isFreePlan && selected && "border-[#19f08c] ring-1 ring-[#19f08c]/40",
+        isFreePlan && "opacity-90 cursor-default"
       )}
     >
       <div>
@@ -101,23 +106,35 @@ export default function PlanCard({
         </ul>
       </div>
 
-      <Button
-        type="button"
-        variant={selected ? "default" : "outline"}
-        className="w-full"
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect?.(plan);
-        }}
-      >
-        {selected
-          ? isEn
-            ? "Selected ✓"
-            : "محددة حالياً ✓"
-          : isEn
-          ? plan.ctaEn || "Select Plan"
-          : plan.cta || "اختيار الباقة"}
-      </Button>
+      {isFreePlan ? (
+        <div className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-center text-xs font-semibold text-[#9AA0AE]">
+          {isCurrentPlan
+            ? isEn
+              ? "Your Current Free Tier"
+              : "باقتك المجانية الحالية (مفعّلة تلقائياً)"
+            : isEn
+            ? "Included Free on Sign-Up (No Payment)"
+            : "باقة مجانية تلقائية عند التسجيل (لا تُشترى)"}
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant={selected ? "default" : "outline"}
+          className="w-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect?.(plan);
+          }}
+        >
+          {selected
+            ? isEn
+              ? "Selected ✓"
+              : "محددة للدفع ✓"
+            : isEn
+            ? plan.ctaEn || "Select Plan"
+            : plan.cta || "اختيار الباقة"}
+        </Button>
+      )}
     </LVCard>
   );
 }

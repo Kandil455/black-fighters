@@ -1,24 +1,8 @@
 import { adminDb, FieldValue, requireUser } from "./_shared/firebase-admin.mjs";
 import { handleError, json, parseBody } from "./_shared/http.mjs";
+import { resolveServerAiConfig } from "./_shared/server-ai.mjs";
 import { synthesizeYouTubeLecture } from "../../src/lib/youtubeService.js";
 import { YoutubeTranscript } from "youtube-transcript";
-
-// ─── Server config (keys never reach the client) ───
-function serverAiConfig() {
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
-  if (geminiKey) {
-    return { provider: "gemini", api_key: geminiKey, model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite" };
-  }
-  const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY || "";
-  if (groqKey) {
-    return { provider: "groq", api_key: groqKey, model: process.env.GROQ_MODEL || "openai/gpt-oss-120b" };
-  }
-  const openrouterKey = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY || "";
-  if (openrouterKey) {
-    return { provider: "openrouter", api_key: openrouterKey, model: process.env.OPENROUTER_MODEL || "openrouter/free" };
-  }
-  throw new Error("NO_API_KEY");
-}
 
 const PREMIUM_PLANS = new Set(["starter", "pro", "supreme", "premium"]);
 
@@ -212,15 +196,16 @@ export const handler = async (event) => {
       jobRef = adminDb.collection("summaryJobs").doc(`yt_${user.uid}_${jobKey}`);
     }
 
-    // 3. Run the synthesis on the server with server keys
+    // 3. Run the synthesis on the server with DeepSeek / server keys
     let synth;
     try {
+      const aiConf = await resolveServerAiConfig(false, user.uid);
       synth = await synthesizeYouTubeLecture({
         transcript,
         title,
         mode,
         quizCount,
-        apiKey: serverAiConfig().api_key,
+        apiKey: aiConf.api_key,
       });
     } catch (synthErr) {
       // 4. Refund on failure (atomic, only if still charged)

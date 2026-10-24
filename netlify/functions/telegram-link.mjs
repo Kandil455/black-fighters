@@ -1,11 +1,12 @@
 import { requireUser } from "./_shared/firebase-admin.mjs";
-import { createLinkCode, unlinkTelegram, LINK_CODE_TTL_MS } from "./_shared/telegram-link.mjs";
+import { createLinkCode, unlinkTelegram, checkUserLinkStatus, LINK_CODE_TTL_MS } from "./_shared/telegram-link.mjs";
 import { handleError, json, parseBody } from "./_shared/http.mjs";
 import { getBotUsername } from "./_shared/telegram-engine.mjs";
 
 /**
  * POST /api/telegram-link
  *   { action: "create" } → { ok, code, deepLink, expiresAt }
+ *   { action: "status", code } → { ok, linked, telegramUsername }
  *   { action: "unlink" } → { ok }
  *
  * Authenticated. The account is taken from the verified Firebase token — never
@@ -17,7 +18,12 @@ export const handler = async (event) => {
 
   try {
     const user = await requireUser(event);
-    const { action = "create" } = parseBody(event);
+    const { action = "create", code: rawCode = "" } = parseBody(event);
+
+    if (action === "status") {
+      const status = await checkUserLinkStatus(user.uid, rawCode);
+      return json(200, status);
+    }
 
     if (action === "unlink") {
       const result = await unlinkTelegram(user.uid);
