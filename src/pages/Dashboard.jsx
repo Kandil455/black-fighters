@@ -17,6 +17,8 @@ import {
   Layers,
   Coins,
   Play,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import CourseCard from "@/components/CourseCard";
 import CourseSection from "@/components/dashboard/CourseSection";
@@ -115,10 +117,17 @@ export default function Dashboard() {
     });
     try {
       const saved = JSON.parse(localStorage.getItem("bf_folders") || "[]");
-      saved.forEach((f) => set.add(f));
+      saved.forEach((f) => {
+        if (typeof f === "string" && f.trim()) set.add(f.trim());
+      });
     } catch {}
+    if (Array.isArray(user?.folders)) {
+      user.folders.forEach((f) => {
+        if (typeof f === "string" && f.trim()) set.add(f.trim());
+      });
+    }
     return Array.from(set);
-  }, [courses]);
+  }, [courses, user?.folders]);
 
   const filteredCourses = useMemo(() => {
     return courses.filter((c) => {
@@ -156,14 +165,68 @@ export default function Dashboard() {
     if (!trimmed) return;
     try {
       const saved = JSON.parse(localStorage.getItem("bf_folders") || "[]");
-      if (!saved.includes(trimmed)) {
-        localStorage.setItem("bf_folders", JSON.stringify([...saved, trimmed]));
+      const updated = Array.from(new Set([...saved, ...(user?.folders || []), trimmed]));
+      localStorage.setItem("bf_folders", JSON.stringify(updated));
+      if (user?.id) {
+        base44.auth.updateMe({ folders: updated }).catch(() => {});
       }
     } catch {}
     setSelectedFolder(trimmed);
     setNewFolderName("");
     setShowFolderInput(false);
     toast.success(isEn ? "Folder created" : "تم إنشاء المجلد بنجاح");
+  };
+
+  const handleDeleteFolder = async (folderName) => {
+    if (!folderName) return;
+    const confirmMsg = isEn
+      ? `Delete folder "${folderName}"? Courses inside will become unfiled.`
+      : `هل أنت متأكد من حذف المجلد "${folderName}"؟ ستتحول المقررات بداخله إلى بدون مجلد.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const remaining = folders.filter((f) => f !== folderName);
+      localStorage.setItem("bf_folders", JSON.stringify(remaining));
+      if (user?.id) {
+        base44.auth.updateMe({ folders: remaining }).catch(() => {});
+      }
+      // Unfile any course in this folder
+      const affected = courses.filter((c) => c.folder === folderName);
+      for (const c of affected) {
+        await base44.entities.Course.update(c.id, { folder: "" }).catch(() => {});
+      }
+      if (selectedFolder === folderName) setSelectedFolder("all");
+      queryClient.invalidateQueries({ queryKey: ["courses", user?.id] });
+      toast.success(isEn ? "Folder deleted" : `تم حذف مجلد "${folderName}"`);
+    } catch {
+      toast.error(isEn ? "Failed to delete folder" : "تعذر حذف المجلد");
+    }
+  };
+
+  const handleRenameFolder = async (oldName) => {
+    const newName = window.prompt(
+      isEn ? `Rename folder "${oldName}" to:` : `تعديل اسم المجلد "${oldName}" إلى:`,
+      oldName
+    );
+    const trimmed = (newName || "").trim();
+    if (!trimmed || trimmed === oldName) return;
+
+    try {
+      const updated = folders.map((f) => (f === oldName ? trimmed : f));
+      localStorage.setItem("bf_folders", JSON.stringify(updated));
+      if (user?.id) {
+        base44.auth.updateMe({ folders: updated }).catch(() => {});
+      }
+      const affected = courses.filter((c) => c.folder === oldName);
+      for (const c of affected) {
+        await base44.entities.Course.update(c.id, { folder: trimmed }).catch(() => {});
+      }
+      if (selectedFolder === oldName) setSelectedFolder(trimmed);
+      queryClient.invalidateQueries({ queryKey: ["courses", user?.id] });
+      toast.success(isEn ? "Folder renamed" : `تم تعديل اسم المجلد إلى "${trimmed}"`);
+    } catch {
+      toast.error(isEn ? "Failed to rename folder" : "تعذر تعديل اسم المجلد");
+    }
   };
 
   const handleDeleteCourse = async (courseId) => {
@@ -496,24 +559,57 @@ export default function Dashboard() {
             );
           })}
 
-          {folders.map((folder) => (
-            <button
-              key={folder}
-              type="button"
-              onClick={() =>
-                setSelectedFolder(selectedFolder === folder ? "all" : folder)
-              }
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border inline-flex items-center gap-1.5 cursor-pointer",
-                selectedFolder === folder
-                  ? "bg-[#19f08c]/15 text-[#19f08c] border-[#19f08c]/40 font-semibold"
-                  : "bg-[#090c11] text-[#9aa4b2] border-white/10 hover:text-[#f5f7fa]"
-              )}
-            >
-              <Folder className="w-3 h-3 text-[#19f08c]" />
-              <span>{folder}</span>
-            </button>
-          ))}
+          {folders.map((folder) => {
+            const count = courses.filter((c) => c.folder === folder).length;
+            const isSelected = selectedFolder === folder;
+            return (
+              <div
+                key={folder}
+                className={cn(
+                  "rounded-lg text-xs font-medium whitespace-nowrap transition-colors border inline-flex items-center gap-1 p-0.5",
+                  isSelected
+                    ? "bg-[#19f08c]/15 text-[#19f08c] border-[#19f08c]/40 font-semibold"
+                    : "bg-[#090c11] text-[#9aa4b2] border-white/10 hover:text-[#f5f7fa]"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolder(isSelected ? "all" : folder)}
+                  className="px-2 py-1 inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Folder className="w-3.5 h-3.5 text-[#19f08c]" />
+                  <span>{folder}</span>
+                  <span className="text-[10px] font-mono opacity-70">({count})</span>
+                </button>
+                {isSelected && (
+                  <div className="inline-flex items-center gap-0.5 pe-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRenameFolder(folder);
+                      }}
+                      title={isEn ? "Rename folder" : "تعديل اسم المجلد"}
+                      className="p-1 text-[#9aa4b2] hover:text-[#f5f7fa] transition-colors cursor-pointer"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFolder(folder);
+                      }}
+                      title={isEn ? "Delete folder" : "حذف المجلد"}
+                      className="p-1 text-[#9aa4b2] hover:text-[#ef4444] transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {showFolderInput ? (
             <form

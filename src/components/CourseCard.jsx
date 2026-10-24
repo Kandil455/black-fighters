@@ -138,20 +138,20 @@ export default function CourseCard({
                     align="end"
                     className="w-48 bg-[#090c11] text-[#f5f7fa] border border-white/10 rounded-xl shadow-2xl p-1"
                   >
-                    {onMoveToFolder && folders.length > 0 && (
+                    {onMoveToFolder && (
                       <DropdownMenuSub>
                         <DropdownMenuSubTrigger className="text-xs rounded-lg gap-2 cursor-pointer">
                           <FolderInput className="w-3.5 h-3.5 text-[#19f08c]" />
                           <span>{isEn ? "Move to folder" : "نقل إلى مجلد"}</span>
                         </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="bg-[#090c11] border border-white/10 rounded-xl p-1">
+                        <DropdownMenuSubContent className="bg-[#090c11] border border-white/10 rounded-xl p-1 min-w-[160px]">
                           <DropdownMenuItem
                             onClick={() => onMoveToFolder(course.id, "")}
                             className="text-xs rounded-lg cursor-pointer"
                           >
-                            {isEn ? "No folder" : "بدون مجلد"}
+                            {isEn ? "No folder (Unfiled)" : "بدون مجلد (إلغاء التصنيف)"}
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                          {folders.length > 0 && <DropdownMenuSeparator className="bg-white/10 my-1" />}
                           {folders.map((f) => (
                             <DropdownMenuItem
                               key={f}
@@ -164,6 +164,18 @@ export default function CourseCard({
                               )}
                             </DropdownMenuItem>
                           ))}
+                          <DropdownMenuSeparator className="bg-white/10 my-1" />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const newName = window.prompt(isEn ? "Enter new folder name:" : "اكتب اسم المجلد الجديد:");
+                              if (newName && newName.trim()) {
+                                onMoveToFolder(course.id, newName.trim());
+                              }
+                            }}
+                            className="text-xs rounded-lg cursor-pointer text-[#19f08c] font-bold"
+                          >
+                            {isEn ? "+ New folder..." : "+ مجلد جديد..."}
+                          </DropdownMenuItem>
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
                     )}

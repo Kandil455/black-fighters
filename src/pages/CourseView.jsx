@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/LocaleContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, BookOpen, Brain, FileText, Layers, Sparkles, Loader2, Trash2, StickyNote, Download, CalendarPlus, BellPlus, Target, Share2, Coins, Send, Swords } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, FileText, Layers, Sparkles, Loader2, Trash2, StickyNote, Download, CalendarPlus, BellPlus, Target, Share2, Coins, Send, Swords, Folder, ChevronDown, Check, Plus } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import QuizView from "@/components/course/QuizView";
 import EditableStudySheet from "@/components/course/EditableStudySheet";
@@ -87,6 +88,67 @@ export default function CourseView() {
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reviewReminderOpen, setReviewReminderOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+
+  const userFolders = useMemo(() => {
+    const set = new Set();
+    if (course?.folder && typeof course.folder === "string" && course.folder.trim()) {
+      set.add(course.folder.trim());
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem("bf_folders") || "[]");
+      saved.forEach((f) => {
+        if (typeof f === "string" && f.trim()) set.add(f.trim());
+      });
+    } catch {}
+    if (Array.isArray(profile?.folders)) {
+      profile.folders.forEach((f) => {
+        if (typeof f === "string" && f.trim()) set.add(f.trim());
+      });
+    }
+    return Array.from(set);
+  }, [course?.folder, profile?.folders]);
+
+  const handleUpdateCourseFolder = async (folderName) => {
+    try {
+      const trimmed = (folderName || "").trim();
+      await base44.entities.Course.update(id, { folder: trimmed });
+      queryClient.invalidateQueries({ queryKey: ["course", id] });
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      toast.success(
+        trimmed
+          ? isEn
+            ? `Course moved to folder: ${trimmed}`
+            : `تم نقل المقرر إلى مجلد: ${trimmed}`
+          : isEn
+          ? "Course removed from folder"
+          : "تمت إزالة المقرر من المجلد"
+      );
+    } catch {
+      toast.error(isEn ? "Failed to update folder" : "تعذر تحديث المجلد");
+    }
+  };
+
+  const handleCreateAndAssignFolder = async (e) => {
+    e?.preventDefault();
+    const trimmed = newFolderName.trim();
+    if (!trimmed) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem("bf_folders") || "[]");
+      if (!saved.includes(trimmed)) {
+        localStorage.setItem("bf_folders", JSON.stringify([...saved, trimmed]));
+      }
+      if (profile?.id) {
+        const nextUserFolders = Array.from(new Set([...(profile.folders || []), ...saved, trimmed]));
+        base44.auth.updateMe({ folders: nextUserFolders }).catch(() => {});
+      }
+    } catch {}
+    await handleUpdateCourseFolder(trimmed);
+    setNewFolderName("");
+    setShowFolderDialog(false);
+  };
+
   const [exportingTelegram, setExportingTelegram] = useState(false);
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
@@ -910,6 +972,89 @@ function summaryToTelegramText(summaryRow) {
             <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#f5f7fa]">
               {course.title}
             </h1>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5 pb-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[#19f08c]/10 text-[#19f08c] border border-[#19f08c]/30 hover:bg-[#19f08c]/20 transition-colors cursor-pointer"
+                  >
+                    <Folder className="w-3.5 h-3.5 text-[#19f08c]" />
+                    <span>
+                      {course.folder
+                        ? (isEn ? `Folder: ${course.folder}` : `مجلد: ${course.folder}`)
+                        : (isEn ? "Organize in folder" : "بدون مجلد (تنظيم)")}
+                    </span>
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-56 bg-[#090c11] text-[#f5f7fa] border border-white/10 rounded-xl shadow-2xl p-1.5"
+                >
+                  <div className="px-2 py-1 text-[11px] font-bold text-[#9aa4b2] border-b border-white/[0.08] mb-1">
+                    {isEn ? "📁 Organize Course" : "📁 مجلد المذكرة:"}
+                  </div>
+                  <DropdownMenuItem
+                    onClick={() => handleUpdateCourseFolder("")}
+                    className="text-xs rounded-lg cursor-pointer flex items-center justify-between"
+                  >
+                    <span>{isEn ? "Unfiled (No folder)" : "بدون مجلد (إلغاء التصنيف)"}</span>
+                    {!course.folder && <Check className="w-3.5 h-3.5 text-[#19f08c]" />}
+                  </DropdownMenuItem>
+                  {userFolders.map((f) => (
+                    <DropdownMenuItem
+                      key={f}
+                      onClick={() => handleUpdateCourseFolder(f)}
+                      className="text-xs rounded-lg cursor-pointer flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Folder className="w-3.5 h-3.5 text-[#19f08c] shrink-0" />
+                        <span className="truncate">{f}</span>
+                      </div>
+                      {course.folder === f && <Check className="w-3.5 h-3.5 text-[#19f08c]" />}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
+                  <DropdownMenuItem
+                    onClick={() => setShowFolderDialog(true)}
+                    className="text-xs rounded-lg cursor-pointer text-[#19f08c] font-bold gap-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isEn ? "+ New Folder..." : "+ مجلد جديد..."}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {showFolderDialog && (
+                <form
+                  onSubmit={handleCreateAndAssignFolder}
+                  className="inline-flex items-center gap-1.5"
+                >
+                  <input
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    placeholder={isEn ? "New folder name..." : "اسم المجلد الجديد..."}
+                    className="h-7 w-36 rounded-lg bg-[#05070a] border border-[#19f08c]/40 px-2 text-xs text-[#f5f7fa] focus:outline-none"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="h-7 px-2.5 rounded-lg bg-[#19f08c] text-[#03150c] text-xs font-bold cursor-pointer"
+                  >
+                    {isEn ? "Save" : "نقل"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFolderDialog(false)}
+                    className="h-7 px-1.5 rounded-lg text-[#9aa4b2] hover:text-white text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </form>
+              )}
+            </div>
             {course.description && (
               <p className="text-xs sm:text-sm text-[#9aa4b2] max-w-2xl leading-relaxed">
                 {course.description}

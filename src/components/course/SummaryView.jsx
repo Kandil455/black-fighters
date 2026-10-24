@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -729,11 +730,16 @@ export default function SummaryView({
 
   useEffect(() => {
     if (!isFullscreen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (e) => {
       if (e.key === "Escape") setIsFullscreen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [isFullscreen]);
 
   const utterRef = useRef(null);
@@ -1138,25 +1144,23 @@ ${baseText.slice(0, 18000)}
     toast.success(`تم نسخ وحدة "${section.title}" بنجاح 📋`);
   };
 
-  return (
-    <div
-      className={cn(
-        "space-y-4 transition-all",
-        isFullscreen &&
-          "fixed inset-0 z-50 bg-background/98 backdrop-blur-md overflow-y-auto p-3 sm:p-6 md:p-8"
-      )}
-    >
+  const mainContent = (
+    <div className={cn("space-y-4", isFullscreen ? "min-h-screen text-[#f5f7fa] pb-16" : "")}>
       {/* Fullscreen Summary-Only Distraction-Free Header Bar */}
       {isFullscreen ? (
-        <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#19f08c]/30 bg-[#05070a]/95 px-4 py-2.5 shadow-lg backdrop-blur-md">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <BookOpen className="size-4 text-[#19f08c] shrink-0" />
-            <span className="font-display text-sm font-extrabold text-[#f5f7fa] truncate">
-              {course?.title || (isEn ? "Focused Summary Reader" : "وضع عرض الملخص المكبّر فقط")}
-            </span>
-            <span className="hidden sm:inline-block rounded-md border border-[#19f08c]/30 bg-[#19f08c]/10 px-2 py-0.5 text-[10px] font-bold text-[#19f08c]">
-              {isEn ? "Summary Only Mode" : "عرض التلخيص فقط بدون أدوات"}
-            </span>
+        <div className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.12] bg-[#0c1017] px-4 py-3 shadow-2xl">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#19f08c]/15 text-[#19f08c] border border-[#19f08c]/30">
+              <BookOpen className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <span className="font-display text-sm font-extrabold text-[#f5f7fa] truncate block">
+                {course?.title || (isEn ? "Focused Summary Reader" : "وضع عرض الملخص المكبّر فقط")}
+              </span>
+              <span className="inline-block rounded-md border border-[#19f08c]/30 bg-[#19f08c]/10 px-2 py-0.5 text-[10px] font-bold text-[#19f08c]">
+                {isEn ? "Distraction-Free Mode" : "وضع القراءة الخالي من التشتيت"}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1188,7 +1192,7 @@ ${baseText.slice(0, 18000)}
                 variant="outline"
                 onClick={() => setIsWideLayout((w) => !w)}
                 className={cn(
-                  "gap-1.5 rounded-xl text-xs h-8",
+                  "gap-1.5 rounded-xl text-xs h-8 border-white/10 hover:border-white/20 transition-colors",
                   isWideLayout && "border-[#19f08c]/50 bg-[#19f08c]/10 text-[#19f08c]"
                 )}
               >
@@ -1204,6 +1208,16 @@ ${baseText.slice(0, 18000)}
                 </span>
               </Button>
             )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadHtmlDirect}
+              className="gap-1.5 rounded-xl text-xs h-8 border-white/10 hover:border-white/20 text-[#f5f7fa] transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span className="hidden sm:inline">{isEn ? "Download HTML" : "تحميل HTML"}</span>
+            </Button>
 
             <Button
               size="sm"
@@ -2700,4 +2714,20 @@ ${baseText.slice(0, 18000)}
       )}
     </div>
   );
+
+  if (isFullscreen && typeof document !== "undefined") {
+    return createPortal(
+      <div
+        id="fullscreen-summary-reader-portal"
+        className="fixed inset-0 z-[999999] w-screen h-screen bg-[#07090e] text-[#f5f7fa] overflow-y-auto p-3 sm:p-6 md:p-8 antialiased selection:bg-[#19f08c]/30 selection:text-white"
+      >
+        <div className="max-w-7xl mx-auto w-full">
+          {mainContent}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  return mainContent;
 }

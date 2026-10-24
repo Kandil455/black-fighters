@@ -2,7 +2,7 @@ import { adminDb, FieldValue } from "./firebase-admin.mjs";
 import { executePaymentDecision } from "./payment-processor.mjs";
 import { spendCreditsAtomic, resolveServerAiConfig } from "./server-ai.mjs";
 import { consumeLinkCode, unlinkTelegram, approveLoginSession } from "./telegram-link.mjs";
-import { generateText } from "../../src/lib/ai.js";
+import { generateText } from "../../../src/lib/ai.js";
 import {
   startQuizSession,
   rememberQuestionPoll,
@@ -1743,6 +1743,119 @@ function buildLinkWelcome(userObj, isAdminUser, chatId) {
   };
 }
 
+async function sendUserCoursesList(chatId, auth) {
+  const userId = auth?.userId || auth?.user?.id;
+  if (!userId) {
+    return sendStyledMessage(
+      chatId,
+      `⚠️ <b>حسابك غير مربوط بالمنصة بعد!</b>\nاربط حسابك لتصفح مقرراتك وملخصاتك مباشرة:\n<code>/link الكود</code>`,
+      { inline_keyboard: [[{ text: "🌐 فتح الإعدادات للحصول على الكود", url: `${getAppBaseUrl()}/settings` }]] }
+    );
+  }
+  let userCourses = [];
+  try {
+    if (adminDb) {
+      const snap = await adminDb.collection("courses").where("user_id", "==", userId).limit(15).get();
+      userCourses = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    }
+  } catch (e) {
+    console.warn("[TelegramEngine] fetch courses error:", e.message);
+  }
+
+  if (!userCourses.length) {
+    return sendStyledMessage(
+      chatId,
+      `📚 <b>مقرراتك الدراسية على Black Fighters:</b>\n━━━━━━━━━━━━━━━━━━━━\nلم تقم برفع أي محاضرات أو مقررات بعد.\n\nتقدر ترفع أي ملف PDF أو DOCX هنا في الشات فوراً وسأقوم بتلخيصه وإنشاء كويز عليه! 🚀`,
+      {
+        inline_keyboard: [
+          [{ text: "🌐 فتح لوحة التحكم لرفع مقرر", url: `${getAppBaseUrl()}/dashboard` }],
+          [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
+        ],
+      }
+    );
+  }
+
+  const listLines = userCourses.slice(0, 8).map((c, idx) => {
+    const folderTag = c.folder ? `📁 [${c.folder}] ` : "";
+    const qzCount = c.quiz_count ? ` | 📝 ${c.quiz_count} س` : "";
+    const hasSum = c.has_summary || c.summary_markdown ? " | 📋 ملخص جاهز" : "";
+    return `<b>${idx + 1}. ${c.title || "مقرر بدون عنوان"}</b>\n   ${folderTag}${hasSum}${qzCount}`;
+  }).join("\n\n");
+
+  const buttons = userCourses.slice(0, 5).map((c) => [
+    { text: `📖 ملخص: ${(c.title || "المقرر").slice(0, 20)}`, callback_data: `view_course_sum:${c.id}` },
+    { text: `📝 كويز`, callback_data: `view_course_quiz:${c.id}` },
+  ]);
+  buttons.push([{ text: "🌐 تصفح كل مقرراتك في المتصفح", url: `${getAppBaseUrl()}/dashboard` }]);
+  buttons.push([{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }]);
+
+  return sendStyledMessage(
+    chatId,
+    `📚 <b>مقرراتك وملخصاتك على المنصة (${userCourses.length}):</b>\n━━━━━━━━━━━━━━━━━━━━\n${listLines}\n\n<i>اضغط على أي زر بالأسفل لقراءة الملخص أو بدء الكويز مباشرة في التيليجرام:</i> 👇`,
+    { inline_keyboard: buttons }
+  );
+}
+
+async function sendUserFoldersList(chatId, auth) {
+  const userId = auth?.userId || auth?.user?.id;
+  if (!userId) {
+    return sendStyledMessage(
+      chatId,
+      `⚠️ <b>حسابك غير مربوط بالمنصة بعد!</b>\nاربط حسابك لتصفح مجلداتك:\n<code>/link الكود</code>`,
+      { inline_keyboard: [[{ text: "🌐 فتح الإعدادات", url: `${getAppBaseUrl()}/settings` }]] }
+    );
+  }
+  let foldersSet = new Set();
+  let coursesCountByFolder = {};
+  try {
+    if (adminDb) {
+      const snap = await adminDb.collection("courses").where("user_id", "==", userId).limit(50).get();
+      snap.docs.forEach((d) => {
+        const f = d.data().folder;
+        if (f && typeof f === "string" && f.trim()) {
+          foldersSet.add(f.trim());
+          coursesCountByFolder[f.trim()] = (coursesCountByFolder[f.trim()] || 0) + 1;
+        }
+      });
+      const uDoc = await adminDb.collection("users").doc(userId).get();
+      if (uDoc.exists && Array.isArray(uDoc.data().folders)) {
+        uDoc.data().folders.forEach((f) => {
+          if (f && typeof f === "string") foldersSet.add(f.trim());
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("[TelegramEngine] fetch folders error:", e.message);
+  }
+
+  const folderList = Array.from(foldersSet);
+  if (!folderList.length) {
+    return sendStyledMessage(
+      chatId,
+      `📁 <b>مجلداتك الأكاديمية:</b>\n━━━━━━━━━━━━━━━━━━━━\nلم تقم بإنشاء مجلدات بعد. يمكنك تنظيم مقرراتك وملخصاتك في مجلدات (مثل: باطنة، جراحة، أطفال، فارما) من الموقع! 🚀`,
+      {
+        inline_keyboard: [
+          [{ text: "🌐 فتح لوحة التحكم لإنشاء مجلد", url: `${getAppBaseUrl()}/dashboard` }],
+          [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
+        ],
+      }
+    );
+  }
+
+  const lines = folderList.map((f, i) => `<b>${i + 1}. 📁 ${f}</b> — (${coursesCountByFolder[f] || 0} مقررات)`).join("\n");
+  const folderBtns = folderList.slice(0, 6).map((f) => [
+    { text: `📁 تصفح مجلد: ${f}`, callback_data: `browse_folder:${f.slice(0, 30)}` },
+  ]);
+  folderBtns.push([{ text: "🌐 إدارة المجلدات في المنصة", url: `${getAppBaseUrl()}/dashboard` }]);
+  folderBtns.push([{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }]);
+
+  return sendStyledMessage(
+    chatId,
+    `📁 <b>مجلداتك الأكاديمية (${folderList.length}):</b>\n━━━━━━━━━━━━━━━━━━━━\n${lines}\n\n<i>اختر مجلداً لتصفح مقرراته:</i>`,
+    { inline_keyboard: folderBtns }
+  );
+}
+
 /**
  * Redeems a platform-issued link code for this chat.
  *
@@ -2520,6 +2633,170 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
       );
     }
 
+    if (data === "cmd_my_courses") {
+      await answerCallback(cb.id);
+      return sendUserCoursesList(chatId, auth);
+    }
+
+    if (data === "cmd_folders") {
+      await answerCallback(cb.id);
+      return sendUserFoldersList(chatId, auth);
+    }
+
+    if (data.startsWith("browse_folder:")) {
+      const folderName = data.slice("browse_folder:".length);
+      await answerCallback(cb.id);
+      const userId = auth?.userId || auth?.user?.id;
+      let folderCourses = [];
+      try {
+        if (adminDb && userId) {
+          const snap = await adminDb.collection("courses")
+            .where("user_id", "==", userId)
+            .where("folder", "==", folderName)
+            .limit(10)
+            .get();
+          folderCourses = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        }
+      } catch (e) {
+        console.warn("[TelegramEngine] browse folder error:", e.message);
+      }
+
+      if (!folderCourses.length) {
+        return sendStyledMessage(
+          chatId,
+          `📁 المجلد «<b>${folderName}</b>» فارغ حالياً. يمكنك نقل المقررات إليه من الموقع!`,
+          { inline_keyboard: [[{ text: "🔙 رجوع للمجلدات", callback_data: "cmd_folders" }]] }
+        );
+      }
+
+      const listLines = folderCourses.map((c, idx) => `<b>${idx + 1}. ${c.title || "مقرر"}</b>`).join("\n");
+      const buttons = folderCourses.map((c) => [
+        { text: `📖 ملخص: ${(c.title || "").slice(0, 18)}`, callback_data: `view_course_sum:${c.id}` },
+        { text: `📝 كويز`, callback_data: `view_course_quiz:${c.id}` },
+      ]);
+      buttons.push([{ text: "🔙 رجوع للمجلدات", callback_data: "cmd_folders" }]);
+
+      return sendStyledMessage(
+        chatId,
+        `📁 <b>المقررات داخل مجلد «${folderName}» (${folderCourses.length}):</b>\n━━━━━━━━━━━━━━━━━━━━\n${listLines}`,
+        { inline_keyboard: buttons }
+      );
+    }
+
+    if (data.startsWith("view_course_sum:")) {
+      const courseId = data.slice("view_course_sum:".length);
+      await answerCallback(cb.id, "جاري جلب الملخص... ⏳");
+      try {
+        let courseDoc = null;
+        if (adminDb) {
+          const doc = await adminDb.collection("courses").doc(courseId).get();
+          if (doc.exists) courseDoc = doc.data();
+        }
+        const summaryText = courseDoc?.summary_markdown || courseDoc?.summary || "";
+        if (!summaryText) {
+          return sendStyledMessage(
+            chatId,
+            `📋 لم يتم توليد ملخص لهذا المقرر بعد على المنصة.\nيمكنك فتحه في المتصفح وتوليده بالذكاء الاصطناعي بنقرة واحدة! ⚡`,
+            {
+              inline_keyboard: [
+                [{ text: "🌐 فتح المقرر في المنصة", url: `${getAppBaseUrl()}/course/${courseId}` }],
+                [{ text: "🔙 رجوع لمقرراتي", callback_data: "cmd_my_courses" }],
+              ],
+            }
+          );
+        }
+        await sendStyledMessage(
+          chatId,
+          `📖 <b>ملخص: ${courseDoc.title || "المقرر الأكاديمي"}</b> ⚡\n━━━━━━━━━━━━━━━━━━━━`
+        );
+        const parts = summaryText.match(/[\s\S]{1,3000}(?:\n\n|\n|$)/g) || [summaryText];
+        for (const part of parts.slice(0, 3)) {
+          await sendStyledMessage(chatId, part);
+        }
+        if (parts.length > 3) {
+          await sendStyledMessage(
+            chatId,
+            `💡 <i>الملخص طويل جداً — يمكنك قراءته كاملاً ومنظماً ببطاقات وفهرس داخل المنصة:</i>`,
+            {
+              inline_keyboard: [
+                [{ text: "🌐 قراءة الملخص كاملاً بالموقع", url: `${getAppBaseUrl()}/course/${courseId}?tab=summary` }],
+                [{ text: "🔙 رجوع لمقرراتي", callback_data: "cmd_my_courses" }],
+              ],
+            }
+          );
+        }
+        return { ok: true };
+      } catch (e) {
+        console.warn("[TelegramEngine] view summary error:", e.message);
+        return sendStyledMessage(chatId, "⚠️ تعذر جلب الملخص حالياً.");
+      }
+    }
+
+    if (data.startsWith("view_course_quiz:")) {
+      const courseId = data.slice("view_course_quiz:".length);
+      await answerCallback(cb.id, "جاري تحضير الكويز... 🎯");
+      try {
+        let quizContent = null;
+        if (adminDb) {
+          const snap = await adminDb.collection("generatedContent")
+            .where("course_id", "==", courseId)
+            .where("content_type", "==", "quiz")
+            .limit(1)
+            .get();
+          if (!snap.empty) {
+            const raw = snap.docs[0].data().content;
+            quizContent = typeof raw === "string" ? JSON.parse(raw) : raw;
+          }
+        }
+        const questions = quizContent?.questions || [];
+        if (!questions.length) {
+          return sendStyledMessage(
+            chatId,
+            `🎯 لم يتم توليد كويز لهذا المقرر بعد على المنصة.\nيمكنك فتحه في المتصفح لتوليد الكويز فوراً! ⚡`,
+            {
+              inline_keyboard: [
+                [{ text: "🌐 فتح المقرر في المنصة", url: `${getAppBaseUrl()}/course/${courseId}?tab=quiz` }],
+                [{ text: "🔙 رجوع لمقرراتي", callback_data: "cmd_my_courses" }],
+              ],
+            }
+          );
+        }
+
+        let standaloneId = "cq_" + courseId;
+        if (adminDb) {
+          await adminDb.collection("standaloneQuizzes").doc(standaloneId).set({
+            title: `كويز المقرر (${questions.length} سؤال)`,
+            questions: questions.map((q) => ({
+              question: q.question,
+              options: q.options,
+              correct_answer: q.correct_answer,
+              explanation: q.explanation || "",
+            })),
+            owner_id: auth.userId || "student",
+            created_date: new Date().toISOString(),
+          }, { merge: true });
+        }
+
+        return sendStyledMessage(
+          chatId,
+          `🎯 <b>كويز المقرر جاهز (${questions.length} سؤال)!</b>\nاختر سرعة المؤقت لبدء الامتحان بنظام Telegram Polls: 👇`,
+          {
+            inline_keyboard: [
+              [
+                { text: "⏱️ بدون مؤقت", callback_data: `run_custom_quiz:${standaloneId}:0:0` },
+                { text: "⚡ 30 ثانية", callback_data: `run_custom_quiz:${standaloneId}:0:30` },
+                { text: "⏳ 60 ثانية", callback_data: `run_custom_quiz:${standaloneId}:0:60` },
+              ],
+              [{ text: "🔙 رجوع لمقرراتي", callback_data: "cmd_my_courses" }],
+            ],
+          }
+        );
+      } catch (e) {
+        console.warn("[TelegramEngine] start course quiz error:", e.message);
+        return sendStyledMessage(chatId, "⚠️ تعذر تشغيل كويز هذا المقرر.");
+      }
+    }
+
     await answerCallback(cb.id);
     return { ok: true };
   }
@@ -2817,6 +3094,10 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
             { text: "🔬 كويزات العملي (OSPE)", callback_data: "cmd_ospe_menu" },
           ],
           [
+            { text: "📚 مقرراتي وملخصاتي", callback_data: "cmd_my_courses" },
+            { text: "📁 مجلداتي الأكاديمية", callback_data: "cmd_folders" },
+          ],
+          [
             { text: "👤 ملفي ورصيدي", callback_data: "cmd_profile" },
             { text: "💎 باقات الاشتراك", callback_data: "cmd_plans" },
           ],
@@ -2888,6 +3169,51 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
       return sendStyledMessage(chatId, apkText, {
         inline_keyboard: [
           [{ text: "⬇️ تحميل التطبيق المباشر (APK)", url: "https://blackfighters.site/downloads/BlackFighters.apk" }],
+          [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
+        ],
+      });
+    }
+
+    // ── /courses / /موادي Command ──
+    if (text.startsWith("/courses") || text.startsWith("/موادي") || text === "/courses" || text === "/موادي") {
+      return sendUserCoursesList(chatId, auth);
+    }
+
+    // ── /folders / /مجلداتي Command ──
+    if (text.startsWith("/folders") || text.startsWith("/مجلداتي") || text === "/folders" || text === "/مجلداتي") {
+      return sendUserFoldersList(chatId, auth);
+    }
+
+    // ── /flashcards / /بطاقات Command ──
+    if (text.startsWith("/flashcards") || text.startsWith("/بطاقات") || text === "/flashcards" || text === "/بطاقات") {
+      const topic = text.replace(/^\/(?:flashcards|بطاقات)\s*/i, "").trim();
+      if (!topic) {
+        return sendStyledMessage(
+          chatId,
+          `🃏 <b>بطاقات الاسترجاع النشط والتسميع الذكي (Flashcards):</b>\n━━━━━━━━━━━━━━━━━━━━\nاكتب الموضوع بعد الأمر لإنشاء بطاقات تسميع فورية، مثلاً:\n<code>/flashcards Antihypertensive drugs mechanisms</code>\n<code>/flashcards Heart failure clinical signs</code> ⚡\nأو يمكنك استعراض مقرراتك عبر: <code>/courses</code>`,
+          {
+            inline_keyboard: [
+              [{ text: "📚 تصفح مقرراتي", callback_data: "cmd_my_courses" }],
+              [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
+            ],
+          }
+        );
+      }
+      await sendStyledMessage(chatId, `🃏 <i>جاري بناء بطاقات التسميع الذكية لموضوع:</i> <code>${topic}</code>... ⏳`);
+      const flashPrompt = `أنت أستاذ ومصمم بطاقات تسميع ذكية (High-Yield Active Recall Flashcards) لمنصة Black Fighters.
+الموضوع: ${topic}
+المطلوب: توليد 4 بطاقات استرجاع نشط فائقة الدقة بصيغة:
+[بطاقة 1]
+المصطلح / المفهوم (EN):
+السؤال / التحدي:
+الإجابة والشرح الحاسم (AR):
+
+[بطاقة 2]
+...
+ركز على الآليات والتفاصيل الامتحانية الأكثر وروداً (High-Yield Pearls).`;
+      const result = await askBlackFightersAi(flashPrompt);
+      return sendStyledMessage(chatId, `🃏 <b>بطاقات التسميع والاسترجاع السريع:</b>\n━━━━━━━━━━━━━━━━━━━━\n${result}`, {
+        inline_keyboard: [
           [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
         ],
       });
@@ -3190,6 +3516,10 @@ ${commandLines}
           [
             { text: "🚨 Emergency (راوند الطوارئ - EPNU)", callback_data: "cmd_emergency" },
             { text: "📚 كويزات EBE", callback_data: "cmd_ebe_menu" },
+          ],
+          [
+            { text: "📚 مقرراتي وملخصاتي", callback_data: "cmd_my_courses" },
+            { text: "📁 مجلداتي الأكاديمية", callback_data: "cmd_folders" },
           ],
           [
             { text: "👤 ملفي ورصيدي", callback_data: "cmd_profile" },
