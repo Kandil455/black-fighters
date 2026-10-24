@@ -37,24 +37,55 @@ import {
   summaryPlainText,
 } from "@/lib/summaryDocument";
 import StudyGuideViewer from "@/components/course/StudyGuideViewer";
-import { detectTextDir } from "@/lib/summaryStudyGuide";
+import { detectTextDir, renderStudyGuideHtml } from "@/lib/summaryStudyGuide";
 import AtlasSummaryReader from "@/components/atlas/AtlasSummaryReader";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { recordMistake } from "@/lib/mistakeVault";
 import { cn } from "@/lib/utils";
-import { Eye, Target } from "lucide-react";
+import {
+  Eye,
+  Target,
+  Maximize2,
+  Minimize2,
+  Download,
+  Brain,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  RotateCw,
+  Columns2,
+} from "lucide-react";
 
-function buildMicroQuizForSection(section, allSections = []) {
-  const clean = (s = "") =>
-    String(s || "")
-      .replace(/==(green|yellow|cyan|orange|red):([^=]+)==/g, "$2")
-      .replace(/==([^=]+)==/g, "$1")
-      .replace(/[*_`#>]/g, "")
-      .trim();
+function cleanSummaryMarkup(s = "") {
+  return String(s || "")
+    .replace(/==(green|yellow|cyan|blue|orange|red):([^=]+)==/g, "$2")
+    .replace(/==([^=]+)==/g, "$1")
+    .replace(/[*_`#>]/g, "")
+    .trim();
+}
+
+function buildMicroQuizForSection(section, allSections = [], maxCount = 4) {
+  const clean = cleanSummaryMarkup;
 
   const facts = [];
   for (const item of section?.items || []) {
-    if (item.kind === "concepts" && Array.isArray(item.pairs)) {
+    if (item.kind === "bilingual_pairs" && Array.isArray(item.pairs)) {
+      for (const pair of item.pairs) {
+        const enText = clean(pair?.en || "");
+        const arText = clean(pair?.ar || "");
+        if (enText && arText) {
+          facts.push({
+            term: enText.split(/[:—,.]/)[0]?.slice(0, 70) || section.title,
+            detail: `${arText} (${enText.slice(0, 110)})`,
+          });
+        } else if (arText.length > 18 || enText.length > 18) {
+          facts.push({
+            term: section.title,
+            detail: arText || enText,
+          });
+        }
+      }
+    } else if (item.kind === "concepts" && Array.isArray(item.pairs)) {
       for (const p of item.pairs) {
         const [term, ...rest] = String(p).split(/\s*(?:→|->|:)\s*/);
         if (term && rest.length) {
@@ -65,7 +96,18 @@ function buildMicroQuizForSection(section, allSections = []) {
       for (const pt of item.points) {
         const cleaned = clean(pt);
         if (cleaned.length > 18) {
-          facts.push({ term: section.title, detail: cleaned });
+          const lead = cleaned.includes(":") ? cleaned.split(":")[0].slice(0, 55) : section.title;
+          facts.push({ term: lead, detail: cleaned });
+        }
+      }
+    } else if (item.kind === "table" && Array.isArray(item.rows)) {
+      for (const row of item.rows) {
+        if (Array.isArray(row) && row.length >= 2) {
+          const key = clean(row[0]);
+          const val = clean(row.slice(1).join(" — "));
+          if (key && val.length > 10) {
+            facts.push({ term: key, detail: `${key}: ${val}` });
+          }
         }
       }
     } else if (item.text) {
@@ -82,10 +124,15 @@ function buildMicroQuizForSection(section, allSections = []) {
   const otherDetails = allSections
     .filter((s) => s.id !== section?.id)
     .flatMap((s) =>
-      (s.items || [])
-        .map((i) => clean(i.text || (i.points && i.points[0]) || ""))
-        .filter((t) => t.length > 20 && t.length < 160),
-    );
+      (s.items || []).flatMap((i) => {
+        if (i.kind === "bilingual_pairs" && Array.isArray(i.pairs)) {
+          return i.pairs.map((p) => clean(p?.ar || p?.en || ""));
+        }
+        if (Array.isArray(i.points)) return i.points.map(clean);
+        return [clean(i.text || "")];
+      })
+    )
+    .filter((t) => t.length > 20 && t.length < 180);
 
   const fallbackDistractors = [
     "لا يرتبط هذا المفهوم بالآلية الأساسية المذكورة في هذه الوحدة",
@@ -94,14 +141,18 @@ function buildMicroQuizForSection(section, allSections = []) {
   ];
 
   const questions = [];
-  const targetFacts = facts.slice(0, 3);
+  const targetFacts = facts.slice(0, maxCount);
   targetFacts.forEach((f, idx) => {
-    const correctText = f.detail.slice(0, 140);
-    const d1 = otherDetails[idx * 2] || fallbackDistractors[0];
-    const d2 = otherDetails[idx * 2 + 1] || fallbackDistractors[1];
-    const d3 = fallbackDistractors[2];
-    const rawOpts = [correctText, d1, d2, d3];
-    // Deterministic rotation based on idx
+    const correctText = f.detail.slice(0, 165);
+    const d1 = otherDetails[(idx * 2) % Math.max(1, otherDetails.length)] || fallbackDistractors[0];
+    const d2 = otherDetails[(idx * 2 + 1) % Math.max(1, otherDetails.length)] || fallbackDistractors[1];
+    const d3 = fallbackDistractors[idx % fallbackDistractors.length];
+    const rawOpts = [
+      correctText,
+      d1 === correctText ? fallbackDistractors[0] : d1,
+      d2 === correctText ? fallbackDistractors[1] : d2,
+      d3,
+    ];
     const correctIndex = idx % 4;
     const rotated = [...rawOpts];
     const temp = rotated[0];
@@ -122,6 +173,72 @@ function buildMicroQuizForSection(section, allSections = []) {
   });
 
   return questions;
+}
+
+function buildFullSummaryInstantQuiz(allSections = [], maxTotal = 12) {
+  const all = [];
+  for (const sec of allSections) {
+    const secQs = buildMicroQuizForSection(sec, allSections, 3);
+    all.push(...secQs);
+    if (all.length >= maxTotal) break;
+  }
+  return all.slice(0, maxTotal);
+}
+
+function buildFlashcardsFromSections(sections = []) {
+  const clean = cleanSummaryMarkup;
+  const cards = [];
+  for (const sec of sections) {
+    for (const item of sec?.items || []) {
+      if (item.kind === "bilingual_pairs" && Array.isArray(item.pairs)) {
+        for (const p of item.pairs) {
+          const en = clean(p?.en || "");
+          const ar = clean(p?.ar || "");
+          if (en && ar) {
+            cards.push({
+              front: en,
+              back: ar,
+              topic: sec.title,
+            });
+          }
+        }
+      } else if (item.kind === "concepts" && Array.isArray(item.pairs)) {
+        for (const p of item.pairs) {
+          const [head, ...rest] = String(p).split(/\s*(?:→|->|:)\s*/);
+          if (head && rest.length) {
+            cards.push({
+              front: clean(head),
+              back: clean(rest.join(" : ")),
+              topic: sec.title,
+            });
+          }
+        }
+      } else if (item.kind === "table" && Array.isArray(item.rows)) {
+        for (const row of item.rows) {
+          if (Array.isArray(row) && row.length >= 2) {
+            const front = clean(row[0]);
+            const back = clean(row.slice(1).join(" · "));
+            if (front && back) {
+              cards.push({ front, back, topic: sec.title });
+            }
+          }
+        }
+      } else if (item.kind === "list" && Array.isArray(item.points)) {
+        for (const pt of item.points) {
+          const c = clean(pt);
+          if (c.includes(":")) {
+            const [head, ...rest] = c.split(":");
+            if (head && rest.length) {
+              cards.push({ front: head.trim(), back: rest.join(":").trim(), topic: sec.title });
+            }
+          } else if (c.length > 25) {
+            cards.push({ front: `${sec.title} — نقطة أساسية`, back: c, topic: sec.title });
+          }
+        }
+      }
+    }
+  }
+  return cards.slice(0, 40);
 }
 
 /**
@@ -576,7 +693,13 @@ function FormattedInlineText({ text = "" }) {
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-export default function SummaryView({ summary, course }) {
+export default function SummaryView({
+  summary,
+  course,
+  onGenerateFromSummary,
+  onSwitchTab,
+  generatingType,
+}) {
   const { isEn } = useLocale();
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -590,6 +713,25 @@ export default function SummaryView({ summary, course }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSectionId, setActiveSectionId] = useState("all");
   const [viewMode, setViewMode] = useState("smart_cards"); // "smart_cards" | "print_template"
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isWideLayout, setIsWideLayout] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({});
+  const [activeStudioDrawer, setActiveStudioDrawer] = useState(null); // "quiz" | "flashcards" | null
+  const [studioQuizCount, setStudioQuizCount] = useState(15);
+  const [studioQuizProfile, setStudioQuizProfile] = useState("exam");
+  const [instantQuizAnswers, setInstantQuizAnswers] = useState({});
+  const [activeFlashcardIdx, setActiveFlashcardIdx] = useState(0);
+  const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+  const [expandingSectionId, setExpandingSectionId] = useState(null);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setIsFullscreen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isFullscreen]);
 
   const utterRef = useRef(null);
   const textareaRef = useRef(null);
@@ -834,10 +976,130 @@ ${baseText.slice(0, 18000)}
     [smartSections]
   );
 
+  const instantSummaryQuiz = useMemo(
+    () => buildFullSummaryInstantQuiz(smartSections, 12),
+    [smartSections]
+  );
+  const summaryFlashcards = useMemo(
+    () => buildFlashcardsFromSections(smartSections),
+    [smartSections]
+  );
+
+  const downloadHtmlDirect = () => {
+    try {
+      const tpl = (() => {
+        try {
+          return localStorage.getItem("bf_guide_template") || "modules_red";
+        } catch {
+          return "modules_red";
+        }
+      })();
+      const exportHtml = renderStudyGuideHtml({
+        document: documentV3 || undefined,
+        markdown: text,
+        title: course?.title || "الملخص الذكي",
+        templateId: tpl,
+        forExport: true,
+      });
+      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement("a");
+      const safeName =
+        String(course?.title || "study-guide")
+          .replace(/[\\/:*?"<>|]+/g, "-")
+          .trim() || "study-guide";
+      link.href = url;
+      link.download = `${safeName}.html`;
+      window.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast.success("تم تحميل ملف المذكرة (HTML) بتصميم البطاقات والألوان جاهز للفتح والطباعة 📄✨");
+    } catch {
+      toast.error("تعذر تحميل ملف الملخص");
+    }
+  };
+
+  const printGuideDirect = () => {
+    try {
+      const tpl = (() => {
+        try {
+          return localStorage.getItem("bf_guide_template") || "modules_red";
+        } catch {
+          return "modules_red";
+        }
+      })();
+      const exportHtml = renderStudyGuideHtml({
+        document: documentV3 || undefined,
+        markdown: text,
+        title: course?.title || "الملخص الذكي",
+        templateId: tpl,
+        forExport: true,
+      });
+      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const printWin = window.open(url, "_blank");
+      if (printWin) {
+        printWin.addEventListener("load", () => {
+          setTimeout(() => {
+            try {
+              printWin.focus();
+              printWin.print();
+            } catch {}
+          }, 250);
+        });
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      toast.error("تعذر فتح نافذة الطباعة");
+    }
+  };
+
+  const handleExpandSection = async (section) => {
+    if (!section || aiUpdating || expandingSectionId) return;
+    setExpandingSectionId(section.id);
+    toast.info(`جاري تكبير وتوسيع شرح وحدة "${section.title}" بالتفصيل... 🔍⚡`);
+    try {
+      await handleAiEdit(
+        `كبّر ووسّع شرح القسم المعنون "${section.title}" بالتفصيل الكامل: أضف شرحاً عربياً معمقاً لكل نقطة إنجليزية، اشرح الآليات والأسباب خطوة بخطوة، أبرز الأرقام والجرعات بـ **Bold**، وأضف أمثلة إكلينيكية/تطبيقية وتنبيهات أسئلة الامتحانات (> تنبيه امتحاني) وجدول مقارنة إن أمكن مع الحفاظ على باقي الأقسام كما هي.`
+      );
+    } finally {
+      setExpandingSectionId(null);
+    }
+  };
+
+  const copySectionText = (section) => {
+    if (!section) return;
+    const lines = [`## ${section.title}`];
+    for (const item of section.items || []) {
+      if (item.text) lines.push(cleanSummaryMarkup(item.text));
+      if (Array.isArray(item.points)) {
+        item.points.forEach((p) => lines.push(`• ${cleanSummaryMarkup(p)}`));
+      }
+      if (Array.isArray(item.pairs)) {
+        item.pairs.forEach((p) => {
+          if (typeof p === "string") lines.push(`• ${cleanSummaryMarkup(p)}`);
+          else {
+            if (p.en) lines.push(`• [EN] ${cleanSummaryMarkup(p.en)}`);
+            if (p.ar) lines.push(`  [AR] ${cleanSummaryMarkup(p.ar)}`);
+          }
+        });
+      }
+    }
+    navigator.clipboard.writeText(lines.join("\n"));
+    toast.success(`تم نسخ وحدة "${section.title}" بنجاح 📋`);
+  };
+
   return (
-    <div className="space-y-4">
+    <div
+      className={cn(
+        "space-y-4 transition-all",
+        isFullscreen &&
+          "fixed inset-0 z-50 bg-background/98 backdrop-blur-md overflow-y-auto p-3 sm:p-6 md:p-8"
+      )}
+    >
       {/* Top Smart Reader Toolbar */}
-      <div className="glass rounded-[1.25rem] p-4 space-y-3">
+      <div className="glass rounded-[1.25rem] p-4 space-y-3 border border-white/[0.08]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* View Mode Toggle: Smart Cards vs Active Recall Reader vs Print Template */}
           <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.07] bg-[#05070a]/70 p-1">
@@ -878,35 +1140,105 @@ ${baseText.slice(0, 18000)}
               )}
             >
               <Printer className="size-3.5" />
-              <span>{isEn ? "Print & Export Templates" : "قوالب الطباعة والتحميل"}</span>
+              <span>{isEn ? "Print & Export Templates" : "قوالب الطباعة والتحميل (5 قوالب)"}</span>
             </button>
           </div>
 
-          {/* Reader Action Buttons */}
+          {/* Reader Action Buttons (Zoom, Fullscreen, Wide Mode, Download, Audio, Copy, Edit) */}
           <div className="flex flex-wrap items-center gap-1.5">
             {viewMode === "smart_cards" && !editing && (
-              <div className="inline-flex items-center rounded-xl border border-white/[0.07] bg-white/[0.03] p-0.5 me-1">
-                <button
-                  type="button"
-                  onClick={() => setFontSize((f) => Math.max(13, f - 1))}
-                  title={isEn ? "Smaller text" : "تصغير الخط"}
-                  className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] cursor-pointer"
+              <>
+                <div className="inline-flex items-center rounded-xl border border-white/[0.07] bg-white/[0.03] p-0.5 me-1">
+                  <button
+                    type="button"
+                    onClick={() => setFontSize((f) => Math.max(13, f - 1))}
+                    title={isEn ? "Smaller text" : "تصغير الخط"}
+                    className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] cursor-pointer"
+                  >
+                    <ZoomOut className="size-3.5" />
+                  </button>
+                  <span className="px-2 font-mono text-[11px] font-bold text-[#f5f7fa] tabular">
+                    {fontSize}px
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFontSize((f) => Math.min(26, f + 1))}
+                    title={isEn ? "Larger text" : "تكبير الخط"}
+                    className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] cursor-pointer"
+                  >
+                    <ZoomIn className="size-3.5" />
+                  </button>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsWideLayout((w) => !w)}
+                  title={isEn ? "Toggle Wide Reader" : "توسيع عرض القراءة (إخفاء/إظهار الفهرس الجانبي)"}
+                  className={cn(
+                    "gap-1.5 rounded-xl text-xs h-9",
+                    isWideLayout && "border-[#19f08c]/50 bg-[#19f08c]/10 text-[#19f08c]"
+                  )}
                 >
-                  <ZoomOut className="size-3.5" />
-                </button>
-                <span className="px-2 font-mono text-[11px] font-bold text-[#f5f7fa] tabular">
-                  {fontSize}px
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setFontSize((f) => Math.min(22, f + 1))}
-                  title={isEn ? "Larger text" : "تكبير الخط"}
-                  className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] cursor-pointer"
-                >
-                  <ZoomIn className="size-3.5" />
-                </button>
-              </div>
+                  <Columns2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">
+                    {isWideLayout
+                      ? isEn
+                        ? "Show Index"
+                        : "إظهار الفهرس"
+                      : isEn
+                      ? "Wide View"
+                      : "توسيع العرض"}
+                  </span>
+                </Button>
+              </>
             )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsFullscreen((f) => !f)}
+              className={cn(
+                "gap-1.5 rounded-xl text-xs h-9 font-bold",
+                isFullscreen
+                  ? "border-amber-400/50 bg-amber-400/15 text-amber-300"
+                  : "border-[#19f08c]/40 bg-[#19f08c]/10 text-[#19f08c] hover:bg-[#19f08c]/20"
+              )}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Exit Fullscreen" : "إغلاق ملء الشاشة"}</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>{isEn ? "Fullscreen" : "تكبير الملخص ⛶"}</span>
+                </>
+              )}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadHtmlDirect}
+              className="gap-1.5 rounded-xl text-xs h-9"
+              title={isEn ? "Download HTML Study Guide" : "تحميل الملخص كملف HTML منظم"}
+            >
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span>{isEn ? "Download HTML" : "تحميل HTML"}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={printGuideDirect}
+              className="gap-1.5 rounded-xl text-xs h-9"
+              title={isEn ? "Print or Save as PDF" : "طباعة أو حفظ PDF"}
+            >
+              <Printer className="w-3.5 h-3.5 text-primary" />
+              <span className="hidden sm:inline">{isEn ? "PDF / Print" : "طباعة PDF"}</span>
+            </Button>
 
             <Button
               size="sm"
@@ -941,7 +1273,7 @@ ${baseText.slice(0, 18000)}
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Copy Text" : "نسخ النص"}</span>
+                  <span>{isEn ? "Copy" : "نسخ"}</span>
                 </>
               )}
             </Button>
@@ -954,7 +1286,7 @@ ${baseText.slice(0, 18000)}
                 className="gap-1.5 rounded-xl text-xs h-9 border-primary/30 text-primary hover:bg-primary/10"
               >
                 <Pencil className="w-3.5 h-3.5" />
-                <span>{isEn ? "Edit Notes" : "تعديل المذكرة"}</span>
+                <span>{isEn ? "Edit Notes" : "تعديل يدوي"}</span>
               </Button>
             ) : (
               <>
@@ -988,6 +1320,477 @@ ${baseText.slice(0, 18000)}
           </div>
         </div>
 
+        {/* ⚡ Power Actions Bar: Generate Quizzes, Flashcards, Deep Expand, Cheat Sheet Directly from Summary */}
+        <div className="pt-3 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#19f08c] me-1">
+              <Sparkles className="size-4" />
+              {isEn ? "Summary Power Studio:" : "أدوات التلخيص الذكية:"}
+            </span>
+
+            {/* 1. Deep Expand / Enlarge Summary Content */}
+            <button
+              type="button"
+              disabled={aiUpdating}
+              onClick={() =>
+                handleAiEdit(
+                  "كبّر ووسّع هذا الملخص بالكامل ليكون مرجعاً شاملاً ومفصلاً جداً: اشرح كل نقطة إنجليزية وعربية بعمق، أضف الآليات والأسباب والأمثلة الإكلينيكية/التطبيقية، ضع **Bold** على كل المصطلحات والأرقام المهمة، وأضف جداول مقارنة وتنبيهات امتحانات (> تنبيه امتحاني) في كل قسم."
+                )
+              }
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#19f08c]/45 bg-[#19f08c]/15 px-3 py-1.5 text-xs font-bold text-[#19f08c] hover:bg-[#19f08c] hover:text-[#03150c] transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {aiUpdating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <ZoomIn className="size-3.5" />
+              )}
+              <span>
+                {isEn
+                  ? "Deep Expand Summary (AI)"
+                  : "🔍 تكبير وتوسيع الشرح بالتفصيل"}
+              </span>
+            </button>
+
+            {/* 2. Build / Practice Quiz from Summary */}
+            <button
+              type="button"
+              onClick={() =>
+                setActiveStudioDrawer((d) => (d === "quiz" ? null : "quiz"))
+              }
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
+                activeStudioDrawer === "quiz"
+                  ? "border-sky-400 bg-sky-400 text-[#04131d]"
+                  : "border-sky-400/40 bg-sky-400/12 text-sky-300 hover:bg-sky-400/20"
+              )}
+            >
+              <Brain className="size-3.5" />
+              <span>
+                {isEn
+                  ? "Create Quiz from Summary 🎯"
+                  : "🎯 اعمل كويز من التلخيص ده"}
+              </span>
+            </button>
+
+            {/* 3. Flashcards Deck from Summary */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveFlashcardIdx(0);
+                setIsFlashcardFlipped(false);
+                setActiveStudioDrawer((d) =>
+                  d === "flashcards" ? null : "flashcards"
+                );
+              }}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
+                activeStudioDrawer === "flashcards"
+                  ? "border-violet-400 bg-violet-400 text-[#120624]"
+                  : "border-violet-400/40 bg-violet-400/12 text-violet-300 hover:bg-violet-400/20"
+              )}
+            >
+              <Layers className="size-3.5" />
+              <span>
+                {isEn
+                  ? `Flashcards (${summaryFlashcards.length})`
+                  : `🃏 بطاقات تسميع (${summaryFlashcards.length})`}
+              </span>
+            </button>
+
+            {/* 4. Cheat Sheet / Study Sheet */}
+            {onGenerateFromSummary && (
+              <button
+                type="button"
+                disabled={Boolean(generatingType)}
+                onClick={() => onGenerateFromSummary("study_sheet")}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/40 bg-amber-400/12 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-400/20 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <FileText className="size-3.5" />
+                <span>
+                  {isEn ? "Generate Cheat Sheet" : "📋 برشامة مراجعة سريعة"}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* Expand / Collapse All Sections */}
+          {viewMode === "smart_cards" && smartSections.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const allCollapsed = smartSections.every(
+                  (s) => collapsedSections[s.id]
+                );
+                if (allCollapsed) {
+                  setCollapsedSections({});
+                } else {
+                  const next = {};
+                  smartSections.forEach((s) => {
+                    next[s.id] = true;
+                  });
+                  setCollapsedSections(next);
+                }
+              }}
+              className="text-[11px] font-bold text-[#9aa4b2] hover:text-[#f5f7fa] inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer"
+            >
+              {smartSections.every((s) => collapsedSections[s.id]) ? (
+                <>
+                  <ChevronDown className="size-3.5" />
+                  <span>{isEn ? "Expand All Units" : "فرد كل الوحدات"}</span>
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="size-3.5" />
+                  <span>{isEn ? "Collapse All Units" : "طي كل الوحدات"}</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* 🎯 Interactive Quiz Studio Drawer (Generate Full AI Quiz OR Solve Instant Summary Quiz) */}
+        {activeStudioDrawer === "quiz" && (
+          <div className="rounded-2xl border border-sky-400/35 bg-[#060b12]/95 p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+              <div>
+                <h4 className="text-sm font-extrabold text-sky-300 flex items-center gap-2">
+                  <Brain className="size-4" />
+                  {isEn
+                    ? "Quiz Generator & Instant Exam from Summary"
+                    : "🎯 استوديو الكويزات من الملخص الذكي"}
+                </h4>
+                <p className="text-xs text-[#9aa4b2] mt-0.5">
+                  {isEn
+                    ? "Generate a full AI exam tab or solve instant questions extracted from your summary units below"
+                    : "ولّد امتحان كامل بالذكاء الاصطناعي بالعدد والمستوى اللي تحبه، أو حل الكويز الفوري بالأسفل مباشرة وأنت بتذاكر!"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveStudioDrawer(null)}
+                className="p-1 text-[#9aa4b2] hover:text-white cursor-pointer"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {onGenerateFromSummary && (
+              <div className="rounded-xl border border-sky-500/25 bg-sky-500/[0.06] p-3.5 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[#f5f7fa]">
+                      {isEn ? "Questions:" : "عدد الأسئلة:"}
+                    </span>
+                    {[5, 10, 15, 20, 30].map((cnt) => (
+                      <button
+                        key={cnt}
+                        type="button"
+                        onClick={() => setStudioQuizCount(cnt)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-mono font-bold border transition cursor-pointer",
+                          studioQuizCount === cnt
+                            ? "bg-sky-400 text-[#04131d] border-sky-400"
+                            : "bg-[#05070a] text-[#9aa4b2] border-white/10 hover:text-white"
+                        )}
+                      >
+                        {cnt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-[#f5f7fa]">
+                      {isEn ? "Style:" : "النمط:"}
+                    </span>
+                    {[
+                      ["balanced", "شامل"],
+                      ["exam", "شبه الامتحان"],
+                      ["traps", "تريكات وأفخاخ"],
+                      ["application", "حالات إكلينيكية"],
+                    ].map(([idKey, labelAr]) => (
+                      <button
+                        key={idKey}
+                        type="button"
+                        onClick={() => setStudioQuizProfile(idKey)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer",
+                          studioQuizProfile === idKey
+                            ? "bg-[#19f08c] text-[#03150c] border-[#19f08c]"
+                            : "bg-[#05070a] text-[#9aa4b2] border-white/10 hover:text-white"
+                        )}
+                      >
+                        {labelAr}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  size="sm"
+                  disabled={Boolean(generatingType)}
+                  onClick={() =>
+                    onGenerateFromSummary("quiz", {
+                      count: studioQuizCount,
+                      profile: studioQuizProfile,
+                    })
+                  }
+                  className="bg-sky-400 hover:bg-sky-300 text-[#04131d] font-extrabold rounded-xl gap-1.5 cursor-pointer"
+                >
+                  {generatingType ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="size-3.5" />
+                  )}
+                  <span>
+                    {generatingType
+                      ? "جاري توليد الامتحان..."
+                      : `🚀 توليد امتحان كامل (${studioQuizCount} سؤال)`}
+                  </span>
+                </Button>
+              </div>
+            )}
+
+            {/* Instant In-Summary Multi-Unit Quiz */}
+            {instantSummaryQuiz.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#19f08c]">
+                    ⚡ كويز سريع فوري من وحدات الملخص ({instantSummaryQuiz.length} سؤال) — الإجابات الخاطئة تحفظ في بنك أخطائك:
+                  </span>
+                  {Object.keys(instantQuizAnswers).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setInstantQuizAnswers({})}
+                      className="text-[11px] font-bold text-sky-300 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCw className="size-3" /> إعادة المحاولة
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-3 max-h-[55vh] overflow-y-auto pe-1">
+                  {instantSummaryQuiz.map((mq, mqIdx) => {
+                    const chosenIdx = instantQuizAnswers[mq.id];
+                    const isAnswered = chosenIdx !== undefined;
+                    return (
+                      <div
+                        key={mq.id}
+                        className="rounded-xl border border-white/[0.08] bg-[#090c11] p-4 space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-md">
+                            {mq.topic}
+                          </span>
+                          <span className="text-[11px] font-mono text-[#9aa4b2]">
+                            #{mqIdx + 1}
+                          </span>
+                        </div>
+                        <p className="text-xs sm:text-sm font-bold text-[#f5f7fa]">
+                          {mq.question}
+                        </p>
+                        <div className="grid gap-1.5 sm:grid-cols-2">
+                          {mq.options.map((opt, oIdx) => {
+                            const isCorrect = oIdx === mq.correct_index;
+                            const isChosen = chosenIdx === oIdx;
+                            return (
+                              <button
+                                key={oIdx}
+                                type="button"
+                                disabled={isAnswered}
+                                onClick={() => {
+                                  setInstantQuizAnswers((prev) => ({
+                                    ...prev,
+                                    [mq.id]: oIdx,
+                                  }));
+                                  if (oIdx !== mq.correct_index) {
+                                    recordMistake({
+                                      question: mq.question,
+                                      options: mq.options,
+                                      correctIndex: mq.correct_index,
+                                      chosenIndex: oIdx,
+                                      explanation: mq.explanation,
+                                      topic: mq.topic,
+                                      courseId: course?.id || "",
+                                      courseTitle: course?.title || "ملخص ذكي",
+                                      via: "summary_instant_quiz",
+                                    });
+                                    toast.info("تم حفظ السؤال في بنك الأخطاء الذكي للمراجعة 🧠");
+                                  }
+                                }}
+                                className={cn(
+                                  "text-start px-3 py-2 rounded-lg border text-xs font-medium transition-colors cursor-pointer",
+                                  !isAnswered &&
+                                    "border-white/[0.07] bg-white/[0.02] text-[#e5e7eb] hover:border-sky-400/40",
+                                  isAnswered &&
+                                    isCorrect &&
+                                    "border-[#19f08c] bg-[#19f08c]/15 text-[#19f08c] font-bold",
+                                  isAnswered &&
+                                    isChosen &&
+                                    !isCorrect &&
+                                    "border-[#ef4444] bg-[#ef4444]/15 text-[#ef4444]",
+                                  isAnswered &&
+                                    !isCorrect &&
+                                    !isChosen &&
+                                    "border-white/[0.05] text-[#647084]"
+                                )}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {isAnswered && (
+                          <p className="text-[11px] text-[#19f08c] pt-1">
+                            💡 {mq.explanation}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 🃏 Interactive Flashcards Deck Drawer */}
+        {activeStudioDrawer === "flashcards" && (
+          <div className="rounded-2xl border border-violet-400/35 bg-[#080612]/95 p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+              <div>
+                <h4 className="text-sm font-extrabold text-violet-300 flex items-center gap-2">
+                  <Layers className="size-4" />
+                  {isEn
+                    ? "Interactive Summary Flashcards"
+                    : "🃏 بطاقات التسميع السريع من الملخص"}
+                </h4>
+                <p className="text-xs text-[#9aa4b2] mt-0.5">
+                  {isEn
+                    ? "Click the card to flip between the English concept and Arabic explanation"
+                    : "اضغط على البطاقة لقلبها بين المصطلح/النقطة الإنجليزية والشرح العربي التفصيلي"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {onGenerateFromSummary && (
+                  <Button
+                    size="sm"
+                    disabled={Boolean(generatingType)}
+                    onClick={() => onGenerateFromSummary("flashcards")}
+                    className="bg-violet-400 hover:bg-violet-300 text-[#120624] font-extrabold rounded-xl text-xs gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="size-3.5" />
+                    <span>توليد بنك بطاقات إضافي بالـ AI</span>
+                  </Button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveStudioDrawer(null)}
+                  className="p-1 text-[#9aa4b2] hover:text-white cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            {summaryFlashcards.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">
+                اضغط على «توليد بنك بطاقات إضافي بالـ AI» بالأعلى لتوليد بطاقات المراجعة.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {(() => {
+                  const safeIdx = Math.min(
+                    activeFlashcardIdx,
+                    summaryFlashcards.length - 1
+                  );
+                  const card = summaryFlashcards[safeIdx];
+                  const sideText = isFlashcardFlipped ? card.back : card.front;
+                  const sideDir = detectTextDir(sideText);
+                  return (
+                    <>
+                      <div
+                        onClick={() => setIsFlashcardFlipped((f) => !f)}
+                        dir={sideDir}
+                        className={cn(
+                          "min-h-[160px] rounded-2xl border p-6 flex flex-col justify-between cursor-pointer select-none transition-all",
+                          isFlashcardFlipped
+                            ? "border-emerald-400/40 bg-emerald-500/[0.08]"
+                            : "border-violet-400/40 bg-violet-500/[0.08]"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
+                          <span className="px-2.5 py-0.5 rounded-md bg-white/10 text-violet-200">
+                            {card.topic}
+                          </span>
+                          <span className="font-mono text-violet-300">
+                            {safeIdx + 1} / {summaryFlashcards.length} ·{" "}
+                            {isFlashcardFlipped
+                              ? "الشرح والإجابة (اضغط للقلب)"
+                              : "المفهوم / السؤال (اضغط لإظهار الشرح)"}
+                          </span>
+                        </div>
+
+                        <p
+                          className={cn(
+                            "text-base sm:text-lg font-bold text-[#f5f7fa] my-4 leading-relaxed",
+                            sideDir === "ltr" ? "text-left" : "text-right"
+                          )}
+                        >
+                          <FormattedInlineText text={sideText} />
+                        </p>
+
+                        <div className="text-[11px] text-[#9aa4b2] flex items-center justify-between">
+                          <span>🔄 اضغط على الكارت لقلبه</span>
+                          <span>
+                            {isFlashcardFlipped ? "🇪🇬 الوجه الخلفي" : "🇬🇧 الوجه الأمامي"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={safeIdx === 0}
+                          onClick={() => {
+                            setActiveFlashcardIdx((i) => Math.max(0, i - 1));
+                            setIsFlashcardFlipped(false);
+                          }}
+                          className="rounded-xl text-xs"
+                        >
+                          السابق
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsFlashcardFlipped((f) => !f)}
+                          className="rounded-xl text-xs border-violet-400/40 text-violet-300"
+                        >
+                          قلب البطاقة 🔄
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={safeIdx >= summaryFlashcards.length - 1}
+                          onClick={() => {
+                            setActiveFlashcardIdx((i) =>
+                              Math.min(summaryFlashcards.length - 1, i + 1)
+                            );
+                            setIsFlashcardFlipped(false);
+                          }}
+                          className="rounded-xl text-xs"
+                        >
+                          التالي
+                        </Button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Quick AI Refinement Strip */}
         <div className="pt-3 border-t border-white/[0.07] flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -996,10 +1799,11 @@ ${baseText.slice(0, 18000)}
               {isEn ? "Smart Refine:" : "تحسين ذكي:"}
             </span>
             {[
-              isEn ? "Add comparison table" : "أضف جدول مقارنات",
-              isEn ? "Highlight exam questions" : "أبرز مواضع أسئلة الامتحان",
+              isEn ? "Expand & explain deeply" : "كبّر واشرح كل نقطة بالتفصيل والأمثلة",
+              isEn ? "Add comparison table" : "أضف جدول مقارنات شامل",
+              isEn ? "Highlight exam questions" : "أبرز مواضع وتريكات أسئلة الامتحان",
               isEn ? "Simplify explanation" : "بسّط الشرح بالعربي",
-              isEn ? "Summarize into quick bullets" : "لخّص في نقاط سريعة",
+              isEn ? "Summarize into quick bullets" : "لخّص في برشامة نقاط سريعة",
             ].map((qPrompt) => (
               <button
                 key={qPrompt}
@@ -1026,7 +1830,7 @@ ${baseText.slice(0, 18000)}
               placeholder={
                 isEn
                   ? "Or type custom edit instruction..."
-                  : "أو اكتب تعديلك للذكاء الاصطناعي (مثال: اشرح الجزء الثاني بالتفصيل)..."
+                  : "أو اكتب أي أمر للذكاء الاصطناعي (مثال: كبّر شرح الصدمة وأضف جدول أدوية)..."
               }
               className="h-8 flex-1 rounded-lg border border-white/[0.07] bg-[#05070a]/80 px-3 text-xs text-[#f5f7fa] placeholder:text-[#667080] focus:border-[#19f08c] focus:outline-none"
             />
@@ -1107,6 +1911,7 @@ ${baseText.slice(0, 18000)}
         /* Smart Study Notes Studio: Sidebar TOC + Color-Coded Cards & Tables */
         <div className="grid gap-5 lg:grid-cols-12 items-start">
           {/* Sticky Sidebar Table of Contents */}
+          {!isWideLayout && (
           <aside className="lg:col-span-4 xl:col-span-3 lg:sticky lg:top-20 space-y-3">
             <div className="glass rounded-[1.25rem] p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -1212,10 +2017,14 @@ ${baseText.slice(0, 18000)}
               </div>
             </div>
           </aside>
+          )}
 
           {/* Main Structured Smart Cards Stream */}
           <div
-            className="lg:col-span-8 xl:col-span-9 space-y-5"
+            className={cn(
+              "space-y-5",
+              isWideLayout ? "lg:col-span-12" : "lg:col-span-8 xl:col-span-9"
+            )}
             style={{ fontSize: `${fontSize}px` }}
           >
             {filteredSections.length === 0 ? (
@@ -1264,6 +2073,25 @@ ${baseText.slice(0, 18000)}
                       )}
                       <button
                         type="button"
+                        onClick={() => handleExpandSection(section)}
+                        disabled={expandingSectionId === section.id}
+                        className="rounded-lg border border-sky-500/35 bg-sky-500/10 px-2.5 py-1 text-[11px] font-bold text-sky-400 hover:bg-sky-500/20 transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                        title={
+                          isEn
+                            ? "Expand & explain this unit in detail with AI"
+                            : "كبّر واشرح هذه الجزئية بالتفصيل والأمثلة"
+                        }
+                      >
+                        {expandingSectionId === section.id ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="size-3" />
+                        )}
+                        {isEn ? "Expand Unit" : "➕ كبّر واشرح الجزئية"}
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() =>
                           setSectionDrillId(sectionDrillId === section.id ? null : section.id)
                         }
@@ -1282,6 +2110,16 @@ ${baseText.slice(0, 18000)}
                           : isEn
                           ? "Quiz This Unit"
                           : "اختبرني في هذه الجزئية"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => copySectionText(section)}
+                        className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1"
+                        title={isEn ? "Copy unit text" : "نسخ نص هذه الوحدة"}
+                      >
+                        <Copy className="size-3" />
+                        {isEn ? "Copy" : "نسخ"}
                       </button>
 
                       <button
@@ -1324,6 +2162,32 @@ ${baseText.slice(0, 18000)}
                           : isEn
                           ? "Refine unit"
                           : "تعديل الوحدة"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCollapsedSections((prev) => ({
+                            ...prev,
+                            [section.id]: !prev[section.id],
+                          }))
+                        }
+                        className="rounded-lg border border-border bg-card p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        title={
+                          collapsedSections[section.id]
+                            ? isEn
+                              ? "Expand unit"
+                              : "فتح الوحدة"
+                            : isEn
+                            ? "Collapse unit"
+                            : "طي الوحدة"
+                        }
+                      >
+                        {collapsedSections[section.id] ? (
+                          <ChevronDown className="size-4" />
+                        ) : (
+                          <ChevronUp className="size-4" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1419,6 +2283,7 @@ ${baseText.slice(0, 18000)}
                   )}
 
                   {/* Section Content Blocks */}
+                  {!collapsedSections[section.id] && (
                   <div className="p-5 sm:p-6 space-y-4">
                     {section.items.map((item) => {
                       if (item.kind === "subheading") {
@@ -1697,6 +2562,7 @@ ${baseText.slice(0, 18000)}
                       );
                     })}
                   </div>
+                  )}
                 </article>
               ))
             )}

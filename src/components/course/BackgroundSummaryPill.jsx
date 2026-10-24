@@ -16,7 +16,7 @@ export default function BackgroundSummaryPill() {
     return backgroundSummaryTracker.subscribe(setJob);
   }, []);
 
-  const isOnCreatePage = location.pathname.startsWith("/create-course");
+  const isOnCreatePage = location.pathname.startsWith("/create");
   const isOnCompletedCoursePage = Boolean(
     job.courseId && location.pathname === `/course/${job.courseId}`
   );
@@ -39,7 +39,7 @@ export default function BackgroundSummaryPill() {
       navigate(`/course/${targetCourseId}`);
       return;
     }
-    navigate("/create-course");
+    navigate("/create");
   };
 
   return (

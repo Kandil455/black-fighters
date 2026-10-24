@@ -48,9 +48,18 @@ export default function CourseCard({
   const isEn = locale === "en";
   const [purchasing, setPurchasing] = useState(false);
 
-  const hasSummary = !!course.summary || !!course.summary_v3;
-  const quizCount = course.quiz?.length || 0;
-  const flashcardsCount = course.flashcards?.length || 0;
+  const hasSummary = Boolean(
+    course.summary ||
+      course.summary_v3 ||
+      course.summary_markdown ||
+      course.summary_document_v3 ||
+      course.has_summary ||
+      (Array.isArray(course.chapters) && course.chapters.length > 0)
+  );
+  const quizCount = Number(course.quiz_count || course.quiz?.length || 0);
+  const flashcardsCount = Number(
+    course.flashcards_count || course.flashcards?.length || 0
+  );
   const price = Number(course.price_credits || 0);
   const isPaid = price > 0 && !isOwned && !isAdmin;
 
@@ -299,13 +308,23 @@ export default function CourseCard({
               </span>
             </button>
           ) : (
-            <Link
-              to={`/course/${course.id}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#19f08c]/12 hover:bg-[#19f08c] text-[#19f08c] hover:text-[#03150c] border border-[#19f08c]/35 text-xs font-bold transition-colors whitespace-nowrap"
-            >
-              <span>{isEn ? "Open Atlas" : "فتح المقرر"}</span>
-              <ArrowIcon className="w-3.5 h-3.5" />
-            </Link>
+            <div className="flex items-center gap-1.5">
+              <Link
+                to={`/course/${course.id}?tab=quiz`}
+                title={isEn ? "Practice Quiz" : "كويز المقرر"}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-[#9aa4b2] hover:text-[#f5f7fa] border border-white/10 text-xs font-bold transition-colors whitespace-nowrap"
+              >
+                <TheoryQuizIcon size={13} animated={false} />
+                <span>{isEn ? "Quiz" : "كويز"}</span>
+              </Link>
+              <Link
+                to={`/course/${course.id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#19f08c]/12 hover:bg-[#19f08c] text-[#19f08c] hover:text-[#03150c] border border-[#19f08c]/35 text-xs font-bold transition-colors whitespace-nowrap"
+              >
+                <span>{isEn ? "Open Summary" : "فتح الملخص"}</span>
+                <ArrowIcon className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           )}
         </div>
       </div>

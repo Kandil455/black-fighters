@@ -366,7 +366,7 @@ export default function CreateCourse() {
         setStep(2);
         backgroundSummaryTracker.completeJob(merged);
         toast.success(isEn ? "Smart Summary Completed! 🎉" : "اكتمل تجهيز الملخص الذكي! 🎉");
-        if (autoSavedId && typeof window !== "undefined" && window.location.pathname.startsWith("/create-course")) {
+        if (autoSavedId && typeof window !== "undefined" && window.location.pathname.startsWith("/create")) {
           backgroundSummaryTracker.clearJob();
           try {
             localStorage.removeItem("bf_create_course_preview_draft");

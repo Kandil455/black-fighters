@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from '@/api/base44Client';
 import { invokeSecureFunction } from '@/lib/secureFunctions';
@@ -88,7 +88,20 @@ export default function CourseView() {
   const [reviewReminderOpen, setReviewReminderOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingTelegram, setExportingTelegram] = useState(false);
-  const [activeTab, setActiveTab] = useState("summary");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const requested = searchParams.get("tab");
+    const allowed = ["summary", "quiz", "flashcards", "sheet", "practice", "study", "notes", "chat"];
+    return allowed.includes(requested) ? requested : "summary";
+  });
+
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    const allowed = ["summary", "quiz", "flashcards", "sheet", "practice", "study", "notes", "chat"];
+    if (requested && allowed.includes(requested)) {
+      setActiveTab(requested);
+    }
+  }, [searchParams]);
 
   const { data: course, isLoading } = useQuery({
     queryKey: ["course", id],
@@ -181,16 +194,32 @@ export default function CourseView() {
     return null;
   };
 
-  const courseText = () =>
-    ((course?.chapters || [])).map((ch) => `# ${ch.title || ""}\n${ch.content || ""}`).join("\n\n");
+  const courseText = () => {
+    const fromChapters = ((course?.chapters || []))
+      .map((ch) => `# ${ch.title || ""}\n${ch.content || ""}`)
+      .join("\n\n")
+      .trim();
+    if (fromChapters) return fromChapters;
+    const summaryData = getSummaryData();
+    return String(
+      course?.summary_markdown ||
+        summaryData?.summary_markdown ||
+        summaryData?.markdown ||
+        ""
+    ).trim();
+  };
 
-  const generate = async (type, language) => {
+  const generate = async (type, language, overrideOptions = {}) => {
+    const effectiveQuizCount = overrideOptions.count || quizCount;
+    const effectiveQuizProfile = overrideOptions.profile || quizProfile;
+    if (overrideOptions.count) setQuizCount(overrideOptions.count);
+    if (overrideOptions.profile) setQuizProfile(overrideOptions.profile);
     if (!language) {
-      if (course.language === "mixed") {
+      if (course.language === "mixed" && !overrideOptions.skipLangDialog) {
         setLangDialog(type);
         return;
       }
-      language = course.language || "ar";
+      language = course.language === "mixed" ? "ar" : (course.language || "ar");
     }
     setLangDialog(null);
 
@@ -205,7 +234,7 @@ export default function CourseView() {
       let chunks = text.length > CHUNK_SIZE ? await splitCourseTextAsync(text, CHUNK_SIZE) : [text];
       let quizSourceAnalysis = null;
       let quizMode = "generate";
-      let requestedQuizCount = Math.max(1, Math.min(QUIZ_MAX_QUESTIONS, Number(quizCount) || 10));
+      let requestedQuizCount = Math.max(1, Math.min(QUIZ_MAX_QUESTIONS, Number(effectiveQuizCount) || 10));
       if (type === "quiz") {
         const localAnalysis = localAnalyzeQuizSource(text);
         quizSourceAnalysis = localAnalysis;
@@ -250,7 +279,7 @@ export default function CourseView() {
         jobKey: chargedJob.jobKey,
         task: type,
         charCount: text.length,
-        questionCount: type === "quiz" ? requestedQuizCount : quizCount,
+        questionCount: type === "quiz" ? requestedQuizCount : effectiveQuizCount,
         totalChunks: chunks.length,
       });
       chargedJob.cost = charge.data.cost;
@@ -266,7 +295,7 @@ export default function CourseView() {
       const callAI = async (chunkText, chunkIdx, pageBudget) => {
         const plannedQuestions = type === "quiz"
           ? Math.max(0, Number(quizQuestionPlan[chunkIdx]) || 0)
-          : Math.max(5, Math.round(quizCount / chunks.length));
+          : Math.max(5, Math.round(effectiveQuizCount / chunks.length));
         if (type === "quiz" && plannedQuestions <= 0) return { questions: [] };
         const res = await base44.functions.invoke("generateStudyContent", {
           task: type,
@@ -275,7 +304,7 @@ export default function CourseView() {
           numQuestions: plannedQuestions,
           difficulty,
           withExplanation: showExplanations,
-          quizProfile: type === "quiz" ? quizProfile : undefined,
+          quizProfile: type === "quiz" ? effectiveQuizProfile : undefined,
           summaryStyle: type === "summary" ? summaryStyle : undefined,
           summaryMaxPages: type === "summary" ? (pageBudget || summaryMaxPages) : undefined,
           chunkIndex: chunkIdx,
@@ -415,14 +444,36 @@ export default function CourseView() {
           language,
           ...(type === "quiz" ? {
             quiz_mode: quizMode,
-            quiz_profile: quizProfile,
+            quiz_profile: effectiveQuizProfile,
             source_analysis: quizSourceAnalysis,
             quality_stats: finalResult.stats,
           } : {}),
         },
       });
 
+      // Keep Course card stats (has_summary, quiz_count, flashcards_count) synced for Dashboard & Atlas
+      try {
+        const coursePatch = {};
+        if (type === "quiz" && Array.isArray(finalResult?.questions)) {
+          coursePatch.quiz_count = finalResult.questions.length;
+        } else if (type === "flashcards" && Array.isArray(finalResult?.cards)) {
+          coursePatch.flashcards_count = finalResult.cards.length;
+        } else if (type === "summary") {
+          coursePatch.has_summary = true;
+          if (finalResult?.summary_markdown) coursePatch.summary_markdown = finalResult.summary_markdown;
+          if (finalResult?.summary_document_v3) coursePatch.summary_document_v3 = finalResult.summary_document_v3;
+        }
+        if (Object.keys(coursePatch).length > 0) {
+          await base44.entities.Course.update(id, coursePatch).catch(() => {});
+        }
+      } catch {}
+
       queryClient.invalidateQueries({ queryKey: ["contents", id] });
+      queryClient.invalidateQueries({ queryKey: ["course", id] });
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      if (type === "quiz" || type === "flashcards" || type === "study_sheet") {
+        setActiveTab(type === "study_sheet" ? "sheet" : type);
+      }
       // Badge ladder: count generated content toward tiered badges
       try {
         const { bumpCounter } = await import("@/lib/gamification");
@@ -1162,7 +1213,18 @@ function summaryToTelegramText(summaryRow) {
                   }
                 />
               )}
-              <SummaryView summary={getSummaryData()} course={course} />
+              <SummaryView
+                summary={getSummaryData()}
+                course={course}
+                generatingType={generating}
+                onSwitchTab={(tab) => setActiveTab(tab)}
+                onGenerateFromSummary={async (targetType, opts = {}) => {
+                  await generate(targetType, course?.language === "en" ? "en" : "ar", {
+                    ...opts,
+                    skipLangDialog: true,
+                  });
+                }}
+              />
             </div>
           ) : (
             <EmptyGen

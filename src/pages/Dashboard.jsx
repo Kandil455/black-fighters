@@ -91,12 +91,17 @@ export default function Dashboard() {
     if (courses.length === 0) return 0;
     const totalParts = courses.length * 3;
     const doneParts = courses.reduce((acc, c) => {
-      return (
-        acc +
-        (c.summary || c.summary_v3 ? 1 : 0) +
-        (c.quiz?.length > 0 ? 1 : 0) +
-        (c.flashcards?.length > 0 ? 1 : 0)
+      const hasSum = Boolean(
+        c.summary ||
+          c.summary_v3 ||
+          c.summary_markdown ||
+          c.summary_document_v3 ||
+          c.has_summary ||
+          (Array.isArray(c.chapters) && c.chapters.length > 0)
       );
+      const hasQz = Number(c.quiz_count || c.quiz?.length || 0) > 0;
+      const hasFc = Number(c.flashcards_count || c.flashcards?.length || 0) > 0;
+      return acc + (hasSum ? 1 : 0) + (hasQz ? 1 : 0) + (hasFc ? 1 : 0);
     }, 0);
     return Math.round((doneParts / totalParts) * 100);
   }, [courses]);
@@ -326,9 +331,13 @@ export default function Dashboard() {
                   {isEn ? "CONTINUE WHERE YOU LEFT OFF" : "كمّل من حيث وقفت"}
                 </span>
                 <LVBadge variant="emerald">
-                  {latestCourse.summary || latestCourse.summary_v3
+                  {latestCourse.summary ||
+                  latestCourse.summary_v3 ||
+                  latestCourse.summary_markdown ||
+                  latestCourse.summary_document_v3 ||
+                  latestCourse.chapters?.length > 0
                     ? isEn
-                      ? "Atlas Ready"
+                      ? "Summary Ready"
                       : "الملخص جاهز"
                     : isEn
                     ? "In Progress"
@@ -340,11 +349,15 @@ export default function Dashboard() {
               </h3>
               <p className="text-xs text-[#9aa4b2] mt-0.5">
                 {isEn
-                  ? `${latestCourse.quiz?.length || 0} quiz questions · ${
-                      latestCourse.flashcards?.length || 0
+                  ? `${latestCourse.chapters?.length || 1} units · ${
+                      latestCourse.quiz_count || latestCourse.quiz?.length || 0
+                    } quiz questions · ${
+                      latestCourse.flashcards_count || latestCourse.flashcards?.length || 0
                     } flashcards`
-                  : `${latestCourse.quiz?.length || 0} سؤال كويز · ${
-                      latestCourse.flashcards?.length || 0
+                  : `${latestCourse.chapters?.length || 1} وحدات ملخص · ${
+                      latestCourse.quiz_count || latestCourse.quiz?.length || 0
+                    } سؤال كويز · ${
+                      latestCourse.flashcards_count || latestCourse.flashcards?.length || 0
                     } بطاقة مراجعة`}
               </p>
             </div>

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Check, Download, Printer, LayoutTemplate, Table2, FileSpreadsheet, ListOrdered, Layers } from "lucide-react";
+import { Check, Download, Printer, LayoutTemplate, Table2, FileSpreadsheet, ListOrdered, Layers, Maximize2, Minimize2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { renderStudyGuideHtml, STUDY_GUIDE_TEMPLATES, GUIDE_PALETTES } from "@/lib/summaryStudyGuide";
 import { useLocale } from "@/lib/LocaleContext";
@@ -31,8 +31,27 @@ export default function StudyGuideViewer({
   const [localTemplate, setLocalTemplate] = useState(
     () => templateId || readStoredTemplate() || "modules_red"
   );
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const activeTemplate = templateId || localTemplate;
   const iframeRef = useRef(null);
+
+  const openInNewTab = () => {
+    try {
+      const exportHtml = renderStudyGuideHtml({
+        document: doc,
+        markdown,
+        title,
+        templateId: activeTemplate,
+        forExport: false,
+      });
+      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      toast.error(isEn ? "Failed to open in new tab" : "تعذر فتح الملخص في نافذة جديدة");
+    }
+  };
 
   const selectTemplate = (id) => {
     setLocalTemplate(id);
@@ -116,7 +135,14 @@ export default function StudyGuideViewer({
   };
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div
+      className={cn(
+        "space-y-4",
+        isFullscreen &&
+          "fixed inset-0 z-50 bg-background/98 backdrop-blur-md p-3 sm:p-6 overflow-y-auto",
+        className
+      )}
+    >
       {showToolbar && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -130,7 +156,32 @@ export default function StudyGuideViewer({
                   : "اختر تخطيط القالب المناسب للطباعة أو التحميل كملف مستقل"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsFullscreen((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition cursor-pointer"
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    {isEn ? "Exit Fullscreen" : "تصغير الشاشة"}
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    {isEn ? "Fullscreen" : "تكبير لملء الشاشة ⛶"}
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={openInNewTab}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary/80 transition cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {isEn ? "Open Full Page" : "فتح في صفحة مستقلة"}
+              </button>
               <button
                 type="button"
                 onClick={printGuide}
@@ -161,7 +212,11 @@ export default function StudyGuideViewer({
           srcDoc={html}
           sandbox="allow-same-origin allow-modals"
           className="block w-full border-0"
-          style={{ height: "78vh", minHeight: "540px", background: "#f0f2f5" }}
+          style={{
+            height: isFullscreen ? "84vh" : "78vh",
+            minHeight: "540px",
+            background: "#f0f2f5",
+          }}
         />
       </div>
     </div>

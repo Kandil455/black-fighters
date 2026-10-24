@@ -92,8 +92,14 @@ export default function DailyOrderSheet({
 
     const activeCourses = courses.slice(0, 3);
     activeCourses.forEach((course, idx) => {
-      const hasSummary = Boolean(course.summary || course.summary_v3);
-      const hasQuiz = Array.isArray(course.quiz) && course.quiz.length > 0;
+      const hasSummary = Boolean(
+        course.summary ||
+          course.summary_v3 ||
+          course.summary_markdown ||
+          course.summary_document_v3 ||
+          course.chapters?.length > 0
+      );
+      const hasQuiz = Number(course.quiz_count || course.quiz?.length || 0) > 0;
 
       if (idx === 0) {
         list.push({
