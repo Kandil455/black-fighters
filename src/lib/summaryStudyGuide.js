@@ -1,10 +1,7 @@
 /**
  * summaryStudyGuide.js — the HTML study-guide template engine.
  *
- * TWO SEPARATE AXES. The first attempt at this shipped four *colours* of the same
- * layout and the owner rightly rejected it — "انت بتغير لي الألوان، أنا بتكلم
- * قوالب مختلفة". So a template is now a LAYOUT plus a PALETTE:
- *
+ * TWO SEPARATE AXES:
  *   layout  — the actual DOM structure and reading flow:
  *               modules  · header + index + module cards (the reference file design)
  *               cram     · dense two-column revision sheet, no index, print 2-up
@@ -14,16 +11,28 @@
  *   palette — colour identity (emergency red / clinical navy / pharma green /
  *             exam amber), including the owner's two reference palettes.
  *
- * ONE generator serves the reader, the picker previews and the exported file, so
- * what a student picks is exactly what they read and exactly what they download.
- * Input is the existing v3 summary document (`sections[].blocks[]` with a semantic
- * `role`) — no schema change.
+ * Includes automatic bidirectional (LTR/RTL) alignment, paired English+Arabic
+ * concept cards, and smart academic auto-bolding & clinical/numerical highlighting.
  */
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
 export function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ESCAPES[char]);
+}
+
+/** Detects whether a piece of text is predominantly English (LTR) or Arabic (RTL). */
+export function detectTextDir(raw = "", role = "") {
+  if (role === "english_points") return "ltr";
+  if (role === "arabic_explanation") return "rtl";
+  const str = String(raw || "");
+  const arMatches = str.match(/[\u0600-\u06FF]/g);
+  const enMatches = str.match(/[A-Za-z]/g);
+  const arCount = arMatches ? arMatches.length : 0;
+  const enCount = enMatches ? enMatches.length : 0;
+  if (arCount === 0 && enCount > 0) return "ltr";
+  if (enCount > arCount * 1.35) return "ltr";
+  return "rtl";
 }
 
 /** Colour identity. `emergency_red` and `clinical_navy` come from the owner's files. */
@@ -145,25 +154,108 @@ export function getStudyGuideTheme(id) {
   return { id: template.id, ...GUIDE_PALETTES[template.palette] };
 }
 
-// ── rich text → HTML (annotation spans become the palette's .hl-* classes) ───
+// ── rich text → HTML (annotation spans + smart academic bold/highlight engine) ───
 const ANNOTATION_CLASS = {
-  green: "hl-green", yellow: "hl-yellow", cyan: "hl-blue", blue: "hl-blue",
-  orange: "hl-orange", red: "hl-red",
+  green: "hl-green",
+  yellow: "hl-yellow",
+  cyan: "hl-blue",
+  blue: "hl-blue",
+  orange: "hl-orange",
+  red: "hl-red",
 };
+
+/**
+ * Enhances an already HTML-escaped string with:
+ * 1. Explicit inline markers (`==color:text==`, `**bold**`, `` `code` ``)
+ * 2. Automatic bolding of lead terms/clauses (before `:`, `—`, `,`, `،`, or key verbs)
+ * 3. Automatic bolding of English medical/scientific terms inside parentheses
+ * 4. Automatic highlighting of clinical dosages, numbers+units, cutoffs, and high-yield exam words
+ */
+export function enhanceAcademicHtml(escapedHtml = "") {
+  let out = String(escapedHtml || "");
+  if (!out) return "";
+
+  // 1. Convert explicit inline markup if present in text
+  out = out
+    .replace(
+      /==(green|yellow|cyan|blue|orange|red):([^=]+)==/g,
+      (_, color, body) => `<span class="${ANNOTATION_CLASS[color] || "hl-yellow"}">${body}</span>`
+    )
+    .replace(/==([^=]+)==/g, '<span class="hl-yellow">$1</span>')
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/`([^`]+)`/g, '<code dir="ltr">$1</code>');
+
+  const alreadyHasLeadBold = /^\s*<(?:b|strong|span|code)\b/i.test(out);
+
+  // 2. Auto-bold lead topic/clause when not already bolded
+  if (!alreadyHasLeadBold) {
+    if (/^([^:—<]{2,78})(\s*[:—]\s*)(.+)$/s.test(out)) {
+      out = out.replace(/^([^:—<]{2,78})(\s*[:—]\s*)(.+)$/s, "<b>$1</b>$2$3");
+    } else if (/^([A-Z][A-Za-z0-9\s/-]{3,60})(,\s+)(.+)$/s.test(out)) {
+      out = out.replace(/^([A-Z][A-Za-z0-9\s/-]{3,60})(,\s+)(.+)$/s, "<b>$1</b>$2$3");
+    } else if (
+      /^([A-Z][A-Za-z0-9\s/-]{2,55}?)(\s+(?:is|are|was|were|must|should|can|will|requires?|indicates?|causes?|leads?\s+to|results?\s+in|prevents?|maintains?|controls?|defines?|represents?|occurs?)\b)/i.test(
+        out
+      )
+    ) {
+      out = out.replace(
+        /^([A-Z][A-Za-z0-9\s/-]{2,55}?)(\s+(?:is|are|was|were|must|should|can|will|requires?|indicates?|causes?|leads?\s+to|results?\s+in|prevents?|maintains?|controls?|defines?|represents?|occurs?)\b)/i,
+        "<b>$1</b>$2"
+      );
+    } else if (/^([^،<]{4,68})(،\s+)(.+)$/s.test(out)) {
+      out = out.replace(/^([^،<]{4,68})(،\s+)(.+)$/s, "<b>$1</b>$2$3");
+    } else if (
+      /^((?:في حالة|عند|يجب|يتم|تعتبر|يعتبر|إن|أن|تؤدي|يؤدي|الهدف من|أهم|أبكر|أول)\s+[\u0600-\u06FF\s]{3,42})(\s+)/.test(
+        out
+      )
+    ) {
+      out = out.replace(
+        /^((?:في حالة|عند|يجب|يتم|تعتبر|يعتبر|إن|أن|تؤدي|يؤدي|الهدف من|أهم|أبكر|أول)\s+[\u0600-\u06FF\s]{3,42})(\s+)/,
+        "<b>$1</b>$2"
+      );
+    }
+  }
+
+  // 3. Bold English technical/medical terms inside parentheses: e.g. (Circulation), (Tachycardia)
+  out = out.replace(
+    /\(([A-Za-z][A-Za-z0-9\s/-]{1,42})\)/g,
+    (_, term) => `(<b>${term}</b>)`
+  );
+
+  // 4. Highlight numbers with clinical/scientific units, thresholds, time windows, or percentages
+  if (!out.includes('class="hl-')) {
+    out = out.replace(
+      /(\b(?:GCS\s*(?:&lt;|&gt;|≤|≥|=)?\s*\d+|C\d\s*[-–]\s*C\d|\d+(?:\.\d+)?\s*(?:mmHg|mg\/dL|mg\/kg|mg|g|mcg|mL|ml|L|%|bpm|min|minutes|hrs|hours|sec|seconds|cm|mm|mEq\/L|mmol\/L|IU|مم زئبق|دقائق|دقيقة|ساعات|ساعة|ثواني|ثانية|ملجم|جم|جرام|مل|لتر))(?![A-Za-z\u0600-\u06FF]))/gi,
+      '<span class="hl-yellow">$1</span>'
+    );
+  }
+
+  // 5. Highlight critical exam warning/priority phrases
+  out = out.replace(
+    /(\b(?:earliest measurable sign|definitive airway|gold standard|first-line|contraindicated|life-threatening|mandatory|immediately)\b|أبكر علامة|القاعدة الذهبية|الخط الأول|ممنوع|فوراً|حتمي)/gi,
+    (match) => `<span class="hl-red">${match}</span>`
+  );
+
+  return out;
+}
 
 function renderRich(value) {
   if (value == null) return "";
-  if (typeof value === "string" || typeof value === "number") return escapeHtml(value);
+  if (typeof value === "string" || typeof value === "number") {
+    return enhanceAcademicHtml(escapeHtml(value));
+  }
   const text = String(value.text || "");
   const annotations = (Array.isArray(value.annotations) ? value.annotations : [])
     .filter((a) => Number(a?.end) > Number(a?.start));
-  if (!annotations.length) return escapeHtml(text);
+  if (!annotations.length) {
+    return enhanceAcademicHtml(escapeHtml(text));
+  }
 
   const bounds = [...new Set([0, text.length, ...annotations.flatMap((a) => [Number(a.start), Number(a.end)])])]
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= text.length)
     .sort((a, b) => a - b);
 
-  return bounds.slice(0, -1).map((start, index) => {
+  const annotatedHtml = bounds.slice(0, -1).map((start, index) => {
     const end = bounds[index + 1];
     const chunk = escapeHtml(text.slice(start, end));
     if (!chunk) return "";
@@ -175,6 +267,14 @@ function renderRich(value) {
     if (active.some((a) => a.italic)) return `<i>${chunk}</i>`;
     return chunk;
   }).join("");
+
+  return enhanceAcademicHtml(annotatedHtml);
+}
+
+function itemPlainText(item) {
+  if (item == null) return "";
+  if (typeof item === "string" || typeof item === "number") return String(item);
+  return String(item.text || item.content?.text || item.content || "");
 }
 
 function blockText(block) {
@@ -195,13 +295,17 @@ const BOX_FOR_ROLE = {
   answer: { cls: "box-green", title: "✅ الإجابة" },
 };
 
-/** One block → the layout's shared content vocabulary. */
+/** One block → the layout's shared content vocabulary with explicit LTR/RTL direction. */
 function renderBlock(block) {
   if (!block) return "";
   const type = String(block.type || "paragraph");
   const role = String(block.role || "body");
+  const rawText = blockText(block);
+  const blockDir = detectTextDir(rawText, role);
 
-  if (type === "heading") return `<div class="section-header">${renderRich(block.content) || escapeHtml(blockText(block))}</div>`;
+  if (type === "heading") {
+    return `<div class="section-header" dir="${blockDir}">${renderRich(block.content) || enhanceAcademicHtml(escapeHtml(rawText))}</div>`;
+  }
 
   if (type === "table") {
     const table = block.table && typeof block.table === "object" ? block.table : block;
@@ -209,31 +313,110 @@ function renderBlock(block) {
     const rows = Array.isArray(table.rows) ? table.rows : [];
     if (!headers.length && !rows.length) return "";
     return `<table>
-      ${headers.length ? `<thead><tr>${headers.map((h) => `<th>${renderRich(h)}</th>`).join("")}</tr></thead>` : ""}
-      <tbody>${rows.map((row) => `<tr>${(Array.isArray(row) ? row : []).map((cell) => `<td>${renderRich(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
+      ${headers.length ? `<thead><tr>${headers.map((h) => `<th dir="${detectTextDir(itemPlainText(h))}">${renderRich(h)}</th>`).join("")}</tr></thead>` : ""}
+      <tbody>${rows.map((row) => `<tr>${(Array.isArray(row) ? row : []).map((cell) => `<td dir="${detectTextDir(itemPlainText(cell))}">${renderRich(cell)}</td>`).join("")}</tr>`).join("")}</tbody>
     </table>`;
   }
 
   if (type === "bullet_list" || type === "ordered_list") {
     const items = Array.isArray(block.items) ? block.items : [];
     const tag = type === "ordered_list" ? "ol" : "ul";
-    return `<${tag}>${items.map((item) => `<li>${renderRich(item)}</li>`).join("")}</${tag}>`;
+    const listDir = role === "english_points" ? "ltr" : role === "arabic_explanation" ? "rtl" : blockDir;
+    const listCls = listDir === "ltr" ? "list-ltr" : "list-rtl";
+    const listHtml = `<${tag} class="${listCls}" dir="${listDir}">${items
+      .map((item) => {
+        const iDir = detectTextDir(itemPlainText(item), role);
+        return `<li dir="${iDir}">${renderRich(item)}</li>`;
+      })
+      .join("")}</${tag}>`;
+
+    if (role === "english_points") {
+      return `<div class="section-header-eng" dir="ltr">📋 Key English Concepts</div>${listHtml}`;
+    }
+    if (role === "arabic_explanation") {
+      return `<div class="section-header-ar" dir="rtl">🇪🇬 الشرح والتفصيل بالعربي</div>${listHtml}`;
+    }
+    return listHtml;
   }
 
-  if (type === "equation" || type === "code") return `<div class="eq" dir="ltr">${escapeHtml(blockText(block))}</div>`;
+  if (type === "equation" || type === "code") return `<div class="eq" dir="ltr">${escapeHtml(rawText)}</div>`;
   if (type === "quote" || type === "callout") {
-    return `<div class="trick">${renderRich(block.content) || escapeHtml(blockText(block))}</div>`;
+    return `<div class="trick" dir="${blockDir}">${renderRich(block.content) || enhanceAcademicHtml(escapeHtml(rawText))}</div>`;
   }
   if (type === "divider") return "<hr>";
 
   const box = BOX_FOR_ROLE[role];
-  const body = renderRich(block.content) || escapeHtml(blockText(block));
-  if (box) return `<div class="${box.cls}"><span class="box-title">${box.title}</span>${body}</div>`;
-  if (role === "english_points") return `<div class="section-header-eng">📋 ${body}</div>`;
-  return `<p>${body}</p>`;
+  const body = renderRich(block.content) || enhanceAcademicHtml(escapeHtml(rawText));
+  if (box) return `<div class="${box.cls}" dir="${blockDir}"><span class="box-title">${box.title}</span>${body}</div>`;
+  if (role === "english_points") return `<div class="section-header-eng" dir="ltr">📋 ${body}</div>`;
+  return `<p dir="${blockDir}">${body}</p>`;
 }
 
-/** Markdown fallback for legacy (non-v3) summaries. */
+/**
+ * Renders a sequence of blocks inside a section, automatically pairing adjacent
+ * `english_points` and `arabic_explanation` bullet lists into numbered Bilingual Study Cards
+ * so English points are never separated from their Arabic explanations.
+ */
+function renderBlocksSequence(blocks = [], customRenderer = renderBlock) {
+  const list = Array.isArray(blocks) ? blocks : [];
+  const out = [];
+
+  for (let i = 0; i < list.length; i++) {
+    const cur = list[i];
+    const next = list[i + 1];
+    if (
+      cur &&
+      next &&
+      (cur.type === "bullet_list" || cur.type === "ordered_list") &&
+      (next.type === "bullet_list" || next.type === "ordered_list") &&
+      cur.role === "english_points" &&
+      next.role === "arabic_explanation"
+    ) {
+      const enItems = Array.isArray(cur.items) ? cur.items : [];
+      const arItems = Array.isArray(next.items) ? next.items : [];
+      const maxLen = Math.max(enItems.length, arItems.length);
+      const pairsHtml = [];
+
+      for (let idx = 0; idx < maxLen; idx++) {
+        const enItem = enItems[idx];
+        const arItem = arItems[idx];
+        const num = String(idx + 1).padStart(2, "0");
+        pairsHtml.push(`
+          <div class="bilingual-pair">
+            ${
+              enItem
+                ? `<div class="bilingual-en" dir="ltr">
+                    <span class="pair-badge pair-badge-en">${num} · EN</span>
+                    <div class="pair-content">${renderRich(enItem)}</div>
+                  </div>`
+                : ""
+            }
+            ${
+              arItem
+                ? `<div class="bilingual-ar" dir="rtl">
+                    <span class="pair-badge pair-badge-ar">الشرح بالعربي</span>
+                    <div class="pair-content">${renderRich(arItem)}</div>
+                  </div>`
+                : ""
+            }
+          </div>`);
+      }
+
+      out.push(
+        `<div class="section-header-eng" dir="ltr">📋 Key Concepts &amp; Bilingual Explanation</div>
+         <div class="bilingual-stack">${pairsHtml.join("")}</div>`
+      );
+      i++; // skip `next` because we paired it
+      continue;
+    }
+
+    out.push(customRenderer(cur, i));
+  }
+
+  return out.join("");
+}
+
+/** Markdown fallback for legacy (non-v3) summaries — preserves **bold** and ==highlights==. */
 function markdownToSections(markdown) {
   const lines = String(markdown || "").split("\n");
   const sections = [];
@@ -256,10 +439,10 @@ function markdownToSections(markdown) {
       continue;
     }
     const bullet = /^[-*•]\s+(.*)$/.exec(line);
-    if (bullet) { listBuffer.push(bullet[1].replace(/[*_`]/g, "").trim()); continue; }
+    if (bullet) { listBuffer.push(bullet[1].trim()); continue; }
     flushList();
     if (!current) { current = { title: { text: "المحتوى" }, blocks: [] }; sections.push(current); }
-    current.blocks.push({ type: "paragraph", role: "body", content: { text: line.replace(/[*_`]/g, "") } });
+    current.blocks.push({ type: "paragraph", role: "body", content: { text: line } });
   }
   flushList();
   return sections.filter((section) => section.blocks.length);
@@ -278,9 +461,15 @@ body { font-family:'IBM Plex Sans Arabic','Segoe UI',Tahoma,Arial,sans-serif; ba
 .header .subtitle { font-size:1.1em; color:${palette.subtitle}; font-weight:bold; }
 .header .meta { font-size:.9em; opacity:.85; margin-top:6px; }
 p { margin:11px 0; }
+p[dir="ltr"] { direction:ltr; text-align:left; }
+p[dir="rtl"] { direction:rtl; text-align:right; }
 ul, ol { margin:10px 24px 10px 0; }
-li { margin-bottom:6px; }
-b, strong { color:${palette.accentDark}; }
+ul.list-ltr, ol.list-ltr, ul[dir="ltr"], ol[dir="ltr"] { direction:ltr; text-align:left; margin:10px 0 10px 24px; }
+ul.list-rtl, ol.list-rtl, ul[dir="rtl"], ol[dir="rtl"] { direction:rtl; text-align:right; margin:10px 24px 10px 0; }
+li { margin-bottom:8px; line-height:1.85; }
+li[dir="ltr"] { direction:ltr; text-align:left; }
+li[dir="rtl"] { direction:rtl; text-align:right; }
+b, strong { color:${palette.accentDark}; font-weight:800; }
 h2, h3 { color:${palette.accentDark}; }
 .box-red,.box-blue,.box-green,.box-yellow,.box-purple,.box-dark { padding:14px 18px; border-radius:9px; margin:13px 0; }
 .box-red { background:#fdeeec; border-right:5px solid #e74c3c; }
@@ -292,18 +481,31 @@ h2, h3 { color:${palette.accentDark}; }
 .box-title { font-weight:bold; font-size:1.02em; margin-bottom:6px; display:block; }
 .section-header { background:linear-gradient(90deg, ${palette.accentDark}, ${palette.accent}); color:#fff; padding:11px 18px; border-radius:10px; font-size:1.06em; font-weight:bold; margin:20px 0 12px; }
 .section-header-eng { background:linear-gradient(90deg, ${palette.railFrom}, ${palette.railTo}); color:#fff; padding:11px 18px; border-radius:10px; font-size:1.02em; font-weight:bold; margin:20px 0 12px; direction:ltr; text-align:left; }
+.section-header-ar { background:linear-gradient(90deg, ${palette.accentDark}, ${palette.accent}); color:#fff; padding:10px 16px; border-radius:10px; font-size:1em; font-weight:bold; margin:16px 0 10px; direction:rtl; text-align:right; }
+.bilingual-stack { display:flex; flex-direction:column; gap:14px; margin:14px 0 18px; }
+.bilingual-pair { border:1px solid #dbe3ee; border-radius:14px; overflow:hidden; background:#fff; box-shadow:0 3px 12px rgba(15,52,96,0.06); }
+.bilingual-en { direction:ltr; text-align:left; padding:14px 18px; background:#f8fafc; border-bottom:1px dashed #cbd5e1; display:flex; align-items:flex-start; gap:12px; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; }
+.bilingual-ar { direction:rtl; text-align:right; padding:14px 18px; background:#fffdf9; display:flex; align-items:flex-start; gap:12px; }
+.pair-badge { flex:0 0 auto; font-size:.74em; font-weight:800; padding:3px 9px; border-radius:7px; margin-top:3px; letter-spacing:.03em; }
+.pair-badge-en { background:${palette.railTo}; color:#fff; font-family:ui-monospace,Menlo,monospace; }
+.pair-badge-ar { background:${palette.accent}; color:#fff; }
+.pair-content { flex:1; min-width:0; line-height:1.85; }
 .trick { background:linear-gradient(135deg,#f39c12,#e67e22); color:#fff; padding:15px 20px 15px 66px; border-radius:12px; margin:15px 0; position:relative; box-shadow:0 4px 14px rgba(230,126,34,.35); }
 .trick::before { content:"تريكة"; position:absolute; left:11px; top:50%; transform:translateY(-50%); background:#fff; color:#ca6f1e; font-weight:bold; font-size:.78em; padding:4px 9px; border-radius:12px; }
 .trick b, .trick strong { color:#fffbe6; }
 table { width:100%; border-collapse:collapse; margin:14px 0; border-radius:10px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,.1); }
 th { background:${palette.tableHead}; color:#fff; padding:10px 12px; text-align:right; font-size:.93em; }
+th[dir="ltr"], td[dir="ltr"] { direction:ltr; text-align:left; }
 td { padding:9px 12px; border-bottom:1px solid #e5e8ec; vertical-align:top; }
 tr:nth-child(even) td { background:#f8fafc; }
 .eq { background:#16213e; color:#fff; direction:ltr; text-align:left; padding:13px 16px; border-radius:10px; margin:13px 0; font-family:ui-monospace,Menlo,monospace; overflow-x:auto; }
 code { background:#eaecee; padding:2px 6px; border-radius:5px; font-family:ui-monospace,Menlo,monospace; direction:ltr; display:inline-block; }
-.hl-red { color:#c0392b; font-weight:bold; } .hl-blue { color:#2471a3; font-weight:bold; }
-.hl-green { color:#1e8449; font-weight:bold; } .hl-purple { color:#7d3c98; font-weight:bold; }
-.hl-yellow { color:#b9770e; font-weight:bold; } .hl-orange { color:#ca6f1e; font-weight:bold; }
+.hl-red { background:#fee2e2; color:#991b1b; font-weight:800; padding:1px 6px; border-radius:5px; }
+.hl-blue { background:#dbeafe; color:#1e40af; font-weight:800; padding:1px 6px; border-radius:5px; }
+.hl-green { background:#dcfce7; color:#166534; font-weight:800; padding:1px 6px; border-radius:5px; }
+.hl-purple { background:#f3e8ff; color:#6b21a8; font-weight:800; padding:1px 6px; border-radius:5px; }
+.hl-yellow { background:#fef08a; color:#854d0e; font-weight:800; padding:1px 6px; border-radius:5px; }
+.hl-orange { background:#ffedd5; color:#9a3412; font-weight:800; padding:1px 6px; border-radius:5px; }
 `;
 }
 
@@ -319,13 +521,13 @@ function layoutModules({ sections, overview, conclusion, heading, palette, sourc
     ${sourceCount ? `<div class="meta">${sourceCount} صفحة مصدر</div>` : ""}
   </div>
   ${toc ? `<div class="toc"><h3>📑 فهرس المذاكرة (اضغط على أي عنوان للانتقال)</h3><ol>${toc}</ol></div>` : ""}
-  ${overview.length ? `<div class="module"><div class="module-title">نظرة سريعة</div>${overview.map(renderBlock).join("")}</div>` : ""}
+  ${overview.length ? `<div class="module"><div class="module-title">نظرة سريعة</div>${renderBlocksSequence(overview)}</div>` : ""}
   ${sections.map((section, i) => `
     <div class="module" id="s${i + 1}">
-      <div class="module-title">${i + 1}. ${renderRich(section.title) || `القسم ${i + 1}`}</div>
-      ${section.blocks.map(renderBlock).join("")}
+      <div class="module-title" dir="${detectTextDir(itemPlainText(section.title))}">${i + 1}. ${renderRich(section.title) || `القسم ${i + 1}`}</div>
+      ${renderBlocksSequence(section.blocks)}
     </div>`).join("")}
-  ${conclusion.length ? `<div class="module"><div class="module-title">الخلاصة</div>${conclusion.map(renderBlock).join("")}</div>` : ""}
+  ${conclusion.length ? `<div class="module"><div class="module-title">الخلاصة</div>${renderBlocksSequence(conclusion)}</div>` : ""}
   <style>
     .toc { background:#fff; border-radius:16px; padding:20px 28px; margin-bottom:26px; box-shadow:0 4px 18px rgba(0,0,0,.07); border-right:6px solid ${palette.accent}; }
     .toc h3 { margin-bottom:10px; font-size:1.08em; }
@@ -339,21 +541,20 @@ function layoutModules({ sections, overview, conclusion, heading, palette, sourc
 // LAYOUT: cram — dense two columns, no index, print 2-up
 // ─────────────────────────────────────────────────────────────────────────────
 function layoutCram({ sections, overview, conclusion, heading, palette }) {
-  const compact = (block) => renderBlock(block);
   return `
   <div class="header" style="text-align:center; padding:30px 22px">
     <h1>${escapeHtml(heading)}</h1>
     <div class="subtitle">⚡ برشامة مراجعة سريعة — ${sections.length} محور</div>
   </div>
-  ${overview.length ? `<div class="crambox">${overview.map(compact).join("")}</div>` : ""}
+  ${overview.length ? `<div class="crambox">${renderBlocksSequence(overview)}</div>` : ""}
   <div class="cramgrid">
     ${sections.map((section, i) => `
       <div class="cramcard">
         <div class="cramhead"><span class="num">${String(i + 1).padStart(2, "0")}</span>${renderRich(section.title) || `محور ${i + 1}`}</div>
-        ${section.blocks.map(compact).join("")}
+        ${renderBlocksSequence(section.blocks)}
       </div>`).join("")}
   </div>
-  ${conclusion.length ? `<div class="crambox" style="border-color:${palette.accent}"><div class="cramhead">🏁 آخر حاجة قبل الامتحان</div>${conclusion.map(compact).join("")}</div>` : ""}
+  ${conclusion.length ? `<div class="crambox" style="border-color:${palette.accent}"><div class="cramhead">🏁 آخر حاجة قبل الامتحان</div>${renderBlocksSequence(conclusion)}</div>` : ""}
   <style>
     .cramgrid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
     .cramcard { background:#fff; border-radius:12px; padding:16px 18px; box-shadow:0 3px 14px rgba(0,0,0,.07); border-top:4px solid ${palette.accent}; break-inside:avoid; }
@@ -370,14 +571,16 @@ function layoutCram({ sections, overview, conclusion, heading, palette }) {
 // LAYOUT: cards — a scannable grid of tiles
 // ─────────────────────────────────────────────────────────────────────────────
 function layoutCards({ sections, overview, conclusion, heading, palette }) {
-  const tile = (block, index) => {
+  const tile = (block) => {
     const role = String(block?.role || "body");
     const box = BOX_FOR_ROLE[role];
     const label = box ? box.title : (block.type === "table" ? "📊 جدول" : "📝 ملاحظة");
     const tone = box ? box.cls : "box-dark";
-    const body = block.type === "table" || block.type === "bullet_list"
+    const raw = blockText(block);
+    const dir = detectTextDir(raw, role);
+    const body = block.type === "table" || block.type === "bullet_list" || block.type === "ordered_list"
       ? renderBlock(block)
-      : `<p>${renderRich(block.content) || escapeHtml(blockText(block))}</p>`;
+      : `<p dir="${dir}">${renderRich(block.content) || enhanceAcademicHtml(escapeHtml(raw))}</p>`;
     return `<div class="tile ${tone}"><span class="tile-label">${label}</span>${body}</div>`;
   };
   return `
@@ -411,31 +614,32 @@ function layoutCards({ sections, overview, conclusion, heading, palette }) {
 // LAYOUT: outline — a minimal numbered checklist
 // ─────────────────────────────────────────────────────────────────────────────
 function layoutOutline({ sections, overview, conclusion, heading, palette }) {
-  const line = (block, index) => {
+  const line = (block) => {
     const type = String(block?.type || "paragraph");
     const role = String(block?.role || "body");
     if (type === "bullet_list" || type === "ordered_list") {
-      const items = Array.isArray(block.items) ? block.items : [];
-      return `<ul>${items.map((i) => `<li>${renderRich(i)}</li>`).join("")}</ul>`;
+      return renderBlock(block);
     }
     if (type === "table") return renderBlock(block);
+    const raw = blockText(block);
+    const dir = detectTextDir(raw, role);
     const tag = role === "warning" ? "⚠️" : role === "definition" ? "📘" : role === "example" ? "💡" : "•";
-    return `<p class="line"><span class="tag">${tag}</span><span>${renderRich(block.content) || escapeHtml(blockText(block))}</span></p>`;
+    return `<p class="line" dir="${dir}"><span class="tag">${tag}</span><span>${renderRich(block.content) || enhanceAcademicHtml(escapeHtml(raw))}</span></p>`;
   };
   return `
   <div class="header" style="text-align:center; padding:26px 20px">
     <h1>${escapeHtml(heading)}</h1>
     <div class="subtitle">📋 مخطط مرقّم — ${sections.length} محور</div>
   </div>
-  ${overview.length ? `<div class="outblock">${overview.map(line).join("")}</div>` : ""}
+  ${overview.length ? `<div class="outblock">${renderBlocksSequence(overview, line)}</div>` : ""}
   <ol class="outline">
     ${sections.map((section, i) => `
       <li>
         <div class="outtitle">${renderRich(section.title) || `محور ${i + 1}`}</div>
-        <div class="outbody">${section.blocks.map(line).join("")}</div>
+        <div class="outbody">${renderBlocksSequence(section.blocks, line)}</div>
       </li>`).join("")}
   </ol>
-  ${conclusion.length ? `<div class="outblock"><div class="outtitle">🏁 الخلاصة</div>${conclusion.map(line).join("")}</div>` : ""}
+  ${conclusion.length ? `<div class="outblock"><div class="outtitle">🏁 الخلاصة</div>${renderBlocksSequence(conclusion, line)}</div>` : ""}
   <style>
     .outline { list-style:none; margin:0; padding:0; }
     .outline > li { background:#fff; border-radius:12px; padding:16px 18px; margin-bottom:12px; box-shadow:0 3px 12px rgba(0,0,0,.06); border-right:4px solid ${palette.accent}; counter-increment:step; position:relative; }
@@ -446,6 +650,7 @@ function layoutOutline({ sections, overview, conclusion, heading, palette }) {
     .line { display:flex; gap:9px; margin:7px 0; align-items:flex-start; }
     .line .tag { flex:0 0 auto; opacity:.85; }
     .outline ul, .outblock ul { margin:8px 22px 8px 0; }
+    .outline ul.list-ltr, .outblock ul.list-ltr { margin:8px 0 8px 22px; }
     .outline .box-red,.outline .box-blue,.outline .box-yellow,.outline .box-green,.outline .box-dark { margin:8px 0; padding:10px 14px; }
     .outline .box-title { display:none; }
     .outline p { margin:6px 0; }
@@ -461,7 +666,7 @@ function layoutTables({ sections, overview, conclusion, heading, palette }) {
     <h1>${escapeHtml(heading)}</h1>
     <div class="subtitle">📊 مقارنات وتصنيفات — ${sections.length} محور</div>
   </div>
-  ${overview.length ? `<div class="tsection">${overview.map(renderBlock).join("")}</div>` : ""}
+  ${overview.length ? `<div class="tsection">${renderBlocksSequence(overview)}</div>` : ""}
   ${sections.map((section, i) => {
     const blocks = Array.isArray(section.blocks) ? section.blocks : [];
     const tables = blocks.filter((b) => b.type === "table");
@@ -470,10 +675,10 @@ function layoutTables({ sections, overview, conclusion, heading, palette }) {
       <div class="tsection">
         <div class="theader"><span class="num">${String(i + 1).padStart(2, "0")}</span>${renderRich(section.title) || `محور ${i + 1}`}</div>
         ${tables.map(renderBlock).join("")}
-        ${rest.length ? `<div class="tnotes">${rest.map(renderBlock).join("")}</div>` : ""}
+        ${rest.length ? `<div class="tnotes">${renderBlocksSequence(rest)}</div>` : ""}
       </div>`;
   }).join("")}
-  ${conclusion.length ? `<div class="tsection"><div class="theader">🏁 الخلاصة</div>${conclusion.map(renderBlock).join("")}</div>` : ""}
+  ${conclusion.length ? `<div class="tsection"><div class="theader">🏁 الخلاصة</div>${renderBlocksSequence(conclusion)}</div>` : ""}
   <style>
     .tsection { background:#fff; border-radius:16px; padding:24px 26px; margin-bottom:22px; box-shadow:0 5px 20px rgba(0,0,0,.08); }
     .theader { display:flex; align-items:center; gap:11px; font-size:1.4em; font-weight:bold; color:${palette.accentDark}; margin-bottom:14px; padding-bottom:10px; border-bottom:3px solid ${palette.headerTo}55; }

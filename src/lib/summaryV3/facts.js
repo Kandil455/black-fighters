@@ -196,11 +196,30 @@ export function mergeSummaryFacts(batches, { maxFacts = 900 } = {}) {
 function marked(value, fact, fallback = "") {
   const text = clean(value || fallback, 1_800);
   if (!text) return "";
-  const term = fact.keyTerm && text.toLowerCase().includes(fact.keyTerm.toLowerCase()) ? fact.keyTerm : "";
-  if (!term) return text;
-  const index = text.toLowerCase().indexOf(term.toLowerCase());
   const color = SEMANTIC_EMPHASIS[fact.semantic]?.color || "yellow";
-  return `${text.slice(0, index)}==${color}:${text.slice(index, index + term.length)}==${text.slice(index + term.length)}`;
+  let out = text;
+
+  const term = fact.keyTerm && out.toLowerCase().includes(fact.keyTerm.toLowerCase()) ? fact.keyTerm : "";
+  if (term) {
+    const index = out.toLowerCase().indexOf(term.toLowerCase());
+    out = `${out.slice(0, index)}==${color}:${out.slice(index, index + term.length)}==${out.slice(index + term.length)}`;
+  } else {
+    const numMatch = /(\b\d+(?:\.\d+)?\s*(?:mmHg|mg|g|ml|mL|L|%|min|minutes|hrs|hours|seconds|sec|bpm|cm|mm|mEq|mmol|IU|mcg|kg|مم زئبق|دقائق|دقيقة|ساعات|ساعة|ثواني|ثانية|ملجم|جم|جرام|مل|لتر)(?![A-Za-z\u0600-\u06FF]))/i.exec(out);
+    if (numMatch && !out.includes("==")) {
+      const idx = numMatch.index;
+      const m = numMatch[0];
+      out = `${out.slice(0, idx)}==yellow:${m}==${out.slice(idx + m.length)}`;
+    }
+  }
+
+  if (!out.includes("**")) {
+    const leadMatch = /^([^:—\n]{3,70})(\s*[:—]\s*)(.+)$/s.exec(out);
+    if (leadMatch && !leadMatch[1].includes("==")) {
+      out = `**${leadMatch[1].trim()}**${leadMatch[2]}${leadMatch[3]}`;
+    }
+  }
+
+  return out;
 }
 
 function factText(fact, language, detailed = false) {

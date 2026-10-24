@@ -496,7 +496,7 @@ export async function generateHierarchicalSummary({
   style,
   stylePrompt = "",
   maxPages = 16,
-  colorLevel = "none",
+  colorLevel = "rich",
   onProgress,
   signal,
   courseId = "",

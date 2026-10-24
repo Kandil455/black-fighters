@@ -37,6 +37,7 @@ import {
   summaryPlainText,
 } from "@/lib/summaryDocument";
 import StudyGuideViewer from "@/components/course/StudyGuideViewer";
+import { detectTextDir } from "@/lib/summaryStudyGuide";
 import AtlasSummaryReader from "@/components/atlas/AtlasSummaryReader";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { recordMistake } from "@/lib/mistakeVault";
@@ -176,16 +177,94 @@ function buildSmartSections(documentV3, markdownText, courseTitle) {
   return parseMarkdownIntoSmartSections(markdownText, courseTitle);
 }
 
+function richValueToMarkedString(val) {
+  if (!val) return "";
+  if (typeof val === "string") return val;
+  const text = String(val.text || "");
+  const annotations = (Array.isArray(val.annotations) ? val.annotations : []).filter(
+    (a) => Number(a?.end) > Number(a?.start)
+  );
+  if (!annotations.length) return text;
+  const bounds = [
+    ...new Set([
+      0,
+      text.length,
+      ...annotations.flatMap((a) => [Number(a.start), Number(a.end)]),
+    ]),
+  ]
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= text.length)
+    .sort((a, b) => a - b);
+
+  return bounds
+    .slice(0, -1)
+    .map((start, idx) => {
+      const end = bounds[idx + 1];
+      const slice = text.slice(start, end);
+      if (!slice) return "";
+      const active = annotations.filter((a) => Number(a.start) <= start && Number(a.end) >= end);
+      if (active.some((a) => a.code)) return `\`${slice}\``;
+      const hl = active.find((a) => a.highlight);
+      if (hl) {
+        const col = hl.color === "blue" ? "cyan" : hl.color || "yellow";
+        return `==${col}:${slice}==`;
+      }
+      if (active.some((a) => a.bold)) return `**${slice}**`;
+      return slice;
+    })
+    .join("");
+}
+
 function extractBlockPlainText(block) {
   if (!block) return "";
   if (typeof block === "string") return block;
+  if (Array.isArray(block.annotations) && typeof block.text === "string") {
+    return richValueToMarkedString(block);
+  }
+  if (block.content && typeof block.content === "object" && typeof block.content.text === "string") {
+    return richValueToMarkedString(block.content);
+  }
   if (typeof block.text === "string") return block.text;
   if (typeof block.content === "string") return block.content;
-  if (typeof block.content?.text === "string") return block.content.text;
   if (Array.isArray(block.runs)) {
     return block.runs.map((r) => r?.text || "").join("");
   }
   return "";
+}
+
+function pairAdjacentBilingualLists(items = []) {
+  const paired = [];
+  for (let i = 0; i < items.length; i++) {
+    const cur = items[i];
+    const next = items[i + 1];
+    const curIsEnList =
+      cur?.kind === "list" &&
+      (cur.role === "english_points" ||
+        (cur.points?.length > 0 && cur.points.every((p) => detectTextDir(p) === "ltr")));
+    const nextIsArList =
+      next?.kind === "list" &&
+      (next.role === "arabic_explanation" ||
+        (next.points?.length > 0 && next.points.every((p) => detectTextDir(p) === "rtl")));
+
+    if (curIsEnList && nextIsArList) {
+      const maxLen = Math.max(cur.points.length, next.points.length);
+      const pairs = [];
+      for (let idx = 0; idx < maxLen; idx++) {
+        pairs.push({
+          en: cur.points[idx] || "",
+          ar: next.points[idx] || "",
+        });
+      }
+      paired.push({
+        kind: "bilingual_pairs",
+        id: `bipair-${cur.id || i}`,
+        pairs,
+      });
+      i++;
+      continue;
+    }
+    paired.push(cur);
+  }
+  return paired;
 }
 
 function normalizeV3Blocks(blocks = []) {
@@ -277,7 +356,7 @@ function normalizeV3Blocks(blocks = []) {
       });
     }
   });
-  return items;
+  return pairAdjacentBilingualLists(items);
 }
 
 function parseMarkdownIntoSmartSections(markdown = "", defaultTitle = "الملخص الذكي") {
@@ -406,30 +485,92 @@ function parseMarkdownIntoSmartSections(markdown = "", defaultTitle = "المل�
   if (current.items.length > 0 || sections.length === 0) {
     sections.push(current);
   }
-  return sections;
+  return sections.map((sec) => ({
+    ...sec,
+    items: pairAdjacentBilingualLists(sec.items),
+  }));
 }
 
 /**
- * Renders inline highlights (`==color:text==`, `**bold**`, `` `code` ``) cleanly
- * in both Light and Dark mode.
+ * Renders inline highlights (`==color:text==`, `**bold**`, `` `code` ``) AND
+ * automatic academic lead-term bolding, parenthetical medical term bolding,
+ * and dosage/threshold/exam keyword highlights in both Light and Dark mode.
  */
 function FormattedInlineText({ text = "" }) {
   const html = useMemo(() => {
-    const escaped = String(text || "").replace(
+    let out = String(text || "").replace(
       /[&<>]/g,
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])
     );
-    return escaped
+
+    out = out
       .replace(
-        /==(green|yellow|cyan|orange|red):([^=]+)==/g,
-        (_, color, body) => `<mark class="bf-hl bf-hl-${color}">${body}</mark>`
+        /==(green|yellow|cyan|blue|orange|red):([^=]+)==/g,
+        (_, color, body) => `<mark class="bf-hl bf-hl-${color === "blue" ? "cyan" : color}">${body}</mark>`
       )
       .replace(/==([^=]+)==/g, '<mark class="bf-hl bf-hl-yellow">$1</mark>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-extrabold text-foreground">$1</strong>')
       .replace(
         /`([^`]+)`/g,
-        '<code class="rounded bg-secondary px-1.5 py-0.5 font-mono text-[0.9em] text-primary border border-border">$1</code>'
+        '<code dir="ltr" class="rounded bg-secondary px-1.5 py-0.5 font-mono text-[0.9em] text-primary border border-border">$1</code>'
       );
+
+    const hasLeadFormat = /^\s*<(?:strong|mark|code)\b/i.test(out);
+    if (!hasLeadFormat) {
+      if (/^([^:—<]{2,78})(\s*[:—]\s*)(.+)$/s.test(out)) {
+        out = out.replace(
+          /^([^:—<]{2,78})(\s*[:—]\s*)(.+)$/s,
+          '<strong class="font-extrabold text-foreground">$1</strong>$2$3'
+        );
+      } else if (/^([A-Z][A-Za-z0-9\s/-]{3,60})(,\s+)(.+)$/s.test(out)) {
+        out = out.replace(
+          /^([A-Z][A-Za-z0-9\s/-]{3,60})(,\s+)(.+)$/s,
+          '<strong class="font-extrabold text-foreground">$1</strong>$2$3'
+        );
+      } else if (
+        /^([A-Z][A-Za-z0-9\s/-]{2,55}?)(\s+(?:is|are|was|were|must|should|can|will|requires?|indicates?|causes?|leads?\s+to|results?\s+in|prevents?|maintains?|controls?|defines?|represents?|occurs?)\b)/i.test(
+          out
+        )
+      ) {
+        out = out.replace(
+          /^([A-Z][A-Za-z0-9\s/-]{2,55}?)(\s+(?:is|are|was|were|must|should|can|will|requires?|indicates?|causes?|leads?\s+to|results?\s+in|prevents?|maintains?|controls?|defines?|represents?|occurs?)\b)/i,
+          '<strong class="font-extrabold text-foreground">$1</strong>$2'
+        );
+      } else if (/^([^،<]{4,68})(،\s+)(.+)$/s.test(out)) {
+        out = out.replace(
+          /^([^،<]{4,68})(،\s+)(.+)$/s,
+          '<strong class="font-extrabold text-foreground">$1</strong>$2$3'
+        );
+      } else if (
+        /^((?:في حالة|عند|يجب|يتم|تعتبر|يعتبر|إن|أن|تؤدي|يؤدي|الهدف من|أهم|أبكر|أول)\s+[\u0600-\u06FF\s]{3,42})(\s+)/.test(
+          out
+        )
+      ) {
+        out = out.replace(
+          /^((?:في حالة|عند|يجب|يتم|تعتبر|يعتبر|إن|أن|تؤدي|يؤدي|الهدف من|أهم|أبكر|أول)\s+[\u0600-\u06FF\s]{3,42})(\s+)/,
+          '<strong class="font-extrabold text-foreground">$1</strong>$2'
+        );
+      }
+    }
+
+    out = out.replace(
+      /\(([A-Za-z][A-Za-z0-9\s/-]{1,42})\)/g,
+      '(<strong class="font-bold text-primary">$1</strong>)'
+    );
+
+    if (!out.includes('class="bf-hl')) {
+      out = out.replace(
+        /(\b(?:GCS\s*(?:&lt;|&gt;|≤|≥|=)?\s*\d+|C\d\s*[-–]\s*C\d|\d+(?:\.\d+)?\s*(?:mmHg|mg\/dL|mg\/kg|mg|g|mcg|mL|ml|L|%|bpm|min|minutes|hrs|hours|sec|seconds|cm|mm|mEq\/L|mmol\/L|IU|مم زئبق|دقائق|دقيقة|ساعات|ساعة|ثواني|ثانية|ملجم|جم|جرام|مل|لتر))(?![A-Za-z\u0600-\u06FF]))/gi,
+        '<mark class="bf-hl bf-hl-yellow">$1</mark>'
+      );
+    }
+
+    out = out.replace(
+      /(\b(?:earliest measurable sign|definitive airway|gold standard|first-line|contraindicated|life-threatening|mandatory|immediately)\b|أبكر علامة|القاعدة الذهبية|الخط الأول|ممنوع|فوراً|حتمي)/gi,
+      '<mark class="bf-hl bf-hl-red">$1</mark>'
+    );
+
+    return out;
   }, [text]);
 
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
@@ -489,7 +630,14 @@ export default function SummaryView({ summary, course }) {
         const matchedItems = sec.items.filter((item) => {
           if (item.text?.toLowerCase().includes(q)) return true;
           if (item.points?.some((p) => p.toLowerCase().includes(q))) return true;
-          if (item.pairs?.some((p) => p.toLowerCase().includes(q))) return true;
+          if (
+            item.pairs?.some((p) =>
+              typeof p === "string"
+                ? p.toLowerCase().includes(q)
+                : `${p?.en || ""} ${p?.ar || ""}`.toLowerCase().includes(q)
+            )
+          )
+            return true;
           if (item.headers?.some((h) => h.toLowerCase().includes(q))) return true;
           if (item.rows?.some((r) => r.some((c) => c.toLowerCase().includes(q)))) return true;
           return false;
@@ -564,7 +712,13 @@ export default function SummaryView({ summary, course }) {
           item.points.forEach((p) => sectionLines.push(`- ${p}`));
         }
         if (Array.isArray(item.pairs)) {
-          item.pairs.forEach((p) => sectionLines.push(`- ${p}`));
+          item.pairs.forEach((p) => {
+            if (typeof p === "string") sectionLines.push(`- ${p}`);
+            else {
+              if (p.en) sectionLines.push(`- ${p.en}`);
+              if (p.ar) sectionLines.push(`- ${p.ar}`);
+            }
+          });
         }
       }
       const res = await invokeSecureFunction("export-to-telegram", {
@@ -1410,48 +1564,123 @@ ${baseText.slice(0, 18000)}
                         );
                       }
 
+                      if (item.kind === "bilingual_pairs") {
+                        return (
+                          <div key={item.id} className="space-y-3">
+                            {item.pairs.map((pair, pIdx) => (
+                              <div
+                                key={pIdx}
+                                className="rounded-2xl border border-border overflow-hidden bg-card shadow-xs"
+                              >
+                                {pair.en && (
+                                  <div
+                                    dir="ltr"
+                                    className="px-4 py-3.5 bg-sky-500/[0.06] border-b border-border/70 flex items-start gap-3 text-left"
+                                  >
+                                    <span className="mt-0.5 shrink-0 rounded-md bg-sky-500/20 border border-sky-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-sky-400">
+                                      {String(pIdx + 1).padStart(2, "0")} · EN
+                                    </span>
+                                    <p className="flex-1 leading-relaxed text-foreground">
+                                      <FormattedInlineText text={pair.en} />
+                                    </p>
+                                  </div>
+                                )}
+                                {pair.ar && (
+                                  <div
+                                    dir="rtl"
+                                    className="px-4 py-3.5 bg-emerald-500/[0.04] flex items-start gap-3 text-right"
+                                  >
+                                    <span className="mt-0.5 shrink-0 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-bold text-emerald-400">
+                                      الشرح بالعربي
+                                    </span>
+                                    <p className="flex-1 leading-relaxed text-foreground">
+                                      <FormattedInlineText text={pair.ar} />
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+
                       if (item.kind === "list") {
+                        const listDir =
+                          item.role === "english_points"
+                            ? "ltr"
+                            : item.role === "arabic_explanation"
+                            ? "rtl"
+                            : detectTextDir((item.points || []).join(" "));
                         return (
                           <div
                             key={item.id}
-                            className="rounded-xl border border-border bg-secondary/25 p-4 space-y-2"
+                            dir={listDir}
+                            className={cn(
+                              "rounded-xl border border-border bg-secondary/25 p-4 space-y-2",
+                              listDir === "ltr" ? "text-left" : "text-right"
+                            )}
                           >
+                            {item.role === "english_points" && (
+                              <span className="inline-block mb-1 rounded-md bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-bold text-sky-400">
+                                📋 Key English Concepts
+                              </span>
+                            )}
+                            {item.role === "arabic_explanation" && (
+                              <span className="inline-block mb-1 rounded-md bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
+                                🇪🇬 الشرح والتفصيل بالعربي
+                              </span>
+                            )}
                             <ul className="space-y-2.5">
-                              {item.points.map((pt, pIdx) => (
-                                <li
-                                  key={pIdx}
-                                  dir="auto"
-                                  className="flex items-start gap-2.5 leading-relaxed text-foreground"
-                                >
-                                  <CheckCircle2 className="size-4 text-primary shrink-0 mt-1.5" />
-                                  <span className="flex-1">
-                                    <FormattedInlineText text={pt} />
-                                  </span>
-                                </li>
-                              ))}
+                              {item.points.map((pt, pIdx) => {
+                                const ptDir = detectTextDir(pt, item.role);
+                                return (
+                                  <li
+                                    key={pIdx}
+                                    dir={ptDir}
+                                    className={cn(
+                                      "flex items-start gap-2.5 leading-relaxed text-foreground",
+                                      ptDir === "ltr" ? "text-left" : "text-right"
+                                    )}
+                                  >
+                                    <CheckCircle2 className="size-4 text-primary shrink-0 mt-1.5" />
+                                    <span className="flex-1">
+                                      <FormattedInlineText text={pt} />
+                                    </span>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         );
                       }
 
                       // Default: Color-coded Smart Concept Card (English / Arabic / General)
-                      const isArabicExplanation = item.role === "arabic";
-                      const isEnglishPoint = item.role === "english";
+                      const cardDir = detectTextDir(
+                        item.text,
+                        item.role === "english"
+                          ? "english_points"
+                          : item.role === "arabic"
+                          ? "arabic_explanation"
+                          : ""
+                      );
+                      const isArabicExplanation = item.role === "arabic" || cardDir === "rtl";
+                      const isEnglishPoint = item.role === "english" || cardDir === "ltr";
 
                       return (
                         <div
                           key={item.id}
-                          dir="auto"
+                          dir={cardDir}
                           className={cn(
                             "rounded-xl border p-4 leading-relaxed transition-colors",
-                            isArabicExplanation
-                              ? "border-violet-500/25 bg-violet-500/[0.05]"
-                              : isEnglishPoint
+                            cardDir === "ltr" ? "text-left" : "text-right",
+                            isEnglishPoint
                               ? "border-sky-500/25 bg-sky-500/[0.05]"
+                              : isArabicExplanation
+                              ? "border-violet-500/25 bg-violet-500/[0.05]"
                               : "border-border bg-secondary/20"
                           )}
                         >
-                          {isArabicExplanation && (
+                          {isArabicExplanation && !isEnglishPoint && (
                             <span className="inline-block mb-1.5 rounded-md bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-300">
                               الشرح المبسط بالعربي
                             </span>

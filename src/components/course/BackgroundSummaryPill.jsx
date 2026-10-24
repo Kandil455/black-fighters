@@ -17,11 +17,30 @@ export default function BackgroundSummaryPill() {
   }, []);
 
   const isOnCreatePage = location.pathname.startsWith("/create-course");
-  const shouldShow = (job.active || job.completed) && !isOnCreatePage;
+  const isOnCompletedCoursePage = Boolean(
+    job.courseId && location.pathname === `/course/${job.courseId}`
+  );
+  const shouldShow = (job.active || job.completed) && !isOnCreatePage && !isOnCompletedCoursePage;
+
+  useEffect(() => {
+    if (job.completed && isOnCompletedCoursePage) {
+      backgroundSummaryTracker.clearJob();
+    }
+  }, [job.completed, isOnCompletedCoursePage]);
 
   if (!shouldShow) return null;
 
   const progressRatio = Math.max(0.05, Math.min(1, (job.progress || 5) / 100));
+
+  const handleOpenSummary = () => {
+    const targetCourseId = job.courseId || job.preview?.courseId;
+    if (job.completed && targetCourseId) {
+      backgroundSummaryTracker.clearJob();
+      navigate(`/course/${targetCourseId}`);
+      return;
+    }
+    navigate("/create-course");
+  };
 
   return (
     <AnimatePresence>
@@ -91,7 +110,7 @@ export default function BackgroundSummaryPill() {
           </span>
           <button
             type="button"
-            onClick={() => navigate("/create-course")}
+            onClick={handleOpenSummary}
             className="inline-flex items-center gap-1 rounded-lg bg-[#19f08c] px-2.5 py-1 text-[11px] font-black text-[#03150c] hover:bg-[#19f08c]/90 cursor-pointer"
           >
             <span>{job.completed ? (isEn ? "Open Summary" : "افتح الملخص الآن") : (isEn ? "View Progress" : "عرض التقدم")}</span>

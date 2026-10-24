@@ -21,6 +21,7 @@ import { calculateSummaryCost } from "@/lib/economyCatalog";
 import { analyzeDocument, generateHierarchicalSummary } from "@/lib/summaryPipeline";
 import { saveSummaryDocument } from "@/lib/summaryJobs";
 import { backgroundSummaryTracker } from "@/lib/backgroundSummaryTracker";
+import { setOfflineSnapshot } from "@/lib/offlineDb";
 import { generateReviewCardsFromCourse } from "@/lib/reviewCardGen";
 import { notifySlack, buildCourseSlackMessage } from "@/lib/integrations";
 import { useLocale } from "@/lib/LocaleContext";
@@ -107,6 +108,9 @@ export default function CreateCourse() {
         setAgentIndex(bg.agentIndex || 0);
       } else if (bg.completed && bg.preview?.chapters?.length > 0) {
         setPreview(bg.preview);
+        if (bg.preview.courseId || bg.courseId) {
+          setSavedCourseId(bg.preview.courseId || bg.courseId);
+        }
         setFileName(bg.fileName || bg.preview.source_file_name || "ملف محفوظ");
         setProgress(100);
         setStep(2);
@@ -121,6 +125,7 @@ export default function CreateCourse() {
           const parsed = JSON.parse(saved);
           if (parsed?.chapters?.length > 0) {
             setPreview(parsed);
+            if (parsed.courseId) setSavedCourseId(parsed.courseId);
             setStep(2);
             setFileName(parsed.source_file_name || "ملف محفوظ");
           }
@@ -162,6 +167,82 @@ export default function CreateCourse() {
   const refundSummaryCredits = async (charge) => {
     if (!charge) return;
     await base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: charge.jobKey, cost: charge.cost });
+  };
+
+  const autoPersistCourse = async (merged, { cost = 2, sourceUrl = "", sourceName = "" } = {}) => {
+    try {
+      const fallbackMarkdown =
+        merged.summary_markdown ||
+        (merged.chapters || [])
+          .map((ch) => `## ${ch.title || ""}\n${ch.content || ""}`)
+          .join("\n\n");
+      merged.summary_markdown = fallbackMarkdown;
+
+      const courseCost = Number(cost || (summaryStyle === "ultra_multi_agent" ? 12 : 2));
+      const course = await base44.entities.Course.create({
+        title: merged.title || "ملخص ذكي",
+        description: merged.description || "ملخص دراسي منظم",
+        language: merged.language || "bilingual",
+        subject: merged.subject || "",
+        level: merged.level || "عام",
+        doc_type: merged.doc_type || "summary",
+        chapters: merged.chapters || [],
+        summary_markdown: fallbackMarkdown,
+        summary_document_v3: merged.summary_document_v3 || null,
+        summary_coverage: merged.summary_coverage || null,
+        summary_fingerprint: merged.summary_fingerprint || "",
+        price_credits: courseCost,
+        credit_cost: courseCost,
+        source_file_url: sourceUrl || fileUrl || "",
+        source_file_name: sourceName || merged.source_file_name || fileName || "",
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      });
+
+      if (!course?.id) return null;
+      merged.courseId = course.id;
+      setSavedCourseId(course.id);
+
+      await setOfflineSnapshot(`course:${course.id}`, {
+        ...course,
+        summary_markdown: fallbackMarkdown,
+        summary_document_v3: merged.summary_document_v3 || null,
+      }).catch(() => {});
+
+      if (merged.summary_document_v3) {
+        saveSummaryDocument({
+          courseId: course.id,
+          document: merged.summary_document_v3,
+          baseRevision: 0,
+          reason: "initial_generation",
+          renderedMarkdown: fallbackMarkdown,
+        }).catch(() => {});
+      }
+
+      if (fallbackMarkdown || merged.summary_document_v3) {
+        try {
+          const generatedRow = await base44.entities.GeneratedContent.create({
+            course_id: course.id,
+            content_type: "summary",
+            language: merged.language || "bilingual",
+            content: JSON.stringify({
+              summary_markdown: fallbackMarkdown,
+              summary_document_v3: merged.summary_document_v3 || null,
+              coverage: merged.summary_coverage || null,
+            }),
+          });
+          if (generatedRow) {
+            await setOfflineSnapshot(`contents:${course.id}`, [generatedRow]).catch(() => {});
+          }
+        } catch (err) {
+          console.warn("Auto GeneratedContent save warning:", err);
+        }
+      }
+
+      return course.id;
+    } catch (err) {
+      console.warn("autoPersistCourse fallback warning:", err);
+      return null;
+    }
   };
 
   const generateCourseFromText = async (extractedText, name, sourceUrl = "", choices = {}) => {
@@ -207,7 +288,7 @@ export default function CreateCourse() {
           style,
           stylePrompt: fullStylePrompt,
           maxPages: Math.max(10, Math.min(160, Number(choices.maxPages) || Math.ceil(stats.estimatedPages * 0.75) || 20)),
-          colorLevel: "none",
+          colorLevel: "rich",
           signal: { get aborted() { return abortRef.current; } },
           onProgress: ({ phase, current = 1, total = 1, round = 1 }) => {
             const ratio = Math.min(1, current / Math.max(1, total));
@@ -270,13 +351,28 @@ export default function CreateCourse() {
         }
         aiJobRef.current = null;
         setAgentIndex(AGENTS.length);
-        setStatusText("تمت مراجعة الملخص وتغطيته");
+        setStatusText("جاري حفظ الملخص وتجهيز العرض الفوري...");
+        const autoSavedId = await autoPersistCourse(merged, {
+          cost: summaryResult.resumed ? 0 : charge?.cost,
+          sourceUrl,
+          sourceName: name,
+        });
+        try {
+          localStorage.setItem("bf_create_course_preview_draft", JSON.stringify(merged));
+        } catch {}
         setPendingInput(null);
         setPreview(merged);
         setProgress(100);
         setStep(2);
         backgroundSummaryTracker.completeJob(merged);
         toast.success(isEn ? "Smart Summary Completed! 🎉" : "اكتمل تجهيز الملخص الذكي! 🎉");
+        if (autoSavedId && typeof window !== "undefined" && window.location.pathname.startsWith("/create-course")) {
+          backgroundSummaryTracker.clearJob();
+          try {
+            localStorage.removeItem("bf_create_course_preview_draft");
+          } catch {}
+          navigate(`/course/${autoSavedId}`);
+        }
         return;
       }
 
@@ -326,13 +422,33 @@ export default function CreateCourse() {
       setProgress(95);
 
       const merged = { ...mergeCourseParts(results, name), source_file_name: name };
+      merged.summary_markdown =
+        merged.summary_markdown ||
+        (merged.chapters || [])
+          .map((ch) => `## ${ch.title || ""}\n${ch.content || ""}`)
+          .join("\n\n");
       await base44.functions.invoke("chargeAiJob", { action: "finalize", jobKey: charge.jobKey }).catch(() => {});
       aiJobRef.current = null;
+      const autoSavedId = await autoPersistCourse(merged, {
+        cost: charge?.cost,
+        sourceUrl,
+        sourceName: name,
+      });
+      try {
+        localStorage.setItem("bf_create_course_preview_draft", JSON.stringify(merged));
+      } catch {}
       setPendingInput(null);
       setPreview(merged);
       setProgress(100);
       setStep(2);
       backgroundSummaryTracker.completeJob(merged);
+      if (autoSavedId && typeof window !== "undefined" && window.location.pathname.startsWith("/create-course")) {
+        backgroundSummaryTracker.clearJob();
+        try {
+          localStorage.removeItem("bf_create_course_preview_draft");
+        } catch {}
+        navigate(`/course/${autoSavedId}`);
+      }
 
     } catch (err) {
       const raw = err.message || "";
@@ -421,12 +537,22 @@ export default function CreateCourse() {
 
   const saveCourse = async () => {
     if (saving) return;
-    if (savedCourseId) {
-      navigate(`/course/${savedCourseId}`);
+    const existingId = savedCourseId || preview?.courseId;
+    if (existingId) {
+      backgroundSummaryTracker.clearJob();
+      try {
+        localStorage.removeItem("bf_create_course_preview_draft");
+      } catch {}
+      navigate(`/course/${existingId}`);
       return;
     }
     setSaving(true);
     try {
+      const fallbackMarkdown =
+        preview.summary_markdown ||
+        (preview.chapters || [])
+          .map((ch) => `## ${ch.title || ""}\n${ch.content || ""}`)
+          .join("\n\n");
       const courseCost = Number(lastCost || (summaryStyle === "ultra_multi_agent" ? 12 : 2));
       const course = await base44.entities.Course.create({
         title: preview.title,
@@ -436,6 +562,8 @@ export default function CreateCourse() {
         level: preview.level || "عام",
         doc_type: preview.doc_type || "summary",
         chapters: preview.chapters,
+        summary_markdown: fallbackMarkdown,
+        summary_document_v3: preview.summary_document_v3 || null,
         summary_coverage: preview.summary_coverage || null,
         summary_fingerprint: preview.summary_fingerprint || "",
         price_credits: courseCost,
@@ -446,6 +574,7 @@ export default function CreateCourse() {
       });
 
       setSavedCourseId(course.id);
+      backgroundSummaryTracker.clearJob();
       try { const { bumpCounter } = await import("@/lib/gamification"); await bumpCounter("courses_created", 1); } catch {}
       try {
         localStorage.removeItem("bf_create_course_preview_draft");
@@ -458,19 +587,23 @@ export default function CreateCourse() {
             document: preview.summary_document_v3,
             baseRevision: 0,
             reason: "initial_generation",
-            renderedMarkdown: preview.summary_markdown || "",
+            renderedMarkdown: fallbackMarkdown,
           });
         } catch (e) {
           console.warn("saveSummaryDocument error:", e);
         }
       }
-      if (preview.summary_markdown) {
+      if (fallbackMarkdown || preview.summary_document_v3) {
         try {
           await base44.entities.GeneratedContent.create({
             course_id: course.id,
             content_type: "summary",
             language: preview.language || "ar",
-            content: JSON.stringify({ summary_markdown: preview.summary_markdown, coverage: preview.summary_coverage }),
+            content: JSON.stringify({
+              summary_markdown: fallbackMarkdown,
+              summary_document_v3: preview.summary_document_v3 || null,
+              coverage: preview.summary_coverage,
+            }),
           });
         } catch (e) {
           console.warn("GeneratedContent save error:", e);
@@ -544,7 +677,7 @@ export default function CreateCourse() {
                     pendingInput.text,
                     pendingInput.name,
                     pendingInput.sourceUrl,
-                    { language, style, subjectType, colorLevel: "none", maxPages, includeImages }
+                    { language, style, subjectType, colorLevel: "rich", maxPages, includeImages }
                   );
                 }}
               />

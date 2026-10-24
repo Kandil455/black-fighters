@@ -410,48 +410,121 @@ async function sendDocumentBuffer({ chatId, fileName, mimeType = "application/oc
   }
 }
 
+function escapeTgHtml(str = "") {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function formatTgBulletHtml(rawBullet = "") {
+  let clean = String(rawBullet || "")
+    .replace(/^[-•*]\s+/, "")
+    .trim();
+  if (!clean) return "";
+
+  // Complete sentence without mid-word cut
+  if (clean.length > 260) {
+    const cut = clean.slice(0, 260);
+    const lastSpace = cut.lastIndexOf(" ");
+    clean = `${lastSpace > 180 ? cut.slice(0, lastSpace) : cut}…`;
+  }
+
+  let html = escapeTgHtml(clean)
+    .replace(/==(green|yellow|cyan|blue|orange|red):([^=]+)==/g, "<b><u>$2</u></b>")
+    .replace(/==([^=]+)==/g, "<b><u>$1</u></b>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  if (!/^\s*<b>/i.test(html)) {
+    if (/^([^:—<]{2,70})(\s*[:—]\s*)(.+)$/s.test(html)) {
+      html = html.replace(/^([^:—<]{2,70})(\s*[:—]\s*)(.+)$/s, "<b>$1</b>$2$3");
+    } else if (/^([A-Z][A-Za-z0-9\s/-]{3,55})(,\s+)(.+)$/s.test(html)) {
+      html = html.replace(/^([A-Z][A-Za-z0-9\s/-]{3,55})(,\s+)(.+)$/s, "<b>$1</b>$2$3");
+    } else if (/^([^،<]{4,60})(،\s+)(.+)$/s.test(html)) {
+      html = html.replace(/^([^،<]{4,60})(،\s+)(.+)$/s, "<b>$1</b>$2$3");
+    }
+  }
+
+  // Highlight clinical numbers + units with <code> for crisp reading in Telegram
+  html = html.replace(
+    /(\b\d+(?:\.\d+)?\s*(?:mmHg|mg|g|mcg|mL|ml|L|%|bpm|min|minutes|hrs|hours|sec|seconds|مم زئبق|دقائق|دقيقة|ساعات|ساعة|ملجم|جم|جرام)(?![A-Za-z\u0600-\u06FF]))/gi,
+    "<b>$1</b>"
+  );
+
+  const isMostlyLatin =
+    (clean.match(/[A-Za-z]/g)?.length || 0) > (clean.match(/[\u0600-\u06FF]/g)?.length || 0) * 1.3;
+  const dirMark = isMostlyLatin ? "\u200E" : "\u200F";
+  return `${dirMark}• ${html}`;
+}
+
 function buildExecutiveSummaryCapsule(title = "ملخص دراسي", rawText = "") {
   const lines = String(rawText || "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
 
+  const SKIP_HEADINGS = /^(?:quick overview|overview|summary conclusion|conclusion|نظرة سريعة|الخلاصة)$/i;
+  const cleanTitleNorm = String(title || "").trim().toLowerCase();
+
   const headings = [];
-  const bullets = [];
+  const arBullets = [];
+  const enBullets = [];
+
   for (const line of lines) {
     if (/^#{1,3}\s+/.test(line)) {
       const h = line.replace(/^#{1,3}\s+/, "").replace(/[*_`=~]/g, "").trim();
-      if (h && headings.length < 5) headings.push(h);
+      if (
+        h &&
+        !SKIP_HEADINGS.test(h) &&
+        h.toLowerCase() !== cleanTitleNorm &&
+        !headings.includes(h) &&
+        headings.length < 6
+      ) {
+        headings.push(h);
+      }
     } else if (/^[-•*]\s+/.test(line)) {
-      const b = line
-        .replace(/^[-•*]\s+/, "")
-        .replace(/==(green|yellow|cyan|orange|red):([^=]+)==/g, "$2")
-        .replace(/[*_`=~]/g, "")
-        .trim();
-      if (b.length > 15 && bullets.length < 6) bullets.push(b.slice(0, 180));
+      const rawB = line.replace(/^[-•*]\s+/, "").trim();
+      if (rawB.length < 15) continue;
+      const hasArabic = /[\u0600-\u06FF]/.test(rawB);
+      if (hasArabic && arBullets.length < 5) {
+        arBullets.push(formatTgBulletHtml(rawB));
+      } else if (!hasArabic && enBullets.length < 5) {
+        enBullets.push(formatTgBulletHtml(rawB));
+      }
     }
   }
 
+  const safeTitle = escapeTgHtml(title);
   const out = [
-    `📚 <b>كبسولة الملخص الذكي: ${title}</b>`,
+    `📚 <b>المذكرة الذكية المنظمة: ${safeTitle}</b>`,
     "━━━━━━━━━━━━━━━━━━━━",
   ];
 
   if (headings.length > 0) {
-    out.push("🧭 <b>محاور المذكرة:</b>");
-    headings.forEach((h, idx) => out.push(`  ${idx + 1}. <b>${h}</b>`));
+    out.push("🧭 <b>فهرس المحاور الأساسية:</b>");
+    headings.forEach((h, idx) => out.push(`  ${idx + 1}. <b>${escapeTgHtml(h)}</b>`));
     out.push("");
   }
 
-  if (bullets.length > 0) {
-    out.push("⚡ <b>أهم النقاط السريعة (High-Yield):</b>");
-    bullets.forEach((b) => out.push(`• ${b}`));
-  } else if (lines.length > 0) {
-    out.push(lines.slice(0, 5).join("\n").slice(0, 900));
+  if (arBullets.length > 0) {
+    out.push("🇪🇬 <b>الخلاصة والشرح بالعربي:</b>");
+    arBullets.forEach((b) => out.push(b));
+    out.push("");
+  }
+
+  if (enBullets.length > 0) {
+    out.push("🇬🇧 <b>Key High-Yield Concepts (EN):</b>");
+    enBullets.forEach((b) => out.push(b));
+    out.push("");
+  }
+
+  if (arBullets.length === 0 && enBullets.length === 0 && lines.length > 0) {
+    out.push(escapeTgHtml(lines.slice(0, 5).join("\n").slice(0, 900)));
   }
 
   out.push("━━━━━━━━━━━━━━━━━━━━");
-  out.push("📎 <i>مرفق ملف المذكرة الكامل (HTML Study Guide) الجاهز للفتح والطباعة على الموبايل:</i>");
+  out.push("📎 <i>مرفق بالأسفل ملف المذكرة الكامل (HTML Study Guide) بتصميم البطاقات المزدوجة والألوان والـ Highlights الجاهز للمذاكرة والطباعة 👇</i>");
   return out.join("\n");
 }
 

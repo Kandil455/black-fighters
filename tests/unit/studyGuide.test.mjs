@@ -157,3 +157,44 @@ test("escapeHtml covers the characters that matter", () => {
   assert.equal(escapeHtml('<a href="x">&'), "&lt;a href=&quot;x&quot;&gt;&amp;");
   assert.equal(escapeHtml("it's"), "it&#39;s");
 });
+
+test("bilingual sections pair English (dir=ltr) and Arabic (dir=rtl) concepts with auto-bolding and highlights", () => {
+  const bilingualDoc = {
+    title: { text: "Bladder must be full" },
+    sections: [
+      {
+        title: { text: "Circulation & Shock Assessment" },
+        blocks: [
+          {
+            type: "bullet_list",
+            role: "english_points",
+            items: [
+              { text: "Tachycardia is the earliest measurable sign of shock." },
+              { text: "A palpable radial pulse indicates a systolic blood pressure of at least 80 mmHg." },
+              { text: "Tranexamic acid 1g IV is infused over 10 minutes within 3 hours of injury." },
+            ],
+          },
+          {
+            type: "bullet_list",
+            role: "arabic_explanation",
+            items: [
+              { text: "تعتبر سرعة ضربات القلب (Tachycardia) هي أبكر علامة يمكن قياسها للصدمة (Shock)." },
+              { text: "وجود النبض الكعبري (Radial pulse) يشير إلى أن ضغط الدم الانقباضي لا يقل عن 80 مم زئبق." },
+              { text: "يتم إعطاء حمض الترانيكساميك 1 جرام وريدياً على مدار 10 دقائق خلال 3 ساعات من الإصابة." },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  const html = renderStudyGuideHtml({ document: bilingualDoc, templateId: "modules_red" });
+  assert.ok(html.includes('class="bilingual-pair"'), "must pair English and Arabic points into bilingual-pair cards");
+  assert.ok(html.includes('class="bilingual-en" dir="ltr"'), "English half must have explicit dir=ltr");
+  assert.ok(html.includes('class="bilingual-ar" dir="rtl"'), "Arabic half must have explicit dir=rtl");
+  assert.ok(html.includes("<b>Tachycardia</b>"), "English lead term must be automatically bolded");
+  assert.ok(html.includes("(<b>Tachycardia</b>)"), "Parenthetical medical term in Arabic must be bolded");
+  assert.ok(html.includes('class="hl-yellow">80 mmHg</span>'), "English clinical value must be highlighted");
+  assert.ok(html.includes('class="hl-yellow">80 مم زئبق</span>'), "Arabic clinical value must be highlighted");
+  assert.ok(html.includes('class="hl-red">earliest measurable sign</span>'), "High-yield exam phrase must be highlighted");
+});

@@ -13,6 +13,7 @@ let currentJobState = {
   progress: 0,
   agentIndex: 0,
   preview: null,
+  courseId: null,
 };
 
 const listeners = new Set();
@@ -45,6 +46,7 @@ export const backgroundSummaryTracker = {
       progress: 5,
       agentIndex: 0,
       preview: null,
+      courseId: null,
     };
     notify();
   },
@@ -68,6 +70,7 @@ export const backgroundSummaryTracker = {
       progress: 100,
       statusText: "اكتمل التلخيص وجاهز للعرض! 🎉",
       preview,
+      courseId: preview?.courseId || currentJobState.courseId || null,
     };
     notify();
   },
@@ -91,6 +94,7 @@ export const backgroundSummaryTracker = {
       progress: 0,
       agentIndex: 0,
       preview: null,
+      courseId: null,
     };
     notify();
   },

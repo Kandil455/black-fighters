@@ -36,6 +36,7 @@ import { renderStudyGuideHtml } from "@/lib/summaryStudyGuide";
 import { getOfflineSnapshot, setOfflineSnapshot } from "@/lib/offlineDb";
 import { getSummaryTemplate } from "@/lib/summaryTemplates";
 import { generateHierarchicalSummary } from "@/lib/summaryPipeline";
+import { backgroundSummaryTracker } from "@/lib/backgroundSummaryTracker";
 import {
   allocateQuizQuestions,
   buildQuizAnalysisSample,
@@ -79,7 +80,8 @@ export default function CourseView() {
   const [showExplanations, setShowExplanations] = useState(true);
   const [summaryStyle, setSummaryStyle] = useState("bilingual_lecture");
   const [summaryMaxPages, setSummaryMaxPages] = useState(30);
-  const [summaryColorLevel, setSummaryColorLevel] = useState("none");
+  const [summaryColorLevel, setSummaryColorLevel] = useState("rich");
+  const [showSummaryRegen, setShowSummaryRegen] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [savingDrive, setSavingDrive] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -128,6 +130,13 @@ export default function CourseView() {
     return () => window.removeEventListener("iiiak:summary-updated", handler);
   }, [id, queryClient]);
 
+  useEffect(() => {
+    const bg = backgroundSummaryTracker.getState();
+    if (bg.completed && (!bg.courseId || bg.courseId === id)) {
+      backgroundSummaryTracker.clearJob();
+    }
+  }, [id]);
+
   const { data: enrollments = [] } = useQuery({
     queryKey: ["course-enrollment", id, profile?.id],
     queryFn: () => base44.entities.Enrollment.filter({ course_id: id, user_id: profile.id }, "-created_date", 1),
@@ -141,6 +150,35 @@ export default function CourseView() {
     if (!c) return null;
     try { return typeof c.content === "string" ? JSON.parse(c.content) : c.content; }
     catch { return null; }
+  };
+
+  const getSummaryData = () => {
+    const rowData = getContentData("summary");
+    if (rowData) {
+      if (typeof rowData === "object") {
+        return {
+          ...rowData,
+          summary_markdown:
+            rowData.summary_markdown ||
+            rowData.markdown ||
+            course?.summary_markdown ||
+            (course?.chapters?.length ? courseToMarkdown(course) : ""),
+          summary_document_v3: rowData.summary_document_v3 || course?.summary_document_v3 || null,
+          coverage: rowData.coverage || course?.summary_coverage || null,
+        };
+      }
+      return rowData;
+    }
+    if (course?.summary_document_v3 || course?.summary_markdown || (course?.chapters && course.chapters.length > 0)) {
+      return {
+        summary_markdown:
+          course.summary_markdown ||
+          (course.chapters?.length ? courseToMarkdown(course) : ""),
+        summary_document_v3: course.summary_document_v3 || null,
+        coverage: course.summary_coverage || null,
+      };
+    }
+    return null;
   };
 
   const courseText = () =>
@@ -704,11 +742,17 @@ function summaryToTelegramText(summaryRow) {
         if (summaryItem) {
           summaryText = summaryToTelegramText(summaryItem);
         }
+        if (!summaryText.trim() && course?.summary_markdown) {
+          summaryText = String(course.summary_markdown).trim();
+        }
         if (!summaryText.trim() && course?.chapters?.length) {
           summaryText = courseToMarkdown(course);
         }
         const parsed = summaryItem ? safeParseContent(summaryItem.content) : null;
-        const doc = parsed ? getSummaryDocumentV3(parsed) : null;
+        const doc = (parsed ? getSummaryDocumentV3(parsed) : null) || course?.summary_document_v3 || null;
+        if (!summaryText.trim() && doc) {
+          summaryText = summaryDocumentToMarkdown(doc);
+        }
         if (doc || summaryText.trim()) {
           summaryHtml = renderStudyGuideHtml({
             document: doc || undefined,
@@ -1070,10 +1114,21 @@ function summaryToTelegramText(summaryRow) {
         </TabsContent>
 
         <TabsContent value="summary" className="mt-6">
-          {getContent("summary") ? (
+          {getSummaryData() ? (
             <div>
               <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-                <div />
+                <Button
+                  type="button"
+                  onClick={() => setShowSummaryRegen((v) => !v)}
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground rounded-xl border border-border/60"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  {showSummaryRegen
+                    ? (isEn ? "Hide Regeneration Options" : "إخفاء خيارات إعادة التوليد")
+                    : (isEn ? "Regenerate with Another Style" : "إعادة توليد الملخص بنمط آخر ⚙️")}
+                </Button>
                 <Button
                   onClick={() => exportToTelegramBot("summary")}
                   disabled={exportingTelegram}
@@ -1089,23 +1144,25 @@ function summaryToTelegramText(summaryRow) {
                   {isEn ? "Export Summary to Telegram" : "تصدير الملخص للتيليجرام 🤖"}
                 </Button>
               </div>
-              <SummaryGenerationControls
-                summaryStyle={summaryStyle}
-                setSummaryStyle={setSummaryStyle}
-                maxPages={summaryMaxPages}
-                setMaxPages={setSummaryMaxPages}
-                colorLevel={summaryColorLevel}
-                setColorLevel={setSummaryColorLevel}
-                textLength={courseText().length}
-                action={
-                  <GenButton
-                    type="summary"
-                    label={isEn ? "New Summary" : "ملخص جديد"}
-                    icon={Sparkles}
-                  />
-                }
-              />
-              <SummaryView summary={getContentData("summary")} course={course} />
+              {showSummaryRegen && (
+                <SummaryGenerationControls
+                  summaryStyle={summaryStyle}
+                  setSummaryStyle={setSummaryStyle}
+                  maxPages={summaryMaxPages}
+                  setMaxPages={setSummaryMaxPages}
+                  colorLevel={summaryColorLevel}
+                  setColorLevel={setSummaryColorLevel}
+                  textLength={courseText().length}
+                  action={
+                    <GenButton
+                      type="summary"
+                      label={isEn ? "New Summary" : "ملخص جديد"}
+                      icon={Sparkles}
+                    />
+                  }
+                />
+              )}
+              <SummaryView summary={getSummaryData()} course={course} />
             </div>
           ) : (
             <EmptyGen
