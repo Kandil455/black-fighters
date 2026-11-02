@@ -28,11 +28,15 @@ service cloud.firestore {
     }
 
     // ─── Immutable/economic fields: never client-writable ───
-    // NOTE: total_xp / current_streak / last_active_date / last_login_reward_date are allowed
-    // for self-update (see below) because the current awardProgress server function is not
-    // deployed on Vercel; tightening them is tracked as a follow-up task.
+    // XP, streaks, progress counters and daily-reward markers are SERVER-owned
+    // (award-progress, economy-actions, quiz endpoints). Clients may read them,
+    // never write them, so leaderboards and rewards cannot be forged.
     function protectedUserFields() {
       return [
+        'total_xp', 'current_streak', 'longest_streak', 'last_active_date',
+        'last_login_reward_date', 'last_skin_daily_reward',
+        'total_correct', 'total_answered', 'quizzes_completed', 'flashcards_reviewed',
+        'total_minutes_studied',
         'role', 'credits', 'token_balance', 'subscription_plan', 'subscription_status',
         'subscription_plan_key', 'subscription_plan_name', 'subscription_expires_at',
         'plan_granted_by', 'plan_expires_at', 'is_locked', 'is_pro',
@@ -186,6 +190,31 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── Lecture transcription (server-written, owner-readable) ───
+    // The browser may only READ its own lecture data. Every write happens in the
+    // serverless functions with the Admin SDK, so a client can never forge a
+    // transcript, an organization plan, or a credit charge.
+    match /lectureJobs/{id} {
+      allow read: if isAdmin() || (isAuthed() && (resource == null || resource.data.user_id == request.auth.uid));
+      allow write: if false;
+    }
+    match /lectureTranscripts/{id} {
+      allow read: if isAdmin() || (isAuthed() && (resource == null || resource.data.user_id == request.auth.uid));
+      allow write: if false;
+    }
+    match /lectureOrganizations/{id} {
+      allow read: if isAdmin() || (isAuthed() && (resource == null || resource.data.user_id == request.auth.uid));
+      allow write: if false;
+    }
+    match /lectureSummaries/{id} {
+      allow read: if isAdmin() || (isAuthed() && (resource == null || resource.data.user_id == request.auth.uid));
+      allow write: if false;
+    }
+    // Global rate-limit singleton — server only, never exposed to clients.
+    match /lectureQueue/{id} {
+      allow read, write: if false;
+    }
+
     match /enrollments/{id} {
       allow read: if isAdmin() || isOwner(resource.data.user_id);
       allow update: if false; // immutable after creation
@@ -263,7 +292,7 @@ service cloud.firestore {
         && request.resource.data.status == 'waiting';
       allow update: if isAuthed()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-          ['participants', 'status', 'started_at', 'time_limit_minutes', 'updated_at', 'winner_id', 'finished_at']
+          ['participants', 'status', 'updated_at', 'winner_id', 'finished_at', 'started_at', 'time_limit_minutes']
         )
         && request.resource.data.participants.size() >= resource.data.participants.size()
         && request.resource.data.participants.size() <= 2
@@ -334,6 +363,9 @@ service cloud.firestore {
     match /telegram_link_codes/{code} {
       allow read, write: if false; // server-only
     }
+    match /telegram_login_sessions/{code} {
+      allow read, write: if false; // server-only (bot "/login <code>" flow)
+    }
     match /telegram_outbox/{id} {
       allow read, write: if false; // server-only
     }
@@ -357,19 +389,19 @@ service cloud.firestore {
       allow read: if isAdmin() || (isAuthed() && resource.data.user_id == request.auth.uid);
       allow write: if false; // server-only (double-entry credit ledger entries)
     }
+    // Certificates are issued and verified by the server only. Owners may read
+    // their own; public verification goes through the certificates function so a
+    // code holder never needs read access to the collection.
+    match /certificates/{code} {
+      allow read: if isAdmin() || (isAuthed() && resource.data.owner_uid == request.auth.uid);
+      allow write: if false;
+    }
+
     match /conceptMastery/{masteryId} {
       allow read, delete: if isAdmin() || isOwner(resource.data.user_id);
       allow create: if isAdmin() || (isAuthed() && request.resource.data.user_id == request.auth.uid);
       allow update: if (isAdmin() || isOwner(resource.data.user_id))
         && request.resource.data.user_id == resource.data.user_id;
-    }
-
-    // ─── Shared Smart Batch Cache for Lecture Artifacts & Hybrid Quiz Banks ───
-    match /globalLectureCache/{hashId} {
-      allow read: if isAuthed();
-      allow create, update: if isAuthed()
-        && request.resource.data.content_hash == hashId;
-      allow delete: if isAdmin();
     }
 
     // Default deny for everything else

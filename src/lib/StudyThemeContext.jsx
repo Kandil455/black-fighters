@@ -5,11 +5,25 @@ import { applyTheme } from "@/lib/themes";
 
 export const DEFAULT_THEMES = [
   {
+    id: "academic_light",
+    name: "Academic Light",
+    nameAr: "الوضع النهاري الأكاديمي (أبيض)",
+    tag: "Default Academic",
+    desc: "خلفية ورقية بيضاء ناصعة مريحة للقراءة الأكاديمية والطبية مع تباين واضح",
+    image: null,
+    isVideo: false,
+    isLight: true,
+    primaryColor: "#10b981",
+    accentColor: "#059669",
+    bgBase: "#f8fafc",
+    previewGradient: "from-[#ffffff] via-[#f8fafc] to-[#10b981]/20",
+  },
+  {
     id: "linevault_emerald",
-    name: "LineVault Emerald",
-    nameAr: "ثيم LineVault الزمردي الفخم",
-    tag: "LineVault Official",
-    desc: "خلفية حبرية صامتة (#05070a) مع أسطح زجاجية (.glass) ولون زمردي (#19f08c) موحد",
+    name: "Emerald Dark",
+    nameAr: "الوضع الليلي الهادئ",
+    tag: "Dark Mode",
+    desc: "خلفية داكنة هادئة (#05070a) مع أسطح زجاجية ولون زمردي مريح للإضاءة المنخفضة",
     image: null,
     isVideo: false,
     isLight: false,
@@ -32,26 +46,12 @@ export const DEFAULT_THEMES = [
     bgBase: "#05070a",
     previewGradient: "from-[#05070a] via-[#090c11] to-[#0e131b]",
   },
-  {
-    id: "pure_black",
-    name: "Pure OLED Ink",
-    nameAr: "حبر OLED نقي",
-    tag: "Black Fighters Solid",
-    desc: "خلفية داكنة سادة لراحة العين وتوفير الطاقة على شاشات OLED",
-    image: null,
-    isVideo: false,
-    isLight: false,
-    primaryColor: "#19f08c",
-    accentColor: "#19f08c",
-    bgBase: "#05070a",
-    previewGradient: "from-black via-[#05070a] to-[#090c11]",
-  },
 ];
 
 const StudyThemeContext = createContext({
   currentTheme: DEFAULT_THEMES[0],
-  colorMode: "dark",
-  isDark: true,
+  colorMode: "light",
+  isDark: false,
   setThemeId: () => {},
   setColorMode: () => {},
   toggleColorMode: () => {},
@@ -62,7 +62,7 @@ const StudyThemeContext = createContext({
   isPro: false,
 });
 
-const STORAGE_KEY = "bf_study_bg_theme_id_v5";
+const STORAGE_KEY = "iiiak_study_theme_id_v2";
 const CUSTOM_STORAGE_KEY = "bf_custom_study_wallpapers_v5";
 
 export function StudyThemeProvider({ children }) {
@@ -94,32 +94,29 @@ export function StudyThemeProvider({ children }) {
 
   const [themeId, setThemeIdState] = useState(() => {
     try {
+      // Primary default theme is White (Academic Light).
+      // Only keep dark if user explicitly chose it with the v2 key.
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved || "linevault_emerald";
+      return saved || "academic_light";
     } catch {
-      return "linevault_emerald";
+      return "academic_light";
     }
   });
 
   const allThemes = [...customThemes, ...DEFAULT_THEMES];
   const currentTheme = allThemes.find((t) => t.id === themeId) || DEFAULT_THEMES[0];
-  const isDark = true;
-  const colorMode = "dark";
+  const isDark = !currentTheme.isLight;
+  const colorMode = isDark ? "dark" : "light";
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, themeId);
     } catch {}
 
-    const root = document.documentElement;
-    root.classList.add("dark");
-    root.classList.remove("light", "theme-light");
-    root.setAttribute("data-theme", "dark");
-
     try {
-      applyTheme("linevault");
+      applyTheme(currentTheme.isLight ? "light" : "dark");
     } catch {}
-  }, [themeId]);
+  }, [themeId, currentTheme.isLight]);
 
   useEffect(() => {
     try {
@@ -128,16 +125,30 @@ export function StudyThemeProvider({ children }) {
   }, [customThemes]);
 
   const setThemeId = useCallback((id) => {
-    setThemeIdState(id);
+    if (id === "light" || id === "clinical") {
+      setThemeIdState("academic_light");
+    } else if (id === "dark" || id === "linevault") {
+      setThemeIdState("linevault_emerald");
+    } else {
+      setThemeIdState(id);
+    }
   }, []);
 
-  const setColorMode = useCallback(() => {
-    setThemeIdState("linevault_emerald");
+  const setColorMode = useCallback((mode) => {
+    if (mode === "dark") {
+      setThemeIdState("linevault_emerald");
+    } else {
+      setThemeIdState("academic_light");
+    }
   }, []);
 
   const toggleColorMode = useCallback(() => {
-    setThemeIdState("linevault_emerald");
-  }, []);
+    setThemeIdState((prev) => {
+      const found = [...customThemes, ...DEFAULT_THEMES].find((t) => t.id === prev);
+      const currentlyLight = found ? Boolean(found.isLight) : prev === "academic_light";
+      return currentlyLight ? "linevault_emerald" : "academic_light";
+    });
+  }, [customThemes]);
 
   const addCustomTheme = (file) => {
     if (!file) return;
@@ -176,7 +187,7 @@ export function StudyThemeProvider({ children }) {
   const removeCustomTheme = (id) => {
     setCustomThemes((prev) => prev.filter((t) => t.id !== id));
     if (themeId === id) {
-      setThemeIdState("linevault_emerald");
+      setThemeIdState("academic_light");
     }
   };
 

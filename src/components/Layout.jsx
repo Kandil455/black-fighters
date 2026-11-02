@@ -11,12 +11,13 @@ import {
   Search,
   Sparkles,
   Headphones,
+  ShieldAlert,
   User,
   CreditCard,
   HelpCircle,
-  ChevronLeft,
-  ChevronRight,
-  FolderKanban,
+  Award,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { hasEmergencyAccess } from "@/lib/emergencyAccess";
 
@@ -26,7 +27,6 @@ import RouteBackBar from "@/components/RouteBackBar";
 import SearchDialog from "@/components/SearchDialog";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
 import NotificationBell from "@/components/NotificationBell";
-import FloatingAssistant from "@/components/assistant/FloatingAssistant";
 import PracticalQuizBackgroundWidget from "@/components/PracticalQuizBackgroundWidget";
 import NeonBackground from "@/components/NeonBackground";
 import {
@@ -42,17 +42,18 @@ import {
 } from "@/components/ui/icons";
 import { LVLogo } from "@/components/ui/linevault";
 import { useLocale } from "@/lib/LocaleContext";
+import { useStudyTheme } from "@/lib/StudyThemeContext";
 import { useSmoothScroll } from "@/lib/useSmoothScroll";
 import { cn } from "@/lib/utils";
 import { playClick } from "@/lib/sounds";
 
 const routePrefetchers = {
   "/dashboard": () => import("@/pages/Dashboard"),
-  "/planner": () => import("@/pages/StudyPlanner"),
   "/create": () => import("@/pages/CreateCourse"),
   "/youtube-ai": () => import("@/pages/YouTubeAIStudio"),
   "/tools": () => import("@/pages/PdfTools"),
   "/practical": () => import("@/pages/ImageExtractor"),
+  "/lectures": () => import("@/pages/Lectures"),
   "/review": () => import("@/pages/Review"),
   "/leaderboard": () => import("@/pages/Leaderboard"),
   "/toji": () => import("@/pages/Toji"),
@@ -76,27 +77,11 @@ function prefetchRoute(to) {
 
 export default function Layout() {
   const { dir, locale, setLocale, t } = useLocale();
+  const { isDark, toggleColorMode } = useStudyTheme();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem("bf_sidebar_collapsed") === "1";
-    } catch {
-      return false;
-    }
-  });
   useSmoothScroll(false);
-
-  const toggleSidebar = () => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("bf_sidebar_collapsed", next ? "1" : "0");
-      } catch {}
-      return next;
-    });
-  };
 
   useEffect(() => {
     const handler = (e) => {
@@ -119,7 +104,6 @@ export default function Layout() {
       profile?.subscription_plan === "supreme" ||
       profile?.role === "admin"
   );
-  const hasCourseAssistant = /^\/course\/[^/]+\/?$/.test(location.pathname);
   const isEmergencyAllowed = hasEmergencyAccess(profile);
 
   const PRIMARY_HUBS = [
@@ -127,8 +111,8 @@ export default function Layout() {
       title: locale === "ar" ? "اليوم والمكتبة" : "Today & Library",
       items: [
         { to: "/dashboard", label: locale === "ar" ? "اليوم والمقررات" : "Today & Courses", icon: DocumentIcon },
-        { to: "/planner", label: locale === "ar" ? "حافظة البلوكات وجدول المذاكرة" : "Block Vault & Planner", icon: FolderKanban },
-        { to: "/create", label: locale === "ar" ? "رفع محاضرة جديدة" : "Upload Lecture", icon: SummaryNoteIcon },
+        { to: "/create", label: locale === "ar" ? "رفع وتلخيص محاضرة" : "Upload & Summarize", icon: SummaryNoteIcon },
+        { to: "/lectures", label: locale === "ar" ? "تفريغ المحاضرات الصوتية" : "Audio Lecture Transcriber", icon: Headphones },
       ],
     },
     {
@@ -141,49 +125,50 @@ export default function Layout() {
       ],
     },
     {
-      title: locale === "ar" ? "المراجعة والتثبيت" : "Review & FSRS",
+      title: locale === "ar" ? "المراجعة والتثبيت" : "Review & Mastery",
       items: [
-        { to: "/review", label: locale === "ar" ? "المراجعة الذكية (FSRS)" : "FSRS Review", icon: FlameIcon },
-        { to: "/stats", label: locale === "ar" ? "خريطة السيطرة والأداء" : "Mastery & Stats", icon: TrophyIcon },
+        { to: "/review", label: locale === "ar" ? "المراجعة وتثبيت الحفظ" : "Smart Review", icon: FlameIcon },
+        { to: "/stats", label: locale === "ar" ? "إحصائيات التقدم والأداء" : "Mastery & Stats", icon: TrophyIcon },
+        ...(isEmergencyAllowed
+          ? [{ to: "/emergency", label: locale === "ar" ? "راوند الطوارئ" : "Emergency Triage", icon: ShieldAlert }]
+          : []),
       ],
     },
     {
-      title: locale === "ar" ? "الساحة والمجتمع" : "Arena & Community",
+      title: locale === "ar" ? "المجتمع الدراسي" : "Study Community",
       items: [
-        { to: "/leaderboard", label: locale === "ar" ? "لوحة الشرف والدوريات" : "Leaderboard", icon: TrophyIcon },
-        { to: "/friends", label: locale === "ar" ? "الأصدقاء والتحديات" : "Friends & Duels", icon: FriendsIcon },
+        { to: "/leaderboard", label: locale === "ar" ? "لوحة الشرف الأكاديمية" : "Honor Roll", icon: TrophyIcon },
+        { to: "/friends", label: locale === "ar" ? "الأصدقاء والمراجعات" : "Study Peers", icon: FriendsIcon },
         { to: "/groups", label: locale === "ar" ? "مجموعات الدفعة" : "Study Groups", icon: StudyGroupIcon },
       ],
     },
     {
-      title: locale === "ar" ? "الحساب والرصيد" : "Account & Vault",
+      title: locale === "ar" ? "الحساب والرصيد" : "Account & Credits",
       items: [
-        { to: "/subscriptions", label: locale === "ar" ? "خزنة الرصيد والباقات" : "Credits & Vault", icon: CreditCard },
+        { to: "/subscriptions", label: locale === "ar" ? "الرصيد والباقات" : "Credits & Plans", icon: CreditCard },
+        { to: "/certificates", label: locale === "ar" ? "الشهادات والتراخيص" : "Certificates", icon: Award },
         { to: "/profile", label: locale === "ar" ? "الملف الشخصي" : "Profile", icon: User },
-        { to: "/settings", label: locale === "ar" ? "الإعدادات" : "Settings", icon: Settings },
+        { to: "/settings", label: locale === "ar" ? "الإعدادات ومفاتيح AI" : "Settings & AI Keys", icon: Settings },
         { to: "/help", label: locale === "ar" ? "مركز المساعدة" : "Help Center", icon: HelpCircle },
       ],
     },
   ];
 
-  const CollapseArrowIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
-  const ExpandArrowIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
-
   const sidebar = (
-    <div className="flex flex-col h-full select-none bg-[#090c11] text-[#f5f7fa]">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-white/[0.08]">
-        <LVLogo to="/dashboard" label="Black Fighters" />
+    <div className={cn("flex flex-col h-full select-none transition-colors duration-200", isDark ? "bg-[#090c11] text-[#f5f7fa]" : "bg-white text-[#0f172a]")}>
+      <div className={cn("flex items-center justify-between px-4 py-4 border-b", isDark ? "border-white/[0.08]" : "border-slate-200")}>
+        <LVLogo to="/dashboard" label={locale === "ar" ? "منصة IIIAK الأكاديمية" : "IIIAK Academic"} />
         <div className="flex items-center gap-1.5">
-          <NotificationBell />
           <button
             type="button"
-            onClick={toggleSidebar}
-            title={locale === "ar" ? "إخفاء القائمة الجانبية" : "Collapse sidebar"}
-            aria-label={locale === "ar" ? "إخفاء القائمة الجانبية" : "Collapse sidebar"}
-            className="hidden md:inline-flex w-7 h-7 rounded-lg items-center justify-center bg-[#0e131b] border border-white/10 text-[#9aa4b2] hover:text-[#19f08c] hover:border-[#19f08c]/40 transition-colors cursor-pointer"
+            onClick={toggleColorMode}
+            title={isDark ? (locale === "ar" ? "تفعيل الوضع النهاري (الأبيض)" : "Switch to Light Mode") : (locale === "ar" ? "تفعيل الوضع الليلي" : "Switch to Dark Mode")}
+            aria-label="تبديل المظهر"
+            className="apple-glass-btn w-8 h-8 rounded-lg flex items-center justify-center text-[#9aa4b2] hover:text-[#f5f7fa] transition-colors duration-150 cursor-pointer"
           >
-            <CollapseArrowIcon className="w-4 h-4" />
+            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
           </button>
+          <NotificationBell />
         </div>
       </div>
 
@@ -191,30 +176,23 @@ export default function Layout() {
         <button
           type="button"
           onClick={() => setSearchOpen(true)}
-          className="w-full bg-[#0e131b] hover:bg-white/[0.05] border border-white/[0.08] hover:border-[#19f08c]/40 rounded-xl px-3 py-2 text-start flex items-center justify-between text-xs text-[#9aa4b2] hover:text-[#f5f7fa] transition-colors duration-150 cursor-pointer"
+          className={cn(
+            "apple-glass-btn w-full rounded-xl px-3 py-2 text-start flex items-center justify-between text-xs transition-colors duration-150 cursor-pointer border",
+            isDark
+              ? "bg-[#0e131b] hover:bg-white/[0.05] border-white/[0.08] hover:border-[#19f08c]/40 text-[#9aa4b2] hover:text-[#f5f7fa]"
+              : "bg-slate-100/80 hover:bg-slate-200/60 border-slate-200 text-slate-700 hover:text-slate-900"
+          )}
         >
           <span className="flex items-center gap-2 truncate">
             <Search className="w-3.5 h-3.5 shrink-0 text-[#19f08c]" />
             <span className="font-medium truncate">{t("search")}</span>
           </span>
-          <kbd className="px-1.5 py-0.5 rounded bg-[#05070a] text-[10px] text-[#9aa4b2] font-mono border border-white/10">
+          <kbd className={cn("px-1.5 py-0.5 rounded text-[10px] font-mono border", isDark ? "bg-[#05070a] text-[#9aa4b2] border-white/10" : "bg-white text-slate-500 border-slate-200")}>
             ⌘K
           </kbd>
         </button>
 
-        <div className="bg-[#0e131b] p-0.5 rounded-xl border border-white/[0.08] flex items-center text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => setLocale("en")}
-            className={cn(
-              "flex-1 py-1.5 px-2 rounded-lg font-mono flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
-              locale === "en"
-                ? "bg-[#19f08c] text-[#03150c] font-bold"
-                : "text-[#9aa4b2] hover:text-[#f5f7fa]"
-            )}
-          >
-            <span>English</span>
-          </button>
+        <div className={cn("p-0.5 rounded-xl border flex items-center text-xs font-medium", isDark ? "bg-[#0e131b] border-white/[0.08]" : "bg-slate-100 border-slate-200")}>
           <button
             type="button"
             onClick={() => setLocale("ar")}
@@ -222,10 +200,22 @@ export default function Layout() {
               "flex-1 py-1.5 px-2 rounded-lg flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
               locale === "ar"
                 ? "bg-[#19f08c] text-[#03150c] font-bold"
-                : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+                : isDark ? "text-[#9aa4b2] hover:text-[#f5f7fa]" : "text-slate-600 hover:text-slate-900"
             )}
           >
             <span>العربية</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLocale("en")}
+            className={cn(
+              "flex-1 py-1.5 px-2 rounded-lg font-mono flex items-center justify-center transition-colors duration-150 whitespace-nowrap cursor-pointer",
+              locale === "en"
+                ? "bg-[#19f08c] text-[#03150c] font-bold"
+                : isDark ? "text-[#9aa4b2] hover:text-[#f5f7fa]" : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            <span>EN</span>
           </button>
         </div>
       </div>
@@ -301,21 +291,21 @@ export default function Layout() {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-white/[0.08] bg-[#090c11] space-y-2">
+      <div className={cn("p-3 border-t space-y-2", isDark ? "border-white/[0.08] bg-[#090c11]" : "border-slate-200 bg-white")}>
         <div className="hidden" aria-hidden="true">
           <DocumentIcon size={14} animated={false} />
           <SummaryNoteIcon size={14} animated={false} />
         </div>
 
-        <div className="rounded-xl bg-[#0e131b] border border-white/[0.08] p-2.5 space-y-2">
+        <div className={cn("rounded-xl border p-2.5 space-y-2", isDark ? "bg-[#0e131b] border-white/[0.08]" : "bg-slate-50 border-slate-200")}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="w-3.5 h-3.5 text-[#19f08c] shrink-0" />
-              <span className="text-xs font-semibold text-[#f5f7fa] truncate">
+              <span className={cn("text-xs font-semibold truncate", isDark ? "text-[#f5f7fa]" : "text-slate-800")}>
                 {isPro
-                  ? profile?.subscription_plan_name || (locale === "en" ? "Pro Plan" : "باقة برو نشطة")
+                  ? profile?.subscription_plan_name || (locale === "en" ? "Pro Vault" : "باقة برو نشطة")
                   : locale === "en"
-                  ? "Free Plan"
+                  ? "Free Vault"
                   : "الباقة المجانية"}
               </span>
             </div>
@@ -400,69 +390,61 @@ export default function Layout() {
     <MotionConfig reducedMotion="user">
       <div
         dir={dir}
-        className="min-h-screen bg-[#05070a] text-[#f5f7fa] relative selection:bg-[#19f08c]/20"
+        className={cn(
+          "min-h-screen relative selection:bg-[#19f08c]/20 transition-colors duration-200",
+          isDark ? "bg-[#05070a] text-[#f5f7fa]" : "bg-[#f8fafc] text-[#0f172a]"
+        )}
       >
         <NeonBackground />
 
         <aside
           className={cn(
-            "hidden md:flex fixed inset-y-0 start-0 w-64 lg:w-64 border-white/[0.08] bg-[#090c11] z-30 flex-col transition-transform duration-200 ease-out",
+            "hidden md:flex fixed inset-y-0 start-0 w-64 lg:w-64 z-30 flex-col transition-colors duration-200",
             dir === "rtl" ? "border-e" : "border-s",
-            sidebarCollapsed && (dir === "rtl" ? "translate-x-full" : "-translate-x-full")
+            isDark ? "border-white/[0.08] bg-[#090c11]" : "border-slate-200 bg-white shadow-xs"
           )}
         >
           {sidebar}
-
-          {/* Side Edge Collapse Arrow Handle when sidebar is open */}
-          {!sidebarCollapsed && (
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              title={locale === "ar" ? "إخفاء الستارة الجانبية" : "Hide Sidebar"}
-              aria-label={locale === "ar" ? "إخفاء الستارة الجانبية" : "Hide Sidebar"}
-              className={cn(
-                "hidden md:flex absolute top-1/2 -translate-y-1/2 z-40 h-14 w-5 items-center justify-center bg-[#0e131b] border border-white/15 text-[#9aa4b2] hover:text-[#19f08c] hover:border-[#19f08c]/50 transition-colors cursor-pointer shadow-lg",
-                dir === "rtl"
-                  ? "-left-5 rounded-s-xl border-e-0"
-                  : "-right-5 rounded-e-xl border-s-0"
-              )}
-            >
-              <CollapseArrowIcon className="w-3.5 h-3.5" />
-            </button>
-          )}
         </aside>
 
-        {/* Side Edge Expand Tab when sidebar is collapsed */}
-        {sidebarCollapsed && (
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            title={locale === "ar" ? "إظهار الستارة الجانبية" : "Show Sidebar"}
-            aria-label={locale === "ar" ? "إظهار الستارة الجانبية" : "Show Sidebar"}
-            className={cn(
-              "hidden md:flex fixed top-1/2 -translate-y-1/2 start-0 z-40 h-16 w-6 items-center justify-center bg-[#0e131b] border border-[#19f08c]/40 text-[#19f08c] hover:bg-[#19f08c] hover:text-[#03150c] transition-colors cursor-pointer shadow-[0_0_20px_rgba(25,240,140,0.25)]",
-              dir === "rtl" ? "rounded-s-xl border-e-0" : "rounded-e-xl border-s-0"
-            )}
-          >
-            <ExpandArrowIcon className="w-4 h-4 stroke-[2.5]" />
-          </button>
-        )}
-
-        <header className="md:hidden sticky top-0 z-40 bg-[#05070a]/85 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe">
-          <LVLogo to="/dashboard" label="Black Fighters" />
+        <header
+          className={cn(
+            "md:hidden sticky top-0 z-40 backdrop-blur-xl border-b flex items-center justify-between px-4 py-2.5 pt-safe pr-safe pl-safe transition-colors duration-200",
+            isDark
+              ? "bg-[#05070a]/85 border-white/[0.08] text-[#f5f7fa]"
+              : "bg-white/90 border-slate-200 text-[#0f172a] shadow-xs"
+          )}
+        >
+          <LVLogo to="/dashboard" label={locale === "ar" ? "منصة IIIAK الأكاديمية" : "IIIAK Academic"} />
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={toggleColorMode}
+              aria-label="تبديل المظهر"
+              className={cn(
+                "apple-glass-btn tap-target w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer",
+                isDark ? "text-[#9aa4b2] hover:text-[#f5f7fa]" : "text-slate-600 hover:text-slate-900"
+              )}
+            >
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            </button>
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
               aria-label="بحث"
-              className="tap-target w-8 h-8 rounded-lg flex items-center justify-center text-[#9aa4b2] hover:text-[#f5f7fa] bg-[#0e131b] border border-white/10"
+              className={cn(
+                "apple-glass-btn tap-target w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer",
+                isDark
+                  ? "text-[#9aa4b2] hover:text-[#f5f7fa] bg-[#0e131b] border border-white/10"
+                  : "text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200"
+              )}
             >
               <Search className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
-              className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-xs font-mono font-semibold text-[#19f08c]"
+              className="apple-glass-btn w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-xs font-mono font-semibold text-[#19f08c]"
             >
               {locale === "ar" ? "EN" : "ع"}
             </button>
@@ -471,7 +453,7 @@ export default function Layout() {
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"}
-              className="tap-target w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-[#f5f7fa]"
+              className="apple-glass-btn tap-target w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-[#f5f7fa]"
             >
               {mobileOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
             </button>
@@ -480,7 +462,7 @@ export default function Layout() {
 
         {mobileOpen && (
           <div
-            className="md:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-xs"
+            className="md:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           >
             <aside
@@ -491,12 +473,12 @@ export default function Layout() {
             >
               <div className="p-3 border-b border-white/[0.08] flex items-center justify-between">
                 <span className="text-xs font-semibold text-[#9aa4b2]">
-                  {locale === "ar" ? "القائمة الرئيسية" : "Main Menu"}
+                  {locale === "ar" ? "الأقسام الدراسية" : "Academic Hub"}
                 </span>
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-[#9aa4b2] hover:text-[#f5f7fa]"
+                  className="apple-glass-btn w-8 h-8 rounded-lg flex items-center justify-center bg-[#0e131b] border border-white/10 text-[#9aa4b2] hover:text-[#f5f7fa]"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -506,19 +488,13 @@ export default function Layout() {
           </div>
         )}
 
-        <main
-          className={cn(
-            "relative z-10 p-4 sm:p-6 md:p-8 pb-28 md:pb-16 max-w-6xl mx-auto transition-[margin] duration-200",
-            sidebarCollapsed ? "md:ms-0" : "md:ms-64"
-          )}
-        >
+        <main className="md:ms-64 relative z-10 p-4 sm:p-6 md:p-8 pb-28 md:pb-16 max-w-6xl mx-auto">
           <RouteBackBar />
           <PageTransition />
         </main>
 
         <BottomTabBar />
         <PracticalQuizBackgroundWidget />
-        {!hasCourseAssistant && <FloatingAssistant />}
         <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
       </div>
     </MotionConfig>

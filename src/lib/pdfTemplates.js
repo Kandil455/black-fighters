@@ -15,7 +15,7 @@
 export const PDF_TEMPLATES = [
   { id: "classic_ink", nameAr: "كلاسيكي أسود", accent: "#12242d", density: "normal", toc: false, fit: { default: true } },
   { id: "study_cyan", nameAr: "مذاكرة سماوي", accent: "#087f8b", density: "normal", toc: true, fit: { sections: 4 } },
-  { id: "exam_cram", nameAr: "برشامة الامتحان", accent: "#eb5757", density: "dense", toc: false, fit: { formulas: 3 } },
+  { id: "exam_cram", nameAr: "مذكرة الامتحان المركزة", accent: "#eb5757", density: "dense", toc: false, fit: { formulas: 3 } },
   { id: "formula_sheet", nameAr: "ورقة المعادلات", accent: "#8856d9", density: "dense", toc: false, fit: { formulas: 8 } },
   { id: "definitions_green", nameAr: "قاموس التعريفات", accent: "#27ae72", density: "normal", toc: true, fit: { definitions: 6 } },
   { id: "qa_orange", nameAr: "أسئلة وأجوبة", accent: "#f2994a", density: "normal", toc: false, fit: { questions: 4 } },
@@ -62,7 +62,7 @@ export const PDF_TEMPLATES = [
   { id: "aqua_image", nameAr: "أكوا صور", accent: "#00acc1", density: "normal", toc: false, fit: { images: 5 } },
   { id: "plum_bilingual", nameAr: "بلوم ثنائي", accent: "#ad1457", density: "normal", toc: true, fit: { english: 9 } },
   { id: "jade_final", nameAr: "جيد نهائي", accent: "#00695c", density: "normal", toc: true, fit: { sections: 16 } },
-  { id: "maroon_cram", nameAr: "برشامة عنابي", accent: "#800000", density: "dense", toc: false, fit: { formulas: 16 } },
+  { id: "maroon_cram", nameAr: "مراجعة عنابية مكثفة", accent: "#800000", density: "dense", toc: false, fit: { formulas: 16 } },
 ];
 
 const BY_ID = Object.fromEntries(PDF_TEMPLATES.map((t) => [t.id, t]));

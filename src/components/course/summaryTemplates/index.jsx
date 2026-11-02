@@ -130,7 +130,7 @@ export function FoundationalTemplate({ document: doc }) {
 export function CramTemplate({ document: doc }) {
   return (
     <div className="space-y-4" dir="rtl">
-      <Cover document={doc} Icon={Target} kicker="برشامة ليلة الامتحان · الأطلس Cram">
+      <Cover document={doc} Icon={Target} kicker="بطاقة ليلة الامتحان · المراجعة المركزة">
         <p className="mt-3 text-[12.5px] leading-7 text-muted-foreground">
           كثافة عالية: الأرقام والجرعات والتحذيرات الأول، وبعدها جداول المقارنة والمفاهيم.
         </p>

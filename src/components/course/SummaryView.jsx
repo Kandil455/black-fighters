@@ -20,8 +20,8 @@ import {
   Table2,
   Lightbulb,
   AlertTriangle,
-  CheckCircle2,
   Printer,
+  Trash2,
   ZoomIn,
   ZoomOut,
   Layers,
@@ -31,6 +31,8 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
+import { resolveDesignIdFromTemplate } from "@/lib/summaryDesigns";
+import InfographicSummary from "@/components/course/InfographicSummary";
 import {
   getLegacySummaryMarkdown,
   getSummaryDocumentV3,
@@ -38,12 +40,19 @@ import {
   summaryPlainText,
 } from "@/lib/summaryDocument";
 import StudyGuideViewer from "@/components/course/StudyGuideViewer";
-import { detectTextDir, renderStudyGuideHtml } from "@/lib/summaryStudyGuide";
+import { detectTextDir, renderStudyGuideHtml, STUDY_GUIDE_TEMPLATES } from "@/lib/summaryStudyGuide";
+import { downloadHtmlFile, printHtmlFile, readStoredTemplate } from "@/lib/summary/exportGuide";
+
+/** Valid template ids, so a stale/unknown stored id cannot render a blank guide. */
+const STUDY_GUIDE_TEMPLATE_IDS = STUDY_GUIDE_TEMPLATES.map((template) => template.id);
 import AtlasSummaryReader from "@/components/atlas/AtlasSummaryReader";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { recordMistake } from "@/lib/mistakeVault";
+import MermaidDiagram from "@/components/course/MermaidDiagram";
 import { AI_SUMMARY_EDIT_COST } from "@/lib/creditCosts";
 import { useAuth } from "@/lib/AuthContext";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
+import { deleteSummaryDocument } from "@/lib/summaryJobs";
 import { cn } from "@/lib/utils";
 import {
   Eye,
@@ -57,7 +66,28 @@ import {
   ChevronUp,
   RotateCw,
   Columns2,
+  Flame,
+  Siren,
+  Scale,
+  EyeOff,
+  GraduationCap,
+  BookOpenCheck,
+  SlidersHorizontal,
+  Image as ImageIcon,
 } from "lucide-react";
+import {
+  SUMMARY_DEPTHS,
+  filterSectionsByDepth,
+  mergeEnrichments,
+  loadEnrichmentCache,
+  simpleTextHash,
+  wrapBlurTargets,
+  wrapGlossaryTerms,
+  applyOutsideTags,
+  lookupGlossaryDefinition,
+  buildCramSheetPlain,
+  sectionToPlainText,
+} from "@/lib/summaryEnhance";
 
 function cleanSummaryMarkup(s = "") {
   return String(s || "")
@@ -611,12 +641,17 @@ function parseMarkdownIntoSmartSections(markdown = "", defaultTitle = "المل�
   }));
 }
 
+/** Blur-mode / hover-glossary flags shared with every FormattedInlineText. */
+const SummaryEnhanceCtx = React.createContext({ blur: false, glossary: true });
+
 /**
  * Renders inline highlights (`==color:text==`, `**bold**`, `` `code` ``) AND
  * automatic academic lead-term bolding, parenthetical medical term bolding,
  * and dosage/threshold/exam keyword highlights in both Light and Dark mode.
+ * Enhancement layer: blur (active recall) + hover glossary wrap as final pass.
  */
 function FormattedInlineText({ text = "" }) {
+  const { blur, glossary } = React.useContext(SummaryEnhanceCtx);
   const html = useMemo(() => {
     let out = String(text || "").replace(
       /[&<>]/g,
@@ -678,6 +713,15 @@ function FormattedInlineText({ text = "" }) {
       '(<strong class="font-bold text-primary">$1</strong>)'
     );
 
+    // Medical ALL-CAPS lexical terms (EDV, ESV, ATP, DNA, GFR…) auto-bold.
+    // No lookbehind (Safari-ready); runs only outside existing strong/mark tags.
+    out = applyOutsideTags(out, (html) =>
+      html.replace(
+        /(^|[^A-Za-z0-9&])([A-Z][A-Z0-9]{2,6})(?![A-Za-z0-9])/g,
+        (_m, pre, term) => `${pre}<strong class="font-extrabold text-foreground">${term}</strong>`
+      )
+    );
+
     if (!out.includes('class="bf-hl')) {
       out = out.replace(
         /(\b(?:GCS\s*(?:&lt;|&gt;|≤|≥|=)?\s*\d+|C\d\s*[-–]\s*C\d|\d+(?:\.\d+)?\s*(?:mmHg|mg\/dL|mg\/kg|mg|g|mcg|mL|ml|L|%|bpm|min|minutes|hrs|hours|sec|seconds|cm|mm|mEq\/L|mmol\/L|IU|مم زئبق|دقائق|دقيقة|ساعات|ساعة|ثواني|ثانية|ملجم|جم|جرام|مل|لتر))(?![A-Za-z\u0600-\u06FF]))/gi,
@@ -690,8 +734,13 @@ function FormattedInlineText({ text = "" }) {
       '<mark class="bf-hl bf-hl-red">$1</mark>'
     );
 
+    // Enhancement layer — applied last, only to text outside tags: active
+    // recall blur tokens and/or hover glossary med-terms.
+    if (blur) out = applyOutsideTags(out, wrapBlurTargets);
+    if (glossary) out = applyOutsideTags(out, wrapGlossaryTerms);
+
     return out;
-  }, [text]);
+  }, [text, blur, glossary]);
 
   return <span dangerouslySetInnerHTML={{ __html: html }} />;
 }
@@ -702,9 +751,14 @@ export default function SummaryView({
   onGenerateFromSummary,
   onSwitchTab,
   generatingType,
+  showSummaryRegen,
+  onToggleSummaryRegen,
+  onExportTelegram,
+  exportingTelegram,
 }) {
   const { isEn } = useLocale();
   const { refreshProfile } = useAuth();
+  const { applyOptimisticCharge, applyOptimisticRefund } = useOptimisticCharge();
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -713,10 +767,19 @@ export default function SummaryView({
   const [aiInstruction, setAiInstruction] = useState("");
   const [aiUpdating, setAiUpdating] = useState(false);
   const [activeAiSection, setActiveAiSection] = useState("");
-  const [fontSize, setFontSize] = useState(16);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [fontSize, setFontSize] = useState(17);
+  // Deep-link from a wrong quiz answer: /course/:id?q=term → focus that topic instantly.
+  const [searchTerm, setSearchTerm] = useState(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("q") || "";
+      return q.slice(0, 120);
+    } catch {
+      return "";
+    }
+  });
   const [activeSectionId, setActiveSectionId] = useState("all");
-  const [viewMode, setViewMode] = useState("smart_cards"); // "smart_cards" | "print_template"
+  const [viewMode, setViewMode] = useState("smart_cards"); // "smart_cards" | "infographic" | "atlas_v5" | "print_template"
+  const [toolsDrawerOpen, setToolsDrawerOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isWideLayout, setIsWideLayout] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({});
@@ -726,6 +789,43 @@ export default function SummaryView({
   const [instantQuizAnswers, setInstantQuizAnswers] = useState({});
   const [activeFlashcardIdx, setActiveFlashcardIdx] = useState(0);
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+
+  // ── ⭐ Summary Enhancement Suite (depth / blur / glossary / cram) ──
+  const [depthLevel, setDepthLevel] = useState("full");
+  const [blurMode, setBlurMode] = useState(false);
+  const [glossaryMode, setGlossaryMode] = useState(true);
+  const [focusMode, setFocusMode] = useState(false);
+  const [enrichments, setEnrichments] = useState({});
+  const [glossTip, setGlossTip] = useState(null);
+
+  // 🗑️ Owner control: full data delete — document + revisions + mirror + cancels
+  // any in-flight generation job. Parent refetches contents so the empty state returns.
+  const [deletingSummary, setDeletingSummary] = useState(false);
+  const handleDeleteSummary = async () => {
+    if (!course?.id || deletingSummary) return;
+    const confirmed = window.confirm(
+      isEn
+        ? "Delete this summary permanently? The document and all its revision history will be removed. You can generate a fresh one any time."
+        : "حذف التلخيص نهائيًا؟ المستند وكل مراجعاته هيشيلوا من حسابك تمامًا — تقدر تطلّبه من أول وجديد بعدين."
+    );
+    if (!confirmed) return;
+    setDeletingSummary(true);
+    try {
+      const result = await deleteSummaryDocument(course.id);
+      if (result?.ok === false) throw new Error(result.error || "DELETE_FAILED");
+      await queryClient.invalidateQueries({ queryKey: ["contents", course.id] });
+      toast.success(isEn
+        ? "Summary deleted — document & history wiped"
+        : "🗑️ اتمسح بسلام — المستند وتاريخه راحوا");
+    } catch (error) {
+      toast.error(error?.message || (isEn ? "Could not delete the summary" : "تعذر حذف التلخيص — جرّب تاني"));
+    } finally {
+      setDeletingSummary(false);
+    }
+  };
+  const [cramOpen, setCramOpen] = useState(false);
+  const [figLightbox, setFigLightbox] = useState(null); // open lecture figure {url, page}
+  const contentRef = useRef(null);
   const [expandingSectionId, setExpandingSectionId] = useState(null);
 
   useEffect(() => {
@@ -747,6 +847,15 @@ export default function SummaryView({
   const queryClient = useQueryClient();
 
   const documentV3 = useMemo(() => getSummaryDocumentV3(summary), [summary]);
+
+  // Visual skin picked at upload time (owner system). Drives accent swap for
+  // chapter chips, hairlines, list markers, tables — royal is the default.
+  const docSkin = resolveDesignIdFromTemplate(
+    documentV3?.templateId
+    || documentV3?.meta?.templateId
+    || summary?.summary_design
+    || course?.summary_design
+  );
   const legacyMarkdown = useMemo(() => getLegacySummaryMarkdown(summary), [summary]);
   const text = useMemo(
     () =>
@@ -766,11 +875,128 @@ export default function SummaryView({
     [documentV3, text, course?.title]
   );
 
-  const filteredSections = useMemo(() => {
-    let list = smartSections;
-    if (activeSectionId !== "all") {
-      list = list.filter((s) => s.id === activeSectionId);
+  // ── Enhancement suite derived data ──
+  const textHash = useMemo(() => simpleTextHash(text), [text]);
+  useEffect(() => {
+    setEnrichments(loadEnrichmentCache(course?.id, textHash));
+  }, [course?.id, textHash]);
+
+  const enhancedSections = useMemo(
+    () => mergeEnrichments(smartSections, enrichments),
+    [smartSections, enrichments]
+  );
+
+  // Delegated handlers for blur tokens and glossary tooltips.
+  const handleContentClick = (e) => {
+    const tok = e.target.closest?.(".bf-blur-token");
+    if (tok) {
+      tok.classList.add("bf-revealed");
+      e.preventDefault();
     }
+  };
+  const handleContentMouseOver = (e) => {
+    const termEl = e.target.closest?.(".bf-glossary-term");
+    if (!termEl) return;
+    const term = termEl.getAttribute("data-bf-term");
+    const def = lookupGlossaryDefinition(term);
+    if (!def) return;
+    const rect = termEl.getBoundingClientRect();
+    setGlossTip({
+      x: Math.max(8, Math.min(rect.left, window.innerWidth - 316)),
+      y: rect.bottom + 8,
+      term,
+      def,
+    });
+  };
+  const handleContentMouseOut = (e) => {
+    if (e.target.closest?.(".bf-glossary-term")) setGlossTip(null);
+  };
+
+  // 📸 Lecture figures lifted from the source PDF — pinned to the sections that
+  // discuss them (via sourceRefs pages), or distributed inline across sections.
+  const summaryFigures = useMemo(() => {
+    const list = Array.isArray(summary?.figures) ? summary.figures : [];
+    return list.filter((f) => f?.url && Number(f.page) > 0);
+  }, [summary?.figures]);
+
+  const figuredSections = useMemo(() => {
+    // First deduplicate repetitive 2-column term/meaning tables if the section already has rich bullets/pairs or paragraphs
+    const cleanedSections = enhancedSections.map((sec) => {
+      const hasContentItems = (sec.items || []).some(
+        (it) => it.kind === "bilingual_pairs" || it.kind === "list" || it.kind === "paragraph"
+      );
+      if (!hasContentItems) return sec;
+      const filteredItems = (sec.items || []).filter((it) => {
+        if (it.kind !== "table" && it.kind !== "compare") return true;
+        const hdrs = Array.isArray(it.headers) ? it.headers.map((h) => String(h || "").trim()) : [];
+        const isGenericTwoCol =
+          hdrs.length <= 2 &&
+          hdrs.some((h) => /المصطلح|المفهوم|الكلمة|Term|Concept|Word/i.test(h)) &&
+          hdrs.some((h) => /المعنى|التوضيح|الشرح|البيان|Meaning|Explanation|Description/i.test(h));
+        return !isGenericTwoCol;
+      });
+      return { ...sec, items: filteredItems.length ? filteredItems : sec.items };
+    });
+
+    if (!summaryFigures.length) return cleanedSections;
+    const usedPages = new Set();
+    const out = cleanedSections.map((sec) => {
+      const refs = Array.isArray(sec.sourceRefs) ? sec.sourceRefs.map(Number) : [];
+      const hits = summaryFigures.filter((f) => refs.includes(Number(f.page)) && !usedPages.has(Number(f.page)));
+      if (!hits.length) return { ...sec, items: [...(sec.items || [])] };
+      hits.forEach((h) => usedPages.add(Number(h.page)));
+      return {
+        ...sec,
+        items: [
+          ...(sec.items || []),
+          ...hits.map((f, i) => ({
+            kind: "figure",
+            id: `fig-${sec.id}-${i}`,
+            text: f.caption || "",
+            figure: { url: f.url, page: f.page, width: f.width, height: f.height },
+          })),
+        ],
+      };
+    });
+    const orphans = summaryFigures.filter((f) => !usedPages.has(Number(f.page)));
+    if (orphans.length) {
+      if (out.length > 0) {
+        orphans.forEach((f, idx) => {
+          const targetIdx = Math.min(out.length - 1, Math.floor((idx * out.length) / orphans.length));
+          out[targetIdx] = {
+            ...out[targetIdx],
+            items: [
+              ...(out[targetIdx].items || []),
+              {
+                kind: "figure",
+                id: `fig-inline-${idx}`,
+                text: f.caption || "",
+                figure: { url: f.url, page: f.page, width: f.width, height: f.height },
+              },
+            ],
+          };
+        });
+      } else {
+        out.push({
+          id: "bf-figures-gallery",
+          title: isEn ? "📸 Lecture Figures" : "📸 أشكال وصور المحاضرة",
+          sourceRefs: orphans.map((f) => f.page),
+          items: orphans.map((f, i) => ({
+            kind: "figure",
+            id: `fig-gal-${i}`,
+            text: f.caption || "",
+            figure: { url: f.url, page: f.page, width: f.width, height: f.height },
+          })),
+        });
+      }
+    }
+    return out;
+  }, [enhancedSections, summaryFigures, isEn]);
+
+  const filteredSections = useMemo(() => {
+    // The reading surface is one continuous document — the TOC rail scrolls
+    // to a section instead of hiding the others; only search narrows content.
+    const list = figuredSections;
     const q = searchTerm.trim().toLowerCase();
     if (!q) return list;
 
@@ -799,13 +1025,61 @@ export default function SummaryView({
         return null;
       })
       .filter(Boolean);
-  }, [smartSections, activeSectionId, searchTerm]);
+  }, [figuredSections, searchTerm]);
+
+  // Depth toggle applies AFTER filtering so search still hits hidden layers.
+  const displaySections = useMemo(
+    () => filterSectionsByDepth(filteredSections, depthLevel),
+    [filteredSections, depthLevel]
+  );
+
+  const cramPlainText = useMemo(
+    () => buildCramSheetPlain(filterSectionsByDepth(enhancedSections, "exam"), course?.title || ""),
+    [enhancedSections, course?.title]
+  );
 
   useEffect(() => {
     setDraft(text);
   }, [text]);
 
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
+
+  // 📑 Unified document navigation: TOC rail scrolls to the chapter and a
+  // scroll-spy keeps the active entry highlighted — nothing is ever hidden.
+  const scrollToSection = (id) => {
+    setActiveSectionId(id);
+    if (id === "all") {
+      contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const root = contentRef.current;
+    if (!root) return;
+    const targets = Array.from(root.querySelectorAll("article[id]"));
+    if (targets.length < 2) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const hit = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (hit?.target?.id) setActiveSectionId(hit.target.id);
+      },
+      { rootMargin: "-25% 0px -65% 0px", threshold: 0 }
+    );
+    targets.forEach((t) => io.observe(t));
+    return () => io.disconnect();
+  }, [displaySections]);
+
+  // 🖨 Print routing: while the cram overlay is open it owns window.print();
+  // otherwise the unified document (.bf-print-scope) is the print target.
+  useEffect(() => {
+    document.body.classList.toggle("bf-print-cram", cramOpen);
+    return () => document.body.classList.remove("bf-print-cram");
+  }, [cramOpen]);
 
   const copy = () => {
     navigator.clipboard.writeText(plainText || text);
@@ -831,6 +1105,28 @@ export default function SummaryView({
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
     setSpeaking(true);
+  };
+
+  // 🎧 Per-unit audio review — the "walking revision podcast", one unit at a time.
+  const [speakingSectionId, setSpeakingSectionId] = useState(null);
+  const speakSection = (section) => {
+    if (!("speechSynthesis" in window)) return;
+    if (speakingSectionId === section.id) {
+      window.speechSynthesis.cancel();
+      setSpeakingSectionId(null);
+      return;
+    }
+    const body = `${section.title}. ${sectionToPlainText(section)}`.replace(/[#*>_`~\-]/g, " ");
+    if (!body.trim()) return;
+    const u = new SpeechSynthesisUtterance(body);
+    u.lang = /[\u0600-\u06FF]/.test(body) ? "ar-SA" : "en-US";
+    u.rate = 0.95;
+    u.onend = () => setSpeakingSectionId(null);
+    u.onerror = () => setSpeakingSectionId(null);
+    window.speechSynthesis.cancel();
+    setSpeaking(false);
+    window.speechSynthesis.speak(u);
+    setSpeakingSectionId(section.id);
   };
 
   const applyHighlight = (color) => {
@@ -942,15 +1238,20 @@ export default function SummaryView({
     const jobKey = `summary_edit_${course?.id || "doc"}_${Date.now().toString(36)}`;
     let chargedCost = 0;
     try {
-      const chargeRes = await base44.functions.invoke("chargeAiJob", {
-        action: "charge",
-        jobKey,
-        task: "summary_edit",
-        cost: AI_SUMMARY_EDIT_COST,
-        charCount: baseText.length,
-        courseId: course?.id || "",
-      });
-      if (!chargeRes?.data?.ok) {
+      // Optimistic: the balance chip drops the same second, then the server
+      // response reconciles it to the authoritative value.
+      const chargeRes = await applyOptimisticCharge(
+        () => base44.functions.invoke("chargeAiJob", {
+          action: "charge",
+          jobKey,
+          task: "summary_edit",
+          cost: AI_SUMMARY_EDIT_COST,
+          charCount: baseText.length,
+          courseId: course?.id || "",
+        }),
+        { cost: AI_SUMMARY_EDIT_COST }
+      );
+      if (!chargeRes?.data?.ok && !chargeRes?.data?.success) {
         const errMsg =
           chargeRes?.data?.error === "INSUFFICIENT_CREDITS"
             ? `رصيد الكريدتس غير كافٍ لتعديل الملخص بالذكاء الاصطناعي (مطلوب ${AI_SUMMARY_EDIT_COST} كريدت)`
@@ -959,7 +1260,7 @@ export default function SummaryView({
               "تعذر خصم الكريدتس لتعديل الملخص";
         throw new Error(errMsg);
       }
-      chargedCost = Number(chargeRes?.data?.charged || AI_SUMMARY_EDIT_COST);
+      chargedCost = Number(chargeRes?.data?.charged ?? chargeRes?.data?.cost ?? AI_SUMMARY_EDIT_COST);
 
       const targetNote = activeAiSection
         ? `\nركّز التعديل على القسم المعنون "${activeAiSection}" أولاً مع الحفاظ على باقي الأقسام كما هي ما لم يلزم الربط.`
@@ -991,20 +1292,21 @@ ${baseText.slice(0, 18000)}
       setAiInstruction("");
       toast.success(
         isEn
-          ? `Summary updated by AI ✨ (-${chargedCost} credits)`
-          : `تم تحديث الملخص بالذكاء الاصطناعي ✨ (تم خصم ${chargedCost} كريدت)`
+          ? "Summary updated by AI ✨"
+          : "تم تحديث الملخص بالذكاء الاصطناعي ✨"
       );
     } catch (err) {
       if (chargedCost > 0) {
-        await base44.functions
-          .invoke("chargeAiJob", {
-            action: "refund",
-            jobKey,
-            task: "summary_edit",
-            cost: chargedCost,
-          })
-          .catch(() => {});
-        refreshProfile?.().catch?.(() => {});
+        await applyOptimisticRefund(
+          () =>
+            base44.functions.invoke("chargeAiJob", {
+              action: "refund",
+              jobKey,
+              task: "summary_edit",
+              cost: chargedCost,
+            }),
+          { cost: chargedCost }
+        ).catch(() => {});
       }
       toast.error(err.message || (isEn ? "Failed to edit summary" : "فشل تعديل الملخص"));
     } finally {
@@ -1040,71 +1342,30 @@ ${baseText.slice(0, 18000)}
   );
 
   const downloadHtmlDirect = () => {
-    try {
-      const tpl = (() => {
-        try {
-          return localStorage.getItem("bf_guide_template") || "modules_red";
-        } catch {
-          return "modules_red";
-        }
-      })();
-      const exportHtml = renderStudyGuideHtml({
-        document: documentV3 || undefined,
-        markdown: text,
-        title: course?.title || "الملخص الذكي",
-        templateId: tpl,
-        forExport: true,
-      });
-      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = window.document.createElement("a");
-      const safeName =
-        String(course?.title || "study-guide")
-          .replace(/[\\/:*?"<>|]+/g, "-")
-          .trim() || "study-guide";
-      link.href = url;
-      link.download = `${safeName}.html`;
-      window.document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    const exportHtml = renderStudyGuideHtml({
+      document: documentV3 || undefined,
+      markdown: text,
+      title: course?.title || "الملخص الذكي",
+      templateId: readStoredTemplate(STUDY_GUIDE_TEMPLATE_IDS),
+      forExport: true,
+      figures: summaryFigures,
+    });
+    if (downloadHtmlFile(exportHtml, course?.title || "الملخص الذكي", "study-guide")) {
       toast.success("تم تحميل ملف المذكرة (HTML) بتصميم البطاقات والألوان جاهز للفتح والطباعة 📄✨");
-    } catch {
+    } else {
       toast.error("تعذر تحميل ملف الملخص");
     }
   };
-
   const printGuideDirect = () => {
-    try {
-      const tpl = (() => {
-        try {
-          return localStorage.getItem("bf_guide_template") || "modules_red";
-        } catch {
-          return "modules_red";
-        }
-      })();
-      const exportHtml = renderStudyGuideHtml({
-        document: documentV3 || undefined,
-        markdown: text,
-        title: course?.title || "الملخص الذكي",
-        templateId: tpl,
-        forExport: true,
-      });
-      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const printWin = window.open(url, "_blank");
-      if (printWin) {
-        printWin.addEventListener("load", () => {
-          setTimeout(() => {
-            try {
-              printWin.focus();
-              printWin.print();
-            } catch {}
-          }, 250);
-        });
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
+    const exportHtml = renderStudyGuideHtml({
+      document: documentV3 || undefined,
+      markdown: text,
+      title: course?.title || "الملخص الذكي",
+      templateId: readStoredTemplate(STUDY_GUIDE_TEMPLATE_IDS),
+      forExport: true,
+      figures: summaryFigures,
+    });
+    if (!printHtmlFile(exportHtml)) {
       toast.error("تعذر فتح نافذة الطباعة");
     }
   };
@@ -1231,73 +1492,86 @@ ${baseText.slice(0, 18000)}
           </div>
         </div>
       ) : (
-      /* Top Smart Reader Toolbar */
-      <div className="glass rounded-[1.25rem] p-4 space-y-3 border border-white/[0.08]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* View Mode Toggle: Smart Cards vs Active Recall Reader vs Print Template */}
-          <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-white/[0.07] bg-[#05070a]/70 p-1">
+      /* Compact Single Top Reader Bar */
+      <div className="glass rounded-2xl px-3.5 py-2.5 space-y-3 border border-border">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          {/* View Mode Toggle: Structured Text first */}
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-border bg-secondary/60 p-1">
             <button
               type="button"
               onClick={() => setViewMode("smart_cards")}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all cursor-pointer",
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
                 viewMode === "smart_cards"
-                  ? "bg-[#19f08c] text-[#03150c] shadow-sm"
-                  : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Layers className="size-3.5" />
-              <span>{isEn ? "Smart Study Cards" : "المذكرة الذكية (بطاقات + فهرس)"}</span>
+              <span>{isEn ? "Structured Text" : "النص المنسّق"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("infographic")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
+                viewMode === "infographic"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Sparkles className="size-3.5" />
+              <span>{isEn ? "Visual Summary" : "التلخيص البصري"}</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode("atlas_v5")}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all cursor-pointer",
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
                 viewMode === "atlas_v5"
-                  ? "bg-[#19f08c] text-[#03150c] shadow-sm"
-                  : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Eye className="size-3.5" />
-              <span>{isEn ? "Active Recall & FSRS" : "التسميع التفاعلي والقاموس (FSRS)"}</span>
+              <span>{isEn ? "Review Mode" : "المراجعة"}</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode("print_template")}
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all cursor-pointer",
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
                 viewMode === "print_template"
-                  ? "bg-[#19f08c] text-[#03150c] shadow-sm"
-                  : "text-[#9aa4b2] hover:text-[#f5f7fa]"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Printer className="size-3.5" />
-              <span>{isEn ? "Print & Export Templates" : "قوالب الطباعة والتحميل (5 قوالب)"}</span>
+              <span>{isEn ? "Print & Download" : "الطباعة والتحميل"}</span>
             </button>
           </div>
 
-          {/* Reader Action Buttons (Zoom, Fullscreen, Wide Mode, Download, Audio, Copy, Edit) */}
+          {/* Essential Reader Controls + Side Drawer Trigger */}
           <div className="flex flex-wrap items-center gap-1.5">
             {viewMode === "smart_cards" && !editing && (
               <>
-                <div className="inline-flex items-center rounded-xl border border-white/[0.07] bg-white/[0.03] p-0.5 me-1">
+                <div className="inline-flex items-center rounded-xl border border-border bg-secondary/50 p-0.5">
                   <button
                     type="button"
                     onClick={() => setFontSize((f) => Math.max(13, f - 1))}
                     title={isEn ? "Smaller text" : "تصغير الخط"}
-                    className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] cursor-pointer"
+                    className="p-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     <ZoomOut className="size-3.5" />
                   </button>
-                  <span className="px-2 font-mono text-[11px] font-bold text-[#f5f7fa] tabular">
+                  <span className="px-2 font-mono text-[11px] font-bold text-foreground tabular">
                     {fontSize}px
                   </span>
                   <button
                     type="button"
                     onClick={() => setFontSize((f) => Math.min(26, f + 1))}
                     title={isEn ? "Larger text" : "تكبير الخط"}
-                    className="p-1.5 text-[#9aa4b2] hover:text-[#f5f7fa] cursor-pointer"
+                    className="p-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
                   >
                     <ZoomIn className="size-3.5" />
                   </button>
@@ -1308,10 +1582,7 @@ ${baseText.slice(0, 18000)}
                   variant="outline"
                   onClick={() => setIsWideLayout((w) => !w)}
                   title={isEn ? "Toggle Wide Reader" : "توسيع عرض القراءة (إخفاء/إظهار الفهرس الجانبي)"}
-                  className={cn(
-                    "gap-1.5 rounded-xl text-xs h-9",
-                    isWideLayout && "border-[#19f08c]/50 bg-[#19f08c]/10 text-[#19f08c]"
-                  )}
+                  className="gap-1.5 rounded-xl text-xs h-8"
                 >
                   <Columns2 className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">
@@ -1331,103 +1602,39 @@ ${baseText.slice(0, 18000)}
               size="sm"
               variant="outline"
               onClick={() => setIsFullscreen((f) => !f)}
-              className={cn(
-                "gap-1.5 rounded-xl text-xs h-9 font-bold",
-                isFullscreen
-                  ? "border-amber-400/50 bg-amber-400/15 text-amber-300"
-                  : "border-[#19f08c]/40 bg-[#19f08c]/10 text-[#19f08c] hover:bg-[#19f08c]/20"
-              )}
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold"
             >
               {isFullscreen ? (
                 <>
                   <Minimize2 className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Exit Fullscreen" : "إغلاق ملء الشاشة"}</span>
+                  <span>{isEn ? "Exit" : "تصغير"}</span>
                 </>
               ) : (
                 <>
                   <Maximize2 className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Fullscreen" : "تكبير الملخص ⛶"}</span>
+                  <span className="hidden sm:inline">{isEn ? "Fullscreen" : "ملء الشاشة"}</span>
                 </>
               )}
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={downloadHtmlDirect}
-              className="gap-1.5 rounded-xl text-xs h-9"
-              title={isEn ? "Download HTML Study Guide" : "تحميل الملخص كملف HTML منظم"}
-            >
-              <Download className="w-3.5 h-3.5 text-primary" />
-              <span>{isEn ? "Download HTML" : "تحميل HTML"}</span>
             </Button>
 
             <Button
               size="sm"
               variant="outline"
               onClick={printGuideDirect}
-              className="gap-1.5 rounded-xl text-xs h-9"
+              className="gap-1.5 rounded-xl text-xs h-8"
               title={isEn ? "Print or Save as PDF" : "طباعة أو حفظ PDF"}
             >
               <Printer className="w-3.5 h-3.5 text-primary" />
               <span className="hidden sm:inline">{isEn ? "PDF / Print" : "طباعة PDF"}</span>
             </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={toggleSpeak}
-              className="gap-1.5 rounded-xl text-xs h-9"
-            >
-              {speaking ? (
-                <>
-                  <Square className="w-3.5 h-3.5 text-destructive" />
-                  <span>{isEn ? "Stop Audio" : "إيقاف القراءة"}</span>
-                </>
-              ) : (
-                <>
-                  <Volume2 className="w-3.5 h-3.5 text-primary" />
-                  <span>{isEn ? "Listen" : "استماع صوتي"}</span>
-                </>
-              )}
-            </Button>
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={copy}
-              className="gap-1.5 rounded-xl text-xs h-9"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>{isEn ? "Copied" : "تم النسخ"}</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{isEn ? "Copy" : "نسخ"}</span>
-                </>
-              )}
-            </Button>
-
-            {!editing ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setEditing(true)}
-                className="gap-1.5 rounded-xl text-xs h-9 border-primary/30 text-primary hover:bg-primary/10"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                <span>{isEn ? "Edit Notes" : "تعديل يدوي"}</span>
-              </Button>
-            ) : (
+            {editing && (
               <>
                 <Button
                   size="sm"
                   onClick={handleSaveEdit}
                   disabled={saving}
-                  className="gap-1.5 rounded-xl text-xs h-9 font-bold"
+                  className="gap-1.5 rounded-xl text-xs h-8 font-bold"
                 >
                   {saving ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1443,175 +1650,57 @@ ${baseText.slice(0, 18000)}
                     setEditing(false);
                     setDraft(text);
                   }}
-                  className="gap-1 rounded-xl text-xs h-9"
+                  className="gap-1 rounded-xl text-xs h-8"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>{isEn ? "Cancel" : "إلغاء"}</span>
                 </Button>
               </>
             )}
+
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => setToolsDrawerOpen(true)}
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>{isEn ? "Summary Tools & Settings" : "أدوات وإعدادات الملخص"}</span>
+            </Button>
           </div>
-        </div>
-
-        {/* ⚡ Power Actions Bar: Generate Quizzes, Flashcards, Deep Expand, Cheat Sheet Directly from Summary */}
-        <div className="pt-3 border-t border-white/[0.07] flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#19f08c] me-1">
-              <Sparkles className="size-4" />
-              {isEn ? "Summary Power Studio:" : "أدوات التلخيص الذكية:"}
-            </span>
-
-            {/* 1. Deep Expand / Enlarge Summary Content */}
-            <button
-              type="button"
-              disabled={aiUpdating}
-              onClick={() =>
-                handleAiEdit(
-                  "كبّر ووسّع هذا الملخص بالكامل ليكون مرجعاً شاملاً ومفصلاً جداً: اشرح كل نقطة إنجليزية وعربية بعمق، أضف الآليات والأسباب والأمثلة الإكلينيكية/التطبيقية، ضع **Bold** على كل المصطلحات والأرقام المهمة، وأضف جداول مقارنة وتنبيهات امتحانات (> تنبيه امتحاني) في كل قسم."
-                )
-              }
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#19f08c]/45 bg-[#19f08c]/15 px-3 py-1.5 text-xs font-bold text-[#19f08c] hover:bg-[#19f08c] hover:text-[#03150c] transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {aiUpdating ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <ZoomIn className="size-3.5" />
-              )}
-              <span>
-                {isEn
-                  ? `Deep Expand Summary (${AI_SUMMARY_EDIT_COST} credits)`
-                  : `🔍 تكبير وتوسيع الشرح بالتفصيل (${AI_SUMMARY_EDIT_COST} كريدت)`}
-              </span>
-            </button>
-
-            {/* 2. Build / Practice Quiz from Summary */}
-            <button
-              type="button"
-              onClick={() =>
-                setActiveStudioDrawer((d) => (d === "quiz" ? null : "quiz"))
-              }
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
-                activeStudioDrawer === "quiz"
-                  ? "border-sky-400 bg-sky-400 text-[#04131d]"
-                  : "border-sky-400/40 bg-sky-400/12 text-sky-300 hover:bg-sky-400/20"
-              )}
-            >
-              <Brain className="size-3.5" />
-              <span>
-                {isEn
-                  ? "Create Quiz from Summary 🎯"
-                  : "🎯 اعمل كويز من التلخيص ده"}
-              </span>
-            </button>
-
-            {/* 3. Flashcards Deck from Summary */}
-            <button
-              type="button"
-              onClick={() => {
-                setActiveFlashcardIdx(0);
-                setIsFlashcardFlipped(false);
-                setActiveStudioDrawer((d) =>
-                  d === "flashcards" ? null : "flashcards"
-                );
-              }}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer",
-                activeStudioDrawer === "flashcards"
-                  ? "border-violet-400 bg-violet-400 text-[#120624]"
-                  : "border-violet-400/40 bg-violet-400/12 text-violet-300 hover:bg-violet-400/20"
-              )}
-            >
-              <Layers className="size-3.5" />
-              <span>
-                {isEn
-                  ? `Flashcards (${summaryFlashcards.length})`
-                  : `🃏 بطاقات تسميع (${summaryFlashcards.length})`}
-              </span>
-            </button>
-
-            {/* 4. Cheat Sheet / Study Sheet */}
-            {onGenerateFromSummary && (
-              <button
-                type="button"
-                disabled={Boolean(generatingType)}
-                onClick={() => onGenerateFromSummary("study_sheet")}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-amber-400/40 bg-amber-400/12 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-400/20 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <FileText className="size-3.5" />
-                <span>
-                  {isEn ? "Generate Cheat Sheet" : "📋 برشامة مراجعة سريعة"}
-                </span>
-              </button>
-            )}
-          </div>
-
-          {/* Expand / Collapse All Sections */}
-          {viewMode === "smart_cards" && smartSections.length > 1 && (
-            <button
-              type="button"
-              onClick={() => {
-                const allCollapsed = smartSections.every(
-                  (s) => collapsedSections[s.id]
-                );
-                if (allCollapsed) {
-                  setCollapsedSections({});
-                } else {
-                  const next = {};
-                  smartSections.forEach((s) => {
-                    next[s.id] = true;
-                  });
-                  setCollapsedSections(next);
-                }
-              }}
-              className="text-[11px] font-bold text-[#9aa4b2] hover:text-[#f5f7fa] inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer"
-            >
-              {smartSections.every((s) => collapsedSections[s.id]) ? (
-                <>
-                  <ChevronDown className="size-3.5" />
-                  <span>{isEn ? "Expand All Units" : "فرد كل الوحدات"}</span>
-                </>
-              ) : (
-                <>
-                  <ChevronUp className="size-3.5" />
-                  <span>{isEn ? "Collapse All Units" : "طي كل الوحدات"}</span>
-                </>
-              )}
-            </button>
-          )}
         </div>
 
         {/* 🎯 Interactive Quiz Studio Drawer (Generate Full AI Quiz OR Solve Instant Summary Quiz) */}
         {activeStudioDrawer === "quiz" && (
-          <div className="rounded-2xl border border-sky-400/35 bg-[#060b12]/95 p-4 sm:p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+          <div className="rounded-2xl border border-sky-400/35 bg-card p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
               <div>
-                <h4 className="text-sm font-extrabold text-sky-300 flex items-center gap-2">
+                <h4 className="text-sm font-extrabold text-primary flex items-center gap-2">
                   <Brain className="size-4" />
                   {isEn
                     ? "Quiz Generator & Instant Exam from Summary"
-                    : "🎯 استوديو الكويزات من الملخص الذكي"}
+                    : "🎯 استوديو الاختبارات من الملخص"}
                 </h4>
-                <p className="text-xs text-[#9aa4b2] mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {isEn
                     ? "Generate a full AI exam tab or solve instant questions extracted from your summary units below"
-                    : "ولّد امتحان كامل بالذكاء الاصطناعي بالعدد والمستوى اللي تحبه، أو حل الكويز الفوري بالأسفل مباشرة وأنت بتذاكر!"}
+                    : "ولّد اختباراً كاملاً بالذكاء الاصطناعي بالعدد والمستوى المطلوب، أو حل الأسئلة الفورية بالأسفل مباشرة"}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveStudioDrawer(null)}
-                className="p-1 text-[#9aa4b2] hover:text-white cursor-pointer"
+                className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 <X className="size-4" />
               </button>
             </div>
 
             {onGenerateFromSummary && (
-              <div className="rounded-xl border border-sky-500/25 bg-sky-500/[0.06] p-3.5 flex flex-wrap items-center justify-between gap-3">
+              <div className="rounded-xl border border-border bg-secondary/40 p-3.5 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-[#f5f7fa]">
+                    <span className="text-xs font-bold text-foreground">
                       {isEn ? "Questions:" : "عدد الأسئلة:"}
                     </span>
                     {[5, 10, 15, 20, 30].map((cnt) => (
@@ -1622,8 +1711,8 @@ ${baseText.slice(0, 18000)}
                         className={cn(
                           "px-2.5 py-1 rounded-lg text-xs font-mono font-bold border transition cursor-pointer",
                           studioQuizCount === cnt
-                            ? "bg-sky-400 text-[#04131d] border-sky-400"
-                            : "bg-[#05070a] text-[#9aa4b2] border-white/10 hover:text-white"
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card text-muted-foreground border-border hover:text-foreground"
                         )}
                       >
                         {cnt}
@@ -1632,7 +1721,7 @@ ${baseText.slice(0, 18000)}
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-[#f5f7fa]">
+                    <span className="text-xs font-bold text-foreground">
                       {isEn ? "Style:" : "النمط:"}
                     </span>
                     {[
@@ -1648,8 +1737,8 @@ ${baseText.slice(0, 18000)}
                         className={cn(
                           "px-2.5 py-1 rounded-lg text-xs font-bold border transition cursor-pointer",
                           studioQuizProfile === idKey
-                            ? "bg-[#19f08c] text-[#03150c] border-[#19f08c]"
-                            : "bg-[#05070a] text-[#9aa4b2] border-white/10 hover:text-white"
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card text-muted-foreground border-border hover:text-foreground"
                         )}
                       >
                         {labelAr}
@@ -1667,7 +1756,7 @@ ${baseText.slice(0, 18000)}
                       profile: studioQuizProfile,
                     })
                   }
-                  className="bg-sky-400 hover:bg-sky-300 text-[#04131d] font-extrabold rounded-xl gap-1.5 cursor-pointer"
+                  className="font-extrabold rounded-xl gap-1.5 cursor-pointer"
                 >
                   {generatingType ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -1676,8 +1765,8 @@ ${baseText.slice(0, 18000)}
                   )}
                   <span>
                     {generatingType
-                      ? "جاري توليد الامتحان..."
-                      : `🚀 توليد امتحان كامل (${studioQuizCount} سؤال)`}
+                      ? "جاري توليد الاختبار..."
+                      : `توليد اختبار كامل (${studioQuizCount} سؤال)`}
                   </span>
                 </Button>
               </div>
@@ -1687,14 +1776,14 @@ ${baseText.slice(0, 18000)}
             {instantSummaryQuiz.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#19f08c]">
-                    ⚡ كويز سريع فوري من وحدات الملخص ({instantSummaryQuiz.length} سؤال) — الإجابات الخاطئة تحفظ في بنك أخطائك:
+                  <span className="text-xs font-bold text-primary">
+                    ⚡ اختبار سريع فوري من وحدات الملخص ({instantSummaryQuiz.length} سؤال):
                   </span>
                   {Object.keys(instantQuizAnswers).length > 0 && (
                     <button
                       type="button"
                       onClick={() => setInstantQuizAnswers({})}
-                      className="text-[11px] font-bold text-sky-300 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-bold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
                     >
                       <RotateCw className="size-3" /> إعادة المحاولة
                     </button>
@@ -1708,17 +1797,17 @@ ${baseText.slice(0, 18000)}
                     return (
                       <div
                         key={mq.id}
-                        className="rounded-xl border border-white/[0.08] bg-[#090c11] p-4 space-y-2.5"
+                        className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2.5"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-md">
+                          <span className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">
                             {mq.topic}
                           </span>
-                          <span className="text-[11px] font-mono text-[#9aa4b2]">
+                          <span className="text-[11px] font-mono text-muted-foreground">
                             #{mqIdx + 1}
                           </span>
                         </div>
-                        <p className="text-xs sm:text-sm font-bold text-[#f5f7fa]">
+                        <p className="text-xs sm:text-sm font-bold text-foreground">
                           {mq.question}
                         </p>
                         <div className="grid gap-1.5 sm:grid-cols-2">
@@ -1753,18 +1842,18 @@ ${baseText.slice(0, 18000)}
                                 className={cn(
                                   "text-start px-3 py-2 rounded-lg border text-xs font-medium transition-colors cursor-pointer",
                                   !isAnswered &&
-                                    "border-white/[0.07] bg-white/[0.02] text-[#e5e7eb] hover:border-sky-400/40",
+                                    "border-border bg-card text-foreground hover:border-primary/40",
                                   isAnswered &&
                                     isCorrect &&
-                                    "border-[#19f08c] bg-[#19f08c]/15 text-[#19f08c] font-bold",
+                                    "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold",
                                   isAnswered &&
                                     isChosen &&
                                     !isCorrect &&
-                                    "border-[#ef4444] bg-[#ef4444]/15 text-[#ef4444]",
+                                    "border-red-500 bg-red-500/15 text-red-700 dark:text-red-300",
                                   isAnswered &&
                                     !isCorrect &&
                                     !isChosen &&
-                                    "border-white/[0.05] text-[#647084]"
+                                    "border-border/60 text-muted-foreground"
                                 )}
                               >
                                 {opt}
@@ -1773,7 +1862,7 @@ ${baseText.slice(0, 18000)}
                           })}
                         </div>
                         {isAnswered && (
-                          <p className="text-[11px] text-[#19f08c] pt-1">
+                          <p className="text-[11px] text-primary pt-1">
                             💡 {mq.explanation}
                           </p>
                         )}
@@ -1788,16 +1877,16 @@ ${baseText.slice(0, 18000)}
 
         {/* 🃏 Interactive Flashcards Deck Drawer */}
         {activeStudioDrawer === "flashcards" && (
-          <div className="rounded-2xl border border-violet-400/35 bg-[#080612]/95 p-4 sm:p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
               <div>
-                <h4 className="text-sm font-extrabold text-violet-300 flex items-center gap-2">
+                <h4 className="text-sm font-extrabold text-primary flex items-center gap-2">
                   <Layers className="size-4" />
                   {isEn
                     ? "Interactive Summary Flashcards"
                     : "🃏 بطاقات التسميع السريع من الملخص"}
                 </h4>
-                <p className="text-xs text-[#9aa4b2] mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {isEn
                     ? "Click the card to flip between the English concept and Arabic explanation"
                     : "اضغط على البطاقة لقلبها بين المصطلح/النقطة الإنجليزية والشرح العربي التفصيلي"}
@@ -1809,7 +1898,7 @@ ${baseText.slice(0, 18000)}
                     size="sm"
                     disabled={Boolean(generatingType)}
                     onClick={() => onGenerateFromSummary("flashcards")}
-                    className="bg-violet-400 hover:bg-violet-300 text-[#120624] font-extrabold rounded-xl text-xs gap-1.5 cursor-pointer"
+                    className="font-extrabold rounded-xl text-xs gap-1.5 cursor-pointer"
                   >
                     <Sparkles className="size-3.5" />
                     <span>توليد بنك بطاقات إضافي بالـ AI</span>
@@ -1818,7 +1907,7 @@ ${baseText.slice(0, 18000)}
                 <button
                   type="button"
                   onClick={() => setActiveStudioDrawer(null)}
-                  className="p-1 text-[#9aa4b2] hover:text-white cursor-pointer"
+                  className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
                 >
                   <X className="size-4" />
                 </button>
@@ -1845,17 +1934,17 @@ ${baseText.slice(0, 18000)}
                         onClick={() => setIsFlashcardFlipped((f) => !f)}
                         dir={sideDir}
                         className={cn(
-                          "min-h-[160px] rounded-2xl border p-6 flex flex-col justify-between cursor-pointer select-none transition-all",
+                          "min-h-[160px] rounded-2xl border p-6 flex flex-col justify-between cursor-pointer select-none transition-colors",
                           isFlashcardFlipped
-                            ? "border-emerald-400/40 bg-emerald-500/[0.08]"
-                            : "border-violet-400/40 bg-violet-500/[0.08]"
+                            ? "border-emerald-500/40 bg-emerald-500/[0.06]"
+                            : "border-primary/40 bg-primary/[0.06]"
                         )}
                       >
                         <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
-                          <span className="px-2.5 py-0.5 rounded-md bg-white/10 text-violet-200">
+                          <span className="px-2.5 py-0.5 rounded-md bg-secondary text-foreground">
                             {card.topic}
                           </span>
-                          <span className="font-mono text-violet-300">
+                          <span className="font-mono text-primary">
                             {safeIdx + 1} / {summaryFlashcards.length} ·{" "}
                             {isFlashcardFlipped
                               ? "الشرح والإجابة (اضغط للقلب)"
@@ -1865,17 +1954,17 @@ ${baseText.slice(0, 18000)}
 
                         <p
                           className={cn(
-                            "text-base sm:text-lg font-bold text-[#f5f7fa] my-4 leading-relaxed",
+                            "text-base sm:text-lg font-bold text-foreground my-4 leading-relaxed",
                             sideDir === "ltr" ? "text-left" : "text-right"
                           )}
                         >
                           <FormattedInlineText text={sideText} />
                         </p>
 
-                        <div className="text-[11px] text-[#9aa4b2] flex items-center justify-between">
-                          <span>🔄 اضغط على الكارت لقلبه</span>
+                        <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+                          <span>🔄 اضغط على البطاقة لقلبها</span>
                           <span>
-                            {isFlashcardFlipped ? "🇪🇬 الوجه الخلفي" : "🇬🇧 الوجه الأمامي"}
+                            {isFlashcardFlipped ? "الوجه الخلفي" : "الوجه الأمامي"}
                           </span>
                         </div>
                       </div>
@@ -1897,7 +1986,7 @@ ${baseText.slice(0, 18000)}
                           size="sm"
                           variant="outline"
                           onClick={() => setIsFlashcardFlipped((f) => !f)}
-                          className="rounded-xl text-xs border-violet-400/40 text-violet-300"
+                          className="rounded-xl text-xs"
                         >
                           قلب البطاقة 🔄
                         </Button>
@@ -1923,85 +2012,24 @@ ${baseText.slice(0, 18000)}
             )}
           </div>
         )}
-
-        {/* Quick AI Refinement Strip */}
-        <div className="pt-3 border-t border-white/[0.07] flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-[#19f08c] shrink-0 me-1">
-              <Sparkles className="size-3.5" />
-              {isEn ? `Smart Refine (${AI_SUMMARY_EDIT_COST} cr):` : `تعديل ذكي (${AI_SUMMARY_EDIT_COST} كريدت):`}
-            </span>
-            {[
-              isEn ? "Expand & explain deeply" : "كبّر واشرح كل نقطة بالتفصيل والأمثلة",
-              isEn ? "Add comparison table" : "أضف جدول مقارنات شامل",
-              isEn ? "Highlight exam questions" : "أبرز مواضع وتريكات أسئلة الامتحان",
-              isEn ? "Simplify explanation" : "بسّط الشرح بالعربي",
-              isEn ? "Summarize into quick bullets" : "لخّص في برشامة نقاط سريعة",
-            ].map((qPrompt) => (
-              <button
-                key={qPrompt}
-                type="button"
-                disabled={aiUpdating}
-                onClick={() => handleAiEdit(qPrompt)}
-                className="shrink-0 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.07] text-[#f5f7fa] hover:border-[#19f08c]/40 hover:text-[#19f08c] transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {qPrompt}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-1 min-w-[220px]">
-            <input
-              value={aiInstruction}
-              onChange={(e) => setAiInstruction(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleAiEdit();
-                }
-              }}
-              placeholder={
-                isEn
-                  ? `Custom AI edit (${AI_SUMMARY_EDIT_COST} credits)...`
-                  : `أو اكتب أي تعديل للذكاء الاصطناعي (${AI_SUMMARY_EDIT_COST} كريدت)...`
-              }
-              className="h-8 flex-1 rounded-lg border border-white/[0.07] bg-[#05070a]/80 px-3 text-xs text-[#f5f7fa] placeholder:text-[#667080] focus:border-[#19f08c] focus:outline-none"
-            />
-            <Button
-              size="sm"
-              onClick={() => handleAiEdit()}
-              disabled={!aiInstruction.trim() || aiUpdating}
-              className="h-8 px-3 rounded-lg text-xs font-bold shrink-0 gap-1"
-            >
-              {aiUpdating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span className="text-[10px]">({AI_SUMMARY_EDIT_COST} كريدت)</span>
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
       </div>
       )}
 
       {/* Editor Mode */}
       {editing ? (
-        <div className="glass rounded-[1.25rem] border border-[#19f08c]/35 p-5 space-y-3">
+        <div className="glass rounded-[1.25rem] border border-primary/35 p-5 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-bold text-[#19f08c]">
+            <p className="text-xs font-bold text-primary">
               {isEn
                 ? "Markdown & Highlight Editor"
                 : "محرر المذكرة الذكية — ظلل أي جملة واضغط على اللون لتمييزها"}
             </p>
             <div className="flex flex-wrap items-center gap-1.5">
               {[
-                ["yellow", "أصفر", "bg-amber-400/25 border-amber-500/40 text-amber-300"],
-                ["green", "أخضر", "bg-emerald-400/25 border-emerald-500/40 text-emerald-300"],
-                ["cyan", "سماوي", "bg-sky-400/25 border-sky-500/40 text-sky-300"],
-                ["red", "هام جداً", "bg-rose-400/25 border-rose-500/40 text-rose-300"],
+                ["yellow", "أصفر", "bg-amber-400/25 border-amber-500/40 text-amber-700 dark:text-amber-300"],
+                ["green", "أخضر", "bg-emerald-400/25 border-emerald-500/40 text-emerald-700 dark:text-emerald-300"],
+                ["cyan", "سماوي", "bg-sky-400/25 border-sky-500/40 text-sky-700 dark:text-sky-300"],
+                ["red", "هام جداً", "bg-rose-400/25 border-rose-500/40 text-rose-700 dark:text-rose-300"],
               ].map(([key, label, cls]) => (
                 <button
                   key={key}
@@ -2015,7 +2043,7 @@ ${baseText.slice(0, 18000)}
               <button
                 type="button"
                 onClick={insertSectionBlock}
-                className="text-xs font-bold px-2.5 py-1 rounded-lg border border-[#19f08c]/30 bg-[#19f08c]/10 text-[#19f08c] inline-flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold px-2.5 py-1 rounded-lg border border-primary/30 bg-primary/10 text-primary inline-flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3 h-3" /> قسم جديد
               </button>
@@ -2028,9 +2056,16 @@ ${baseText.slice(0, 18000)}
             onChange={(e) => setDraft(e.target.value)}
             rows={18}
             dir="auto"
-            className="font-mono text-sm leading-7 bg-[#05070a] border-white/[0.08] rounded-xl"
+            className="font-mono text-sm leading-7 bg-card border-border rounded-xl"
           />
         </div>
+      ) : viewMode === "infographic" ? (
+        <InfographicSummary
+          document={documentV3}
+          figures={summaryFigures}
+          isEn={isEn}
+          onOpenImage={(url) => setFigLightbox({ url, page: "" })}
+        />
       ) : viewMode === "atlas_v5" ? (
         <AtlasSummaryReader
           document={documentV3}
@@ -2043,10 +2078,23 @@ ${baseText.slice(0, 18000)}
           document={documentV3}
           markdown={text}
           title={course?.title || "الملخص الذكي"}
+          figures={summaryFigures}
         />
       ) : (
         /* Smart Study Notes Studio: Sidebar TOC + Color-Coded Cards & Tables */
-        <div className="grid gap-5 lg:grid-cols-12 items-start">
+        <SummaryEnhanceCtx.Provider value={{ blur: blurMode, glossary: glossaryMode }}>
+        <div className="space-y-4">
+          {blurMode && (
+            <p className="text-[11px] text-primary flex items-center gap-1.5 px-2">
+              <EyeOff className="size-3.5 shrink-0" />
+              {isEn
+                ? "Active Recall is ON — key terms & numbers are blurred. Tap any blurred chunk to reveal it."
+                : "الاستدعاء النشط مفعّل — المصطلحات والأرقام مغبّشة. اضغط على أي جزء مغبّش لإظهاره."}
+            </p>
+          )}
+
+
+        <div className={cn("grid gap-5 lg:grid-cols-12 items-start", focusMode && "bf-focus-summary")}>
           {/* Sticky Sidebar Table of Contents */}
           {!isWideLayout && (
           <aside className="lg:col-span-4 xl:col-span-3 lg:sticky lg:top-20 space-y-3">
@@ -2103,11 +2151,11 @@ ${baseText.slice(0, 18000)}
                 </div>
               </div>
 
-              {/* Section Navigation List */}
-              <div className="max-h-[52vh] overflow-y-auto space-y-1 pt-1 pe-1">
+              {/* Section Navigation List — scrolls inside the unified document */}
+              <div className="bf-doc-toc space-y-1 pt-1 pe-1">
                 <button
                   type="button"
-                  onClick={() => setActiveSectionId("all")}
+                  onClick={() => scrollToSection("all")}
                   className={cn(
                     "w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-xs font-bold transition-colors cursor-pointer",
                     activeSectionId === "all"
@@ -2115,7 +2163,7 @@ ${baseText.slice(0, 18000)}
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                   )}
                 >
-                  <span>{isEn ? "Show All Units" : "عرض كل الوحدات"}</span>
+                  <span>{isEn ? "Top of Document" : "بداية المستند"}</span>
                   <span className="font-mono text-[10px] opacity-80">
                     ({smartSections.length})
                   </span>
@@ -2127,9 +2175,8 @@ ${baseText.slice(0, 18000)}
                     <button
                       key={sec.id}
                       type="button"
-                      onClick={() => {
-                        setActiveSectionId(sec.id === activeSectionId ? "all" : sec.id);
-                      }}
+                      onClick={() => scrollToSection(sec.id)}
+                      title={isEn ? `Jump to ${sec.title}` : `انتقل إلى: ${sec.title}`}
                       className={cn(
                         "w-full flex items-start gap-2.5 rounded-xl px-3 py-2 text-start text-xs transition-colors cursor-pointer",
                         active
@@ -2156,15 +2203,16 @@ ${baseText.slice(0, 18000)}
           </aside>
           )}
 
-          {/* Main Structured Smart Cards Stream */}
+          {/* Unified study-paper document — one continuous editorial surface */}
           <div
-            className={cn(
-              "space-y-5",
-              isWideLayout ? "lg:col-span-12" : "lg:col-span-8 xl:col-span-9"
-            )}
+            ref={contentRef}
+            onClick={handleContentClick}
+            onMouseOver={glossaryMode ? handleContentMouseOver : undefined}
+            onMouseOut={glossaryMode ? handleContentMouseOut : undefined}
+            className={cn(isWideLayout ? "lg:col-span-12" : "lg:col-span-8 xl:col-span-9")}
             style={{ fontSize: `${fontSize}px` }}
           >
-            {filteredSections.length === 0 ? (
+            {displaySections.length === 0 ? (
               <div className="rounded-2xl border border-border bg-card p-12 text-center space-y-2">
                 <ListFilter className="size-8 text-muted-foreground mx-auto opacity-40" />
                 <p className="text-sm font-bold text-foreground">
@@ -2182,127 +2230,80 @@ ${baseText.slice(0, 18000)}
                 </Button>
               </div>
             ) : (
-              filteredSections.map((section, sIdx) => (
+              <div className={`bf-doc bf-print-scope bf-skin-${docSkin}`}>
+              {displaySections.map((section, sIdx) => (
                 <article
                   key={section.id}
                   id={section.id}
-                  className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden transition-colors"
+                  className="bf-section-enter bf-doc-section"
+                  style={{ animationDelay: `${Math.min(sIdx * 40, 320)}ms` }}
                 >
-                  {/* Section Banner Header */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/40 px-5 py-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground font-mono text-xs font-bold shadow-sm">
-                        {String(section.index || sIdx + 1).padStart(2, "0")}
+                  {/* Editorial chapter heading — part/unit scaffolding is just a styled H2 */}
+                  <div className="bf-doc-h2 flex flex-wrap items-start justify-between gap-2.5">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <span aria-hidden="true" className="bf-doc-h2-num mt-1">
+                        <span className="opacity-80">§</span>{String(section.index || sIdx + 1).padStart(2, "0")}
                       </span>
-                      <h2
-                        dir="auto"
-                        className="font-display text-base sm:text-lg font-extrabold text-foreground leading-snug"
-                      >
+                      <h2 dir="auto" className="bf-doc-h2-title">
                         {section.title}
                       </h2>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="bf-doc-actions no-print flex shrink-0 flex-wrap items-center gap-1.5">
                       {Array.isArray(section.sourceRefs) && section.sourceRefs.length > 0 && (
-                        <span className="font-mono text-[11px] font-semibold text-muted-foreground">
-                          p. {section.sourceRefs.slice(0, 3).join(", ")} ·
+                        <span className="font-mono text-[10px] font-semibold text-muted-foreground px-1.5">
+                          p. {section.sourceRefs.slice(0, 3).join(", ")}
                         </span>
                       )}
                       {!isFullscreen && (
                         <>
                           <button
                             type="button"
-                            onClick={() => handleExpandSection(section)}
-                            disabled={expandingSectionId === section.id}
-                            className="rounded-lg border border-sky-500/35 bg-sky-500/10 px-2.5 py-1 text-[11px] font-bold text-sky-400 hover:bg-sky-500/20 transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
-                            title={
-                              isEn
-                                ? `Expand & explain this unit in detail with AI (${AI_SUMMARY_EDIT_COST} credits)`
-                                : `كبّر واشرح هذه الجزئية بالتفصيل والأمثلة (${AI_SUMMARY_EDIT_COST} كريدت)`
-                            }
-                          >
-                            {expandingSectionId === section.id ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : (
-                              <Sparkles className="size-3" />
-                            )}
-                            {isEn
-                              ? `Expand Unit (${AI_SUMMARY_EDIT_COST} cr)`
-                              : `➕ كبّر واشرح الجزئية (${AI_SUMMARY_EDIT_COST} كريدت)`}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSectionDrillId(sectionDrillId === section.id ? null : section.id)
-                            }
+                            onClick={() => speakSection(section)}
                             className={cn(
-                              "rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer inline-flex items-center gap-1",
-                              sectionDrillId === section.id
-                                ? "border-[#19f08c] bg-[#19f08c] text-[#03150c]"
-                                : "border-[#19f08c]/35 bg-[#19f08c]/10 text-[#19f08c] hover:bg-[#19f08c]/20",
+                              "rounded-lg border p-2 transition-colors cursor-pointer inline-flex items-center gap-1",
+                              speakingSectionId === section.id
+                                ? "border-primary bg-primary/15 text-primary"
+                                : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
                             )}
+                            title={
+                              speakingSectionId === section.id
+                                ? isEn
+                                  ? "Stop listening"
+                                  : "إيقاف الاستماع"
+                                : isEn
+                                ? "Listen to this unit (audio revision)"
+                                : "اسمع هذه الجزئية (مراجعة صوتية)"
+                            }
                           >
-                            <Target className="size-3" />
-                            {sectionDrillId === section.id
-                              ? isEn
-                                ? "Hide Quick Quiz"
-                                : "إخفاء أسئلة الجزئية"
-                              : isEn
-                              ? "Quiz This Unit"
-                              : "اختبرني في هذه الجزئية"}
+                            {speakingSectionId === section.id ? (
+                              <Square className="size-3.5 fill-current" />
+                            ) : (
+                              <Volume2 className="size-3.5" />
+                            )}
                           </button>
 
                           <button
                             type="button"
                             onClick={() => copySectionText(section)}
-                            className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1"
+                            className="rounded-lg border border-border bg-secondary/40 p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1"
                             title={isEn ? "Copy unit text" : "نسخ نص هذه الوحدة"}
                           >
-                            <Copy className="size-3" />
-                            {isEn ? "Copy" : "نسخ"}
+                            <Copy className="size-3.5" />
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleSendSectionToTelegram(section)}
                             disabled={sendingSectionId === section.id}
-                            className="rounded-lg border border-white/[0.1] bg-[#05070a]/70 px-2.5 py-1 text-[11px] font-bold text-[#f5f7fa] hover:border-[#19f08c]/40 hover:text-[#19f08c] transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                            className="rounded-lg border border-border bg-secondary/40 p-2 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                            title={isEn ? "Send this unit to the Telegram bot" : "إرسال هذه الجزئية لبوت التليجرام"}
                           >
                             {sendingSectionId === section.id ? (
-                              <Loader2 className="size-3 animate-spin" />
+                              <Loader2 className="size-3.5 animate-spin" />
                             ) : (
-                              <Send className="size-3" />
+                              <Send className="size-3.5" />
                             )}
-                            {isEn ? "Send to Bot" : "إرسال للبوت"}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveAiSection(
-                                activeAiSection === section.title ? "" : section.title
-                              );
-                              toast.info(
-                                isEn
-                                  ? `Selected "${section.title}" for AI refinement`
-                                  : `تم تحديد قسم "${section.title}" للتعديل الذكي`
-                              );
-                            }}
-                            className={cn(
-                              "rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer",
-                              activeAiSection === section.title
-                                ? "border-primary bg-primary/15 text-primary"
-                                : "border-border bg-card text-muted-foreground hover:text-foreground"
-                            )}
-                          >
-                            {activeAiSection === section.title
-                              ? isEn
-                                ? "✓ Selected for AI"
-                                : "✓ محدد للتعديل الذكي"
-                              : isEn
-                              ? "Refine unit"
-                              : "تعديل الوحدة"}
                           </button>
                         </>
                       )}
@@ -2315,7 +2316,7 @@ ${baseText.slice(0, 18000)}
                             [section.id]: !prev[section.id],
                           }))
                         }
-                        className="rounded-lg border border-border bg-card p-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        className="rounded-lg border border-border bg-secondary/40 p-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                         title={
                           collapsedSections[section.id]
                             ? isEn
@@ -2327,107 +2328,17 @@ ${baseText.slice(0, 18000)}
                         }
                       >
                         {collapsedSections[section.id] ? (
-                          <ChevronDown className="size-4" />
+                          <ChevronDown className="size-3.5" />
                         ) : (
-                          <ChevronUp className="size-4" />
+                          <ChevronUp className="size-3.5" />
                         )}
                       </button>
                     </div>
                   </div>
 
-                  {/* Instant 1-Click Section Micro-Quiz Drawer */}
-                  {!isFullscreen && sectionDrillId === section.id && (
-                    <div className="border-b border-[#19f08c]/25 bg-[#05070a]/90 p-5 space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-[#19f08c] flex items-center gap-1.5">
-                          <Target className="size-3.5" />
-                          {isEn
-                            ? `Instant Unit Drill: ${section.title}`
-                            : `اختبار فوري على جزئية: ${section.title}`}
-                        </span>
-                        <span className="text-[11px] text-[#9aa4b2]">
-                          الإجابات الخاطئة تُحفظ تلقائياً في بنك الأخطاء الذكي
-                        </span>
-                      </div>
-
-                      <div className="grid gap-3">
-                        {buildMicroQuizForSection(section, smartSections).map((mq, mqIdx) => {
-                          const chosenIdx = sectionDrillAnswers[mq.id];
-                          const isAnswered = chosenIdx !== undefined;
-                          return (
-                            <div
-                              key={mq.id}
-                              className="rounded-xl border border-white/[0.08] bg-[#090c11] p-4 space-y-2.5"
-                            >
-                              <p className="text-xs sm:text-sm font-bold text-[#f5f7fa]">
-                                {mqIdx + 1}. {mq.question}
-                              </p>
-                              <div className="grid gap-1.5 sm:grid-cols-2">
-                                {mq.options.map((opt, oIdx) => {
-                                  const isCorrect = oIdx === mq.correct_index;
-                                  const isChosen = chosenIdx === oIdx;
-                                  return (
-                                    <button
-                                      key={oIdx}
-                                      type="button"
-                                      disabled={isAnswered}
-                                      onClick={() => {
-                                        setSectionDrillAnswers((prev) => ({
-                                          ...prev,
-                                          [mq.id]: oIdx,
-                                        }));
-                                        if (oIdx !== mq.correct_index) {
-                                          recordMistake({
-                                            question: mq.question,
-                                            options: mq.options,
-                                            correctIndex: mq.correct_index,
-                                            chosenIndex: oIdx,
-                                            explanation: mq.explanation,
-                                            topic: section.title,
-                                            courseId: course?.id || "",
-                                            courseTitle: course?.title || "ملخص ذكي",
-                                            via: "summary_drill",
-                                          });
-                                          toast.info("تمت إضافة السؤال إلى بنك الأخطاء الذكي للمراجعة 🧠");
-                                        }
-                                      }}
-                                      className={cn(
-                                        "text-start px-3 py-2 rounded-lg border text-xs font-medium transition-colors cursor-pointer",
-                                        !isAnswered &&
-                                          "border-white/[0.07] bg-white/[0.02] text-[#e5e7eb] hover:border-[#19f08c]/40",
-                                        isAnswered &&
-                                          isCorrect &&
-                                          "border-[#19f08c] bg-[#19f08c]/15 text-[#19f08c] font-bold",
-                                        isAnswered &&
-                                          isChosen &&
-                                          !isCorrect &&
-                                          "border-[#ef4444] bg-[#ef4444]/15 text-[#ef4444]",
-                                        isAnswered &&
-                                          !isCorrect &&
-                                          !isChosen &&
-                                          "border-white/[0.05] text-[#647084]",
-                                      )}
-                                    >
-                                      {opt}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              {isAnswered && (
-                                <p className="text-[11px] text-[#19f08c] pt-1">
-                                  💡 {mq.explanation}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
                   {/* Section Content Blocks */}
                   {!collapsedSections[section.id] && (
-                  <div className="p-5 sm:p-6 space-y-4">
+                  <div className="space-y-5">
                     {section.items.map((item) => {
                       if (item.kind === "subheading") {
                         return (
@@ -2476,8 +2387,8 @@ ${baseText.slice(0, 18000)}
                                     ? "Exam Alert & Important Note"
                                     : "تنبيه امتحانات وملاحظة هامة"
                                   : isEn
-                                  ? "Key Study Insight"
-                                  : "معلومة ذهبية للفهم"}
+                                  ? "Important Academic Note"
+                                  : "ملاحظة علمية مهمة"}
                               </span>
                               <p className="text-foreground leading-relaxed font-medium">
                                 <FormattedInlineText text={item.text} />
@@ -2491,7 +2402,7 @@ ${baseText.slice(0, 18000)}
                         return (
                           <div
                             key={item.id}
-                            className="rounded-xl border border-border overflow-hidden shadow-xs my-3"
+                            className="bf-table-shell overflow-hidden my-3"
                           >
                             <div className="bg-secondary/60 px-4 py-2 border-b border-border flex items-center gap-2 text-xs font-bold text-primary">
                               <Table2 className="size-4" />
@@ -2547,7 +2458,7 @@ ${baseText.slice(0, 18000)}
 
                       if (item.kind === "concepts") {
                         return (
-                          <div key={item.id} className="grid gap-3 sm:grid-cols-2">
+                          <div key={item.id} className="space-y-1.5">
                             {item.pairs.map((pair, pIdx) => {
                               const [head, ...rest] = pair.split(/\s*(?:→|->|:)\s*/);
                               const body = rest.join(" : ");
@@ -2555,15 +2466,18 @@ ${baseText.slice(0, 18000)}
                                 <div
                                   key={pIdx}
                                   dir="auto"
-                                  className="rounded-xl border border-primary/25 bg-primary/[0.05] p-3.5 space-y-1"
+                                  className="bf-def-strip"
                                 >
-                                  <p className="font-bold text-primary text-[0.95em]">
+                                  <span className="font-black text-primary text-[0.95em]">
                                     <FormattedInlineText text={head} />
-                                  </p>
+                                  </span>
                                   {body && (
-                                    <p className="text-foreground/90 text-[0.9em] leading-relaxed">
-                                      <FormattedInlineText text={body} />
-                                    </p>
+                                    <>
+                                      {" — "}
+                                      <span className="text-foreground text-[0.95em] leading-loose">
+                                        <FormattedInlineText text={body} />
+                                      </span>
+                                    </>
                                   )}
                                 </div>
                               );
@@ -2585,7 +2499,7 @@ ${baseText.slice(0, 18000)}
                                     dir="ltr"
                                     className="px-4 py-3.5 bg-sky-500/[0.06] border-b border-border/70 flex items-start gap-3 text-left"
                                   >
-                                    <span className="mt-0.5 shrink-0 rounded-md bg-sky-500/20 border border-sky-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-sky-400">
+                                    <span className="mt-0.5 shrink-0 rounded-md bg-sky-500/15 border border-sky-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-sky-700 dark:text-sky-300">
                                       {String(pIdx + 1).padStart(2, "0")} · EN
                                     </span>
                                     <p className="flex-1 leading-relaxed text-foreground">
@@ -2596,9 +2510,9 @@ ${baseText.slice(0, 18000)}
                                 {pair.ar && (
                                   <div
                                     dir="rtl"
-                                    className="px-4 py-3.5 bg-emerald-500/[0.04] flex items-start gap-3 text-right"
+                                    className="px-4 py-3.5 bg-emerald-500/[0.05] flex items-start gap-3 text-right"
                                   >
-                                    <span className="mt-0.5 shrink-0 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-bold text-emerald-400">
+                                    <span className="mt-0.5 shrink-0 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                                       الشرح بالعربي
                                     </span>
                                     <p className="flex-1 leading-relaxed text-foreground">
@@ -2629,16 +2543,16 @@ ${baseText.slice(0, 18000)}
                             )}
                           >
                             {item.role === "english_points" && (
-                              <span className="inline-block mb-1 rounded-md bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-bold text-sky-400">
+                              <span className="inline-block mb-1 rounded-md bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-bold text-sky-700 dark:text-sky-300">
                                 📋 Key English Concepts
                               </span>
                             )}
                             {item.role === "arabic_explanation" && (
-                              <span className="inline-block mb-1 rounded-md bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
-                                🇪🇬 الشرح والتفصيل بالعربي
+                              <span className="inline-block mb-1 rounded-md bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                                الشرح والتفصيل بالعربي
                               </span>
                             )}
-                            <ul className="space-y-2.5">
+                            <ul className="space-y-1.5">
                               {item.points.map((pt, pIdx) => {
                                 const ptDir = detectTextDir(pt, item.role);
                                 return (
@@ -2650,7 +2564,21 @@ ${baseText.slice(0, 18000)}
                                       ptDir === "ltr" ? "text-left" : "text-right"
                                     )}
                                   >
-                                    <CheckCircle2 className="size-4 text-primary shrink-0 mt-1.5" />
+                                    {item.ordered ? (
+                                      <span
+                                        aria-hidden="true"
+                                        className="bf-olnum"
+                                      >
+                                        {pIdx + 1}
+                                      </span>
+                                    ) : (
+                                      <span
+                                        aria-hidden="true"
+                                        className="bf-uldiamond"
+                                      >
+                                        ◆
+                                      </span>
+                                    )}
                                     <span className="flex-1">
                                       <FormattedInlineText text={pt} />
                                     </span>
@@ -2662,55 +2590,595 @@ ${baseText.slice(0, 18000)}
                         );
                       }
 
-                      // Default: Color-coded Smart Concept Card (English / Arabic / General)
-                      const cardDir = detectTextDir(
-                        item.text,
-                        item.role === "english"
-                          ? "english_points"
-                          : item.role === "arabic"
-                          ? "arabic_explanation"
-                          : ""
-                      );
-                      const isArabicExplanation = item.role === "arabic" || cardDir === "rtl";
-                      const isEnglishPoint = item.role === "english" || cardDir === "ltr";
+                      // 📸 Lecture figure lifted from the source PDF (click → lightbox)
+                      if (item.kind === "figure" && item.figure?.url) {
+                        return (
+                          <figure
+                            key={item.id}
+                            className="group rounded-xl overflow-hidden border border-border bg-card my-3 cursor-zoom-in shadow-xs"
+                            onClick={() => setFigLightbox(item.figure)}
+                          >
+                            <img
+                              src={item.figure.url}
+                              alt={item.text || `صورة من الصفحة ${item.figure.page}`}
+                              loading="lazy"
+                              className="w-full max-h-[420px] object-contain bg-secondary/40 transition-transform duration-300 group-hover:scale-[1.01]"
+                            />
+                            <figcaption className="flex items-center gap-2 px-4 py-2 text-[11px] text-primary border-t border-border bg-secondary/30">
+                              <ImageIcon className="size-3.5 shrink-0" />
+                              <span className="truncate font-semibold">
+                                {isEn
+                                  ? `Lecture figure — page ${item.figure.page}`
+                                  : `شكل توضيحي من المحاضرة — صفحة ${item.figure.page}`}
+                                {item.text ? ` · ${item.text}` : ""}
+                              </span>
+                              <span className="ms-auto shrink-0 inline-flex items-center gap-1 text-primary font-bold">
+                                <Maximize2 className="size-3" />
+                                {isEn ? "Zoom" : "تكبير"}
+                              </span>
+                            </figcaption>
+                          </figure>
+                        );
+                      }
 
+                      if (item.kind === "diagram" && item.mermaid) {
+                        return (
+                          <MermaidDiagram
+                            key={item.id}
+                            code={item.mermaid}
+                            title={item.text}
+                          />
+                        );
+                      }
+
+                      if (item.kind === "pearl") {
+                        return (
+                          <div key={item.id} className="bf-pearl-card" dir="auto">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <Sparkles className="size-4 text-amber-500 shrink-0" />
+                              <span className="text-[11px] font-black tracking-wide text-amber-600 dark:text-amber-300">
+                                {isEn ? "KEY ACADEMIC SUMMARY — MODEL ANSWER" : "📌 خلاصة علمية مركزة — إجابة نموذجية"}
+                              </span>
+                            </div>
+                            <p className="text-foreground leading-8 font-semibold">
+                              <FormattedInlineText text={item.text} />
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      if (item.kind === "mnemonic") {
+                        return (
+                          <div key={item.id} className="bf-mnemonic-card" dir="auto">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <Brain className="size-4 text-violet-500 shrink-0" />
+                              <span className="text-[11px] font-black tracking-wide text-violet-600 dark:text-violet-300">
+                                {isEn ? "MEMORY ANCHOR" : "🧠 ربط ذهني للحفظ السريع"}
+                              </span>
+                            </div>
+                            <p className="text-foreground leading-8 font-semibold">
+                              <FormattedInlineText text={item.text} />
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      if (item.kind === "danger") {
+                        return (
+                          <div key={item.id} className="bf-danger-card" dir="auto">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <Siren className="size-4 text-red-500 shrink-0" />
+                              <span className="text-[11px] font-black tracking-wide text-red-600 dark:text-red-300">
+                                {isEn ? "CRITICAL EXAM POINT" : "🚨 تنبيه امتحاني بالغ الأهمية"}
+                              </span>
+                            </div>
+                            <p className="text-foreground leading-8 font-black">
+                              <FormattedInlineText text={item.text} />
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      if (item.kind === "compare") {
+                        const cmpHeaders = Array.isArray(item.headers) ? item.headers : [];
+                        const cmpRows = Array.isArray(item.rows) ? item.rows : [];
+                        return (
+                          <div key={item.id} className="rounded-xl border border-amber-500/35 overflow-hidden my-3">
+                            <div className="bg-amber-500/[0.09] px-4 py-2 border-b border-amber-500/25 flex items-center gap-2 text-xs font-black text-amber-600 dark:text-amber-300">
+                              <Scale className="size-4 shrink-0" />
+                              <span>
+                                {isEn ? `Comparison: ${item.text}` : `مقارنة علمية: ${item.text}`}
+                              </span>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full border-collapse text-start text-[0.92em]">
+                                <thead>
+                                  <tr className="bg-secondary/40 border-b border-border">
+                                    {cmpHeaders.map((h, hIdx) => (
+                                      <th
+                                        key={hIdx}
+                                        dir="auto"
+                                        className={cn(
+                                          "px-4 py-2.5 text-start font-black border-e border-border last:border-e-0",
+                                          hIdx === 0 ? "text-muted-foreground" : "text-red-600 dark:text-red-300"
+                                        )}
+                                      >
+                                        <FormattedInlineText text={h} />
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                  {cmpRows.map((row, rIdx) => (
+                                    <tr key={rIdx} className="even:bg-secondary/20">
+                                      {row.map((cell, cIdx) => (
+                                        <td
+                                          key={cIdx}
+                                          dir="auto"
+                                          className={cn(
+                                            "px-4 py-2.5 align-top leading-relaxed border-e border-border last:border-e-0",
+                                            cIdx === 0 ? "font-bold text-primary" : "text-foreground"
+                                          )}
+                                        >
+                                          <FormattedInlineText text={cell} />
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (item.kind === "exam_hook") {
+                        return (
+                          <div key={item.id} className="bf-exam-hook flex items-center gap-2" dir="auto">
+                            <Target className="size-4 shrink-0" />
+                            <span>
+                              <FormattedInlineText text={item.text} />
+                            </span>
+                          </div>
+                        );
+                      }
+
+                      // Default: plain editorial paragraph
                       return (
-                        <div
+                        <p
                           key={item.id}
-                          dir={cardDir}
-                          className={cn(
-                            "rounded-xl border p-4 leading-relaxed transition-colors",
-                            cardDir === "ltr" ? "text-left" : "text-right",
-                            isEnglishPoint
-                              ? "border-sky-500/25 bg-sky-500/[0.05]"
-                              : isArabicExplanation
-                              ? "border-violet-500/25 bg-violet-500/[0.05]"
-                              : "border-border bg-secondary/20"
-                          )}
+                          dir="auto"
+                          className="bf-doc-p my-2 leading-[1.85] text-foreground"
                         >
-                          {isArabicExplanation && !isEnglishPoint && (
-                            <span className="inline-block mb-1.5 rounded-md bg-violet-500/15 px-2 py-0.5 text-[11px] font-bold text-violet-700 dark:text-violet-300">
-                              الشرح المبسط بالعربي
-                            </span>
-                          )}
-                          {isEnglishPoint && (
-                            <span className="inline-block mb-1.5 rounded-md bg-sky-500/15 px-2 py-0.5 text-[11px] font-bold text-sky-700 dark:text-sky-300">
-                              Key Medical / Academic Point
-                            </span>
-                          )}
-                          <p className="text-foreground leading-8">
-                            <FormattedInlineText text={item.text} />
-                          </p>
-                        </div>
+                          <FormattedInlineText text={item.text} />
+                        </p>
                       );
                     })}
                   </div>
                   )}
                 </article>
-              ))
+              ))}
+              </div>
             )}
           </div>
         </div>
+        </div>
+        </SummaryEnhanceCtx.Provider>
+      )}
+
+      {/* ⚙️ Collapsible Side Drawer for Secondary Summary Tools & Settings */}
+      {typeof document !== "undefined" && toolsDrawerOpen && createPortal(
+        <div
+          className="fixed inset-0 z-[140] bg-black/45 flex justify-end"
+          onClick={() => setToolsDrawerOpen(false)}
+          role="presentation"
+        >
+          <aside
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md h-full bg-card text-foreground border-s border-border shadow-2xl overflow-y-auto p-5 space-y-5"
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3.5">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="size-4 text-primary" />
+                <h3 className="font-display text-base font-extrabold text-foreground">
+                  {isEn ? "Summary Tools & Study Settings" : "أدوات وإعدادات الملخص الأكاديمي"}
+                </h3>
+              </div>
+              <Button
+                size="icon-sm"
+                variant="outline"
+                onClick={() => setToolsDrawerOpen(false)}
+                aria-label={isEn ? "Close" : "إغلاق"}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+
+            {/* 1. Study Depth & Active Recall */}
+            <div className="space-y-2.5 rounded-2xl border border-border bg-secondary/35 p-3.5">
+              <p className="text-xs font-extrabold text-primary flex items-center gap-1.5">
+                <GraduationCap className="size-4" />
+                {isEn ? "Study Depth & Reading Modes" : "مستوى العمق وأوضاع القراءة"}
+              </p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {Object.entries(SUMMARY_DEPTHS).map(([key, cfg]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setDepthLevel(key)}
+                    className={cn(
+                      "px-2.5 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer",
+                      depthLevel === key
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:text-foreground"
+                    )}
+                  >
+                    {isEn ? cfg.labelEn : cfg.labelAr}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant={blurMode ? "default" : "outline"}
+                  onClick={() => setBlurMode((v) => !v)}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  {blurMode ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  <span>{isEn ? "Active Recall Blur" : "تغبيش المصطلحات"}</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant={glossaryMode ? "default" : "outline"}
+                  onClick={() => setGlossaryMode((v) => !v)}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  <BookOpenCheck className="size-3.5" />
+                  <span>{isEn ? "Instant Glossary" : "القاموس الفوري"}</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant={focusMode ? "default" : "outline"}
+                  onClick={() => setFocusMode((v) => !v)}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  <BookOpen className="size-3.5" />
+                  <span>{isEn ? "Focus Paper Mode" : "وضع التركيز الورقي"}</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setToolsDrawerOpen(false);
+                    setCramOpen(true);
+                  }}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  <Flame className="size-3.5 text-amber-500" />
+                  <span>{isEn ? "Exam-Night Sheet" : "ورقة ليلة الامتحان"}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* 2. Practice & Study Generators from Summary */}
+            <div className="space-y-2.5 rounded-2xl border border-border bg-secondary/35 p-3.5">
+              <p className="text-xs font-extrabold text-primary flex items-center gap-1.5">
+                <Brain className="size-4" />
+                {isEn ? "Practice & Revision Studio" : "إنشاء تدريبات ومراجعات من الملخص"}
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setToolsDrawerOpen(false);
+                    setActiveStudioDrawer("quiz");
+                  }}
+                  className="justify-start gap-2 text-xs font-bold"
+                >
+                  <Brain className="size-4 text-primary" />
+                  <span>{isEn ? "Create Quiz from Summary" : "إنشاء اختبار تفاعلي من الملخص"}</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setToolsDrawerOpen(false);
+                    setActiveFlashcardIdx(0);
+                    setIsFlashcardFlipped(false);
+                    setActiveStudioDrawer("flashcards");
+                  }}
+                  className="justify-start gap-2 text-xs font-bold"
+                >
+                  <Layers className="size-4 text-primary" />
+                  <span>
+                    {isEn
+                      ? `Flashcards Deck (${summaryFlashcards.length})`
+                      : `بطاقات التسميع والمراجعة (${summaryFlashcards.length})`}
+                  </span>
+                </Button>
+
+                {onGenerateFromSummary && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={Boolean(generatingType)}
+                    onClick={() => {
+                      setToolsDrawerOpen(false);
+                      onGenerateFromSummary("study_sheet");
+                    }}
+                    className="justify-start gap-2 text-xs font-bold"
+                  >
+                    <FileText className="size-4 text-primary" />
+                    <span>{isEn ? "Generate Quick Revision Sheet" : "توليد ورقة مراجعة مركزة"}</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Smart AI Refinement */}
+            <div className="space-y-2.5 rounded-2xl border border-border bg-secondary/35 p-3.5">
+              <p className="text-xs font-extrabold text-primary flex items-center gap-1.5">
+                <Sparkles className="size-4" />
+                {isEn
+                  ? `Smart AI Refinement (${AI_SUMMARY_EDIT_COST} credits)`
+                  : `تطوير وتعديل الملخص بالذكاء الاصطناعي (${AI_SUMMARY_EDIT_COST} كريدت)`}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  isEn ? "Expand & explain deeply" : "كبّر واشرح كل نقطة بالتفصيل والأمثلة",
+                  isEn ? "Add comparison table" : "أضف جدول مقارنات شامل",
+                  isEn ? "Highlight exam questions" : "أبرز مواضع وتريكات أسئلة الامتحان",
+                  isEn ? "Simplify explanation" : "بسّط الشرح بالعربي",
+                ].map((qPrompt) => (
+                  <button
+                    key={qPrompt}
+                    type="button"
+                    disabled={aiUpdating}
+                    onClick={() => {
+                      setToolsDrawerOpen(false);
+                      handleAiEdit(qPrompt);
+                    }}
+                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-xl bg-card border border-border text-foreground hover:border-primary/50 hover:text-primary transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {qPrompt}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1.5 pt-1">
+                <input
+                  value={aiInstruction}
+                  onChange={(e) => setAiInstruction(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      setToolsDrawerOpen(false);
+                      handleAiEdit();
+                    }
+                  }}
+                  placeholder={
+                    isEn
+                      ? "Write custom AI instruction..."
+                      : "اكتب أي تعديل مخصص للملخص..."
+                  }
+                  className="h-9 flex-1 rounded-xl border border-border bg-card px-3 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setToolsDrawerOpen(false);
+                    handleAiEdit();
+                  }}
+                  disabled={!aiInstruction.trim() || aiUpdating}
+                  className="h-9 px-3 rounded-xl text-xs font-bold shrink-0"
+                >
+                  {aiUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
+            </div>
+
+            {/* 4. Document Actions (Audio, Copy, Edit, Export, Regenerate, Delete) */}
+            <div className="space-y-2.5 rounded-2xl border border-border bg-secondary/35 p-3.5">
+              <p className="text-xs font-extrabold text-foreground">
+                {isEn ? "Document Actions & Export" : "إدارة وتصدير المستند"}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={toggleSpeak}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  {speaking ? (
+                    <>
+                      <Square className="w-3.5 h-3.5 text-destructive" />
+                      <span>{isEn ? "Stop Audio" : "إيقاف القراءة"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5 text-primary" />
+                      <span>{isEn ? "Audio Listen" : "استماع صوتي"}</span>
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={copy}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? (isEn ? "Copied" : "تم النسخ") : isEn ? "Copy Text" : "نسخ الملخص"}</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setToolsDrawerOpen(false);
+                    setEditing(true);
+                  }}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-primary" />
+                  <span>{isEn ? "Manual Edit" : "تعديل يدوي"}</span>
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={downloadHtmlDirect}
+                  className="justify-start gap-1.5 text-xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-primary" />
+                  <span>{isEn ? "Download HTML" : "تحميل HTML"}</span>
+                </Button>
+
+                {onToggleSummaryRegen && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setToolsDrawerOpen(false);
+                      onToggleSummaryRegen();
+                    }}
+                    className="justify-start gap-1.5 text-xs"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 text-primary" />
+                    <span>{isEn ? "Regenerate Style" : "إعادة التوليد بنمط آخر"}</span>
+                  </Button>
+                )}
+
+                {onExportTelegram && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={exportingTelegram}
+                    onClick={onExportTelegram}
+                    className="justify-start gap-1.5 text-xs"
+                  >
+                    {exportingTelegram ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5 text-primary" />
+                    )}
+                    <span>{isEn ? "Send to Telegram" : "إرسال إلى تليجرام"}</span>
+                  </Button>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setToolsDrawerOpen(false);
+                    handleDeleteSummary();
+                  }}
+                  disabled={deletingSummary}
+                  className="w-full justify-center gap-1.5 text-xs"
+                >
+                  {deletingSummary ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  <span>{isEn ? "Delete Summary Permanently" : "حذف الملخص نهائياً"}</span>
+                </Button>
+              </div>
+            </div>
+          </aside>
+        </div>,
+        document.body
+      )}
+
+      {/* ⭐ Enhancement floating UI — rendered via portals so they survive mode switches */}
+      {typeof document !== "undefined" && figLightbox && createPortal(
+        <div
+          className="fixed inset-0 z-[145] bg-black/85 overflow-auto p-4 sm:p-10 grid place-items-center"
+          onClick={() => setFigLightbox(null)}
+          role="presentation"
+        >
+          <button
+            type="button"
+            onClick={() => setFigLightbox(null)}
+            className="fixed top-4 end-4 z-10 w-10 h-10 rounded-xl grid place-items-center bg-white/10 border border-white/20 text-white hover:bg-white/20 cursor-pointer"
+            aria-label={isEn ? "Close" : "إغلاق"}
+          >
+            <X className="size-5" />
+          </button>
+          <div className="max-w-4xl w-full rounded-2xl border border-border bg-card p-3 sm:p-5" onClick={(e) => e.stopPropagation()} role="presentation">
+            <img
+              src={figLightbox.url}
+              alt={isEn ? `Lecture figure — page ${figLightbox.page}` : `شكل توضيحي — صفحة ${figLightbox.page}`}
+              className="w-full max-h-[78vh] object-contain bg-black/20 rounded-lg"
+            />
+            <p className="mt-3 text-center text-xs font-bold text-primary">
+              📸 {isEn ? `Lecture figure — page ${figLightbox.page}` : `شكل توضيحي من المحاضرة — صفحة ${figLightbox.page}`}
+            </p>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {typeof document !== "undefined" && glossTip && createPortal(
+        <div className="bf-glossary-tip" style={{ left: glossTip.x, top: glossTip.y }} dir="rtl">
+          <p className="bf-glossary-word">{glossTip.term}</p>
+          <p className="bf-glossary-def">{glossTip.def}</p>
+        </div>,
+        document.body
+      )}
+
+      {typeof document !== "undefined" && cramOpen && createPortal(
+        <div className="fixed inset-0 z-[110] bg-black/80 overflow-y-auto p-3 sm:p-8">
+          <div className="max-w-3xl mx-auto space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-2 text-sm font-black text-amber-300">
+                <Flame className="size-4" />
+                {isEn ? "Exam-Night Sheet — high-yield only" : "ورقة ليلة الامتحان — النقاط الأساسية"}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(cramPlainText);
+                    toast.success(isEn ? "Sheet copied!" : "تم نسخ الورقة!");
+                  }}
+                  className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white cursor-pointer"
+                >
+                  {isEn ? "Copy" : "نسخ"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="rounded-lg border border-amber-400/40 bg-amber-400/20 px-3 py-1.5 text-xs font-black text-amber-200 cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <Printer className="size-3.5" />
+                  {isEn ? "Print / PDF" : "طباعة / PDF"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCramOpen(false)}
+                  className="w-8 h-8 rounded-lg grid place-items-center text-white bg-white/10 cursor-pointer"
+                  aria-label={isEn ? "Close" : "إغلاق"}
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="bf-cram-print-root rounded-2xl border border-border bg-white text-black p-6 sm:p-8" style={{ display: "block" }} dir="rtl">
+              <pre className="whitespace-pre-wrap font-body text-[13px] leading-7 text-gray-900" style={{ fontFamily: "inherit" }}>
+                {cramPlainText || (isEn ? "No high-yield points extracted yet." : "لا توجد نقاط عالية الأهمية مستخرجة بعد.")}
+              </pre>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -2719,7 +3187,7 @@ ${baseText.slice(0, 18000)}
     return createPortal(
       <div
         id="fullscreen-summary-reader-portal"
-        className="fixed inset-0 z-[999999] w-screen h-screen bg-[#07090e] text-[#f5f7fa] overflow-y-auto p-3 sm:p-6 md:p-8 antialiased selection:bg-[#19f08c]/30 selection:text-white"
+        className="fixed inset-0 z-[999999] w-screen h-screen bg-background text-foreground overflow-y-auto p-3 sm:p-6 md:p-8 antialiased"
       >
         <div className="max-w-7xl mx-auto w-full">
           {mainContent}
