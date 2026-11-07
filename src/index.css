@@ -1662,10 +1662,13 @@ button:not([role="switch"]):not([role="checkbox"]):not([role="radio"]),
 /* Primary Tinted Liquid Glass (Emerald / Teal iOS Tint) */
 .apple-glass-primary,
 .btn-primary-glow {
+  /* Opaque emerald: the 82-88% alpha version composited over a white page to
+     ~#2cc39a, where white text scored only 2.24:1 and the label vanished.
+     #047857 keeps white text at 5.48:1 (WCAG AA) in either theme. */
   background: linear-gradient(
     180deg,
-    rgba(16, 185, 129, 0.88) 0%,
-    rgba(5, 150, 105, 0.82) 100%
+    #059669 0%,
+    #047857 100%
   ) !important;
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.42) !important;
@@ -1680,8 +1683,8 @@ button:not([role="switch"]):not([role="checkbox"]):not([role="radio"]),
 .btn-primary-glow:hover {
   background: linear-gradient(
     180deg,
-    rgba(16, 185, 129, 0.95) 0%,
-    rgba(4, 120, 87, 0.90) 100%
+    #047857 0%,
+    #065f46 100%
   ) !important;
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.68),
@@ -1757,8 +1760,8 @@ html.dark .apple-glass-primary,
 html.dark .btn-primary-glow {
   background: linear-gradient(
     180deg,
-    rgba(25, 240, 140, 0.88) 0%,
-    rgba(16, 185, 129, 0.82) 100%
+    #19f08c 0%,
+    #10b981 100%
   ) !important;
   color: #03150c !important;
   border: 1px solid rgba(255, 255, 255, 0.38) !important;

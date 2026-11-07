@@ -1,5 +1,5 @@
 import { invokeSecureFunction } from "./secureFunctions.js";
-import { getOfflineSnapshot, setOfflineSnapshot } from "./offlineDb.js";
+import { deleteOfflineSnapshot, getOfflineSnapshot, setOfflineSnapshot } from "./offlineDb.js";
 import { createBoundedLoader } from "./blobCache.js";
 
 const localKey = (id) => `summary-job:v3:server-mirror:${id}`;
@@ -138,6 +138,15 @@ export async function saveSummaryDocument({ courseId, document, baseRevision = 0
 
 export async function listSummaryRevisions(courseId, limit = 20) {
   return invoke("list-summary-revisions", { courseId, limit }, async () => ({ revisions: [], offline: true }));
+}
+
+/** Owner-facing full delete: summary doc + revisions + generated mirror +
+ * cancels in-flight jobs. Clears the local draft snapshot too. */
+export async function deleteSummaryDocument(courseId) {
+  return invoke("delete-summary-document", { courseId }, async () => {
+    await deleteOfflineSnapshot(draftKey(courseId)).catch(() => {});
+    return { ok: true, offline: true };
+  });
 }
 
 export async function searchLicensedImages(query, limit = 12) {

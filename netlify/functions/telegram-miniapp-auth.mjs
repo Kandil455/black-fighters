@@ -1,15 +1,15 @@
 import { adminAuth, adminDb, FieldValue } from "./_shared/firebase-admin.mjs";
-import { getBotToken, getBotUsername } from "./_shared/telegram-engine.mjs";
-import { createLoginSession, pollLoginSession } from "./_shared/telegram-link.mjs";
+import { getBotToken } from "./_shared/telegram-engine.mjs";
 import { verifyTelegramMiniAppInitData, verifyTelegramLoginWidget } from "./_shared/telegram-v5.mjs";
 import { json, parseBody } from "./_shared/http.mjs";
 
 /**
- * BLACK FIGHTERS V5 «Al-Atlas» — Telegram Auth Endpoint (Mini App + Login Widget + Bot Handshake)
- * Supports:
- * 1) Telegram Bot Handshake login sessions: create_login_session & poll_login_session
- * 2) Telegram WebApp.initData via HMAC-SHA256 (`WebAppData` key)
- * 3) Telegram Login Widget payload via HMAC-SHA256 (`SHA256(botToken)` key)
+ * BLACK FIGHTERS V5 «Al-Atlas» — Telegram Auth Endpoint (Mini App + Login Widget)
+ * Verifies either:
+ * 1) Telegram WebApp.initData via HMAC-SHA256 (`WebAppData` key)
+ * 2) Telegram Login Widget payload via HMAC-SHA256 (`SHA256(botToken)` key)
+ * Resolves or links the user in Firestore, sets `telegram_id` & `telegram_chat_id`,
+ * and issues a Firebase Custom Token (`customToken`).
  */
 export const handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
@@ -21,29 +21,6 @@ export const handler = async (event) => {
 
   try {
     const body = parseBody(event);
-    const action = String(body?.action || "");
-
-    // ── Direct Bot Handshake Session: Create ──
-    if (action === "create_login_session") {
-      const { code, expiresAt, ttlMs } = await createLoginSession();
-      const botUsername = getBotUsername();
-      return json(200, {
-        ok: true,
-        code,
-        expiresAt,
-        ttlMs,
-        botUsername,
-        deepLink: `https://t.me/${botUsername}?start=login_${code}`,
-        command: `/login ${code}`,
-      });
-    }
-
-    // ── Direct Bot Handshake Session: Poll ──
-    if (action === "poll_login_session") {
-      const result = await pollLoginSession(body?.code);
-      return json(200, result);
-    }
-
     const initData = String(body?.initData || "").trim();
     const widgetUser = body?.widgetUser && typeof body.widgetUser === "object" ? body.widgetUser : null;
     const botToken = getBotToken();
@@ -62,7 +39,6 @@ export const handler = async (event) => {
     const tgUser = verification.user;
     const tgIdStr = String(tgUser.id);
     let uid = `tg_${tgIdStr}`;
-    const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || "Fighter";
 
     try {
       let snap = await adminDb
@@ -94,24 +70,23 @@ export const handler = async (event) => {
             { merge: true }
           );
       } else {
-        const docRef = adminDb.collection("users").doc(uid);
-        const existingDoc = await docRef.get();
-        const baseFields = {
-          telegram_id: tgIdStr,
-          telegram_chat_id: tgIdStr,
-          telegram_username: tgUser.username || "",
-          full_name: displayName,
-          avatar_url: tgUser.photo_url || "",
-          updated_date: FieldValue.serverTimestamp(),
-        };
-        if (!existingDoc.exists) {
-          baseFields.role = "user";
-          baseFields.subscription_plan = "free";
-          baseFields.subscription_status = "inactive";
-          baseFields.credits = 15;
-          baseFields.created_date = FieldValue.serverTimestamp();
-        }
-        await docRef.set(baseFields, { merge: true });
+        // POLICY: Telegram NEVER creates platform accounts. Registration is
+        // Google/email on the site only; Telegram gets linked from Settings.
+        // Auto-creating "tg_*" twin accounts here was the root of the classic
+        // confusion (the 15 welcome credits stranded on an invisible account
+        // while the student's real Google account shows 0).
+        return json(200, {
+          ok: true,
+          notLinked: true,
+          uid: null,
+          telegramUser: {
+            id: tgUser.id,
+            first_name: tgUser.first_name || "",
+            username: tgUser.username || "",
+          },
+          message:
+            "حساب التيليجرام ده مش مرتبط بأي حساب على Black Fighters. سجّل الدخول من الموقع (جوجل/إيميل)، ثم من الإعدادات اربط التيليجرام — وكل رصيدك هيتحوّل تلقائيًا.",
+        });
       }
     } catch (dbErr) {
       console.warn("[TelegramAuth] Firestore lookup fallback:", dbErr.message);

@@ -42,6 +42,12 @@ import {
 import StudyGuideViewer from "@/components/course/StudyGuideViewer";
 import { detectTextDir, renderStudyGuideHtml, STUDY_GUIDE_TEMPLATES } from "@/lib/summaryStudyGuide";
 import { downloadHtmlFile, printHtmlFile, readStoredTemplate } from "@/lib/summary/exportGuide";
+import { downloadSummaryPptx } from "@/lib/summaryExport";
+import {
+  buildPostMortemFromCourseSummary,
+  downloadPostMortemStudyHtml,
+  printPostMortemStudyHtml,
+} from "@/features/lectures/export/postMortemStudyHtml";
 
 /** Valid template ids, so a stale/unknown stored id cannot render a blank guide. */
 const STUDY_GUIDE_TEMPLATE_IDS = STUDY_GUIDE_TEMPLATES.map((template) => template.id);
@@ -825,6 +831,29 @@ export default function SummaryView({
   };
   const [cramOpen, setCramOpen] = useState(false);
   const [figLightbox, setFigLightbox] = useState(null); // open lecture figure {url, page}
+  const [showSourceFigures, setShowSourceFigures] = useState(() => {
+    try {
+      return localStorage.getItem("bf_include_source_images") !== "false";
+    } catch {
+      return true;
+    }
+  });
+  const toggleSourceFigures = () => {
+    setShowSourceFigures((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("bf_include_source_images", next ? "true" : "false");
+      } catch {
+        // ignore storage errors
+      }
+      toast.info(
+        next
+          ? "🖼️ تم تفعيل عرض ودمج صور الملف الأصلي في التلخيص"
+          : "⭕ تم إخفاء صور الملف الأصلي من التلخيص"
+      );
+      return next;
+    });
+  };
   const contentRef = useRef(null);
   const [expandingSectionId, setExpandingSectionId] = useState(null);
 
@@ -914,10 +943,15 @@ export default function SummaryView({
 
   // 📸 Lecture figures lifted from the source PDF — pinned to the sections that
   // discuss them (via sourceRefs pages), or distributed inline across sections.
-  const summaryFigures = useMemo(() => {
+  const rawSummaryFigures = useMemo(() => {
     const list = Array.isArray(summary?.figures) ? summary.figures : [];
     return list.filter((f) => f?.url && Number(f.page) > 0);
   }, [summary?.figures]);
+
+  const summaryFigures = useMemo(
+    () => (showSourceFigures ? rawSummaryFigures : []),
+    [rawSummaryFigures, showSourceFigures]
+  );
 
   const figuredSections = useMemo(() => {
     // First deduplicate repetitive 2-column term/meaning tables if the section already has rich bullets/pairs or paragraphs
@@ -1369,6 +1403,48 @@ ${baseText.slice(0, 18000)}
       toast.error("تعذر فتح نافذة الطباعة");
     }
   };
+  const downloadPptxDirect = async () => {
+    try {
+      toast.info(isEn ? "Preparing PowerPoint deck..." : "جاري تجهيز عرض البوربوينت (.pptx)... 📊");
+      await downloadSummaryPptx({
+        document: documentV3 || undefined,
+        markdown: text,
+        title: course?.title || "الملخص الذكي",
+      });
+      toast.success(isEn ? "PowerPoint downloaded!" : "تم تحميل عرض البوربوينت (.pptx) بنجاح! 📊✨");
+    } catch {
+      toast.error(isEn ? "Failed to export PowerPoint" : "تعذر تصدير ملف البوربوينت");
+    }
+  };
+
+  const downloadPostMortemDirect = () => {
+    const pmModel = buildPostMortemFromCourseSummary({
+      title: course?.title || "الملخص الذكي",
+      markdown: text,
+      figures: summaryFigures,
+      includeFigures: showSourceFigures,
+    });
+    downloadPostMortemStudyHtml(pmModel, {
+      title: course?.title || "study-sheet",
+      figures: summaryFigures,
+      includeFigures: showSourceFigures,
+    });
+    toast.success("تم تحميل مذكرة Post-Mortem الاحترافية (جداول + إنجليزي/عربي + رسومات SVG) بنجاح! 📄✨");
+  };
+
+  const printPostMortemDirect = () => {
+    const pmModel = buildPostMortemFromCourseSummary({
+      title: course?.title || "الملخص الذكي",
+      markdown: text,
+      figures: summaryFigures,
+      includeFigures: showSourceFigures,
+    });
+    printPostMortemStudyHtml(pmModel, {
+      title: course?.title || "study-sheet",
+      figures: summaryFigures,
+      includeFigures: showSourceFigures,
+    });
+  };
 
   const handleExpandSection = async (section) => {
     if (!section || aiUpdating || expandingSectionId) return;
@@ -1620,12 +1696,76 @@ ${baseText.slice(0, 18000)}
             <Button
               size="sm"
               variant="outline"
+              onClick={toggleSourceFigures}
+              className={cn(
+                "gap-1.5 rounded-xl text-xs h-8 font-bold transition-colors",
+                showSourceFigures
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                  : "text-muted-foreground"
+              )}
+              title="تشغيل أو إيقاف دمج صور وأشكال الملف الأصلي داخل التلخيص"
+            >
+              <span>🖼️</span>
+              <span className="hidden sm:inline">
+                {showSourceFigures
+                  ? `صور الملف: مفعّلة${rawSummaryFigures.length ? ` (${rawSummaryFigures.length})` : ""}`
+                  : "صور الملف: مخفية"}
+              </span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadPostMortemDirect}
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 transition-colors"
+              title="تحميل مذكرة المذاكرة المنظمة بنمط Post-Mortem (HTML)"
+            >
+              <FileText className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{isEn ? "Post-Mortem HTML" : "مذكرة منظمة HTML"}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={printPostMortemDirect}
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold border-amber-400/30 hover:bg-amber-400/15 transition-colors"
+              title="طباعة أو حفظ مذكرة Post-Mortem كملف PDF"
+            >
+              <Printer className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{isEn ? "Post-Mortem PDF" : "PDF منظم"}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
               onClick={printGuideDirect}
-              className="gap-1.5 rounded-xl text-xs h-8"
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold"
               title={isEn ? "Print or Save as PDF" : "طباعة أو حفظ PDF"}
             >
               <Printer className="w-3.5 h-3.5 text-primary" />
               <span className="hidden sm:inline">{isEn ? "PDF / Print" : "طباعة PDF"}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadHtmlDirect}
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold"
+              title={isEn ? "Download Interactive HTML Study Book" : "تحميل مذكرة HTML تفاعلية"}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="hidden sm:inline">{isEn ? "HTML Book" : "تحميل كتاب HTML"}</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={downloadPptxDirect}
+              className="gap-1.5 rounded-xl text-xs h-8 font-bold"
+              title={isEn ? "Download PowerPoint (.pptx)" : "تحميل عرض PowerPoint (.pptx)"}
+            >
+              <Layers className="w-3.5 h-3.5 text-sky-500" />
+              <span className="hidden sm:inline">{isEn ? "PowerPoint" : "PowerPoint"}</span>
             </Button>
 
             {editing && (

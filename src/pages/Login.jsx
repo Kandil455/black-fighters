@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { bootstrapTelegramSession, getTelegramWebApp, loadTelegramSdk } from "@/lib/telegramMiniApp";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
 import { Button } from "@/components/ui/button";
@@ -10,36 +11,86 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/authErrors";
 import GoogleIcon from "@/components/GoogleIcon";
-import TelegramLoginButton from "@/components/auth/TelegramLoginButton";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
-  const { login, loginWithGoogle, isAuthenticated } = useAuth();
+  const { login, loginWithGoogle, loginWithTelegram, isAuthenticated } = useAuth();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
 
-  const resolveRedirectTarget = () => {
-    const fromQuery = searchParams.get("redirect");
-    const fromState = location.state?.from;
-    let fromStorage = null;
+  // Redirect-return fallback: when a browser blocks the OAuth popup's
+  // postMessage back to this page (Shields/ITP/etc.), Telegram returns the
+  // user to return_to with the payload in the URL fragment as
+  // #tgAuthResult=<base64url JSON>. Without this parser the page just reloads
+  // and nothing happens — exactly the "popup closes, still on login" symptom.
+  useEffect(() => {
     try {
-      fromStorage = sessionStorage.getItem("bf_post_auth_redirect");
-    } catch {}
-    const candidate = fromQuery || fromState || fromStorage || "/dashboard";
-    return typeof candidate === "string" && candidate.startsWith("/")
-      ? candidate
-      : "/dashboard";
-  };
+      const hash = window.location.hash || "";
+      const m = hash.match(/tgAuthResult=([A-Za-z0-9_-]+)/);
+      if (!m) return;
+      const json = decodeURIComponent(
+        window.atob(m[1].replace(/-/g, "+").replace(/_/g, "/"))
+      );
+      const user = JSON.parse(json);
+      // Clean the fragment immediately so a refresh can't replay it.
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      if (!user || !user.id || !user.hash) return;
+      toast.info(isEn ? "Completing Telegram sign-in…" : "جاري إتمام تسجيل دخولك بالتيليجرام… ⏳");
+      loginWithTelegram(user)
+        .then(() => {
+          toast.success(isEn ? "Signed in with Telegram! 🚀" : "تم تسجيل دخولك بالتيليجرام! 🚀");
+        })
+        .catch((err) => {
+          toast.error(err?.message || (isEn ? "Telegram sign-in failed" : "تعذر تسجيل الدخول عبر التيليجرام"));
+        });
+    } catch (err) {
+      console.warn("[Login] tgAuthResult parse failed:", err);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto sign-in inside Telegram's WebView: the Login Widget popup flow can
+  // never complete there (postMessage between the OAuth popup and the webview
+  // dies), so users coming from the bot's web_app button look "stuck on the
+  // login page". The signed initData path completes instantly instead.
+  const [tgBooting, setTgBooting] = useState(() => Boolean(getTelegramWebApp()?.initData));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (loadTelegramSdk) await loadTelegramSdk(1200).catch(() => false);
+        if (!getTelegramWebApp()?.initData) return;
+        const [{ signInWithCustomToken }, { auth }] = await Promise.all([
+          import("firebase/auth"),
+          import("@/lib/firebase"),
+        ]);
+        const res = await bootstrapTelegramSession({ signInWithCustomToken, auth });
+        if (cancelled) return;
+        if (res.status === "authenticated") {
+          toast.success(isEn ? "Signed in with Telegram! 🚀" : "تم تسجيل دخولك بالتيليجرام! 🚀");
+        } else if (res.status === "unlinked" || res.status === "error") {
+          toast.info(
+            isEn
+              ? "This Telegram isn't linked to a Black Fighters account yet: sign in with Google/email first, then link Telegram from Settings."
+              : "التيليجرام ده لسه مش مرتبط بحساب 🧩 — سجّل بجوجل أو الإيميل من تحت، وبعد الدخول روح الإعدادات واربط التيليجرام (الربط بينقل كل رصيدك أوتوماتيك).",
+            { duration: 9000 }
+          );
+        }
+      } catch {
+        /* widget fallback below still works on normal browsers */
+      } finally {
+        if (!cancelled) setTgBooting(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
-      const target = resolveRedirectTarget();
-      try {
-        sessionStorage.removeItem("bf_post_auth_redirect");
-      } catch {}
-      navigate(target, { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -62,11 +113,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(currentEmail, currentPassword);
-      const target = resolveRedirectTarget();
-      try {
-        sessionStorage.removeItem("bf_post_auth_redirect");
-      } catch {}
-      navigate(target);
+      navigate("/dashboard");
     } catch (err) {
       toast.error(
         authErrorMessage(
@@ -119,13 +166,11 @@ export default function Login() {
             type="button"
             onClick={handleGoogle}
             variant="outline"
-            className="w-full h-11 gap-2.5 mb-3 font-semibold"
+            className="w-full h-11 gap-2.5 mb-4 font-semibold"
           >
             <GoogleIcon className="w-4 h-4" />
             {isEn ? "Continue with Google" : "دخول سريع بـ Google"}
           </Button>
-
-          <TelegramLoginButton className="mb-5" />
 
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-px bg-[#1E222B]" />

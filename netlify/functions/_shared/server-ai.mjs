@@ -1,51 +1,126 @@
 import { adminDb, FieldValue } from "./firebase-admin.mjs";
 
-// ─── SECURITY: server-only AI keys (never hardcoded, never VITE_-exposed) ────
-export function serverAiConfig(_preferVision = false) {
-  const cleanKey = (k) => {
-    const val = String(k || "").replace(/["']/g, "").trim();
-    if (val === "BF_SERVER_MANAGED_GEMINI_KEY" || val === "BF_SERVER_MANAGED_ZAI_KEY") return "";
-    return val;
-  };
-  const deepseekKey = cleanKey(
-    process.env.DEEPSEEK_API_KEY ||
-    process.env.VITE_DEEPSEEK_API_KEY ||
-    process.env.CODECRAFT_KEY ||
-    process.env.VITE_CODECRAFT_KEY ||
-    process.env.APMIX_KEY ||
-    process.env.VITE_APMIX_KEY
-  );
+let cachedAdminConfigs = null;
+let cachedAdminAt = 0;
+const ADMIN_CACHE_TTL = 30_000;
 
-  return {
-    provider: "deepseek",
-    api_key: deepseekKey || "",
-    model: "DeepSeek-V4.1-Flash-1017",
-  };
+async function loadAdminRotationPool() {
+  const now = Date.now();
+  if (cachedAdminConfigs && now - cachedAdminAt < ADMIN_CACHE_TTL) {
+    return cachedAdminConfigs;
+  }
+  try {
+    const snap = await Promise.race([
+      adminDb.collection("adminConfig").get(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 2000)),
+    ]);
+    const list = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((d) => d.is_active !== false && (d.purpose === "all" || !d.purpose))
+      .map((d) => {
+        const rawKeys = [];
+        if (Array.isArray(d.api_keys)) {
+          for (const k of d.api_keys) {
+            if (typeof k === "string" && k.trim() && !k.includes("•")) rawKeys.push(k.trim());
+          }
+        }
+        if (typeof d.api_key === "string" && d.api_key.trim() && !d.api_key.includes("•")) {
+          for (const part of d.api_key.split(/[\n,;]+/)) {
+            if (part.trim() && !rawKeys.includes(part.trim())) rawKeys.push(part.trim());
+          }
+        }
+        if (!rawKeys.length && d.provider !== "pollinations") return null;
+        return {
+          id: d.id || d.provider_id || d.provider,
+          provider: d.provider || "gemini",
+          display_name: d.display_name || d.provider,
+          protocol: d.protocol || (d.provider === "gemini" ? "gemini" : "openai"),
+          base_url: d.base_url || "",
+          api_key: rawKeys[0] || "",
+          api_keys: rawKeys,
+          model: d.selected_model || d.model || "gemini-3.5-flash-lite",
+          available_models: Array.isArray(d.available_models) ? d.available_models : [],
+          is_primary: Boolean(d.is_primary),
+          priority: Number(d.priority ?? 50),
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
+        return a.priority - b.priority;
+      });
+    cachedAdminConfigs = list;
+    cachedAdminAt = now;
+    return list;
+  } catch {
+    return cachedAdminConfigs || [];
+  }
 }
 
-export async function resolveServerAiConfig(preferVision = false, uid = "") {
-  const base = serverAiConfig(preferVision);
-  if (base.api_key) return base;
-  try {
-    if (uid) {
-      const userSettingsSnap = await adminDb.collection("userSettings").doc(uid).get();
-      const userKey = String(userSettingsSnap.data()?.api_key || "").trim();
-      if (userKey && !userKey.includes("•")) {
-        return { provider: "deepseek", api_key: userKey, model: "DeepSeek-V4.1-Flash-1017" };
-      }
-    }
-    const adminSnap = await adminDb.collection("adminConfig").limit(10).get();
-    const docs = adminSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const active = docs.find((d) => d.is_active && d.api_key) || docs.find((d) => d.id === "default" && d.api_key) || docs.find((d) => d.api_key);
-    if (active?.api_key && !String(active.api_key).includes("•")) {
+// ─── SECURITY: server-only AI keys (never hardcoded, never VITE_-exposed) ────
+export function serverAiConfig(preferVision = false, dynamicPool = []) {
+  const cleanKey = (k) => String(k || "").replace(/["']/g, "").trim();
+  const geminiPool = [
+    cleanKey(process.env.GEMINI_API_KEY),
+    cleanKey(process.env.LECTURE_GEMINI_API_KEY),
+    ...String(process.env.GEMINI_API_KEYS || "").split(/[\n,;]+/).map(cleanKey),
+    ...String(process.env.GEMINI_BACKUP_KEYS || "").split(/[\n,;]+/).map(cleanKey),
+  ].filter((k, idx, arr) => k && k.length >= 12 && arr.indexOf(k) === idx);
+  const geminiKey = geminiPool[0] || cleanKey(process.env.VITE_GEMINI_API_KEY || "BF_SERVER_MANAGED_GEMINI_KEY");
+  const zaiKey = cleanKey(process.env.ZAI_API_KEY || "BF_SERVER_MANAGED_ZAI_KEY");
+  const groqKey = cleanKey(process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY);
+  const openrouterKey = cleanKey(process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY);
+
+  if (!preferVision && Array.isArray(dynamicPool) && dynamicPool.length > 0) {
+    const primary = dynamicPool[0];
+    return {
+      ...primary,
+      rotation_pool: dynamicPool,
+    };
+  }
+
+  if (preferVision) {
+    if (geminiKey) {
       return {
-        provider: "deepseek",
-        api_key: String(active.api_key).trim(),
-        model: "DeepSeek-V4.1-Flash-1017",
+        provider: "gemini",
+        api_key: geminiKey,
+        api_keys: geminiPool,
+        model: process.env.GEMINI_VISION_MODEL || "gemini-3.5-flash-lite",
       };
     }
-  } catch {}
-  return base;
+    if (zaiKey) {
+      return { provider: "zai", api_key: zaiKey, model: "glm-4.6v-flash" };
+    }
+  }
+
+  // Hierarchy: Gemini 3.5 (with 10+ key rotation pool) -> Z.ai (glm-4.7-flash) -> Groq -> OpenRouter
+  if (geminiKey) {
+    return {
+      provider: "gemini",
+      api_key: geminiKey,
+      api_keys: geminiPool,
+      model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+    };
+  }
+  if (zaiKey) {
+    return { provider: "zai", api_key: zaiKey, model: process.env.ZAI_MODEL || "glm-4.7-flash" };
+  }
+  if (groqKey) {
+    return { provider: "groq", api_key: groqKey, model: process.env.GROQ_MODEL || "openai/gpt-oss-120b" };
+  }
+  if (openrouterKey) {
+    return { provider: "openrouter", api_key: openrouterKey, model: process.env.OPENROUTER_MODEL || "openrouter/free" };
+  }
+  throw new Error("NO_API_KEY");
+}
+
+/**
+ * Async resolver used by /api/ai and the telegram engine — combines Firestore
+ * `adminConfig` rotation pool with environment defaults.
+ */
+export async function resolveServerAiConfig(preferVision = false) {
+  const pool = await loadAdminRotationPool();
+  return serverAiConfig(preferVision, pool);
 }
 
 

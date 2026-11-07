@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/AuthContext";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
 import { useLocale } from "@/lib/LocaleContext";
 import { cn } from "@/lib/utils";
 import { playClick, playSuccess } from "@/lib/sounds";
 import { toast } from "sonner";
+import { showChargeError } from "@/lib/creditsToast";
 import { ocrImageWithVisionAI, isGarbledOrCorruptedText } from "@/lib/imageFilter";
 import { getImageOcrCost } from "@/lib/creditCosts";
 import { calculateOcrAllowance } from "@/lib/ocrAllowance";
@@ -25,7 +27,8 @@ export function ImageReviewGrid({
   onBulkUpdateStatus,
   fileName = "",
 }) {
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
+  const { applyOptimisticCharge } = useOptimisticCharge();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
 
@@ -139,10 +142,13 @@ export function ImageReviewGrid({
     const isFreeForThis = isMasterAdmin || canUseFreeTrial;
 
     if (!isFreeForThis && userCredits < cost) {
-      toast.error(
-        isEn
-          ? `Insufficient credits. You need ${cost} credit to transcribe this slide (Balance: ${userCredits}).`
-          : `رصيدك غير كافٍ. تحتاج ${cost} كريدت لقراءة الشريحة بالـ AI (رصيدك الحالي: ${userCredits}).`
+      showChargeError(
+        new Error(
+          isEn
+            ? `Insufficient credits. You need ${cost} credit to transcribe this slide (Balance: ${userCredits}).`
+            : `رصيدك غير كافٍ. تحتاج ${cost} كريدت لقراءة الشريحة بالـ AI (رصيدك الحالي: ${userCredits}).`
+        ),
+        { isEn }
       );
       return;
     }
@@ -156,15 +162,19 @@ export function ImageReviewGrid({
       if (!isFreeForThis) {
         try {
           const safeKey = `ocr_${String(img.id || Date.now()).replace(/[^a-zA-Z0-9_-]/g, "")}_${Date.now()}`;
-          await base44.functions.invoke("chargeAiJob", {
-            action: "charge",
-            task: "image_ocr",
-            imageCount: 1,
-            cost,
-            jobKey: safeKey,
-            description: `قراءة شريحة علمية بالـ AI (صفحة ${img.pageOrSlideNumber || 1})`,
-          });
-          refreshProfile?.();
+          // Optimistic: the balance drops in the same render, then the
+          // server response reconciles it to the authoritative value.
+          await applyOptimisticCharge(
+            () => base44.functions.invoke("chargeAiJob", {
+              action: "charge",
+              task: "image_ocr",
+              imageCount: 1,
+              cost,
+              jobKey: safeKey,
+              description: `قراءة شريحة علمية بالـ AI (صفحة ${img.pageOrSlideNumber || 1})`,
+            }),
+            { cost }
+          );
         } catch (chargeErr) {
           console.warn("[OCR Charge Error]:", chargeErr);
         }
@@ -214,10 +224,13 @@ export function ImageReviewGrid({
     });
 
     if (!allowance.isAffordable && allowance.processableCount === 0) {
-      toast.error(
-        isEn
-          ? `Insufficient credits. You need ${allowance.chargedCost} credits to transcribe ${targetImages.length} slides (Balance: ${userCredits}).`
-          : `رصيدك غير كافٍ. تحتاج ${allowance.chargedCost} كريدت لقراءة ${targetImages.length} شريحة (رصيدك الحالي: ${userCredits}).`
+      showChargeError(
+        new Error(
+          isEn
+            ? `Insufficient credits. You need ${allowance.chargedCost} credits to transcribe ${targetImages.length} slides (Balance: ${userCredits}).`
+            : `رصيدك غير كافٍ. تحتاج ${allowance.chargedCost} كريدت لقراءة ${targetImages.length} شريحة (رصيدك الحالي: ${userCredits}).`
+        ),
+        { isEn }
       );
       return;
     }
@@ -246,15 +259,19 @@ export function ImageReviewGrid({
     if (allowance.chargedCost > 0 && !isMasterAdmin) {
       try {
         const safeKey = `batch_ocr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        await base44.functions.invoke("chargeAiJob", {
-          action: "charge",
-          task: "image_ocr",
-          imageCount: imagesToProcess.length,
-          cost: allowance.chargedCost,
-          jobKey: safeKey,
-          description: `قراءة مجمعة لـ ${imagesToProcess.length} شريحة بالـ AI`,
-        });
-        refreshProfile?.();
+        // Optimistic: balance reflects the batch charge instantly; the
+        // server response then reconciles it to the authoritative value.
+        await applyOptimisticCharge(
+          () => base44.functions.invoke("chargeAiJob", {
+            action: "charge",
+            task: "image_ocr",
+            imageCount: imagesToProcess.length,
+            cost: allowance.chargedCost,
+            jobKey: safeKey,
+            description: `قراءة مجمعة لـ ${imagesToProcess.length} شريحة بالـ AI`,
+          }),
+          { cost: allowance.chargedCost }
+        );
       } catch (chargeErr) {
         console.warn("[Batch OCR Charge Error]:", chargeErr);
       }

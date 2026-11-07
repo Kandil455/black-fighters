@@ -38,7 +38,9 @@ function parseClientStartApp(rawParam) {
     return { mode: "review", docId: "atlas-cardio-07", page: 1 };
   }
   if (rawParam.startsWith("quiz_")) {
-    return { mode: "quiz", docId: "atlas-cardio-07", page: 1 };
+    // Keep the real id: the site engine mints quiz_<Firestore id>, and dropping it
+    // made every Mini App quiz link open the same hardcoded demo quiz.
+    return { mode: "quiz", quizId: rawParam.slice(5), docId: "atlas-cardio-07", page: 1 };
   }
   return { mode: "reader", docId: rawParam, page: 1 };
 }
@@ -118,6 +120,13 @@ export default function TelegramMiniApp() {
     () => parseClientStartApp(startParamRaw),
     [startParamRaw]
   );
+
+  // A quiz deep link should open the real shared quiz, not demo questions.
+  const quizId = searchParams.get("quizId") || searchParams.get("qid") || parsedStart.quizId || "";
+  useEffect(() => {
+    if (!quizId) return;
+    navigate(`/q/${encodeURIComponent(quizId)}`, { replace: true });
+  }, [quizId, navigate]);
   const [activeTab, setActiveTab] = useState(parsedStart.mode || "reader");
   const [cloudPosition, setCloudPosition] = useState(
     `ص ${parsedStart.page || 1}`
@@ -199,14 +208,15 @@ export default function TelegramMiniApp() {
       {session.status === "unlinked" && (
         <div className="rounded-xl border border-[#f59e0b]/35 bg-[#f59e0b]/10 px-3.5 py-3 space-y-2">
           <p className="text-[11px] leading-relaxed text-[#f5f7fa]">
-            فتحت التطبيق من تيليجرام لكن لم تربط حسابك بعد. اربط حسابك من المنصة لمزامنة جميع ملخصاتك وكويزاتك.
+            حساب التيليجرام ده مش مرتبط بأي حساب في Black Fighters لسه 🧩
+            التسجيل بيتم من الموقع فقط: افتح الموقع وسجّل بالجوجل أو الإيميل، وبعدين من <b>الإعدادات ← تيليجرام ← ربط الحساب</b> ابعت الكود للبوت — وكل رصيدك هيتحوّل لحساب واحد تلقائيًا.
           </p>
           <button
             type="button"
-            onClick={() => openPlatform("/profile")}
+            onClick={() => openPlatform("/login")}
             className="rounded-lg bg-[#19f08c] px-3 py-1.5 text-[11px] font-black text-[#03150c] cursor-pointer"
           >
-            افتح إعدادات الربط
+            افتح الموقع وسجّل دخولك
           </button>
         </div>
       )}

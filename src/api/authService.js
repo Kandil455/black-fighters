@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/apiBase";
 import { applyOwnerPrivileges } from "@/lib/permissions";
 import { friendlyAuthError, RETRYABLE_AUTH_CODES } from "@/lib/authErrors";
 
@@ -19,38 +20,6 @@ async function runAuthOperation(operation, fallback, retries = 2) {
     }
   }
   throw friendlyAuthError(lastError, fallback);
-}
-
-const supabaseConfig = () => ({
-  url: import.meta.env.VITE_SUPABASE_URL,
-  anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-});
-
-async function requestSupabase(path, body) {
-  const { url, anonKey } = supabaseConfig();
-  if (!url || !anonKey) throw new Error("خدمة تأكيد البريد غير مهيأة");
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(`${url}/auth/v1/${path}`, {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.msg || data.message || "تعذر إكمال تأكيد البريد");
-    return data;
-  } catch (error) {
-    if (error?.name === 'AbortError') throw new Error('خدمة كود التأكيد لا تستجيب');
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 export const authService = {
@@ -102,7 +71,7 @@ export const authService = {
   },
 
   async loginWithTelegram(telegramPayload) {
-    const response = await fetch("/api/telegram-miniapp-auth", {
+    const response = await fetch(apiUrl("telegram-miniapp-auth"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(
@@ -172,25 +141,63 @@ export const authService = {
     return signOut(firebaseAuth);
   },
 
-  requestSignupOtp(email) {
-    return requestSupabase("otp", {
-      email: email.trim().toLowerCase(),
-      create_user: true,
+  /** OTP-first registration: sends a 6-digit code; the account is NOT created
+   *  until verifyEmailOtpAndRegister succeeds. */
+  async requestEmailOtp(email, displayName = "") {
+    const response = await fetch(apiUrl("email-otp"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "send", email: email.trim().toLowerCase(), displayName }),
     });
-  },
-
-  async verifyOtp({ email, otpCode }) {
-    const data = await requestSupabase("verify", {
-      email: email.trim().toLowerCase(),
-      token: otpCode,
-      type: "email",
-    });
-    if (!data.user) throw new Error("الكود غير صحيح أو انتهت صلاحيته");
+    const data = await response.json().catch(() => ({}));
+    if (data?.error === "MAIL_NOT_CONFIGURED") {
+      const err = new Error(data?.message || "MAIL_NOT_CONFIGURED");
+      err.code = "MAIL_NOT_CONFIGURED";
+      throw err;
+    }
+    if (!response.ok || data?.ok === false) {
+      throw new Error(data?.message || "تعذر إرسال كود التأكيد");
+    }
     return data;
   },
 
+  /** Verifies the OTP and lets the SERVER create the Firebase account
+   *  (emailVerified:true) then signs in with the returned custom token. */
+  async verifyEmailOtpAndRegister({ email, code, password, fullName }) {
+    const response = await fetch(apiUrl("email-otp"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "verify",
+        email: email.trim().toLowerCase(),
+        code: String(code).trim(),
+        password,
+        displayName: fullName,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok || !data?.customToken) {
+      throw new Error(data?.message || "الكود غير صحيح أو انتهت صلاحيته");
+    }
+    const [{ signInWithCustomToken }, { auth: firebaseAuth }] = await Promise.all([
+      import("firebase/auth"),
+      loadFirebase(),
+    ]);
+    return runAuthOperation(
+      () => signInWithCustomToken(firebaseAuth, data.customToken),
+      "تعذر تفعيل الحساب",
+      1,
+    );
+  },
+
+
+
+  async verifyOtp({ email, otpCode, password, fullName }) {
+    return this.verifyEmailOtpAndRegister({ email, code: otpCode, password, fullName });
+  },
+
   resendOtp(email) {
-    return this.requestSignupOtp(email);
+    return this.requestEmailOtp(email);
   },
 
   async resetPasswordRequest(email) {

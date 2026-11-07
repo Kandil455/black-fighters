@@ -4,14 +4,11 @@ import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, X, Trash2, Loader2, Copy, Check, Mic, Square, Sparkles, Shirt, Gift } from "lucide-react";
+import { Send, X, Trash2, Loader2, Copy, Check, Mic, Square, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ChatMarkdown from "@/components/course/ChatMarkdown.jsx";
 import { SpeakButton, useSpeechInput } from "@/components/course/VoiceControls.jsx";
 import { getSuggestions } from "@/components/course/chatSuggestions";
-import MascotSkin from "@/components/course/MascotSkin.jsx";
-import MascotSkinStore from "@/components/course/MascotSkinStore.jsx";
-import { getSkin } from "@/lib/mascotSkins";
 import { canClaimDaily, claimDailyReward } from "@/lib/mascotRewards";
 import { buildCourseRetrievalIndex, retrieveCourseContext } from "@/lib/courseRetrieval";
 import { parseAgentReply, applySummaryEdit, createQuizFromSummary, SUMMARY_QUIZ_DEFAULT_COUNT } from "@/lib/summaryAgent";
@@ -63,7 +60,7 @@ function AgentActions({ msg, onDone }) {
   );
 }
 
-function MsgBubble({ msg, skinId, onAction }) {
+function MsgBubble({ msg, onAction }) {
   const [copied, setCopied] = useState(false);
   const isAI = msg.role === "assistant";
 
@@ -81,7 +78,9 @@ function MsgBubble({ msg, skinId, onAction }) {
       className={cn("flex gap-2 group", isAI ? "flex-row" : "flex-row-reverse")}
     >
       {isAI && (
-        <div className="shrink-0 mt-1"><MascotSkin skinId={skinId} size={30} showFx={false} /></div>
+        <div className="mt-1 grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+          <Bot className="h-4 w-4" />
+        </div>
       )}
       <div className={cn(
         "relative max-w-[85%] px-4 py-2.5 rounded-2xl",
@@ -141,7 +140,6 @@ const WELCOME = (title) => ({
 export default function AiChatAssistant({ course }) {
   const { profile, refreshProfile } = useAuth();
   const [open, setOpen] = useState(false);
-  const [storeOpen, setStoreOpen] = useState(false);
   const [messages, setMessages] = useState([WELCOME(course?.title)]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -150,8 +148,6 @@ export default function AiChatAssistant({ course }) {
   const inputRef = useRef(null);
   const courseIndexRef = useRef({ course: null, chapters: null, index: null });
 
-  const skinId = profile?.active_mascot_skin || "default";
-  const skin = getSkin(skinId);
   const rewardAvailable = canClaimDaily(profile);
 
   const { listening, start, stop, supported: micSupported } = useSpeechInput((text) => setInput(text));
@@ -163,7 +159,7 @@ export default function AiChatAssistant({ course }) {
       const got = await claimDailyReward();
       if (got > 0) {
         await refreshProfile();
-        toast.success(`+${got} كريدت مكافأة يومية من ${skin.name} 🎁`);
+        toast.success(`+${got} كريدت مكافأة يومية 🎁`);
       }
     })();
      
@@ -371,7 +367,7 @@ Black Fighters:`;
             aria-label="فتح مساعد Black Fighters للكورس"
             className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] md:bottom-6 left-3 md:left-6 z-50 w-16 h-16 rounded-full flex items-center justify-center"
           >
-            <MascotSkin skinId={skinId} size={64} state={open ? "active" : "idle"} />
+            <Bot className="h-7 w-7 text-white" />
             {rewardAvailable && (
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[hsl(152,100%,50%)] rounded-full border-2 border-background animate-pulse z-10" />
             )}
@@ -391,14 +387,13 @@ Black Fighters:`;
             {/* Header */}
             <div className="relative flex items-center gap-3 px-4 py-3 border-b border-border/50 bg-gradient-to-l from-primary/10 to-accent/10 overflow-hidden">
               <div className="anime-panel absolute inset-0 pointer-events-none" />
-              <div className="relative"><MascotSkin skinId={skinId} size={38} showFx={false} /></div>
+              <div className="relative grid h-[38px] w-[38px] place-items-center rounded-full bg-primary/15 text-primary">
+                <Bot className="h-[18px] w-[18px]" />
+              </div>
               <div className="relative flex-1 min-w-0">
                 <p className="font-bold text-sm flex items-center gap-1">Black Fighters <Sparkles className="w-3 h-3 text-primary" /></p>
-                <p className="text-xs text-muted-foreground truncate">{skin.name} · {course?.title}</p>
+                <p className="text-xs text-muted-foreground truncate">{course?.title}</p>
               </div>
-              <button onClick={() => setStoreOpen(true)} className="relative text-muted-foreground hover:text-accent p-1.5 rounded-lg hover:bg-secondary transition-colors" title="متجر الأشكال">
-                <Shirt className="w-4 h-4" />
-              </button>
               <button onClick={clear} className="relative text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-secondary transition-colors" title="محادثة جديدة">
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -407,26 +402,9 @@ Black Fighters:`;
               </button>
             </div>
 
-            {/* Active skin perks strip */}
-            {(skin.dailyCredits > 0 || skin.discountPct > 0) && (
-              <div className="flex items-center gap-3 px-4 py-1.5 text-[11px] border-b border-border/40 bg-secondary/30">
-                {skin.dailyCredits > 0 && (
-                  <span className="flex items-center gap-1 text-[hsl(152,100%,50%)] font-semibold">
-                    <Gift className="w-3 h-3" /> +{skin.dailyCredits}/يوم
-                  </span>
-                )}
-                {skin.discountPct > 0 && (
-                  <span className="flex items-center gap-1 text-cyan-300 font-semibold">
-                    <Sparkles className="w-3 h-3" /> خصم {skin.discountPct}%
-                  </span>
-                )}
-                <button onClick={() => setStoreOpen(true)} className="ms-auto text-accent hover:underline font-semibold">المتجر ←</button>
-              </div>
-            )}
-
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth scrollbar-none">
-              {messages.map((m, i) => <MsgBubble key={m.id || i} msg={m} skinId={skinId} onAction={runAction} />)}
+              {messages.map((m, i) => <MsgBubble key={m.id || i} msg={m} onAction={runAction} />)}
               <div ref={bottomRef} />
             </div>
 
@@ -479,7 +457,6 @@ Black Fighters:`;
         )}
       </AnimatePresence>
 
-      <MascotSkinStore open={storeOpen} onClose={() => setStoreOpen(false)} />
     </>
   );
 }

@@ -616,19 +616,9 @@ test("Landing contains no backdrop-blur-md marquee pills or inline style objects
   );
 });
 
-test("AnimatedTitle/KineticTextReveal animate no filter/box-shadow", () => {
-  const titleSrc = read("src/components/profile/AnimatedTitle.jsx");
-  assert.equal(
-    /animate=\{[^}]*boxShadow/.test(titleSrc),
-    false,
-    "AnimatedTitle animates boxShadow — repaints every frame; move glow to static style"
-  );
-  assert.equal(
-    /animate=\{[^}]*backgroundPosition/.test(titleSrc),
-    false,
-    "AnimatedTitle animates backgroundPosition — repaints every frame; use static gradient or transform-only sheen"
-  );
-
+test("KineticTextReveal animates no filter blur", () => {
+  // AnimatedTitle was deleted with the RPG cosmetics feature (owner decision,
+  // Nov 2026). This guard now pins the remaining kinetic text component.
   const kineticSrc = read("src/components/ui/KineticTextReveal.jsx");
   assert.equal(
     /filter:\s*["']blur/.test(kineticSrc),

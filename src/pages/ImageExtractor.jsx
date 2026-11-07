@@ -16,6 +16,7 @@ import { filterImagesHeuristics } from "@/lib/imageFilter";
 import { saveExtractionSession, getExtractionSession, getExtractionHistory } from "@/lib/imageExtractorDb";
 import { exportImagesToZip, exportToPptx, exportToPdf, exportToQuizJson } from "@/lib/imageExport";
 import { practicalQuizJob } from "@/lib/practicalQuizJob";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
 import { useAuth } from "@/lib/AuthContext";
 import { playClick, playSuccess } from "@/lib/sounds";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ export default function ImageExtractor() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const { locale, dir } = useLocale();
+  const { reconcileCredits } = useOptimisticCharge();
   const isEn = locale === "en";
   const [activeTab, setActiveTab] = useState("upload"); // upload | review | quiz_controls | quiz_player | export | library
   const [images, setImages] = useState([]);
@@ -267,30 +269,23 @@ export default function ImageExtractor() {
 
     const targetTotal = Math.max(1, Math.min(250, Number(totalQuestions) || 10));
 
-    // Rank images by direct caption availability, visual clinical signature, & context density
+    // Rank images by clinical importance & context density
     const scoredImages = keptList.map((img) => {
-      const text = `${img.directCaption || ""} ${img.embeddedOcrText || ""} ${img.contextText || ""}`.toLowerCase();
-      let score = Math.min(text.length, 280);
-      if (img.directCaption && img.directCaption.length >= 6) {
-        score += 120; // Strong preference for figures with direct bound captions
-      }
-      if (img.edgeDensity && img.edgeDensity > 0.06) {
-        score += 45;
-      }
+      const text = (img.contextText || "").toLowerCase();
+      let score = Math.min(text.length, 300);
       const clinicalKeywords = [
         "ecg", "ekg", "x-ray", "ct", "mri", "ultrasound", "us", "pathology", "histology",
         "syndrome", "triad", "diagnosis", "sign", "symptom", "treatment", "management",
         "emergency", "shock", "fracture", "artery", "nerve", "lesion", "carcinoma", "staging",
-        "fig", "figure", "table", "diagram", "arrow",
-        "تشخيص", "أشعة", "رسم قلب", "علاج", "عرض", "علامة", "متلازمة", "طوارئ", "كسر", "شريان", "وريد", "شكل", "صورة", "سهم"
+        "تشخيص", "أشعة", "رسم قلب", "علاج", "عرض", "علامة", "متلازمة", "طوارئ", "كسر", "شريان", "وريد"
       ];
       clinicalKeywords.forEach((kw) => {
-        if (text.includes(kw)) score += 55;
+        if (text.includes(kw)) score += 60;
       });
       return { img, score };
     });
 
-    // Sort descending by clinical relevance score to pick best stations
+    // Sort descending by clinical relevance score
     scoredImages.sort((a, b) => b.score - a.score);
 
     // Plan distribution of questions
@@ -315,9 +310,6 @@ export default function ImageExtractor() {
       }
     }
 
-    // Order selected OSCE stations chronologically by slide/page number
-    allocation.sort((a, b) => (a.img.pageOrSlideNumber || 1) - (b.img.pageOrSlideNumber || 1));
-
     // Delegate to global background manager (runs concurrently, updates widget, auto-saves to IndexedDB)
     practicalQuizJob.startJob({
       images,
@@ -327,6 +319,7 @@ export default function ImageExtractor() {
       language,
       fileName,
       profile,
+      onCharged: (res) => reconcileCredits(res),
     });
   };
 

@@ -64,6 +64,14 @@ export async function exportImagesToZip(images = [], baseFileName = "extracted_i
 /**
  * Export images and questions to PPTX presentation
  */
+// Arabic (complex-script) capable font. Without an explicit fontFace,
+// pptxgenjs emits text runs with NO <a:cs> typeface, so Keynote/LibreOffice
+// (and some macOS PowerPoint installs) fall back to a font without Arabic
+// shaping and render the text as gibberish. Arial ships with Arabic glyphs
+// on Windows AND macOS and shaping works in PowerPoint/Keynote/LibreOffice.
+export const PPTX_ARABIC_FONT = "Arial";
+const pptxTextFont = () => ({ fontFace: PPTX_ARABIC_FONT });
+
 export async function exportToPptx(images = [], baseFileName = "scientific_slides", onProgress = null) {
   const report = typeof onProgress === "function" ? onProgress : () => {};
   const pptxgen = (await import("pptxgenjs")).default;
@@ -71,6 +79,13 @@ export async function exportToPptx(images = [], baseFileName = "scientific_slide
 
   pptx.layout = "LAYOUT_16x9";
   pptx.author = "Black Fighters Image Extractor";
+  // Theme-level fonts guarantee fallback text (notes, auto shapes, default
+  // paragraphs) also resolves to an Arabic-capable face instead of Calibri.
+  pptx.theme = {
+    headFontFace: PPTX_ARABIC_FONT,
+    bodyFontFace: PPTX_ARABIC_FONT,
+    lang: "ar-EG",
+  };
 
   const kept = images.filter((img) => img.status !== "rejected");
   if (!kept.length) throw new Error("لا توجد صور مقبولة للتصدير");
@@ -83,19 +98,25 @@ export async function exportToPptx(images = [], baseFileName = "scientific_slide
   titleSlide.addText("Black Fighters • بنك الصور والمحاضرات", {
     x: 0.8,
     y: 1.8,
+    w: 8.4,
+    h: 0.7,
     fontSize: 28,
     bold: true,
     color: "00f5ff",
     align: "center",
     rtlMode: true,
+    ...pptxTextFont(),
   });
   titleSlide.addText(`الملف المصدر: ${cleanBase} | إجمالي الصور: ${kept.length}`, {
     x: 0.8,
     y: 2.8,
+    w: 8.4,
+    h: 0.5,
     fontSize: 14,
     color: "94a3b8",
     align: "center",
     rtlMode: true,
+    ...pptxTextFont(),
   });
 
   // Slide per image
@@ -118,6 +139,8 @@ export async function exportToPptx(images = [], baseFileName = "scientific_slide
       bold: true,
       color: "00f5ff",
       rtlMode: true,
+      align: "right",
+      ...pptxTextFont(),
     });
 
     const hasQuestions = Array.isArray(img.quiz) && img.quiz.length > 0;
@@ -137,17 +160,17 @@ export async function exportToPptx(images = [], baseFileName = "scientific_slide
       // Questions column
       const qTexts = [];
       img.quiz.slice(0, 2).forEach((q, qIdx) => {
-        qTexts.push({ text: `س${qIdx + 1}: ${q.question}\n`, options: { bold: true, fontSize: 12, color: "ffffff", rtlMode: true } });
+        qTexts.push({ text: `س${qIdx + 1}: ${q.question}\n`, options: { bold: true, fontSize: 12, color: "ffffff", rtlMode: true, ...pptxTextFont() } });
         (q.options || []).forEach((opt, optIdx) => {
           const correctIdx = q.correctIndex ?? q.correct_index ?? q.correct ?? 0;
           const isCorrect = optIdx === correctIdx;
           qTexts.push({
             text: `  [${String.fromCharCode(65 + optIdx)}] ${opt}${isCorrect ? " ✓" : ""}\n`,
-            options: { fontSize: 10, color: isCorrect ? "00ff88" : "94a3b8", rtlMode: true },
+            options: { fontSize: 10, color: isCorrect ? "00ff88" : "94a3b8", rtlMode: true, ...pptxTextFont() },
           });
         });
         if (q.explanation) {
-          qTexts.push({ text: `  💡 الشرح: ${q.explanation}\n\n`, options: { fontSize: 9, italic: true, color: "facc15", rtlMode: true } });
+          qTexts.push({ text: `  💡 الشرح: ${q.explanation}\n\n`, options: { fontSize: 9, italic: true, color: "facc15", rtlMode: true, ...pptxTextFont() } });
         }
       });
 
@@ -158,6 +181,7 @@ export async function exportToPptx(images = [], baseFileName = "scientific_slide
         h: 5.4,
         align: "right",
         rtlMode: true,
+        fontFace: PPTX_ARABIC_FONT,
       });
     } else {
       // Full centered image
@@ -531,6 +555,7 @@ export async function exportToPdf(images = [], baseFileName = "scientific_quiz",
     for (let i = 0; i < pageEls.length; i++) {
       report({ stage: "render", percent: 10 + Math.round((i / pageEls.length) * 80), detail: `تصدير الصفحة ${i + 1} من ${pageEls.length}…` });
       if (i > 0) doc.addPage();
+      const pageEl = pageEls[i];
       const imgData = await htmlToImage.toJpeg(pageEl, {
         quality: 0.85,
         pixelRatio: 1.35,

@@ -7,21 +7,50 @@ import PageLoader from "@/components/PageLoader";
 import { toast } from "sonner";
 import { db } from "@/lib/firebaseDb";
 import { doc, getDoc, collection, getDocs, query, where, addDoc } from "firebase/firestore";
-import { reconcileQuestionAnswer } from "@/lib/quizQuality";
 
-function normalizeChallengeQuestion(rawQ, idx = 0) {
-  if (!rawQ || typeof rawQ !== "object") return null;
-  const q = reconcileQuestionAnswer(rawQ);
+function normalizeChallengeQuestion(q, idx = 0) {
+  if (!q || typeof q !== "object") return null;
   const rawOptions = Array.isArray(q.options) ? q.options : [];
   const options = rawOptions
     .map((opt) => (typeof opt === "object" ? String(opt.text || opt.label || "").trim() : String(opt || "").trim()))
     .filter(Boolean);
   if (options.length < 2) return null;
 
-  const correctIndex =
-    typeof q.correct_index === "number" && q.correct_index >= 0 && q.correct_index < options.length
-      ? q.correct_index
-      : 0;
+  let correctIndex = 0;
+  const numericCandidates = [q.correct_index, q.correctIndex, q.correct, q.correctOption];
+  let resolved = false;
+  for (const cand of numericCandidates) {
+    if (typeof cand === "number" && Number.isInteger(cand) && cand >= 0 && cand < options.length) {
+      correctIndex = cand;
+      resolved = true;
+      break;
+    }
+    if (typeof cand === "string" && /^\d+$/.test(cand.trim())) {
+      const parsed = parseInt(cand.trim(), 10);
+      if (parsed >= 0 && parsed < options.length) {
+        correctIndex = parsed;
+        resolved = true;
+        break;
+      }
+    }
+  }
+  if (!resolved) {
+    const answerStr = String(q.correct_answer ?? q.answer ?? "").trim();
+    if (/^[A-Fa-f]$/.test(answerStr)) {
+      const letterIdx = answerStr.toUpperCase().charCodeAt(0) - 65;
+      if (letterIdx >= 0 && letterIdx < options.length) {
+        correctIndex = letterIdx;
+        resolved = true;
+      }
+    } else if (answerStr) {
+      const matchIdx = options.findIndex(
+        (opt) => opt.toLowerCase() === answerStr.toLowerCase() || opt.toLowerCase().includes(answerStr.toLowerCase())
+      );
+      if (matchIdx >= 0) {
+        correctIndex = matchIdx;
+      }
+    }
+  }
 
   return {
     question: String(q.question || q.q || q.question_text || `سؤال ${idx + 1}`).trim(),
@@ -144,13 +173,7 @@ export default function ChallengeNew() {
               if (snap.exists()) course = { id: snap.id, ...snap.data() };
             }
             if (course) {
-              const courseFullText = (course.chapters || []).map((c) => `${c.title || ""}\n${c.content || ""}`).join("\n\n");
-              let cachedBankQs = [];
-              try {
-                const { getCachedQuestionBank } = await import("@/lib/smartCache");
-                cachedBankQs = await getCachedQuestionBank(courseFullText, course.language === "en" ? "en" : "ar");
-              } catch {}
-              const fallbackQs = cachedBankQs.length >= 3 ? cachedBankQs.slice(0, 10) : buildFallbackQuestionsFromCourse(course);
+              const fallbackQs = buildFallbackQuestionsFromCourse(course);
               quiz = {
                 id: cleanQuizId,
                 title: `تحدي: ${course.title || "الكورس"}`,
@@ -196,23 +219,9 @@ export default function ChallengeNew() {
           }
         }
         if (!challengeId) {
-          try {
-            const ch = await base44.entities.Challenge.create(challengePayload);
-            challengeId = ch?.id;
-          } catch (fallbackErr) {
-            console.warn("Entity challenge create fallback:", fallbackErr);
-          }
+          const ch = await base44.entities.Challenge.create(challengePayload);
+          challengeId = ch.id;
         }
-        if (!challengeId) {
-          challengeId = `ch_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-        }
-
-        try {
-          localStorage.setItem(
-            `bf_challenge_mirror_${challengeId}`,
-            JSON.stringify({ id: challengeId, ...challengePayload })
-          );
-        } catch {}
 
         navigate(`/challenge/${challengeId}`, { replace: true });
       } catch (e) {

@@ -8,7 +8,7 @@ const AuthContext = createContext(null);
 const USE_SUPABASE_OTP = import.meta.env.VITE_SUPABASE_EMAIL_OTP === 'true';
 
 function createBootstrapProfile(firebaseUser) {
-  return {
+  return applyOwnerPrivileges({
     id: firebaseUser.uid,
     email: firebaseUser.email || '',
     full_name: firebaseUser.displayName || 'Student',
@@ -18,7 +18,7 @@ function createBootstrapProfile(firebaseUser) {
     credits: 0,
     token_balance: 0,
     app_theme: 'clinical',
-  };
+  });
 }
 
 const IS_LOCAL_TRIAL = Boolean(import.meta.env.DEV);
@@ -204,23 +204,34 @@ export const AuthProvider = ({ children }) => {
   const register = async ({ email, password, fullName }) => {
     setAuthError(null);
     try {
-      const cred = await authService.register({ email, password });
-      try { await authService.sendVerificationEmail(); } catch {}
-      try {
-        const { updateProfile } = await import('firebase/auth');
-        const fb2 = await import('@/lib/firebase');
-        if (fb2.auth?.currentUser && fullName) await updateProfile(fb2.auth.currentUser, { displayName: fullName });
-      } catch {}
-      return { mode: 'link', credential: cred };
-    } catch (err) { setAuthError(err); throw err; }
+      // OTP-first: request a 6-digit code; the Firebase account itself is
+      // created server-side ONLY after the code verifies — no ghost accounts
+      // with faked inboxes.
+      await authService.requestEmailOtp(email, fullName);
+      return { mode: "otp" };
+    } catch (err) {
+      // Graceful degradation while the mail provider key isn't provisioned
+      // yet: fall back to the classic Firebase link-verification flow.
+      if (err?.code === "MAIL_NOT_CONFIGURED" || String(err?.message || "").includes("MAIL_NOT_CONFIGURED")) {
+        console.warn("[register] OTP mailer unavailable — legacy link flow engaged");
+        const cred = await authService.register({ email, password });
+        try { await authService.sendVerificationEmail(); } catch {}
+        try {
+          const { updateProfile } = await import('firebase/auth');
+          const fb2 = await import('@/lib/firebase');
+          if (fb2.auth?.currentUser && fullName) await updateProfile(fb2.auth.currentUser, { displayName: fullName });
+        } catch {}
+        return { mode: 'link', credential: cred };
+      }
+      setAuthError(err);
+      throw err;
+    }
   };
 
   const verifyOtp = async (args = {}) => {
-    const { email, otpCode } = args;
-    if (import.meta.env.VITE_SUPABASE_EMAIL_OTP === 'true' && email && otpCode) {
-      return authService.verifyOtp({ email, otpCode });
-    }
-    return true;
+    const { email, otpCode, password, fullName } = args;
+    if (!email || !otpCode) return true;
+    return authService.verifyEmailOtpAndRegister({ email, code: otpCode, password, fullName });
   };
   const resendOtp = async (email) => { if (email) return authService.resendOtp(email); };
   const resendVerificationLink = async () => {
@@ -259,6 +270,23 @@ export const AuthProvider = ({ children }) => {
     await fetchProfile({ keepExistingSession: true });
   }, [fetchProfile]);
 
+  // Local-only profile patch — applies INSTANTLY to both `user` and `profile`
+  // (they are kept identical), so every reader of the shared balance
+  // (Layout credit chip, Dashboard metric, stores, image extractor…) updates
+  // in the same render. Used by optimistic credit charges; the authoritative
+  // server value still lands afterwards via refreshProfile/updateMe.
+  const patchProfile = useCallback((patchOrFn) => {
+    setProfile((prev) => {
+      if (!prev) return prev;
+      const patch = typeof patchOrFn === "function" ? patchOrFn(prev) : patchOrFn;
+      if (!patch || typeof patch !== "object") return prev;
+      const next = { ...prev, ...patch };
+      setUser(next);
+      setOfflineSnapshot("auth:profile", next).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const navigateToLogin = useCallback((nextUrl) => {
     if (IS_LOCAL_TRIAL) {
       window.location.href = nextUrl || '/dashboard';
@@ -282,8 +310,8 @@ export const AuthProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     user, profile, isAuthenticated, isLoadingAuth, authError, isAdmin, isPremium, authChecked,
-    login, loginWithGoogle, loginWithTelegram, register, verifyOtp, resendOtp, resendVerificationLink, logout, forgotPassword, navigateToLogin, redirectToLogin, me, updateMe, fetchProfile, refreshProfile,
-  }), [user, profile, isAuthenticated, isLoadingAuth, authError, isAdmin, isPremium, authChecked]);
+    login, loginWithGoogle, loginWithTelegram, register, verifyOtp, resendOtp, resendVerificationLink, logout, forgotPassword, navigateToLogin, redirectToLogin, me, updateMe, fetchProfile, refreshProfile, patchProfile,
+  }), [user, profile, isAuthenticated, isLoadingAuth, authError, isAdmin, isPremium, authChecked, patchProfile]);
 
   return (
     <AuthContext.Provider value={value}>

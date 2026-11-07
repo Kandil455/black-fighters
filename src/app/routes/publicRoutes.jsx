@@ -15,6 +15,7 @@ const ChallengeRoom = lazyWithRetry(() => import('@/pages/ChallengeRoom'));
 const TelegramMiniApp = lazyWithRetry(() => import('@/pages/TelegramMiniApp'));
 const AtlasPrototypes = lazyWithRetry(() => import('@/pages/AtlasPrototypes'));
 const HelpCenter = lazyWithRetry(() => import('@/pages/HelpCenter'));
+const VerifyCertificate = lazyWithRetry(() => import('@/pages/VerifyCertificate'));
 
 function HybridLayoutRoute() {
   const { isAuthenticated, profile } = useAuth();
@@ -41,6 +42,8 @@ export const publicRoutes = (
       <Route path="/tg/*" element={<TelegramMiniApp />} />
       <Route path="/atlas" element={<AtlasPrototypes />} />
       <Route path="/help" element={<HelpCenter />} />
+      <Route path="/verify" element={<VerifyCertificate />} />
+      <Route path="/verify/:code" element={<VerifyCertificate />} />
     </Route>
     <Route path="/youtube-studio" element={<Navigate to="/youtube-ai" replace />} />
     <Route path="/image-extractor" element={<Navigate to="/practical" replace />} />

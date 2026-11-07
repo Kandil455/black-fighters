@@ -42,7 +42,7 @@ class PracticalQuizJobManager {
     }
   }
 
-  async startJob({ images, allocation, targetTotal, difficulty, fileName, profile, language = "auto" }) {
+  async startJob({ images, allocation, targetTotal, difficulty, fileName, profile, language = "auto", onCharged = null }) {
     if (this.job.isRunning) {
       toast.info("هناك كويز عملي قيد التوليد بالفعل في الخلفية!");
       return;
@@ -81,35 +81,28 @@ class PracticalQuizJobManager {
         await Promise.all(
           batch.map(async (item, batchIdx) => {
             try {
-              // Safely select Gemini key if Gemini is the active provider, or preserve DeepSeek / active provider config
+              // Safely select Gemini key or leave blank for secure server proxy
               const isCandidateGeminiKey = (k) => {
                 if (!k || typeof k !== "string") return false;
                 const clean = k.replace(/^["']|["']$/g, "").trim();
-                return clean.length >= 20 && !clean.startsWith("sk-") && !clean.startsWith("gsk_") && !clean.startsWith("apx_") && clean !== "none";
+                return clean.length >= 15 && !clean.startsWith("gsk_") && !clean.startsWith("sk-or-") && !clean.startsWith("apx_") && clean !== "none";
               };
               const validGeminiPool = (GEMINI_KEYS_POOL || []).filter(isCandidateGeminiKey);
               const userKeyIsGemini = isCandidateGeminiKey(baseAiConfig?.api_key);
-              const isGeminiActive = (!baseAiConfig?.provider || baseAiConfig.provider === "gemini") && (validGeminiPool.length > 0 || userKeyIsGemini);
+              const keyIndex = validGeminiPool.length > 0 ? ((i + batchIdx) % validGeminiPool.length) : 0;
+              const chosenKey = validGeminiPool[keyIndex] || (userKeyIsGemini ? baseAiConfig.api_key : "");
 
-              let effectiveConfig = {
+              const rotatedConfig = {
                 ...baseAiConfig,
-                model: baseAiConfig?.model || "DeepSeek-V4.1-Flash-1017",
+                provider: "gemini",
+                model: "gemini-3.5-flash-lite",
+                api_key: chosenKey,
               };
-              if (isGeminiActive) {
-                const keyIndex = validGeminiPool.length > 0 ? ((i + batchIdx) % validGeminiPool.length) : 0;
-                const chosenKey = validGeminiPool[keyIndex] || (userKeyIsGemini ? baseAiConfig.api_key : "");
-                effectiveConfig = {
-                  ...baseAiConfig,
-                  provider: "gemini",
-                  model: baseAiConfig?.model || "gemini-3.5-flash-lite",
-                  api_key: chosenKey,
-                };
-              }
 
               let questions = await generateImageQuiz(
                 item.img,
                 { numQuestions: item.count, difficulty, customExplanation: item.img.contextText, language },
-                effectiveConfig
+                rotatedConfig
               );
               if (!questions || questions.length === 0) {
                 // Retry once so no approved image is ever dropped
@@ -120,19 +113,12 @@ class PracticalQuizJobManager {
                 );
               }
               if (questions && questions.length > 0) {
-                let prepared = questions;
                 try {
                   const { verifyAndPrepareQuizQuestions } = await import("./quizQuality");
-                  prepared = verifyAndPrepareQuizQuestions(questions, item.img.contextText || "");
+                  quizzesMap[item.img.id] = verifyAndPrepareQuizQuestions(questions, item.img.contextText || "");
                 } catch {
-                  prepared = questions;
+                  quizzesMap[item.img.id] = questions;
                 }
-                // Strictly bind every question to its exact parent image ID and slide number
-                quizzesMap[item.img.id] = prepared.map((q) => ({
-                  ...q,
-                  imageId: item.img.id,
-                  pageOrSlideNumber: item.img.pageOrSlideNumber,
-                }));
               }
             } catch (qErr) {
               console.warn(`[practicalQuizJob] Failed for image ${item.img.id}:`, qErr);
@@ -161,12 +147,15 @@ class PracticalQuizJobManager {
       // Deduct credits if not pro
       if (estimatedCredits > 0 && !profile?.is_pro) {
         try {
-          await base44.functions.invoke("chargeAiJob", {
+          const chargeRes = await base44.functions.invoke("chargeAiJob", {
             action: "charge",
             cost: estimatedCredits,
             amount: estimatedCredits,
             description: `توليد كويزات صور علمية (${allocation.length} صورة / ${targetTotal} سؤال)`,
           });
+          // Post-delivery charge: reconcile the visible balance with the
+          // server's authoritative value the moment the charge lands.
+          try { onCharged?.(chargeRes, { cost: estimatedCredits }); } catch {}
         } catch {}
       }
 

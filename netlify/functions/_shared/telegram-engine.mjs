@@ -873,10 +873,12 @@ const CODECRAFT_URL = "https://codecraftapi.com/v1/chat/completions";
 
 const GEMINI_KEYS = [
   process.env.GEMINI_API_KEY,
-  ...(process.env.GEMINI_BACKUP_KEYS || "").split(","),
+  process.env.LECTURE_GEMINI_API_KEY,
+  ...(process.env.GEMINI_API_KEYS || "").split(/[\n,;]+/),
+  ...(process.env.GEMINI_BACKUP_KEYS || "").split(/[\n,;]+/),
 ]
   .map((k) => String(k || "").replace(/["']/g, "").trim())
-  .filter((k) => k.length > 15 && !k.startsWith("AQ."));
+  .filter((k, idx, arr) => k.length > 15 && arr.indexOf(k) === idx);
 
 let geminiKeyCursor = 0;
 const getGeminiKey = () => {
@@ -964,9 +966,13 @@ ${text.slice(0, 15000)}`;
   const geminiKey = getGeminiKey();
   if (geminiKey) {
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": geminiKey,
+          "User-Agent": "aistudio-build",
+        },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { responseMimeType: "application/json" }
@@ -1085,9 +1091,13 @@ Rules:
   ]
 }`;
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": geminiKey,
+      "User-Agent": "aistudio-build",
+    },
     body: JSON.stringify({
       contents: [{
         parts: [
@@ -1327,38 +1337,46 @@ export async function executeFileQuizAction(chatId, auth, count = 5) {
 
   try {
     let quizGenerated = null;
-    const fileMeta = await callTelegramApi("getFile", { file_id: session.fileId });
-    if (!fileMeta?.ok || !fileMeta.result?.file_path) {
-      throw new Error("تعذر تحميل الملف من سيرفر التيليجرام. يرجى إعادة رفعه.");
-    }
-
-    const downloadUrl = `https://api.telegram.org/file/bot${getBotToken()}/${fileMeta.result.file_path}`;
-    const resp = await fetch(downloadUrl);
-    const arrayBuf = await resp.arrayBuffer();
-
-    if (session.isPhoto) {
-      quizGenerated = await generateQuizFromImage(
-        arrayBuf,
-        session.mimeType || "image/jpeg",
-        session.caption || "",
-        session.fileName?.replace(/\.[^/.]+$/, "") || "Clinical Case Study",
-        safeCount
+    if (session.extractedText && String(session.extractedText).trim().length >= 30) {
+      quizGenerated = await generateQuizFromText(
+        String(session.extractedText),
+        session.fileName?.replace(/\.[^/.]+$/, "") || "Quiz",
+        safeCount,
       );
     } else {
-      let extractedText = session.caption || "";
-      const parsed = await extractTextFromBuffer(arrayBuf, session.fileName, session.mimeType || "");
-      if (parsed && parsed.length > extractedText.length) {
-        extractedText = parsed;
+      const fileMeta = await callTelegramApi("getFile", { file_id: session.fileId });
+      if (!fileMeta?.ok || !fileMeta.result?.file_path) {
+        throw new Error("تعذر تحميل الملف من سيرفر التيليجرام. يرجى إعادة رفعه.");
       }
 
-      if (!extractedText || extractedText.trim().length < 30) {
-        return sendStyledMessage(
-          chatId,
-          `⚠️ <b>عذراً يا بطل!</b>\nالملف المرفوع لا يحتوي على نصوص كافية لاستخراج الأسئلة.\nتأكد أن الملف يحتوي على نصوص واضحة أو أرسل المحتوى كنص في الشات!`
+      const downloadUrl = `https://api.telegram.org/file/bot${getBotToken()}/${fileMeta.result.file_path}`;
+      const resp = await fetch(downloadUrl);
+      const arrayBuf = await resp.arrayBuffer();
+
+      if (session.isPhoto) {
+        quizGenerated = await generateQuizFromImage(
+          arrayBuf,
+          session.mimeType || "image/jpeg",
+          session.caption || "",
+          session.fileName?.replace(/\.[^/.]+$/, "") || "Clinical Case Study",
+          safeCount
         );
-      }
+      } else {
+        let extractedText = session.caption || "";
+        const parsed = await extractTextFromBuffer(arrayBuf, session.fileName, session.mimeType || "");
+        if (parsed && parsed.length > extractedText.length) {
+          extractedText = parsed;
+        }
 
-      quizGenerated = await generateQuizFromText(extractedText, session.fileName?.replace(/\.[^/.]+$/, "") || "Quiz", safeCount);
+        if (!extractedText || extractedText.trim().length < 30) {
+          return sendStyledMessage(
+            chatId,
+            `⚠️ <b>عذراً يا بطل!</b>\nالملف المرفوع لا يحتوي على نصوص كافية لاستخراج الأسئلة.\nتأكد أن الملف يحتوي على نصوص واضحة أو أرسل المحتوى كنص في الشات!`
+          );
+        }
+
+        quizGenerated = await generateQuizFromText(extractedText, session.fileName?.replace(/\.[^/.]+$/, "") || "Quiz", safeCount);
+      }
     }
 
     if (!quizGenerated || !Array.isArray(quizGenerated.questions) || !quizGenerated.questions.length) {
@@ -1463,41 +1481,47 @@ export async function executeFileSummaryAction(chatId, auth, mode = "concise", c
   );
 
   try {
-    const fileMeta = await callTelegramApi("getFile", { file_id: session.fileId });
-    if (!fileMeta?.ok || !fileMeta.result?.file_path) {
-      throw new Error("تعذر تحميل الملف من سيرفر التيليجرام. يرجى إعادة رفعه.");
-    }
-
-    const downloadUrl = `https://api.telegram.org/file/bot${getBotToken()}/${fileMeta.result.file_path}`;
-    const resp = await fetch(downloadUrl);
-    const arrayBuf = await resp.arrayBuffer();
-
-    let extractedText = session.caption || "";
-    if (session.isPhoto) {
-      const geminiKey = getGeminiKey();
-      if (geminiKey) {
-        const base64Data = Buffer.from(arrayBuf).toString("base64");
-        const vResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${geminiKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: "Extract and summarize all medical/academic information in this image in detail." },
-                { inlineData: { mimeType: session.mimeType || "image/jpeg", data: base64Data } }
-              ]
-            }]
-          })
-        });
-        if (vResp.ok) {
-          const vData = await vResp.json();
-          extractedText = vData.candidates?.[0]?.content?.parts?.[0]?.text || session.caption || "";
-        }
+    let extractedText = session.extractedText || session.caption || "";
+    if (!extractedText || String(extractedText).trim().length < 20) {
+      const fileMeta = await callTelegramApi("getFile", { file_id: session.fileId });
+      if (!fileMeta?.ok || !fileMeta.result?.file_path) {
+        throw new Error("تعذر تحميل الملف من سيرفر التيليجرام. يرجى إعادة رفعه.");
       }
-    } else {
-      const parsed = await extractTextFromBuffer(arrayBuf, session.fileName, session.mimeType || "");
-      if (parsed && parsed.length > extractedText.length) {
-        extractedText = parsed;
+
+      const downloadUrl = `https://api.telegram.org/file/bot${getBotToken()}/${fileMeta.result.file_path}`;
+      const resp = await fetch(downloadUrl);
+      const arrayBuf = await resp.arrayBuffer();
+
+      if (session.isPhoto) {
+        const geminiKey = getGeminiKey();
+        if (geminiKey) {
+          const base64Data = Buffer.from(arrayBuf).toString("base64");
+          const vResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": geminiKey,
+              "User-Agent": "aistudio-build",
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: "Extract and summarize all medical/academic information in this image in detail." },
+                  { inlineData: { mimeType: session.mimeType || "image/jpeg", data: base64Data } }
+                ]
+              }]
+            })
+          });
+          if (vResp.ok) {
+            const vData = await vResp.json();
+            extractedText = vData.candidates?.[0]?.content?.parts?.[0]?.text || session.caption || "";
+          }
+        }
+      } else {
+        const parsed = await extractTextFromBuffer(arrayBuf, session.fileName, session.mimeType || "");
+        if (parsed && parsed.length > extractedText.length) {
+          extractedText = parsed;
+        }
       }
     }
 
@@ -1557,7 +1581,10 @@ export async function checkSubscriberAccess(chatId, userId = null) {
       if (doc.exists) {
         const u = doc.data();
         const isAdminUser = isAdminUserDoc(u);
-        const isSubscribed = isAdminUser || hasActivePlan(u);
+        // Owner policy: the bot serves anyone with a positive credits balance —
+        // users spend their OWN credits per action; cash is never mandatory.
+        const hasCredits = Number(u?.credits || 0) > 0;
+        const isSubscribed = isAdminUser || hasActivePlan(u) || hasCredits;
         return { isAllowed: isSubscribed, isAlpha: isAdminUser, role: u.role || (isAdminUser ? "admin" : "user"), user: u, userId };
       }
     }
@@ -1572,7 +1599,8 @@ export async function checkSubscriberAccess(chatId, userId = null) {
     if (!snap.empty) {
       const u = snap.docs[0].data();
       const isAdminUser = isAdminUserDoc(u);
-      const isSubscribed = isAdminUser || hasActivePlan(u);
+      const hasCredits = Number(u?.credits || 0) > 0;
+      const isSubscribed = isAdminUser || hasActivePlan(u) || hasCredits;
       return { isAllowed: isSubscribed, isAlpha: isAdminUser, role: u.role || (isAdminUser ? "admin" : "user"), user: u, userId: snap.docs[0].id };
     }
   } catch (err) {
@@ -1606,19 +1634,19 @@ export function isEmergencySubscriber(auth) {
  */
 export async function sendGatekeeperNotice(chatId) {
   const text = `
-🌟 <b>حسابك الحالي: الخطة المجانية (Free Tier)</b> ⚡
+🌟 <b>حسابك الحالي: غير مشترك ورصيدك صفر</b> ⚡
 ━━━━━━━━━━━━━━━━━━━━
 أهلاً بك يا بطل في بوت <b>Black Fighters</b> الأكاديمي 🤖
 
-⚠️ ميزات البوت التفاعلية المتقدمة تتطلب باقة نشطة:
+💰 البوت يشتغل بنظام <b>الكريدتس</b> — الشخص صاحب الرصيد يستخدم كل الميزات بقيمة كل عملية، ومش لازم اشتراك مدفوع:
 • 🧠 حل وامتحان كويزات النظري (EBE) بنظام Telegram Quizzes التفاعلي
 • 🔬 لوحة تحكم وامتحانات العملي والصور (OSPE)
 • ⚡ تسجيل نتائجك ونقاط الـ XP تلقائياً في حسابك بالموقع
-• 🤖 توليد كويزات فورية من أي ملف PDF ترفعه للبوت
+• 🤖 توليد كويزات وتلخيصات فورية من أي ملف PDF ترفعه للبوت
 • 🔄 مزامنة واستقبال الكويزات المصدرة من المنصة
 
-💡 <b>لتفعيل باقتك والترقية:</b>
-اشترك الآن عبر المنصة أو تواصل مع خدمة العملاء للمساعدة والتفعيل الفوري!
+💡 <b>عايز كريدتس؟</b>
+ادخل على المنصة وسجّل بحسابك — الرصيد المجاني هيتعملك على البوت فوراً، أو اشـحن رصيدك في أي وقت من صفحة الاشتراكات.
   `.trim();
 
   return sendStyledMessage(chatId, text, {
@@ -1884,6 +1912,12 @@ async function handleLinkCommand(chatId, rawCode, tgFrom = {}) {
   const userObj = result.user || {};
   const isAdminUser = isAdminUserDoc(userObj);
   const welcome = buildLinkWelcome(userObj, isAdminUser, chatId);
+  if (result.transferredCredits > 0) {
+    await sendStyledMessage(
+      chatId,
+      `💫 <b>مكافأة الدمج:</b>\nنقلنا <b>+${result.transferredCredits} كريدت</b> كانوا مستخبين في الحساب التجريبي اللي اتفتح بالتيليجرام قبل كده — كله بقى في حسابك الرئيسي عند ${userObj.full_name || "بطل"}.`,
+    );
+  }
   return sendStyledMessage(chatId, welcome.text, welcome.keyboard);
 }
 
@@ -2931,6 +2965,84 @@ ${fileLines.length > 0 ? fileLines.join("\n") : "• <i>المكتبة قيد ا
           [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
         ],
       });
+    }
+
+    // ── Handle Audio / Voice Recording -> Transcribe & Study/Quiz Flow ──
+    if (msg.voice || msg.audio) {
+      const auth = await checkSubscriberAccess(chatId);
+      if (!auth.isAllowed) {
+        return sendGatekeeperNotice(chatId);
+      }
+      const audioObj = msg.voice || msg.audio;
+      const fileId = audioObj?.file_id || "";
+      const fileName = audioObj?.file_name || (msg.voice ? "Voice_Lecture.ogg" : "Audio_Lecture.mp3");
+      const mimeType = audioObj?.mime_type || (msg.voice ? "audio/ogg" : "audio/mp3");
+
+      await sendStyledMessage(
+        chatId,
+        `🎙️ <b>استلمت التسجيل الصوتي!</b> (<code>${fileName}</code>)\n<i>جاري تفريغ الريكورد حرفياً بالذكاء الاصطناعي (العربي + المصطلحات الطبية)...</i> ⏳`,
+      );
+
+      try {
+        const fileMeta = await callTelegramApi("getFile", { file_id: fileId });
+        if (fileMeta?.ok && fileMeta.result?.file_path) {
+          const downloadUrl = `https://api.telegram.org/file/bot${getBotToken()}/${fileMeta.result.file_path}`;
+          const resp = await fetch(downloadUrl);
+          const fileBuf = Buffer.from(await resp.arrayBuffer());
+          if (fileBuf && fileBuf.byteLength > 0) {
+            const { transcribeBuffer } = await import("./lectures/gemini-transcribe.mjs");
+            const result = await transcribeBuffer({
+              bytes: fileBuf,
+              mimeType,
+              displayName: fileName,
+              languageCodes: ["ar-EG", "en-US"],
+            });
+            const transcriptText = String(result?.text || "").trim();
+            if (transcriptText.length > 10) {
+              if (adminDb) {
+                await adminDb.collection("telegram_file_sessions").doc(String(chatId)).set({
+                  chatId: String(chatId),
+                  fileId,
+                  fileName,
+                  mimeType: "text/plain",
+                  isPhoto: false,
+                  extractedText: transcriptText,
+                  caption: msg.caption || "",
+                  status: "waiting_action",
+                  userId: auth.userId || null,
+                  updatedAt: Date.now(),
+                });
+              }
+              const preview = transcriptText.length > 1800 ? `${transcriptText.slice(0, 1800)}...` : transcriptText;
+              return sendStyledMessage(
+                chatId,
+                `✅ <b>تم تفريغ التسجيل الصوتي بنجاح!</b> 🎙️✨\n━━━━━━━━━━━━━━━━━━━━\n${preview}\n━━━━━━━━━━━━━━━━━━━━\nتحب أعملك إيه من المحاضرة دي دلوقتي؟ 👇`,
+                {
+                  inline_keyboard: [
+                    [{ text: "📝 امتحن كويز على المحاضرة", callback_data: "file_action:quiz" }],
+                    [{ text: "📋 تلخيص طبي شامل للمحاضرة", callback_data: "file_action:summary" }],
+                    [{ text: "💡 استخراج أهم المفاهيم والجرعات", callback_data: "file_action:concepts" }],
+                    [{ text: "🌐 فتح منصة تفريغ المحاضرات بالموقع", url: `${getAppBaseUrl()}/lectures` }],
+                  ],
+                },
+              );
+            }
+          }
+        }
+      } catch (audioErr) {
+        console.warn("[TelegramEngine] Audio transcription error:", audioErr?.message);
+      }
+
+      return sendStyledMessage(
+        chatId,
+        `🎙️ <b>لتفريغ المحاضرات الصوتية الطويلة وتنزيلها ككتاب مذاكرة PDF / HTML / PowerPoint وامتحان كويز عليها:</b>\nافتح استوديو تفريغ المحاضرات الذكي في المنصة مباشرة 👇`,
+        {
+          inline_keyboard: [
+            [{ text: "🎙️ فتح منصة تفريغ المحاضرات", url: `${getAppBaseUrl()}/lectures` }],
+            [{ text: "🔙 القائمة الرئيسية", callback_data: "cmd_menu" }],
+          ],
+        },
+      );
     }
 
     // ── Handle Document / File / Image Upload -> Interactive AI Flow ──

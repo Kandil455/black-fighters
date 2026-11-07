@@ -1,0 +1,241 @@
+/**
+ * src/features/lectures/styles/lecture-doc.css — Adaptive RTL Arabic + English Medical
+ * Lecture Document Stylesheet (Section 12).
+ *
+ * Uses existing Atlas & Summary design tokens where defined, with scoped fallbacks.
+ */
+
+.lecture-doc-root {
+  --lec-ink: #f5f7fa;
+  --lec-ink-muted: #9aa4b2;
+  --lec-paper: #05070a;
+  --lec-card: #090c11;
+  --lec-border: rgba(255, 255, 255, 0.1);
+  --lec-accent: #19f08c;
+  --lec-accent-soft: rgba(25, 240, 140, 0.12);
+  --lec-gold: #fbbf24;
+  --lec-gold-soft: rgba(251, 191, 36, 0.14);
+  --lec-warn: #fb7185;
+  --lec-warn-soft: rgba(251, 113, 133, 0.14);
+  --lec-purple: #a78bfa;
+  --lec-purple-soft: rgba(167, 139, 250, 0.12);
+  --lec-blue: #38bdf8;
+  --lec-blue-soft: rgba(56, 189, 248, 0.12);
+  --lec-font-ar: "Cairo", "Tajawal", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif;
+  --lec-font-en: "Inter", "Plus Jakarta Sans", "JetBrains Mono", system-ui, sans-serif;
+  --lec-body-size: 1.0625rem; /* 17px default */
+
+  direction: rtl;
+  text-align: right;
+  font-family: var(--lec-font-ar);
+  font-size: var(--lec-body-size);
+  line-height: 1.95;
+  color: var(--lec-ink);
+}
+
+.lecture-doc-root[data-theme="light"] {
+  --lec-ink: #0f172a;
+  --lec-ink-muted: #475569;
+  --lec-paper: #f8fafc;
+  --lec-card: #ffffff;
+  --lec-border: #e2e8f0;
+  --lec-accent: #0d9488;
+  --lec-accent-soft: rgba(13, 148, 136, 0.1);
+  --lec-gold: #d97706;
+  --lec-gold-soft: rgba(245, 158, 11, 0.12);
+  --lec-warn: #e11d48;
+  --lec-warn-soft: rgba(225, 29, 72, 0.1);
+}
+
+.lecture-doc-root[data-font-size="sm"] {
+  --lec-body-size: 0.9375rem; /* 15px */
+}
+.lecture-doc-root[data-font-size="md"] {
+  --lec-body-size: 1.0625rem; /* 17px */
+}
+.lecture-doc-root[data-font-size="lg"] {
+  --lec-body-size: 1.1875rem; /* 19px */
+}
+
+.lecture-reading-column {
+  max-width: 68ch;
+  width: min(100%, 760px);
+  margin-inline: auto;
+}
+
+.lecture-doc-title {
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--lec-ink);
+}
+
+.lecture-section-card {
+  background: var(--lec-card);
+  border: 1px solid var(--lec-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2.25rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+.lecture-section-card--lazy {
+  content-visibility: auto;
+  contain-intrinsic-size: 600px;
+}
+
+.lecture-section-heading {
+  font-size: clamp(1.2rem, 1.8vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.45;
+  margin-bottom: 0.85rem;
+  color: var(--lec-ink);
+}
+
+.lecture-subheading {
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-top: 1.1rem;
+  margin-bottom: 0.55rem;
+  color: var(--lec-ink);
+}
+
+.lecture-paragraph {
+  margin-bottom: 0.95em;
+  line-height: 1.95;
+}
+
+/* BiDi isolation for Latin / medical spans (Section 12.5) */
+.lecture-doc-root bdi.en,
+.lecture-doc-root .en {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: var(--lec-font-en);
+  font-size: 0.95em;
+  font-weight: 600;
+  padding: 0 0.35em;
+  border-radius: 6px;
+  background: var(--lec-accent-soft);
+  color: var(--lec-accent);
+  display: inline-block;
+  line-height: 1.5;
+}
+
+/* Annotation callout boxes (Section 12.3) */
+.lecture-block-definition {
+  border-right: 4px solid var(--lec-accent);
+  background: var(--lec-accent-soft);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  margin: 0.75rem 0;
+}
+
+.lecture-block-exam {
+  border-right: 4px solid var(--lec-gold);
+  background: var(--lec-gold-soft);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  margin: 0.75rem 0;
+}
+
+.lecture-block-warning {
+  border-right: 4px solid var(--lec-warn);
+  background: var(--lec-warn-soft);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  margin: 0.75rem 0;
+}
+
+.lecture-block-mnemonic {
+  border: 1px dashed var(--lec-purple);
+  background: var(--lec-purple-soft);
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  margin: 0.75rem 0;
+}
+
+.lecture-chip-number {
+  font-family: "JetBrains Mono", var(--lec-font-en);
+  font-variant-numeric: tabular-nums;
+  background: var(--lec-blue-soft);
+  color: var(--lec-blue);
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 700;
+}
+
+.lecture-gap-card {
+  border: 2px dashed var(--lec-gold);
+  background: var(--lec-gold-soft);
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+}
+
+/* Reduced motion (Section 16.4) */
+@media (prefers-reduced-motion: reduce) {
+  .lecture-doc-root,
+  .lecture-doc-root * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Print stylesheet (Section 14.2) */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+
+  .no-print,
+  nav,
+  aside,
+  header.app-chrome,
+  button.lecture-interactive-btn {
+    display: none !important;
+  }
+
+  body,
+  .lecture-doc-root {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    --lec-ink: #0f172a !important;
+    --lec-ink-muted: #334155 !important;
+    --lec-paper: #ffffff !important;
+    --lec-card: #ffffff !important;
+    --lec-border: #cbd5e1 !important;
+  }
+
+  .lecture-reading-column {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .lecture-section-card {
+    box-shadow: none !important;
+    break-inside: avoid-page;
+    margin-bottom: 1.25rem;
+    content-visibility: visible !important;
+  }
+
+  .lecture-section-heading,
+  .lecture-subheading {
+    break-after: avoid;
+  }
+
+  .lecture-block-definition,
+  .lecture-block-exam,
+  .lecture-block-warning,
+  .lecture-block-mnemonic,
+  .lecture-gap-card {
+    break-inside: avoid;
+  }
+
+  table thead {
+    display: table-header-group;
+  }
+}

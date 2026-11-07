@@ -12,6 +12,7 @@ import { base44 } from "@/api/base44Client";
 import { reconcileQuestionAnswer } from "@/lib/quizQuality";
 import { getQuizAuditCost } from "@/lib/creditCosts";
 import { toast } from "sonner";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
 
 export function ImageQuizPlayer({
   imagesWithQuizzes = [],
@@ -24,6 +25,7 @@ export function ImageQuizPlayer({
 }) {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
+  const { applyOptimisticCharge, applyOptimisticRefund } = useOptimisticCharge();
   const [exporting, setExporting] = useState(""); // "pdf" | "pptx" | "json"
   const [exportPct, setExportPct] = useState(0);
   const [auditedOverrides, setAuditedOverrides] = useState({});
@@ -82,19 +84,24 @@ export function ImageQuizPlayer({
     let chargedJob = null;
     const toastId = toast.loading(
       isEn
-        ? `Charging ${aiReviewCost} Cr & auditing ${allItems.length} OSCE questions... 🧠⚡`
-        : `جاري فحص وتصحيح الـ ${allItems.length} سؤال عملي بالـ AI (${aiReviewCost} كريدت)... 🧠⚡`
+        ? `Auditing ${allItems.length} OSCE questions with AI... 🧠⚡`
+        : `جاري فحص وتصحيح الـ ${allItems.length} سؤال عملي بالـ AI... 🧠⚡`
     );
     try {
       const jobKey = `osce_audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const charge = await base44.functions.invoke("chargeAiJob", {
-        action: "charge",
-        jobKey,
-        task: "quiz_audit",
-        cost: aiReviewCost,
-        amount: aiReviewCost,
-        questionCount: allItems.length,
-      });
+      // Optimistic: balance drops in the same render; the server response
+      // then reconciles it with the authoritative value.
+      const charge = await applyOptimisticCharge(
+        () => base44.functions.invoke("chargeAiJob", {
+          action: "charge",
+          jobKey,
+          task: "quiz_audit",
+          cost: aiReviewCost,
+          amount: aiReviewCost,
+          questionCount: allItems.length,
+        }),
+        { cost: aiReviewCost }
+      );
       chargedJob = { jobKey, cost: charge?.data?.cost ?? aiReviewCost };
 
       const res = await base44.functions.invoke("generateStudyContent", {
@@ -131,12 +138,15 @@ export function ImageQuizPlayer({
       playSuccess();
       toast.success(
         fixed > 0
-          ? (isEn ? `AI Audit fixed ${fixed} question(s) (${aiReviewCost} Cr)! 🧠✅` : `تم فحص الكويز العملي وتصحيح إجابات ${fixed} سؤال (${aiReviewCost} كريدت)! 🧠✅`)
-          : (isEn ? `All answers verified 100% accurate (${aiReviewCost} Cr)! ✅⚡` : `تم فحص جميع الأسئلة — كل الإجابات صحيحة 100% (${aiReviewCost} كريدت)! ✅⚡`)
+          ? (isEn ? `AI Audit fixed ${fixed} question(s)! 🧠✅` : `تم فحص الكويز العملي وتصحيح إجابات ${fixed} سؤال! 🧠✅`)
+          : (isEn ? "All answers verified 100% accurate! ✅⚡" : "تم فحص جميع الأسئلة — كل الإجابات صحيحة 100%! ✅⚡")
       );
     } catch (err) {
       if (chargedJob) {
-        await base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }).catch(() => {});
+        await applyOptimisticRefund(
+          () => base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }),
+          { cost: chargedJob.cost }
+        ).catch(() => {});
       }
       toast.dismiss(toastId);
       toast.error(err?.message || (isEn ? "AI Audit failed — no credits deducted" : "حدث خطأ أثناء الفحص بالـ AI — لم يتم خصم أي كريدت"));

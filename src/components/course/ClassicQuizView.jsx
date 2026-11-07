@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { awardBadge } from "@/lib/gamification";
 import QuizPrep from "@/components/course/QuizPrep";
 import { useBadges } from "@/lib/BadgeContext";
-import { buildQuizPerformance, reconcileQuestionAnswer } from "@/lib/quizQuality";
+import { buildQuizPerformance } from "@/lib/quizQuality";
 
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 const QUESTION_TIME = 45; // seconds per question
@@ -35,10 +35,7 @@ const getOptionStyle = (i, correct, selected, answered) => {
 
 export default function QuizView({ quiz, course }) {
   const { showBadges } = useBadges();
-  const allQuestions = React.useMemo(
-    () => (quiz?.questions || []).map((q) => reconcileQuestionAnswer(q)),
-    [quiz?.questions]
-  );
+  const allQuestions = quiz?.questions || [];
   const [questions, setQuestions] = useState(allQuestions);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -159,7 +156,9 @@ export default function QuizView({ quiz, course }) {
       if (q.explanation) lines.push(`   💡 ${q.explanation}`);
       lines.push("");
     });
-    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    // Prepend a UTF-8 BOM so Arabic never decodes as legacy codepage
+    // (mojibake) when the .txt file is opened in Excel or legacy editors.
+    const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
     a.download = `quiz-${course?.title || "results"}.txt`; a.click();
   };

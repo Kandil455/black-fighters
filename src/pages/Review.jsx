@@ -57,7 +57,7 @@ export default function Review() {
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#3DDC97] border border-[#3DDC97]/30 font-mono mb-3">
             <span className="pulse-dot w-1.5 h-1.5" />
-            <span>SPACED REPETITION ENGINE · FSRS v4.5</span>
+            <span>{isEn ? "SMART SPACED REVIEW" : "نظام المراجعة وتثبيت الحفظ"}</span>
           </div>
           <h1 className="text-3xl font-bold text-gradient mb-1">
             {isEn ? "Smart Spaced Review" : "المراجعة والتثبيت الذكي"}
@@ -65,7 +65,7 @@ export default function Review() {
           <p className="text-sm text-white/60">
             {isEn 
               ? "Spaced repetition system to lock complex concepts and high-yield facts into long-term memory."
-              : "نظام تكرار متباعد لتثبيت المفاهيم العلمية والمعلومات المعقدة في الذاكرة طويلة المدى"}
+              : "جدول مراجعة ذكي يفكّرك بالمفاهيم والأرقام المهمة في الوقت المناسب قبل ما تنساها"}
           </p>
         </div>
 
@@ -76,8 +76,8 @@ export default function Review() {
           </h3>
           <p className="text-white/60 text-xs max-w-md mx-auto leading-relaxed">
             {isEn 
-              ? "Convert cards from any lecture or practice active recall directly with Atlas V5 Declassify bars."
-              : "حوّل بطاقات أي مذكرة للمراجعة الذكية (FSRS v4.5)، أو ابدأ جلسة استدعاء نشط فورية عبر شرائط فك التعتيم في الأطلس V5."}
+              ? "Convert cards from any lecture or practice active recall directly by hiding answers inside your summaries."
+              : "ضِف بطاقات من أي مذكرة أو محاضرة للمراجعة الذكية، أو اختبر نفسك فوراً بإخفاء الإجابات داخل الملخصات."}
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Button
@@ -85,21 +85,21 @@ export default function Review() {
                 setDemoSprint([
                   {
                     id: "atlas_demo_1",
-                    course_title: "أطلس الفسيولوجيا · Plate 07",
+                    course_title: "فسيولوجيا القلب · محاضرة 07",
                     front: "ما هي القناة الأيونية المسؤولة عن استمرار طور الهضبة (Phase 2 Plateau) في البطين؟",
                     back: "قنوات الكالسيوم البطيئة L-type Ca2+ بالتوازن مع خروج البوتاسيوم (IKs/IKr).",
                     box: 2,
                   },
                   {
                     id: "atlas_demo_2",
-                    course_title: "الفارماكولوجيا · Plate 07",
+                    course_title: "الفارماكولوجيا · محاضرة 07",
                     front: "ما هي جرعة التحميل الوريدية القياسية لعقار Amiodarone؟",
-                    back: "150–300 mg IV bolus (مدققة عبر Cross-Family Verifier من ص 13).",
+                    back: "150–300 mg IV bolus (مؤكدة من ص 13 في المحاضرة).",
                     box: 3,
                   },
                   {
                     id: "atlas_demo_3",
-                    course_title: "التشريح العصبي · Plate 09",
+                    course_title: "التشريح العصبي · محاضرة 09",
                     front: "أي عصب قحفي ينقل إشارات مستقبلات الضغط من الجيب السباتي (Carotid Sinus)؟",
                     back: "العصب اللساني البلعومي التاسع (CN IX — عصب هيرينغ) إلى نواة السبيل المفرد (NTS).",
                     box: 1,
@@ -108,7 +108,7 @@ export default function Review() {
               }
               className="btn-primary-glow font-bold rounded-full px-6"
             >
-              {isEn ? "⚡ Start Atlas FSRS Sprint (3 Cards)" : "⚡ ابدأ جلسة تثبيت الأطلس FSRS (3 بطاقات)"}
+              {isEn ? "⚡ Start Quick Demo Review (3 Cards)" : "⚡ جرب جلسة مراجعة سريعة (3 بطاقات)"}
             </Button>
           </div>
         </div>
@@ -121,7 +121,7 @@ export default function Review() {
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-[#3DDC97] border border-[#3DDC97]/30 font-mono">
           <FlameIcon className="w-4 h-4 inline" />
-          <span>DAILY FLASHCARD SPRINT · FSRS v4.5</span>
+          <span>{isEn ? "DAILY FLASHCARD SPRINT" : "جلسة تثبيت الحفظ اليومية"}</span>
         </div>
         <h1 className="text-3xl font-bold text-gradient">
           {isEn ? "Daily Review Sprint" : "جلسة المراجعة اليومية"}

@@ -92,14 +92,8 @@ export default function DailyOrderSheet({
 
     const activeCourses = courses.slice(0, 3);
     activeCourses.forEach((course, idx) => {
-      const hasSummary = Boolean(
-        course.summary ||
-          course.summary_v3 ||
-          course.summary_markdown ||
-          course.summary_document_v3 ||
-          course.chapters?.length > 0
-      );
-      const hasQuiz = Number(course.quiz_count || course.quiz?.length || 0) > 0;
+      const hasSummary = Boolean(course.summary || course.summary_v3);
+      const hasQuiz = Array.isArray(course.quiz) && course.quiz.length > 0;
 
       if (idx === 0) {
         list.push({
@@ -209,23 +203,14 @@ export default function DailyOrderSheet({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
-          <Link
-            to="/planner"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#19f08c]/12 hover:bg-[#19f08c]/20 text-[#19f08c] border border-[#19f08c]/35 text-xs font-bold transition-colors cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{isEn ? "AI Voice Planner & PDF" : "جدول البلوك بالصوت و PDF"}</span>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setAddingTask((v) => !v)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0e131b] hover:bg-white/[0.05] text-[#f5f7fa] border border-white/10 hover:border-[#19f08c]/40 text-xs font-semibold transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 text-[#19f08c]" />
-            <span>{isEn ? "Add Task" : "إضافة مهمة"}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setAddingTask((v) => !v)}
+          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0e131b] hover:bg-white/[0.05] text-[#f5f7fa] border border-white/10 hover:border-[#19f08c]/40 text-xs font-semibold transition-colors shrink-0 cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5 text-[#19f08c]" />
+          <span>{isEn ? "Add Task" : "إضافة مهمة"}</span>
+        </button>
       </div>
 
       {addingTask && (

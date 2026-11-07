@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from '@/api/base44Client';
@@ -21,11 +21,10 @@ import { isTelegramAutoSendEnabled } from "@/components/settings/TelegramPanel";
 import LanguageDialog from "@/components/course/LanguageDialog";
 import NotesView from "@/components/course/NotesView";
 import ReminderDialog from "@/components/course/ReminderDialog";
-import CourseInsightBar from "@/components/course/CourseInsightBar";
 import ReviewReminderDialog from "@/components/course/ReviewReminderDialog";
-import TojiCoach from "@/components/course/TojiCoach";
 import { awardXP } from "@/lib/xpSystem";
-import AiChatAssistant from "@/components/course/AiChatAssistant";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
+import { quoteAiJobCost } from "@/lib/optimisticCredits";
 import PracticeMode from "@/components/course/PracticeMode";
 import StudyMode from "@/components/course/StudyMode";
 import CourseShareCard from "@/components/course/CourseShareCard";
@@ -33,7 +32,10 @@ import { GraduationCap } from "lucide-react";
 import { GoogleDriveIcon } from "@/components/ui/icons";
 import { saveIntegrationSettings, requestDriveToken, uploadTextToDrive, courseToMarkdown } from "@/lib/integrations";
 import { getSummaryDocumentV3, getLegacySummaryMarkdown, summaryDocumentToMarkdown } from "@/lib/summaryDocument";
-import { renderStudyGuideHtml } from "@/lib/summaryStudyGuide";
+import { renderStudyGuideHtml, STUDY_GUIDE_TEMPLATES } from "@/lib/summaryStudyGuide";
+import { readStoredTemplate } from "@/lib/summary/exportGuide";
+
+const STUDY_GUIDE_TEMPLATE_IDS = STUDY_GUIDE_TEMPLATES.map((template) => template.id);
 import { getOfflineSnapshot, setOfflineSnapshot } from "@/lib/offlineDb";
 import { getSummaryTemplate } from "@/lib/summaryTemplates";
 import { generateHierarchicalSummary } from "@/lib/summaryPipeline";
@@ -61,7 +63,8 @@ export default function CourseView() {
   const { id } = useParams(); // route param
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, isLoadingAuth } = useAuth();
+  const { applyOptimisticCharge, applyOptimisticRefund } = useOptimisticCharge();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
 
@@ -90,6 +93,48 @@ export default function CourseView() {
   const [exporting, setExporting] = useState(false);
   const [showFolderDialog, setShowFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+
+  const [exportingTelegram, setExportingTelegram] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => {
+    const requested = searchParams.get("tab");
+    const allowed = ["summary", "quiz", "flashcards", "sheet", "practice", "study", "notes", "chat"];
+    return allowed.includes(requested) ? requested : "summary";
+  });
+
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    const allowed = ["summary", "quiz", "flashcards", "sheet", "practice", "study", "notes", "chat"];
+    if (requested && allowed.includes(requested)) {
+      setActiveTab(requested);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const onSummaryUpdated = (e) => {
+      if (!e?.detail?.courseId || String(e.detail.courseId) === String(id)) {
+        queryClient.invalidateQueries({ queryKey: ["contents", id] });
+        queryClient.invalidateQueries({ queryKey: ["course", id] });
+      }
+    };
+    window.addEventListener("iiiak:summary-updated", onSummaryUpdated);
+    return () => window.removeEventListener("iiiak:summary-updated", onSummaryUpdated);
+  }, [id, queryClient]);
+
+  const { data: course, isLoading } = useQuery({
+    queryKey: ["course", id],
+    queryFn: async () => {
+      try {
+        const result = await base44.entities.Course.get(id);
+        if (result) await setOfflineSnapshot(`course:${id}`, result).catch(() => {});
+        return result;
+      } catch (error) {
+        const cached = await getOfflineSnapshot(`course:${id}`).catch(() => null);
+        if (cached) return cached;
+        throw error;
+      }
+    },
+  });
 
   const userFolders = useMemo(() => {
     const set = new Set();
@@ -148,37 +193,6 @@ export default function CourseView() {
     setNewFolderName("");
     setShowFolderDialog(false);
   };
-
-  const [exportingTelegram, setExportingTelegram] = useState(false);
-  const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(() => {
-    const requested = searchParams.get("tab");
-    const allowed = ["summary", "quiz", "flashcards", "sheet", "practice", "study", "notes", "chat"];
-    return allowed.includes(requested) ? requested : "summary";
-  });
-
-  useEffect(() => {
-    const requested = searchParams.get("tab");
-    const allowed = ["summary", "quiz", "flashcards", "sheet", "practice", "study", "notes", "chat"];
-    if (requested && allowed.includes(requested)) {
-      setActiveTab(requested);
-    }
-  }, [searchParams]);
-
-  const { data: course, isLoading } = useQuery({
-    queryKey: ["course", id],
-    queryFn: async () => {
-      try {
-        const result = await base44.entities.Course.get(id);
-        if (result) await setOfflineSnapshot(`course:${id}`, result).catch(() => {});
-        return result;
-      } catch (error) {
-        const cached = await getOfflineSnapshot(`course:${id}`).catch(() => null);
-        if (cached) return cached;
-        throw error;
-      }
-    },
-  });
 
   const { data: contents } = useQuery({
     queryKey: ["contents", id],
@@ -336,14 +350,20 @@ export default function CourseView() {
         quizQuestionPlan = activeChunks.map((item) => item.questions);
       }
       chargedJob = { jobKey: crypto.randomUUID() };
-      const charge = await base44.functions.invoke("chargeAiJob", {
+      const chargePayload = {
         action: "charge",
         jobKey: chargedJob.jobKey,
         task: type,
         charCount: text.length,
         questionCount: type === "quiz" ? requestedQuizCount : effectiveQuizCount,
         totalChunks: chunks.length,
-      });
+      };
+      // Optimistic: balance drops in the same render; the server response
+      // then reconciles it with the authoritative value.
+      const charge = await applyOptimisticCharge(
+        () => base44.functions.invoke("chargeAiJob", chargePayload),
+        { cost: quoteAiJobCost(chargePayload) }
+      );
       chargedJob.cost = charge.data.cost;
 
       // تحديد تعليمات التلوين بناءً على المستوى المختار
@@ -542,7 +562,10 @@ export default function CourseView() {
         if (type === "summary") await bumpCounter("summaries_created", 1);
       } catch {}
       if (reusedCachedSummary || (finalResult?.cache_hit && !finalResult?.hybrid_cache)) {
-        await base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }).catch(() => {});
+        await applyOptimisticRefund(
+          () => base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }),
+          { cost: chargedJob.cost }
+        ).catch(() => {});
         toast.success(
           isEn
             ? "⚡ Smart Batch Cache Hit! Loaded instantly with 0 tokens consumed."
@@ -613,7 +636,10 @@ export default function CourseView() {
 
     } catch (err) {
       if (chargedJob) {
-        await base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }).catch(() => {});
+        await applyOptimisticRefund(
+          () => base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }),
+          { cost: chargedJob.cost }
+        ).catch(() => {});
       }
       const msg = err?.message || "";
       const friendlyMsg =
@@ -625,12 +651,6 @@ export default function CourseView() {
     } finally {
       setGenerating(null);
     }
-  };
-
-  const generateAll = async () => {
-    await generate("summary", "ar");
-    await generate("quiz", "ar");
-    await generate("flashcards", "ar");
   };
 
   const deleteCourse = async () => {
@@ -659,6 +679,17 @@ export default function CourseView() {
     }
   };
 
+  /** Legacy self-heal: author of an unowned-stamped summary claims access. */
+  const claimOwnership = async () => {
+    try {
+      await base44.entities.Enrollment.create({ course_id: id, user_id: profile.id, source: "owner_claim" });
+      await queryClient.invalidateQueries({ queryKey: ["course-enrollment", id, profile?.id] });
+      toast.success(isEn ? "Access restored — no credits were charged ✅" : "تم استعادة ملكية التلخيص بدون أي خصم ✅");
+    } catch (err) {
+      toast.error(err?.message || (isEn ? "Could not restore access" : "تعذّر استعادة الوصول — جرب تاني"));
+    }
+  };
+
   const buyCourse = async () => {
     setPurchasing(true);
     try {
@@ -675,6 +706,14 @@ export default function CourseView() {
 
   const exportPdf = async () => {
     setExporting(true);
+    // Per-line direction detection — English text reads LTR from the left,
+    // Arabic reads RTL from the right, even in a mixed document (bidi-safe).
+    const lineDir = (value = "") => {
+      const arabic = (value.match(/[\u0600-\u06FF\u0750-\u077F]/g) || []).length;
+      const latin = (value.match(/[A-Za-z]/g) || []).length;
+      if (arabic === 0 && latin === 0) return "ltr";
+      return arabic >= latin ? "rtl" : "ltr";
+    };
     const escapeHtml = (value = "") => value.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
     const inline = (value = "") => escapeHtml(value)
       .replace(/==(green|yellow|cyan|orange|red):([^=]+)==/g, '<mark class="hl-$1">$2</mark>')
@@ -688,23 +727,23 @@ export default function CourseView() {
       lines.forEach((line) => {
         const trimmed = line.trim();
         if (!trimmed) { if (inList) { html += "</ul>"; inList = false; } return; }
-        if (trimmed.startsWith("## ")) { if (inList) { html += "</ul>"; inList = false; } html += `<h2><span class="section-title">${inline(trimmed.slice(3))}</span></h2>`; return; }
-        if (trimmed.startsWith("### ")) { if (inList) { html += "</ul>"; inList = false; } html += `<h3><span class="section-title small">${inline(trimmed.slice(4))}</span></h3>`; return; }
-        if (trimmed.startsWith(">")) { if (inList) { html += "</ul>"; inList = false; } html += `<blockquote>${inline(trimmed.replace(/^>\s?/, ""))}</blockquote>`; return; }
-        if (/^[-•]\s+/.test(trimmed)) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(trimmed.replace(/^[-•]\s+/, ""))}</li>`; return; }
+        if (trimmed.startsWith("## ")) { if (inList) { html += "</ul>"; inList = false; } html += `<h2 dir="${lineDir(trimmed)}">${inline(trimmed.slice(3))}</h2>`; return; }
+        if (trimmed.startsWith("### ")) { if (inList) { html += "</ul>"; inList = false; } html += `<h3 dir="${lineDir(trimmed)}">${inline(trimmed.slice(4))}</h3>`; return; }
+        if (trimmed.startsWith(">")) { if (inList) { html += "</ul>"; inList = false; } html += `<blockquote dir="${lineDir(trimmed)}">${inline(trimmed.replace(/^>\s?/, ""))}</blockquote>`; return; }
+        if (/^[-•]\s+/.test(trimmed)) { if (!inList) { html += `<ul dir="${lineDir(trimmed)}">`; inList = true; } html += `<li dir="${lineDir(trimmed)}">${inline(trimmed.replace(/^[-•]\s+/, ""))}</li>`; return; }
         if (inList) { html += "</ul>"; inList = false; }
-        html += `<p>${inline(trimmed)}</p>`;
+        html += `<p dir="${lineDir(trimmed)}">${inline(trimmed)}</p>`;
       });
       if (inList) html += "</ul>";
       return html;
     };
     const notes = await base44.entities.CourseNote.filter({ course_id: id });
-    const notesFor = (index) => notes.filter((n) => n.chapter_index === index && n.content).map((n) => `<blockquote><strong>ملاحظتي:</strong><br/>${inline(n.content).replace(/\n/g, "<br/>")}</blockquote>`).join("");
-    const content = (course.chapters || []).map((ch, i) => `<h2><span class="section-title">Part ${i + 1}: ${inline(ch.title)}</span></h2>${markdownToHtml(ch.content)}${notesFor(i)}`).join("") + notesFor(-1);
+    const notesFor = (index) => notes.filter((n) => n.chapter_index === index && n.content).map((n) => `<blockquote dir="rtl"><strong>ملاحظتي:</strong><br/>${inline(n.content).replace(/\n/g, "<br/>")}</blockquote>`).join("");
+    const content = (course.chapters || []).map((ch, i) => `<h2 dir="${lineDir(ch.title || "")}">${inline(ch.title || "")}</h2>${markdownToHtml(ch.content)}${notesFor(i)}`).join("") + notesFor(-1);
     const logoUrl = "/icons/black-fighters-192.png";
-    const styles = `body{margin:0;background:#fff;color:#111;font-family:Arial,'Tahoma','Cairo',sans-serif;line-height:1.75}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{position:relative;width:794px;max-width:100%;min-height:1123px;margin:0 auto;padding:58px 64px;box-sizing:border-box;background:#fff;color:#111}.print-watermark{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:260px;object-fit:cover;opacity:.035;z-index:0}.header,.page h2,.page h3,.page p,.page ul,.page blockquote,.page code{position:relative;z-index:1}.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:34px;border-bottom:1px solid #eee;padding-bottom:14px}.brand{font-size:13px;color:#777;text-align:center}.brand img{width:72px;height:42px;object-fit:cover;display:block;margin-bottom:4px}h1{font-size:28px;line-height:1.25;margin:0 0 8px;font-weight:800;color:#111}.sub{font-size:13px;color:#666;margin:0}h2{margin:24px 0 12px;font-size:18px;line-height:1.45}h3{margin:20px 0 10px;font-size:15px}.section-title{display:inline-block;background:#242424;color:#fff;border-radius:3px;padding:2px 6px;font-weight:800}.section-title.small{font-size:.92em}p{margin:8px 0}ul{margin:8px 0 16px;padding-inline-start:26px}li{margin:4px 0}strong{font-weight:900;color:#000}mark{border-radius:4px;padding:1px 5px;font-weight:900;color:#000;box-decoration-break:clone;-webkit-box-decoration-break:clone}.hl-yellow{background:#fff05a}.hl-green{background:#58f59b}.hl-cyan{background:#54f4ea}.hl-orange{background:#ffc078}.hl-red{background:#ff4d4d;color:#000}blockquote{margin:14px 0;padding:10px 14px;border-right:4px solid #ff4d4d;background:#fff7d6;font-weight:700}code{background:#f1f1f1;border-radius:3px;padding:1px 4px;color:#111}@media print{.page{width:auto;min-height:auto;margin:0;padding:42px 52px}.print-watermark{position:fixed}}`;
+    const styles = `body{margin:0;background:#fff;color:#14161c;font-family:'Segoe UI',Tahoma,Arial,sans-serif;line-height:1.9;font-size:15px}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{position:relative;width:794px;max-width:100%;min-height:1123px;margin:0 auto;padding:54px 62px;box-sizing:border-box;background:#fff;color:#14161c}.print-watermark{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:260px;height:260px;object-fit:cover;opacity:.03;z-index:0}.header,.page h2,.page h3,.page p,.page ul,.page blockquote,.page code{position:relative;z-index:1}.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;border-bottom:2px solid #0b7a4b;padding-bottom:14px}.brand{font-size:12px;color:#8a8f98;text-align:center}.brand img{width:64px;height:38px;object-fit:cover;display:block;margin-bottom:4px}h1{font-size:26px;line-height:1.3;margin:0 0 6px;font-weight:800;color:#14161c}.sub{font-size:12.5px;color:#6b7078;margin:0}h2{margin:30px 0 10px;padding-bottom:7px;font-size:18px;line-height:1.5;font-weight:800;color:#0b7a4b;border-bottom:1px solid #d9e2da;page-break-after:avoid}h3{margin:22px 0 8px;font-size:15.5px;font-weight:800;color:#1d2430;page-break-after:avoid}p{margin:9px 0}p[dir=ltr],h2[dir=ltr],h3[dir=ltr],li[dir=ltr],blockquote[dir=ltr]{text-align:left;direction:ltr;unicode-bidi:isolate}p[dir=rtl],h2[dir=rtl],h3[dir=rtl],li[dir=rtl],blockquote[dir=rtl]{text-align:right;direction:rtl;unicode-bidi:isolate}ul{margin:8px 0 14px}ul[dir=rtl]{padding-right:22px;padding-left:0}ul[dir=ltr]{padding-left:22px;padding-right:0}li{margin:5px 0}strong{font-weight:800;color:#000}mark{border-radius:4px;padding:1px 5px;font-weight:800;color:#000;box-decoration-break:clone;-webkit-box-decoration-break:clone}.hl-yellow{background:#fff05a}.hl-green{background:#58f59b}.hl-cyan{background:#54f4ea}.hl-orange{background:#ffc078}.hl-red{background:#ff6b6b;color:#000}blockquote{margin:14px 0;padding:10px 16px;background:#f4f6f4;border-inline-start:3px solid #0b7a4b;border-radius:6px;font-weight:600;page-break-inside:avoid}code{background:#f1f2f4;border-radius:3px;padding:1px 4px;color:#14161c;direction:ltr;unicode-bidi:isolate;display:inline-block}@media print{.page{width:auto;min-height:auto;margin:0;padding:40px 50px}.print-watermark{position:fixed}}`;
     const win = window.open("", "_blank");
-    win.document.write(`<!doctype html><html lang="ar" dir="auto"><head><meta charset="utf-8"><title>${escapeHtml(course.title || "Black Fighters")}</title><style>${styles}</style></head><body><img class="print-watermark" src="${logoUrl}"/><main class="page"><section class="header"><div><h1>${inline(course.title || "Black Fighters")}</h1><p class="sub">${inline(course.description || "محتوى عربي + English keywords")}</p></div><div class="brand"><img src="${logoUrl}"/>Black Fighters</div></section>${content}</main><script>window.onload=()=>setTimeout(()=>window.print(),350)</script></body></html>`);
+    win.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${escapeHtml(course.title || "Black Fighters")}</title><style>${styles}</style></head><body><img class="print-watermark" src="${logoUrl}"/><main class="page"><section class="header"><div><h1>${inline(course.title || "Black Fighters")}</h1><p class="sub">${inline(course.description || "محتوى عربي + English keywords")}</p></div><div class="brand"><img src="${logoUrl}"/>Black Fighters</div></section>${content}</main><script>window.onload=()=>setTimeout(()=>window.print(),350)</script></body></html>`);
     win.document.close();
     setTimeout(() => setExporting(false), 600);
   };
@@ -721,9 +760,20 @@ export default function CourseView() {
   if (!course) return <p className="text-center text-muted-foreground py-20">{isEn ? "Course not found" : "الكورس مش موجود"}</p>;
 
   const priceCredits = Number(course.price_credits || 0);
-  const isOwnerOrAdmin = course.created_by_id === profile?.id || profile?.role === "admin";
+  // OWNER RULE (non-negotiable): the summary owner NEVER pays to view their
+  // own content. Payment happens once, only for someone else opening it.
+  // Detect ownership robustly (id/email may live under several keys) and never
+  // gate while auth is still resolving — otherwise the owner himself sees a
+  // bogus paywall the moment the page loads.
+  const ownerKeys = [course.created_by_id, course.created_by, course.user_id, course.owner_id, course.creator_id]
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase());
+  const myKeys = [profile?.id, profile?.user_id, profile?.email]
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase());
+  const isOwnerOrAdmin = ownerKeys.some((key) => myKeys.includes(key)) || profile?.role === "admin";
   const isEnrolled = enrollments.length > 0;
-  const needsPurchase = priceCredits > 0 && !isOwnerOrAdmin && !isEnrolled;
+  const needsPurchase = priceCredits > 0 && !isLoadingAuth && Boolean(profile) && !isOwnerOrAdmin && !isEnrolled;
   const userCredits = Number(profile?.credits || 0);
   const hasEnoughCredits = userCredits >= priceCredits;
 
@@ -754,6 +804,19 @@ export default function CourseView() {
             {purchasing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
             {purchasing ? (isEn ? "Purchasing..." : "جاري الشراء...") : (isEn ? `Unlock Course (${priceCredits} Credits)` : `فتح الكورس وخصم (${priceCredits} كريدت)`)}
           </Button>
+
+          {/* Self-heal for legacy summaries written before ownership was
+              stamped: the AUTHOR claims back access with zero deduction.
+              Only offered when the row carries no owner fields at all. */}
+          {ownerKeys.length === 0 && Boolean(profile?.id) && (
+            <button
+              type="button"
+              onClick={claimOwnership}
+              className="mt-4 text-[11px] font-bold text-muted-foreground underline underline-offset-4 hover:text-primary cursor-pointer"
+            >
+              {isEn ? "I created this summary — restore my access (free)" : "أنا صاحب التلخيص ده — استعادة الوصول بدون أي خصم"}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -792,7 +855,9 @@ function safeParseContent(content) {
 
 /** The study-guide template the student selected (shared with the reader). */
 function readGuideTemplate() {
-  try { return localStorage.getItem("bf_guide_template") || "modules_red"; } catch { return "modules_red"; }
+  // "modules_red" is NOT a real template — it silently produced a blank guide.
+  // The shared helper validates against the real list (owner bug report).
+  return readStoredTemplate(STUDY_GUIDE_TEMPLATE_IDS) || "modules_green";
 }
 
 /**
@@ -957,259 +1022,221 @@ function summaryToTelegramText(summaryRow) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6" dir={dir}>
-      <Link
-        to="/dashboard"
-        className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary mb-1 transition-colors font-mono uppercase tracking-wider"
-      >
-        <ArrowRight className={isEn ? "w-4 h-4 rotate-180" : "w-4 h-4"} />{" "}
-        {isEn ? "Back to Lectures & Notes" : "رجوع للمحاضرات والمذكرات"}
-      </Link>
-
-      <div className="relative glass rounded-[1.25rem] p-6 sm:p-7 overflow-hidden">
-        <div className="relative z-10 flex flex-col sm:flex-row items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-[#f5f7fa]">
-              {course.title}
-            </h1>
-            <div className="flex flex-wrap items-center gap-2 pt-0.5 pb-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-[#19f08c]/10 text-[#19f08c] border border-[#19f08c]/30 hover:bg-[#19f08c]/20 transition-colors cursor-pointer"
-                  >
-                    <Folder className="w-3.5 h-3.5 text-[#19f08c]" />
-                    <span>
-                      {course.folder
-                        ? (isEn ? `Folder: ${course.folder}` : `مجلد: ${course.folder}`)
-                        : (isEn ? "Organize in folder" : "بدون مجلد (تنظيم)")}
-                    </span>
-                    <ChevronDown className="w-3 h-3 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="w-56 bg-[#090c11] text-[#f5f7fa] border border-white/10 rounded-xl shadow-2xl p-1.5"
-                >
-                  <div className="px-2 py-1 text-[11px] font-bold text-[#9aa4b2] border-b border-white/[0.08] mb-1">
-                    {isEn ? "📁 Organize Course" : "📁 مجلد المذكرة:"}
-                  </div>
-                  <DropdownMenuItem
-                    onClick={() => handleUpdateCourseFolder("")}
-                    className="text-xs rounded-lg cursor-pointer flex items-center justify-between"
-                  >
-                    <span>{isEn ? "Unfiled (No folder)" : "بدون مجلد (إلغاء التصنيف)"}</span>
-                    {!course.folder && <Check className="w-3.5 h-3.5 text-[#19f08c]" />}
-                  </DropdownMenuItem>
-                  {userFolders.map((f) => (
-                    <DropdownMenuItem
-                      key={f}
-                      onClick={() => handleUpdateCourseFolder(f)}
-                      className="text-xs rounded-lg cursor-pointer flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <Folder className="w-3.5 h-3.5 text-[#19f08c] shrink-0" />
-                        <span className="truncate">{f}</span>
-                      </div>
-                      {course.folder === f && <Check className="w-3.5 h-3.5 text-[#19f08c]" />}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
-                  <DropdownMenuItem
-                    onClick={() => setShowFolderDialog(true)}
-                    className="text-xs rounded-lg cursor-pointer text-[#19f08c] font-bold gap-2"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{isEn ? "+ New Folder..." : "+ مجلد جديد..."}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {showFolderDialog && (
-                <form
-                  onSubmit={handleCreateAndAssignFolder}
-                  className="inline-flex items-center gap-1.5"
-                >
-                  <input
-                    type="text"
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    placeholder={isEn ? "New folder name..." : "اسم المجلد الجديد..."}
-                    className="h-7 w-36 rounded-lg bg-[#05070a] border border-[#19f08c]/40 px-2 text-xs text-[#f5f7fa] focus:outline-none"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="h-7 px-2.5 rounded-lg bg-[#19f08c] text-[#03150c] text-xs font-bold cursor-pointer"
-                  >
-                    {isEn ? "Save" : "نقل"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowFolderDialog(false)}
-                    className="h-7 px-1.5 rounded-lg text-[#9aa4b2] hover:text-white text-xs cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                </form>
-              )}
-            </div>
-            {course.description && (
-              <p className="text-xs sm:text-sm text-[#9aa4b2] max-w-2xl leading-relaxed">
-                {course.description}
-              </p>
-            )}
-            <Button
-              onClick={generateAll}
-              disabled={!!generating}
-              size="sm"
-              className="mt-3 gap-2 font-bold h-10 px-5 rounded-xl btn-primary-glow bg-[#19f08c] text-[#03150c] hover:bg-[#19f08c]/90"
+    <div className="max-w-5xl mx-auto space-y-3" dir={dir}>
+      <div className="flex flex-wrap items-center justify-between gap-3 glass rounded-2xl px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+          <Link
+            to="/dashboard"
+            className="apple-glass-btn inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+            title={isEn ? "Back to Lectures" : "رجوع للمحاضرات"}
+          >
+            <ArrowRight className={isEn ? "w-3.5 h-3.5 rotate-180" : "w-3.5 h-3.5"} />
+            <span className="hidden sm:inline">{isEn ? "Lectures" : "المقررات"}</span>
+          </Link>
+          <h1 className="font-display text-lg sm:text-xl font-extrabold text-[#f5f7fa] truncate max-w-[260px] sm:max-w-md">
+            {course.title}
+          </h1>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="apple-glass-btn inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-[#19f08c]/10 text-[#19f08c] border border-[#19f08c]/30 hover:bg-[#19f08c]/20 transition-colors cursor-pointer"
+              >
+                <Folder className="w-3 h-3 text-[#19f08c]" />
+                <span>
+                  {course.folder
+                    ? (isEn ? course.folder : course.folder)
+                    : (isEn ? "Folder" : "تنظيم بمجلد")}
+                </span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-56 bg-[#090c11] text-[#f5f7fa] border border-white/10 rounded-xl shadow-2xl p-1.5"
             >
-              {generating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              {isEn ? "Generate All Content (All AI)" : "توليد المحتوى بالكامل (All AI)"}
-            </Button>
-          </div>
-          <div className="flex flex-col gap-1 shrink-0">
-            <div className="flex items-center gap-1 rounded-xl border border-white/[0.07] bg-[#05070a]/70 p-1">
-              <button
-                onClick={() => setReviewReminderOpen(true)}
-                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] hover:bg-white/[0.04] transition-colors cursor-pointer"
-                title={isEn ? "Review Alert" : "تنبيه مراجعة"}
+              <div className="px-2 py-1 text-[11px] font-bold text-[#9aa4b2] border-b border-white/[0.08] mb-1">
+                {isEn ? "📁 Organize Course" : "📁 مجلد المذكرة:"}
+              </div>
+              <DropdownMenuItem
+                onClick={() => handleUpdateCourseFolder("")}
+                className="text-xs rounded-lg cursor-pointer flex items-center justify-between"
               >
-                <BellPlus className="w-4 h-4" />
+                <span>{isEn ? "Unfiled (No folder)" : "بدون مجلد (إلغاء التصنيف)"}</span>
+                {!course.folder && <Check className="w-3.5 h-3.5 text-[#19f08c]" />}
+              </DropdownMenuItem>
+              {userFolders.map((f) => (
+                <DropdownMenuItem
+                  key={f}
+                  onClick={() => handleUpdateCourseFolder(f)}
+                  className="text-xs rounded-lg cursor-pointer flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Folder className="w-3.5 h-3.5 text-[#19f08c] shrink-0" />
+                    <span className="truncate">{f}</span>
+                  </div>
+                  {course.folder === f && <Check className="w-3.5 h-3.5 text-[#19f08c]" />}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-white/[0.08] my-1" />
+              <DropdownMenuItem
+                onClick={() => setShowFolderDialog(true)}
+                className="text-xs rounded-lg cursor-pointer text-[#19f08c] font-bold gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isEn ? "+ New Folder..." : "+ مجلد جديد..."}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {showFolderDialog && (
+            <form
+              onSubmit={handleCreateAndAssignFolder}
+              className="inline-flex items-center gap-1.5"
+            >
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder={isEn ? "New folder name..." : "اسم المجلد الجديد..."}
+                className="h-7 w-36 rounded-lg bg-[#05070a] border border-[#19f08c]/40 px-2 text-xs text-[#f5f7fa] focus:outline-none"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="apple-glass-btn apple-glass-primary h-7 px-2.5 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                {isEn ? "Save" : "نقل"}
               </button>
               <button
-                onClick={() => setReminderOpen(true)}
-                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] hover:bg-white/[0.04] transition-colors cursor-pointer"
-                title={isEn ? "Google Calendar Reminder" : "تذكير Google Calendar"}
+                type="button"
+                onClick={() => setShowFolderDialog(false)}
+                className="apple-glass-btn h-7 px-1.5 rounded-lg text-[#9aa4b2] hover:text-white text-xs cursor-pointer"
               >
-                <CalendarPlus className="w-4 h-4" />
+                ✕
               </button>
-              <button
-                onClick={saveToDrive}
-                disabled={savingDrive}
-                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#4285F4] hover:bg-white/[0.04] transition-colors disabled:opacity-50 cursor-pointer"
-                title={isEn ? "Save to Google Drive" : "حفظ على Google Drive"}
-              >
-                {savingDrive ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
-                ) : (
-                  <GoogleDriveIcon size={18} />
-                )}
-              </button>
-              <button
-                onClick={() => exportToTelegramBot()}
-                disabled={exportingTelegram}
-                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#0088cc] hover:bg-white/[0.04] transition-colors disabled:opacity-50 cursor-pointer"
-                title={isEn ? "Export to Telegram Bot 🤖" : "تصدير إلى التيليجرام 🤖"}
-              >
-                {exportingTelegram ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-[#0088cc]" />
-                ) : (
-                  <Send className="w-4 h-4 text-[#0088cc]" />
-                )}
-              </button>
-              <button
-                onClick={exportPdf}
-                disabled={exporting}
-                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] hover:bg-white/[0.04] transition-colors disabled:opacity-50 cursor-pointer"
-                title={isEn ? "Export PDF" : "تصدير PDF"}
-              >
-                {exporting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-              </button>
-              <button
-                onClick={deleteCourse}
-                className="p-2 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors cursor-pointer"
-                title={isEn ? "Delete Course" : "حذف المذكرة"}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+            </form>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 rounded-xl border border-white/[0.07] bg-[#05070a]/70 p-1 shrink-0">
+          <button
+            onClick={() => setReviewReminderOpen(true)}
+            className="apple-glass-btn p-1.5 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] transition-colors cursor-pointer"
+            title={isEn ? "Review Alert" : "تنبيه مراجعة"}
+          >
+            <BellPlus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setReminderOpen(true)}
+            className="apple-glass-btn p-1.5 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] transition-colors cursor-pointer"
+            title={isEn ? "Google Calendar Reminder" : "تذكير Google Calendar"}
+          >
+            <CalendarPlus className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={saveToDrive}
+            disabled={savingDrive}
+            className="apple-glass-btn p-1.5 rounded-lg text-[#9aa4b2] hover:text-[#4285F4] transition-colors disabled:opacity-50 cursor-pointer"
+            title={isEn ? "Save to Google Drive" : "حفظ على Google Drive"}
+          >
+            {savingDrive ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#4285F4]" />
+            ) : (
+              <GoogleDriveIcon size={16} />
+            )}
+          </button>
+          <button
+            onClick={() => exportToTelegramBot()}
+            disabled={exportingTelegram}
+            className="apple-glass-btn p-1.5 rounded-lg text-[#9aa4b2] hover:text-[#0088cc] transition-colors disabled:opacity-50 cursor-pointer"
+            title={isEn ? "Export to Telegram Bot 🤖" : "تصدير إلى التيليجرام 🤖"}
+          >
+            {exportingTelegram ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0088cc]" />
+            ) : (
+              <Send className="w-3.5 h-3.5 text-[#0088cc]" />
+            )}
+          </button>
+          <button
+            onClick={exportPdf}
+            disabled={exporting}
+            className="apple-glass-btn p-1.5 rounded-lg text-[#9aa4b2] hover:text-[#19f08c] transition-colors disabled:opacity-50 cursor-pointer"
+            title={isEn ? "Export PDF" : "تصدير PDF"}
+          >
+            {exporting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Download className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
+            onClick={deleteCourse}
+            className="apple-glass-btn p-1.5 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-colors cursor-pointer"
+            title={isEn ? "Delete Course" : "حذف المذكرة"}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
-      <TojiCoach
-        course={course}
-        generatedCount={
-          contents.filter((c) => ["quiz", "summary", "flashcards"].includes(c.type || c.content_type))
-            .length
-        }
-      />
-      <CourseInsightBar
-        course={course}
-        generatedCount={
-          contents.filter((c) => ["quiz", "summary", "flashcards"].includes(c.type || c.content_type))
-            .length
-        }
-      />
-
       <Tabs value={activeTab} onValueChange={setActiveTab} dir={dir}>
-        <TabsList className="glass w-full justify-start h-auto p-1.5 flex-wrap rounded-[1.25rem] gap-1">
+        <TabsList className="glass w-full justify-start h-auto p-1 flex-wrap rounded-2xl gap-1">
           <TabsTrigger
             value="summary"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <FileText className="w-4 h-4" /> {isEn ? "Smart Summary" : "الملخص الذكي"}
+            <FileText className="w-3.5 h-3.5" /> {isEn ? "Smart Summary" : "الملخص الأكاديمي"}
           </TabsTrigger>
           <TabsTrigger
             value="quiz"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <Brain className="w-4 h-4" /> {isEn ? "Quizzes" : "الكويزات"}
+            <Brain className="w-3.5 h-3.5" /> {isEn ? "Quizzes" : "الكويزات"}
           </TabsTrigger>
           <TabsTrigger
             value="flashcards"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <Layers className="w-4 h-4" /> {isEn ? "Flashcards" : "البطاقات التعليمية"}
+            <Layers className="w-3.5 h-3.5" /> {isEn ? "Flashcards" : "البطاقات التعليمية"}
           </TabsTrigger>
           <TabsTrigger
             value="content"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <BookOpen className="w-4 h-4" /> {isEn ? "Source Lecture" : "النص الأصلي"}
+            <BookOpen className="w-3.5 h-3.5" /> {isEn ? "Source Lecture" : "النص الأصلي"}
           </TabsTrigger>
           <TabsTrigger
             value="notes"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <StickyNote className="w-4 h-4" /> {isEn ? "Notes" : "الملاحظات"}
+            <StickyNote className="w-3.5 h-3.5" /> {isEn ? "Notes" : "الملاحظات"}
           </TabsTrigger>
           <TabsTrigger
             value="study"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <GraduationCap className="w-4 h-4" /> {isEn ? "Study Mode" : "وضع المذاكرة"}
+            <GraduationCap className="w-3.5 h-3.5" /> {isEn ? "Study Mode" : "وضع المذاكرة"}
           </TabsTrigger>
           <TabsTrigger
             value="practice"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <Target className="w-4 h-4" /> {isEn ? "Practice" : "تدريب"}
+            <Target className="w-3.5 h-3.5" /> {isEn ? "Practice" : "تدريب"}
           </TabsTrigger>
           <TabsTrigger
             value="share"
-            className="gap-2 rounded-xl data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
+            className="gap-1.5 rounded-xl text-xs sm:text-sm data-[state=active]:bg-[#19f08c] data-[state=active]:text-[#03150c] font-semibold"
           >
-            <Share2 className="w-4 h-4" /> {isEn ? "Share" : "مشاركة"}
+            <Share2 className="w-3.5 h-3.5" /> {isEn ? "Share" : "مشاركة"}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="content" className="mt-6">
+        <TabsContent value="content" className="mt-3">
           <EditableStudySheet course={course} />
         </TabsContent>
 
-        <TabsContent value="quiz" className="mt-6">
+        <TabsContent value="quiz" className="mt-3">
           {getContent("quiz") ? (
             <div>
               <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
@@ -1219,7 +1246,7 @@ function summaryToTelegramText(summaryRow) {
                   className="gap-2 font-bold rounded-xl"
                 >
                   <Swords className="w-4 h-4" />
-                  {isEn ? "Start Live Challenge ⚔️" : "بدء تحدّي مباشر ⚔️"}
+                  {isEn ? "Start Live Group Quiz" : "مراجعة جماعية مباشرة"}
                 </Button>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -1276,7 +1303,7 @@ function summaryToTelegramText(summaryRow) {
                 course={course}
                 onJumpToSummary={() => {
                   setActiveTab("summary");
-                  toast.info(isEn ? "Switched to Smart Summary" : "تم الانتقال إلى الملخص الذكي لمراجعة الفقرة 📖");
+                  toast.info(isEn ? "Switched to Smart Summary" : "تم الانتقال إلى الملخص الأكاديمي لمراجعة الفقرة 📖");
                 }}
               />
             </div>
@@ -1309,37 +1336,9 @@ function summaryToTelegramText(summaryRow) {
           )}
         </TabsContent>
 
-        <TabsContent value="summary" className="mt-6">
+        <TabsContent value="summary" className="mt-3">
           {getSummaryData() ? (
             <div>
-              <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-                <Button
-                  type="button"
-                  onClick={() => setShowSummaryRegen((v) => !v)}
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground rounded-xl border border-border/60"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  {showSummaryRegen
-                    ? (isEn ? "Hide Regeneration Options" : "إخفاء خيارات إعادة التوليد")
-                    : (isEn ? "Regenerate with Another Style" : "إعادة توليد الملخص بنمط آخر ⚙️")}
-                </Button>
-                <Button
-                  onClick={() => exportToTelegramBot("summary")}
-                  disabled={exportingTelegram}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-[#0088cc]/40 text-[#0088cc] hover:bg-[#0088cc]/10 font-bold rounded-xl"
-                >
-                  {exportingTelegram ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  {isEn ? "Export Summary to Telegram" : "تصدير الملخص للتيليجرام 🤖"}
-                </Button>
-              </div>
               {showSummaryRegen && (
                 <SummaryGenerationControls
                   summaryStyle={summaryStyle}
@@ -1362,6 +1361,10 @@ function summaryToTelegramText(summaryRow) {
                 summary={getSummaryData()}
                 course={course}
                 generatingType={generating}
+                showSummaryRegen={showSummaryRegen}
+                onToggleSummaryRegen={() => setShowSummaryRegen((v) => !v)}
+                onExportTelegram={() => exportToTelegramBot("summary")}
+                exportingTelegram={exportingTelegram}
                 onSwitchTab={(tab) => setActiveTab(tab)}
                 onGenerateFromSummary={async (targetType, opts = {}) => {
                   await generate(targetType, course?.language === "en" ? "en" : "ar", {
@@ -1373,11 +1376,11 @@ function summaryToTelegramText(summaryRow) {
             </div>
           ) : (
             <EmptyGen
-              label={isEn ? "Smart Structured Summary" : "ملخص ذكي منظم ببطاقات وجداول"}
+              label={isEn ? "Smart Structured Summary" : "ملخص أكاديمي منظم"}
               desc={
                 isEn
                   ? "Choose template and depth before generating"
-                  : "اختر نمط التلخيص وعدد الصفحات لتوليد مذكرة ذكية مقسمة لبطاقات وجداول وفهرس"
+                  : "اختر نمط التلخيص وعدد الصفحات لتوليد مذكرة أكاديمية منظمة"
               }
               button={
                 <SummaryGenerationControls
@@ -1401,7 +1404,7 @@ function summaryToTelegramText(summaryRow) {
           )}
         </TabsContent>
 
-        <TabsContent value="flashcards" className="mt-6">
+        <TabsContent value="flashcards" className="mt-3">
           {getContent("flashcards") ? (
             <div>
               <div className="flex justify-end mb-4">
@@ -1432,11 +1435,11 @@ function summaryToTelegramText(summaryRow) {
           )}
         </TabsContent>
 
-        <TabsContent value="notes" className="mt-6">
+        <TabsContent value="notes" className="mt-3">
           <NotesView courseId={id} course={course} />
         </TabsContent>
 
-        <TabsContent value="study" className="mt-6">
+        <TabsContent value="study" className="mt-3">
           {getContent("quiz") ? (
             <StudyMode quiz={getContentData("quiz")} />
           ) : (
@@ -1451,7 +1454,7 @@ function summaryToTelegramText(summaryRow) {
           )}
         </TabsContent>
 
-        <TabsContent value="practice" className="mt-6">
+        <TabsContent value="practice" className="mt-3">
           {getContent("quiz") ? (
             <PracticeMode quiz={getContentData("quiz")} />
           ) : (
@@ -1466,7 +1469,7 @@ function summaryToTelegramText(summaryRow) {
           )}
         </TabsContent>
 
-        <TabsContent value="share" className="mt-6">
+        <TabsContent value="share" className="mt-3">
           <CourseShareCard course={course} />
         </TabsContent>
       </Tabs>
@@ -1486,7 +1489,6 @@ function summaryToTelegramText(summaryRow) {
         onClose={() => setReviewReminderOpen(false)}
         course={course}
       />
-      <AiChatAssistant course={course} />
     </div>
   );
 }
@@ -1518,8 +1520,8 @@ function QuizControls({
         <span className="text-base">💡</span>
         <p className="text-xs text-foreground/90 leading-relaxed">
           {isEn
-            ? "Black Fighters automatically analyzes content: extracts existing question banks, generates new questions from explanations, and eliminates duplicates."
-            : "يحلل محرك Black Fighters محتوى محاضرتك تلقائياً: يستخرج أسئلة الامتحانات السابقة ويولّد أسئلة جديدة من الشرح مع التفسير العلمي."}
+            ? "IIIAK Academic automatically analyzes content: extracts existing question banks, generates new questions from explanations, and eliminates duplicates."
+            : "يحلل المحرك الأكاديمي محتوى محاضرتك تلقائياً: يستخرج أسئلة الامتحانات السابقة ويولّد أسئلة جديدة من الشرح مع التفسير العلمي."}
         </p>
       </div>
       <div>

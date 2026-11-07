@@ -51,30 +51,26 @@ if (!token) {
   process.exit(1);
 }
 
+// Telegram rejects secret_token values outside [A-Za-z0-9_-]. An invalid secret used
+// to print a success line while setWebhook actually returned 400, leaving the bot
+// with no webhook at all and no visible error.
+if (secret && !/^[A-Za-z0-9_-]{1,256}$/.test(secret)) {
+  console.error(
+    "✖ TELEGRAM_WEBHOOK_SECRET has characters Telegram rejects (allowed: A-Z a-z 0-9 _ -).\n" +
+      "  Generate a valid one and set it in .env.local, .env AND the Vercel project:\n" +
+      "    openssl rand -hex 32",
+  );
+  process.exit(1);
+}
+
 async function api(method, payload = {}) {
-  const hasPayload = Object.keys(payload).length > 0;
-  let body;
-  if (hasPayload) {
-    const form = new FormData();
-    for (const [key, val] of Object.entries(payload)) {
-      if (val === undefined || val === null) continue;
-      form.append(key, typeof val === "object" ? JSON.stringify(val) : String(val));
-    }
-    body = form;
-  }
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    try {
-      const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-        method: "POST",
-        ...(body ? { body } : {}),
-      });
-      const data = await res.json().catch(() => ({}));
-      return data;
-    } catch (err) {
-      if (attempt === 4) throw err;
-      await new Promise((r) => setTimeout(r, 600 * attempt));
-    }
-  }
+  const res = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  return data;
 }
 
 async function showInfo() {
@@ -103,7 +99,12 @@ function checkDrift() {
   );
   const missing = COMMANDS.filter((c) => {
     const bare = c.command.replace(/^\//, "");
-    return !new RegExp(`startsWith\\("\\/${bare}"\\)|=== "\\/${bare}"|between\\(\\"\\/${bare}\\"\\)`).test(engine);
+    // Some commands are dispatched from a combined regex (the main-menu detector
+    // matches /start|/menu|/home in one expression), so also accept a literal
+    // occurrence of the escaped command anywhere in the engine.
+    const handled = new RegExp(`startsWith\\("\\/${bare}"\\)|=== "\\/${bare}"|between\\(\\"\\/${bare}\\"\\)`).test(engine)
+      || engine.includes(`\\/${bare}`);
+    return !handled;
   }).map((c) => c.command);
   if (missing.length) {
     console.warn(`⚠ advertised without a matching handler (check /help copy): ${missing.join(", ")}`);
@@ -144,7 +145,11 @@ async function main() {
     allowed_updates: ["message", "callback_query", "poll_answer"],
     drop_pending_updates: args.includes("--drop-pending"),
   });
-  console.log(set.ok ? `✔ webhook → ${webhookUrl}` : `✖ setWebhook failed: ${set.description}`);
+  if (!set.ok) {
+    console.error(`✖ setWebhook failed: ${set.description || set.error_code || "unknown error"}`);
+    process.exit(1);
+  }
+  console.log(`✔ webhook → ${webhookUrl}`);
 
   const commands = telegramMenuCommands();
   const setCmds = await api("setMyCommands", { commands });

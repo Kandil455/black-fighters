@@ -1,7 +1,7 @@
 {
-  "name": "Black Fighters Study Platform",
-  "short_name": "Black Fighters",
-  "description": "منصة مذاكرة ذكية تعمل أونلاين وأوفلاين",
+  "name": "IIIAK Academic Study Platform",
+  "short_name": "IIIAK",
+  "description": "منصة مذاكرة أكاديمية ذكية تعمل أونلاين وأوفلاين",
   "id": "/",
   "lang": "ar",
   "dir": "rtl",
@@ -9,8 +9,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#09090f",
-  "theme_color": "#00e5ff",
+  "background_color": "#f8fafc",
+  "theme_color": "#f8fafc",
   "categories": ["education", "productivity"],
   "icons": [
     { "src": "/icons/black-fighters-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

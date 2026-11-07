@@ -1,140 +1,127 @@
 import React from "react";
-import { Check, Sparkles } from "lucide-react";
-import { planPrice, planCredits } from "@/lib/plans";
+import { Check, Coins, ArrowRight } from "lucide-react";
+import { planCredits, yearlyPrice, yearlyMonthlyEquivalent } from "@/lib/plans";
 import { useLocale } from "@/lib/LocaleContext";
-import { LVCard, LVBadge } from "@/components/ui/linevault";
+import { GlassCard, LVBadge } from "@/components/ui/linevault";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export default function PlanCard({
   plan,
-  billing = "monthly",
-  selected = false,
+  billing,
+  selected,
   isCurrentPlan = false,
   onSelect,
 }) {
-  const { locale } = useLocale();
+  const { locale, dir } = useLocale();
   const isEn = locale === "en";
-  const price = planPrice(plan, billing);
+  const isYearly = billing === "yearly";
+  const price = isYearly ? yearlyPrice(plan.monthly) : plan.monthly;
+  const perMonth = isYearly
+    ? yearlyMonthlyEquivalent(plan.monthly)
+    : plan.monthly;
   const credits = planCredits(plan, billing);
 
-  const displayBadge = isEn ? plan.badgeEn || plan.badge : plan.badge;
-  const displayTitle = isEn
-    ? plan.nameEn || plan.name
-    : plan.nameAr
-    ? `${plan.name} (${plan.nameAr})`
-    : plan.name;
-  const displayTagline = isEn ? plan.taglineEn || plan.tagline : plan.tagline;
-  const displayHighlights = isEn
-    ? plan.highlightsEn || plan.highlights || []
-    : plan.highlights || [];
+  const rawFeatures =
+    isEn && plan.featuresEn ? plan.featuresEn : plan.features || [];
+  const features = rawFeatures.slice(0, 6);
 
-  const isFreePlan = plan.key === "free" || plan.tier === "free" || price <= 0;
+  const isHighlighted = selected || plan.popular;
 
   return (
-    <LVCard
-      interactive={!isFreePlan}
-      highlight={!isFreePlan && (selected || plan.popular)}
-      padding="p-5 sm:p-6"
-      onClick={() => {
-        if (!isFreePlan) onSelect?.(plan);
-      }}
-      className={cn(
-        "relative flex flex-col justify-between h-full transition-colors duration-150",
-        !isFreePlan && selected && "border-[#19f08c] ring-1 ring-[#19f08c]/40",
-        isFreePlan && "opacity-90 cursor-default"
-      )}
+    <GlassCard
+      dir={dir}
+      accent={isHighlighted}
+      interactive
+      onClick={() => onSelect(plan)}
+      className="flex flex-col justify-between h-full p-6"
     >
       <div>
-        <div className="flex items-center justify-between gap-2 mb-3">
-          {displayBadge ? (
-            <LVBadge variant={plan.popular ? "accent" : "neutral"}>
-              {plan.popular && <Sparkles className="w-3 h-3" />}
-              <span>{displayBadge}</span>
-            </LVBadge>
-          ) : (
-            <span />
-          )}
-
-          {isCurrentPlan && (
-            <LVBadge variant="accent">
-              {isEn ? "Active Plan" : "باقتك الحالية"}
-            </LVBadge>
-          )}
-        </div>
-
-        <h3 className="text-lg font-bold text-[#F2F3F5]">{displayTitle}</h3>
-        <p className="text-xs text-[#9AA0AE] mt-1 leading-relaxed">
-          {displayTagline}
-        </p>
-
-        <div className="my-5 pb-4 border-b border-[#1E222B]">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-extrabold font-mono tabular-nums text-[#F2F3F5]">
-              {price === 0 ? (isEn ? "Free" : "مجاناً") : price}
-            </span>
-            {price > 0 && (
-              <span className="text-xs text-[#9AA0AE]">
-                {isEn ? "EGP /" : "ج.م /"}{" "}
-                {billing === "yearly"
-                  ? isEn
-                    ? "year"
-                    : "سنة"
-                  : isEn
-                  ? "month"
-                  : "شهر"}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div>
+            <h3 className="text-lg font-semibold text-[#f5f7fa]">
+              {plan.nameAr && !isEn ? `${plan.name} (${plan.nameAr})` : plan.name}
+            </h3>
+            {isCurrentPlan && (
+              <span className="text-xs font-medium text-[#19f08c] block mt-0.5">
+                {isEn ? "Current Active Plan" : "باقتك الحالية"}
               </span>
             )}
           </div>
 
-          <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-mono tabular-nums text-[#3DDC97]">
-            <span>+{credits.toLocaleString()}</span>
-            <span>{isEn ? "Credits" : "كريدت"}</span>
-          </div>
+          {plan.popular && (
+            <LVBadge variant="accent">
+              {isEn ? "Recommended" : "موصى بها"}
+            </LVBadge>
+          )}
         </div>
 
-        <ul className="space-y-2.5 mb-6">
-          {displayHighlights.map((item, idx) => (
-            <li
-              key={idx}
-              className="flex items-start gap-2.5 text-xs text-[#F2F3F5]"
-            >
-              <Check className="w-4 h-4 text-[#3DDC97] shrink-0 mt-0.5" />
-              <span className="leading-relaxed">{item}</span>
+        <div className="my-4 pb-4 border-b border-white/[0.07]">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-3xl font-semibold font-mono tabular text-[#f5f7fa]">
+              {price === 0 ? (isEn ? "Free" : "مجاناً") : price}
+            </span>
+            {price > 0 && (
+              <span className="text-xs text-[#9aa4b2]">
+                {isEn
+                  ? `EGP / ${isYearly ? "year" : "month"}`
+                  : `ج.م / ${isYearly ? "سنة" : "شهر"}`}
+              </span>
+            )}
+          </div>
+
+          {isYearly && price > 0 && (
+            <p className="text-xs text-[#19f08c] font-mono tabular mt-1">
+              {isEn
+                ? `≈ ${perMonth} EGP/mo · 2 months free`
+                : `≈ ${perMonth} ج.م شهرياً · شهرين مجاناً`}
+            </p>
+          )}
+
+          {credits > 0 && (
+            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#19f08c]/10 border border-[#19f08c]/30 text-xs font-mono tabular text-[#19f08c]">
+              <Coins className="w-3.5 h-3.5" />
+              <span>
+                {credits.toLocaleString()} {isEn ? "Credits" : "نقطة كريدت"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <ul className="divide-y divide-white/[0.06] text-sm mb-6 list-none p-0 m-0">
+          {features.map((f, i) => (
+            <li key={i} className="flex items-center justify-between gap-2.5 py-2.5">
+              <span className="text-[#f5f7fa]/90 text-xs sm:text-sm leading-relaxed">
+                {f}
+              </span>
+              <Check className="w-4 h-4 text-[#19f08c] shrink-0" />
             </li>
           ))}
         </ul>
       </div>
 
-      {isFreePlan ? (
-        <div className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2.5 text-center text-xs font-semibold text-[#9AA0AE]">
-          {isCurrentPlan
-            ? isEn
-              ? "Your Current Free Tier"
-              : "باقتك المجانية الحالية (مفعّلة تلقائياً)"
-            : isEn
-            ? "Included Free on Sign-Up (No Payment)"
-            : "باقة مجانية تلقائية عند التسجيل (لا تُشترى)"}
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant={selected ? "default" : "outline"}
-          className="w-full"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect?.(plan);
-          }}
-        >
-          {selected
-            ? isEn
-              ? "Selected ✓"
-              : "محددة للدفع ✓"
-            : isEn
-            ? plan.ctaEn || "Select Plan"
-            : plan.cta || "اختيار الباقة"}
-        </Button>
-      )}
-    </LVCard>
+      <Button
+        type="button"
+        variant={isHighlighted ? "default" : "secondary"}
+        className="w-full"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(plan);
+        }}
+      >
+        {selected ? (
+          <>
+            <Check className="w-4 h-4 stroke-[2.5]" />
+            <span>{isEn ? "Selected" : "الباقة المحددة"}</span>
+          </>
+        ) : isCurrentPlan ? (
+          <span>{isEn ? "Current Plan" : "خطتك الحالية"}</span>
+        ) : (
+          <>
+            <span>{isEn ? "Select Plan" : "اختر الباقة"}</span>
+            <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+          </>
+        )}
+      </Button>
+    </GlassCard>
   );
 }

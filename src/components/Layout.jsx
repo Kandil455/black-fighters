@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import { useAuth } from "@/lib/AuthContext";
+import { LECTURE_CONFIG } from "@/features/lectures/lib/config";
 import {
   FileCog,
   Settings,
@@ -11,7 +12,6 @@ import {
   Search,
   Sparkles,
   Headphones,
-  ShieldAlert,
   User,
   CreditCard,
   HelpCircle,
@@ -19,7 +19,6 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { hasEmergencyAccess } from "@/lib/emergencyAccess";
 
 import PageTransition from "@/components/PageTransition";
 import BottomTabBar from "@/components/BottomTabBar";
@@ -53,7 +52,6 @@ const routePrefetchers = {
   "/youtube-ai": () => import("@/pages/YouTubeAIStudio"),
   "/tools": () => import("@/pages/PdfTools"),
   "/practical": () => import("@/pages/ImageExtractor"),
-  "/lectures": () => import("@/pages/Lectures"),
   "/review": () => import("@/pages/Review"),
   "/leaderboard": () => import("@/pages/Leaderboard"),
   "/toji": () => import("@/pages/Toji"),
@@ -104,7 +102,6 @@ export default function Layout() {
       profile?.subscription_plan === "supreme" ||
       profile?.role === "admin"
   );
-  const isEmergencyAllowed = hasEmergencyAccess(profile);
 
   const PRIMARY_HUBS = [
     {
@@ -112,7 +109,11 @@ export default function Layout() {
       items: [
         { to: "/dashboard", label: locale === "ar" ? "اليوم والمقررات" : "Today & Courses", icon: DocumentIcon },
         { to: "/create", label: locale === "ar" ? "رفع وتلخيص محاضرة" : "Upload & Summarize", icon: SummaryNoteIcon },
-        { to: "/lectures", label: locale === "ar" ? "تفريغ المحاضرات الصوتية" : "Audio Lecture Transcriber", icon: Headphones },
+        // Lecture transcriber is behind FEATURE_LECTURES (currently off) — the
+        // link must disappear together with its routes, never lead to a 404.
+        ...(LECTURE_CONFIG.FEATURE_LECTURES
+          ? [{ to: "/lectures", label: locale === "ar" ? "تفريغ المحاضرات الصوتية" : "Audio Lecture Transcriber", icon: Headphones }]
+          : []),
       ],
     },
     {
@@ -129,9 +130,6 @@ export default function Layout() {
       items: [
         { to: "/review", label: locale === "ar" ? "المراجعة وتثبيت الحفظ" : "Smart Review", icon: FlameIcon },
         { to: "/stats", label: locale === "ar" ? "إحصائيات التقدم والأداء" : "Mastery & Stats", icon: TrophyIcon },
-        ...(isEmergencyAllowed
-          ? [{ to: "/emergency", label: locale === "ar" ? "راوند الطوارئ" : "Emergency Triage", icon: ShieldAlert }]
-          : []),
       ],
     },
     {

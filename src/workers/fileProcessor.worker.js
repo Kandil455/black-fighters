@@ -49,13 +49,18 @@ function joinPdfTextItems(items = []) {
 }
 
 async function extractPdf(buffer) {
-  const pdfjs = await import("pdfjs-dist");
+  // Legacy build is the DOM-guarded distribution — the modern build touches
+  // document APIs that do not exist inside a Worker ("document is not defined").
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   ensurePdfWorker(pdfjs);
   const pdf = await pdfjs.getDocument({
     data: new Uint8Array(buffer),
     ...PDF_CMAP_CONFIG,
-    useSystemFonts: true,
-    disableFontFace: false,
+    // Text-extraction only in a Worker: no glyph raster, so no font loading —
+    // font paths reach for `document.fonts` which does not exist off-DOM and
+    // the whole worker died with "document is not defined" (compat fallback).
+    useSystemFonts: false,
+    disableFontFace: true,
     disableWorker: true,
     isEvalSupported: false,
   }).promise;

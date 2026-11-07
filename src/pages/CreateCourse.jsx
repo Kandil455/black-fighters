@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -12,16 +12,19 @@ import CourseGenerationLoader from "@/components/course/CourseGenerationLoader";
 import AssistantLanguagePopup from "@/components/course/AssistantLanguagePopup";
 import AgentPipeline, { AGENTS } from "@/components/course/AgentPipeline";
 import { toast } from "sonner";
+import { showChargeError } from "@/lib/creditsToast";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
 import { awardBadge } from "@/lib/gamification";
 import { useBadges } from "@/lib/BadgeContext";
 import { awardXP } from "@/lib/xpSystem";
 import { splitCourseTextAsync, mergeCourseParts, getTextStats, markdownToCourseChapters } from "@/lib/courseChunking";
+import { resolveSummaryTemplateId, getSummaryDesign, DEFAULT_SUMMARY_DESIGN } from "@/lib/summaryDesigns";
 import { extractTextFromFile } from "@/lib/fileProcessing";
 import { calculateSummaryCost } from "@/lib/economyCatalog";
 import { analyzeDocument, generateHierarchicalSummary } from "@/lib/summaryPipeline";
 import { saveSummaryDocument } from "@/lib/summaryJobs";
 import { backgroundSummaryTracker } from "@/lib/backgroundSummaryTracker";
-import { setOfflineSnapshot } from "@/lib/offlineDb";
+import { attachPdfPageFiguresToSummary, extractQuickFiguresFromFile } from "@/lib/summaryFigures";
 import { generateReviewCardsFromCourse } from "@/lib/reviewCardGen";
 import { notifySlack, buildCourseSlackMessage } from "@/lib/integrations";
 import { useLocale } from "@/lib/LocaleContext";
@@ -36,8 +39,8 @@ const SUPPORTED_EXTENSIONS = ["pdf", "pptx", "ppt", "docx", "doc", "txt", "csv",
 
 export default function CreateCourse() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { profile } = useAuth();
+  const { applyOptimisticCharge, applyOptimisticRefund } = useOptimisticCharge();
   const { showBadges } = useBadges();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
@@ -52,33 +55,19 @@ export default function CreateCourse() {
   const [editingChapters, setEditingChapters] = useState({});
   const [errorMsg, setErrorMsg] = useState("");
   const [pendingInput, setPendingInput] = useState(null);
-  const [languageMode, setLanguageMode] = useState(() => {
-    const qLang = searchParams.get("lang");
-    if (qLang === "bilingual" || qLang === "en" || qLang === "ar") return qLang;
-    try {
-      const saved = JSON.parse(localStorage.getItem("bf_preferred_summary_config") || "{}");
-      if (saved.language === "bilingual" || saved.language === "en" || saved.language === "ar") {
-        return saved.language;
-      }
-    } catch {}
-    return "bilingual";
-  });
-  const [summaryStyle, setSummaryStyle] = useState(() => {
-    const qStyle = searchParams.get("style") || searchParams.get("size");
-    if (qStyle === "small" || qStyle === "atlas_cram") return "atlas_cram";
-    if (qStyle === "medium" || qStyle === "foundational_bilingual") return "foundational_bilingual";
-    if (qStyle === "large" || qStyle === "complete_study_guide") return "complete_study_guide";
-    try {
-      const saved = JSON.parse(localStorage.getItem("bf_preferred_summary_config") || "{}");
-      if (saved.style) return saved.style;
-    } catch {}
-    return "complete_study_guide";
-  });
+  const [languageMode] = useState("bilingual");
+  const [summaryStyle] = useState("foundational_bilingual");
   const [agentIndex, setAgentIndex] = useState(0);
   const [lastCost, setLastCost] = useState(2);
+  const [liveFeed, setLiveFeed] = useState([]); // streaming extracted points during generation
+  const [uploadedFile, setUploadedFile] = useState(null); // kept for post-save PDF figure extraction
+  const uploadedFileRef = useRef(null);
   const [savedCourseId, setSavedCourseId] = useState(null);
   const abortRef = useRef(false);
   const aiJobRef = useRef(null);
+  const autoSavingRef = useRef(false);
+  const [publishing, setPublishing] = useState(false);
+  const [autoPublishFailed, setAutoPublishFailed] = useState(false);
 
   const resetAll = () => {
     try {
@@ -94,6 +83,7 @@ export default function CreateCourse() {
     setFileUrl("");
     setPendingInput(null);
     setSaving(false);
+    setLiveFeed([]);
     toast.info(isEn ? "Ready for a new summary" : "جاهز لإنشاء تلخيص جديد ✨");
   };
 
@@ -108,9 +98,6 @@ export default function CreateCourse() {
         setAgentIndex(bg.agentIndex || 0);
       } else if (bg.completed && bg.preview?.chapters?.length > 0) {
         setPreview(bg.preview);
-        if (bg.preview.courseId || bg.courseId) {
-          setSavedCourseId(bg.preview.courseId || bg.courseId);
-        }
         setFileName(bg.fileName || bg.preview.source_file_name || "ملف محفوظ");
         setProgress(100);
         setStep(2);
@@ -125,7 +112,6 @@ export default function CreateCourse() {
           const parsed = JSON.parse(saved);
           if (parsed?.chapters?.length > 0) {
             setPreview(parsed);
-            if (parsed.courseId) setSavedCourseId(parsed.courseId);
             setStep(2);
             setFileName(parsed.source_file_name || "ملف محفوظ");
           }
@@ -154,104 +140,41 @@ export default function CreateCourse() {
   const chargeSummaryCredits = async (text, totalChunks) => {
     const jobKey = aiJobRef.current || crypto.randomUUID();
     aiJobRef.current = jobKey;
-    const res = await base44.functions.invoke("chargeAiJob", {
-      action: "charge",
-      jobKey,
-      task: "summary",
-      charCount: text.length,
-      totalChunks,
-    });
+    // Optimistic: the balance chip drops the same second, then reconciles
+    // with the authoritative balance in the server response.
+    const res = await applyOptimisticCharge(
+      () => base44.functions.invoke("chargeAiJob", {
+        action: "charge",
+        jobKey,
+        task: "summary",
+        charCount: text.length,
+        totalChunks,
+      }),
+      { cost: calculateSummaryCost(text.length) }
+    );
     return { jobKey, cost: res.data.cost };
   };
 
   const refundSummaryCredits = async (charge) => {
     if (!charge) return;
-    await base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: charge.jobKey, cost: charge.cost });
-  };
-
-  const autoPersistCourse = async (merged, { cost = 2, sourceUrl = "", sourceName = "" } = {}) => {
-    try {
-      const fallbackMarkdown =
-        merged.summary_markdown ||
-        (merged.chapters || [])
-          .map((ch) => `## ${ch.title || ""}\n${ch.content || ""}`)
-          .join("\n\n");
-      merged.summary_markdown = fallbackMarkdown;
-
-      const courseCost = Number(cost || (summaryStyle === "ultra_multi_agent" ? 12 : 2));
-      const course = await base44.entities.Course.create({
-        title: merged.title || "ملخص ذكي",
-        description: merged.description || "ملخص دراسي منظم",
-        language: merged.language || "bilingual",
-        subject: merged.subject || "",
-        level: merged.level || "عام",
-        doc_type: merged.doc_type || "summary",
-        chapters: merged.chapters || [],
-        summary_markdown: fallbackMarkdown,
-        summary_document_v3: merged.summary_document_v3 || null,
-        summary_coverage: merged.summary_coverage || null,
-        summary_fingerprint: merged.summary_fingerprint || "",
-        price_credits: courseCost,
-        credit_cost: courseCost,
-        source_file_url: sourceUrl || fileUrl || "",
-        source_file_name: sourceName || merged.source_file_name || fileName || "",
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      });
-
-      if (!course?.id) return null;
-      merged.courseId = course.id;
-      setSavedCourseId(course.id);
-
-      await setOfflineSnapshot(`course:${course.id}`, {
-        ...course,
-        summary_markdown: fallbackMarkdown,
-        summary_document_v3: merged.summary_document_v3 || null,
-      }).catch(() => {});
-
-      if (merged.summary_document_v3) {
-        saveSummaryDocument({
-          courseId: course.id,
-          document: merged.summary_document_v3,
-          baseRevision: 0,
-          reason: "initial_generation",
-          renderedMarkdown: fallbackMarkdown,
-        }).catch(() => {});
-      }
-
-      if (fallbackMarkdown || merged.summary_document_v3) {
-        try {
-          const generatedRow = await base44.entities.GeneratedContent.create({
-            course_id: course.id,
-            content_type: "summary",
-            language: merged.language || "bilingual",
-            content: JSON.stringify({
-              summary_markdown: fallbackMarkdown,
-              summary_document_v3: merged.summary_document_v3 || null,
-              coverage: merged.summary_coverage || null,
-            }),
-          });
-          if (generatedRow) {
-            await setOfflineSnapshot(`contents:${course.id}`, [generatedRow]).catch(() => {});
-          }
-        } catch (err) {
-          console.warn("Auto GeneratedContent save warning:", err);
-        }
-      }
-
-      return course.id;
-    } catch (err) {
-      console.warn("autoPersistCourse fallback warning:", err);
-      return null;
-    }
+    await applyOptimisticRefund(
+      () => base44.functions.invoke("chargeAiJob", { action: "refund", jobKey: charge.jobKey, cost: charge.cost }),
+      { cost: charge.cost }
+    );
   };
 
   const generateCourseFromText = async (extractedText, name, sourceUrl = "", choices = {}) => {
     const generation = getGenerationOptions(choices, languageMode, summaryStyle);
-    const { language: lang, style, formatOnly, subject } = generation;
+    const { language: lang, formatOnly, subject } = generation;
+    // Owner rule: the chosen VISUAL DESIGN dictates the document contract id,
+    // so the summary is BORN structured for its skin (no style drift).
+    const style = choices.design ? resolveSummaryTemplateId(choices.design) : generation.style;
+    const chosenDesign = choices.design || DEFAULT_SUMMARY_DESIGN;
     setFileName(name);
     setFileUrl(sourceUrl);
     setErrorMsg("");
     abortRef.current = false;
+    setLiveFeed([]);
 
     let charge = null;
     try {
@@ -268,7 +191,9 @@ export default function CreateCourse() {
       const chunks = await splitCourseTextAsync(extractedText);
       charge = await chargeSummaryCredits(extractedText, chunks.length);
       setLastCost(charge.cost);
-      toast.success(`تم خصم ${charge.cost} كريدت للتلخيص — يستمر في الخلفية حتى لو تنقلت بالموقع ⚡`);
+      toast.info(isEn
+        ? "The summary keeps running in the background even if you navigate away ⚡"
+        : "الملخص بيكمّل في الخلفية حتى لو تنقلت بالموقع ⚡");
 
       const startStatus = formatOnly ? `بنسّق نصك بالحرف... ${stats.estimatedPages} صفحة ✍️` : `جاري تحليل ${stats.estimatedPages} صفحة واستخراج المفاهيم... 🔍`;
       setAgentIndex(0);
@@ -288,9 +213,15 @@ export default function CreateCourse() {
           style,
           stylePrompt: fullStylePrompt,
           maxPages: Math.max(10, Math.min(160, Number(choices.maxPages) || Math.ceil(stats.estimatedPages * 0.75) || 20)),
-          colorLevel: "rich",
+          colorLevel: "none",
           signal: { get aborted() { return abortRef.current; } },
-          onProgress: ({ phase, current = 1, total = 1, round = 1 }) => {
+          onProgress: ({ phase, current = 1, total = 1, round = 1, liveSnippet }) => {
+            if (liveSnippet) {
+              setLiveFeed((prev) => {
+                const next = [{ id: Date.now() + Math.random(), text: liveSnippet }, ...prev];
+                return next.slice(0, 6);
+              });
+            }
             const ratio = Math.min(1, current / Math.max(1, total));
             let nextAgent = 0;
             let nextStatus = "";
@@ -340,6 +271,8 @@ export default function CreateCourse() {
           summary_document_v3: summaryResult.document || null,
           summary_job_id: summaryResult.jobId || "",
           summary_model_actual: summaryResult.modelActual || [],
+          summary_design: chosenDesign,
+          include_source_images: choices.includeImages !== false,
         };
 
         if (summaryResult.resumed) {
@@ -351,28 +284,13 @@ export default function CreateCourse() {
         }
         aiJobRef.current = null;
         setAgentIndex(AGENTS.length);
-        setStatusText("جاري حفظ الملخص وتجهيز العرض الفوري...");
-        const autoSavedId = await autoPersistCourse(merged, {
-          cost: summaryResult.resumed ? 0 : charge?.cost,
-          sourceUrl,
-          sourceName: name,
-        });
-        try {
-          localStorage.setItem("bf_create_course_preview_draft", JSON.stringify(merged));
-        } catch {}
+        setStatusText("تمت مراجعة الملخص وتغطيته");
         setPendingInput(null);
         setPreview(merged);
         setProgress(100);
-        setStep(2);
         backgroundSummaryTracker.completeJob(merged);
-        toast.success(isEn ? "Smart Summary Completed! 🎉" : "اكتمل تجهيز الملخص الذكي! 🎉");
-        if (autoSavedId && typeof window !== "undefined" && window.location.pathname.startsWith("/create")) {
-          backgroundSummaryTracker.clearJob();
-          try {
-            localStorage.removeItem("bf_create_course_preview_draft");
-          } catch {}
-          navigate(`/course/${autoSavedId}`);
-        }
+        // Owner directive: never a manual "احفظ" gate — auto-publish + open.
+        void autoPublishPreview(merged);
         return;
       }
 
@@ -421,34 +339,19 @@ export default function CreateCourse() {
       setStatusText(formatOnly ? "بنرتّب التنسيق النهائي... ✨" : "ترتيب الهيكلة النهائية للملخص... ✨");
       setProgress(95);
 
-      const merged = { ...mergeCourseParts(results, name), source_file_name: name };
-      merged.summary_markdown =
-        merged.summary_markdown ||
-        (merged.chapters || [])
-          .map((ch) => `## ${ch.title || ""}\n${ch.content || ""}`)
-          .join("\n\n");
+      const merged = {
+        ...mergeCourseParts(results, name),
+        source_file_name: name,
+        summary_design: chosenDesign,
+        include_source_images: choices.includeImages !== false,
+      };
       await base44.functions.invoke("chargeAiJob", { action: "finalize", jobKey: charge.jobKey }).catch(() => {});
       aiJobRef.current = null;
-      const autoSavedId = await autoPersistCourse(merged, {
-        cost: charge?.cost,
-        sourceUrl,
-        sourceName: name,
-      });
-      try {
-        localStorage.setItem("bf_create_course_preview_draft", JSON.stringify(merged));
-      } catch {}
       setPendingInput(null);
       setPreview(merged);
       setProgress(100);
-      setStep(2);
       backgroundSummaryTracker.completeJob(merged);
-      if (autoSavedId && typeof window !== "undefined" && window.location.pathname.startsWith("/create-course")) {
-        backgroundSummaryTracker.clearJob();
-        try {
-          localStorage.removeItem("bf_create_course_preview_draft");
-        } catch {}
-        navigate(`/course/${autoSavedId}`);
-      }
+      void autoPublishPreview(merged);
 
     } catch (err) {
       const raw = err.message || "";
@@ -464,7 +367,7 @@ export default function CreateCourse() {
       backgroundSummaryTracker.failJob(msg);
       setErrorMsg(msg);
       setStep(0);
-      toast.error(msg);
+      showChargeError(err, { isEn });
     }
   };
 
@@ -522,89 +425,161 @@ export default function CreateCourse() {
       sourceUrl: "",
       analysis: analyzeDocument(extractedText, file.name),
     });
+    if (
+      file.type === "application/pdf" ||
+      /\.(pdf|pptx|ppt|png|jpg|jpeg|webp)$/i.test(file.name || "")
+    ) {
+      uploadedFileRef.current = file;
+      setUploadedFile(file);
+    }
     return true;
   };
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.__bfPendingLandingFile) {
-      const pendingFile = window.__bfPendingLandingFile;
-      window.__bfPendingLandingFile = null;
-      handleFile(pendingFile).catch((err) => {
-        console.warn("Pending landing file error:", err);
-      });
-    }
-  }, []);
-
-  const saveCourse = async () => {
-    if (saving) return;
-    const existingId = savedCourseId || preview?.courseId;
-    if (existingId) {
-      backgroundSummaryTracker.clearJob();
-      try {
-        localStorage.removeItem("bf_create_course_preview_draft");
-      } catch {}
-      navigate(`/course/${existingId}`);
+  const saveCourse = async (sourcePreview = null) => {
+    const doc = sourcePreview || preview;
+    if (!doc || saving) return;
+    if (savedCourseId) {
+      navigate(`/course/${savedCourseId}`);
       return;
     }
     setSaving(true);
     try {
-      const fallbackMarkdown =
-        preview.summary_markdown ||
-        (preview.chapters || [])
-          .map((ch) => `## ${ch.title || ""}\n${ch.content || ""}`)
-          .join("\n\n");
       const courseCost = Number(lastCost || (summaryStyle === "ultra_multi_agent" ? 12 : 2));
-      const course = await base44.entities.Course.create({
-        title: preview.title,
-        description: preview.description,
-        language: preview.language || "ar",
-        subject: preview.subject || "",
-        level: preview.level || "عام",
-        doc_type: preview.doc_type || "summary",
-        chapters: preview.chapters,
-        summary_markdown: fallbackMarkdown,
-        summary_document_v3: preview.summary_document_v3 || null,
-        summary_coverage: preview.summary_coverage || null,
-        summary_fingerprint: preview.summary_fingerprint || "",
+      const baseCoursePayload = {
+        title: doc.title,
+        description: doc.description,
+        language: doc.language || "ar",
+        subject: doc.subject || "",
+        level: doc.level || "عام",
+        doc_type: doc.doc_type || "summary",
+        chapters: doc.chapters,
+        summary_coverage: doc.summary_coverage || null,
+        summary_fingerprint: doc.summary_fingerprint || "",
         price_credits: courseCost,
         credit_cost: courseCost,
         source_file_url: fileUrl,
         source_file_name: fileName,
+        summary_design: doc.summary_design || DEFAULT_SUMMARY_DESIGN,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
-      });
+      };
+      // Ownership is stamped at creation so the AUTHOR never hits a purchase
+      // gate on their own summary (only other viewers ever pay). Retried
+      // without the stamp if this backend build rejects unknown fields.
+      let course;
+      try {
+        course = await base44.entities.Course.create({
+          ...baseCoursePayload,
+          created_by_id: profile?.id || undefined,
+          created_by: profile?.email || undefined,
+        });
+      } catch (ownershipErr) {
+        if (!/unknown|invalid|unexpected|not allowed|unsupported/i.test(String(ownershipErr?.message || ""))) throw ownershipErr;
+        course = await base44.entities.Course.create(baseCoursePayload);
+      }
 
       setSavedCourseId(course.id);
-      backgroundSummaryTracker.clearJob();
+      // Author is auto-enrolled: opening your own summary is always free.
+      if (profile?.id) {
+        try {
+          await base44.entities.Enrollment.create({ course_id: course.id, user_id: profile.id, source: "author" });
+        } catch {}
+      }
       try { const { bumpCounter } = await import("@/lib/gamification"); await bumpCounter("courses_created", 1); } catch {}
       try {
         localStorage.removeItem("bf_create_course_preview_draft");
       } catch {}
 
-      if (preview.summary_document_v3) {
+      if (doc.summary_document_v3) {
         try {
           await saveSummaryDocument({
             courseId: course.id,
-            document: preview.summary_document_v3,
+            document: doc.summary_document_v3,
             baseRevision: 0,
             reason: "initial_generation",
-            renderedMarkdown: fallbackMarkdown,
+            renderedMarkdown: doc.summary_markdown || "",
           });
         } catch (e) {
           console.warn("saveSummaryDocument error:", e);
         }
       }
-      if (fallbackMarkdown || preview.summary_document_v3) {
+      if (doc.summary_markdown) {
         try {
-          await base44.entities.GeneratedContent.create({
+          const summaryContentJson = { summary_markdown: doc.summary_markdown, coverage: doc.summary_coverage };
+          const createdContent = await base44.entities.GeneratedContent.create({
             course_id: course.id,
             content_type: "summary",
-            language: preview.language || "ar",
-            content: JSON.stringify({
-              summary_markdown: fallbackMarkdown,
-              summary_document_v3: preview.summary_document_v3 || null,
-              coverage: preview.summary_coverage,
-            }),
+            language: doc.language || "ar",
+            content: JSON.stringify(summaryContentJson),
           });
+          // 📸 Guaranteed lecture visuals: when the user keeps `include_source_images` enabled,
+          // extract embedded figures AND render source PDF pages into JPEG snapshots.
+          const sourceFile = uploadedFileRef.current;
+          const shouldAttachImages = doc.include_source_images !== false;
+          if (sourceFile && createdContent?.id && shouldAttachImages) {
+            const isPdf = sourceFile.type === "application/pdf" || /\.pdf$/i.test(sourceFile.name || "");
+            const quickEmbeddedFigures = await extractQuickFiguresFromFile(sourceFile, { max: 10 }).catch(() => []);
+            const initialContentJson = quickEmbeddedFigures.length > 0
+              ? { ...summaryContentJson, figures: quickEmbeddedFigures }
+              : summaryContentJson;
+            if (quickEmbeddedFigures.length > 0 && !isPdf) {
+              await base44.entities.GeneratedContent.update(createdContent.id, {
+                course_id: course.id,
+                content_type: "summary",
+                content: JSON.stringify(initialContentJson),
+              }).catch(() => {});
+            }
+            const pageTargets = (() => {
+              const v3 = doc.summary_document_v3 || doc.summaryDocumentV3 || null;
+              const pages = new Set();
+              const visit = (node, depth = 0) => {
+                if (!node || typeof node !== "object" || depth > 12) return;
+                if (Array.isArray(node)) { node.forEach((entry) => visit(entry, depth + 1)); return; }
+                if (Array.isArray(node.sourceRefs)) {
+                  node.sourceRefs.forEach((page) => {
+                    const n = Number(page);
+                    if (Number.isFinite(n) && n > 0) pages.add(Math.round(n));
+                  });
+                }
+                Object.values(node).forEach((value) => visit(value, depth + 1));
+              };
+              visit(v3?.sections || v3?.blocks || []);
+              return [...pages].sort((a, b) => a - b).slice(0, 12);
+            })();
+            const attachPromise = isPdf
+              ? attachPdfPageFiguresToSummary({
+                  file: sourceFile,
+                  GeneratedContent: base44.entities.GeneratedContent,
+                  contentId: createdContent.id,
+                  contentJson: initialContentJson,
+                  courseId: course.id,
+                  pages: pageTargets,
+                  max: 12,
+                })
+                  .then((res) => {
+                    const totalAttached = (res?.attached || 0) + quickEmbeddedFigures.length;
+                    if (totalAttached > 0) {
+                      toast.success(
+                        isEn
+                          ? `${totalAttached} lecture visuals attached 📸`
+                          : `📸 تم إرفاق ${totalAttached} صورة/شكل توضيحي من الملف الأصلي داخل الملخص`
+                      );
+                      if (typeof window !== "undefined") {
+                        window.dispatchEvent(
+                          new CustomEvent("iiiak:summary-updated", {
+                            detail: { courseId: course.id, contentId: createdContent.id },
+                          })
+                        );
+                      }
+                    }
+                    return res;
+                  })
+                  .catch(() => null)
+              : Promise.resolve({ attached: quickEmbeddedFigures.length });
+            await Promise.race([
+              attachPromise,
+              new Promise((resolve) => setTimeout(resolve, 10000)),
+            ]);
+          }
         } catch (e) {
           console.warn("GeneratedContent save error:", e);
         }
@@ -623,23 +598,57 @@ export default function CreateCourse() {
       } catch {}
 
       try {
-        const cardCount = await generateReviewCardsFromCourse(course, preview.chapters || []);
+        const cardCount = await generateReviewCardsFromCourse(course, doc.chapters || []);
         if (cardCount > 0) toast.success(`اتولّد ${cardCount} بطاقة مراجعة تلقائياً 🧠`);
       } catch {}
 
       try {
-        const sent = await notifySlack(buildCourseSlackMessage({ ...preview, ...course }));
+        const sent = await notifySlack(buildCourseSlackMessage({ ...doc, ...course }));
         if (sent) toast.success("اتبعت إشعار على Slack 💬");
       } catch {}
 
-      toast.success(isEn ? "Summary saved successfully! 🎉" : "الملخص اتحفظ بنجاح! 🎉");
+      toast.success(isEn ? "Summary saved successfully! 📘" : "تم حفظ الملخص الأكاديمي بنجاح! 📘");
       navigate(`/course/${course.id}`);
     } catch (err) {
       console.error("Save course error:", err);
       toast.error(isEn ? "Error saving summary — try again" : "حصل خطأ في الحفظ — جرب تاني");
       setSaving(false);
+      setPublishing(false);
+      setAutoPublishFailed(true);
+      autoSavingRef.current = false;
+      throw err;
     }
   };
+
+  /**
+   * Owner directive: after generation there is NO "احفظ" step — the summary
+   * publishes itself in the background and the page opens on the finished,
+   * beautiful reader. Manual editing stays available inside CourseView.
+   */
+  const autoPublishPreview = async (source) => {
+    if (autoSavingRef.current || !source) return;
+    autoSavingRef.current = true;
+    setAutoPublishFailed(false);
+    setPublishing(true);
+    setStep(2);
+    try {
+      await saveCourse(source);
+      toast.success(isEn ? "Academic summary published! 📘" : "اكتمل التلخيص الأكاديمي ونُشر تلقائيًا 📘");
+    } catch {
+      /* failure path shows the manual editor with a retry banner */
+    }
+  };
+
+  const autoAttemptedRef = useRef(null);
+  // Restored sessions (background job finished while away / draft in storage)
+  // auto-publish too — the owner never sees a save gate.
+  useEffect(() => {
+    if (step === 2 && preview && !savedCourseId && !saving
+        && !autoSavingRef.current && autoAttemptedRef.current !== preview) {
+      autoAttemptedRef.current = preview;
+      void autoPublishPreview(preview);
+    }
+  }, [step, preview, savedCourseId, saving]);
 
   return (
     <div dir={dir} className="max-w-3xl mx-auto space-y-8">
@@ -663,21 +672,17 @@ export default function CreateCourse() {
                 fileName={pendingInput.name}
                 creditCost={calculateSummaryCost(pendingInput.text?.length || 0)}
                 analysis={pendingInput.analysis}
-                initialLanguage={languageMode}
-                initialStyle={summaryStyle}
                 onChangeFile={() => {
                   setPendingInput(null);
                   setFileName("");
                   setErrorMsg("");
                 }}
-                onConfirm={({ language, style, subjectType, maxPages, includeImages }) => {
-                  setLanguageMode(language);
-                  setSummaryStyle(style);
+                onConfirm={({ language, style, design, subjectType, maxPages, includeImages }) => {
                   generateCourseFromText(
                     pendingInput.text,
                     pendingInput.name,
                     pendingInput.sourceUrl,
-                    { language, style, subjectType, colorLevel: "rich", maxPages, includeImages }
+                    { language, style, design, subjectType, colorLevel: "none", maxPages, includeImages }
                   );
                 }}
               />
@@ -696,7 +701,7 @@ export default function CreateCourse() {
                   <span className="h-px flex-1 bg-border" />
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   <button
                     type="button"
                     aria-expanded={altMode === "text"}
@@ -738,23 +743,106 @@ export default function CreateCourse() {
               onCancel={() => { abortRef.current = true; setStatusText(isEn ? "Stopping process..." : "جاري إيقاف العملية..."); }}
             />
             <AgentPipeline activeIndex={agentIndex} />
+
+            {/* ⚡ Live extraction feed — the summary assembles itself in real time */}
+            {liveFeed.length > 0 && (
+              <div className="mt-6 max-w-2xl mx-auto rounded-2xl border border-[#19f08c]/25 bg-[#070a12]/90 overflow-hidden text-right" dir="rtl">
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06] bg-[#19f08c]/[0.06]">
+                  <span className="relative flex size-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#19f08c] opacity-60 motion-reduce:animate-none" />
+                    <span className="relative inline-flex rounded-full size-2.5 bg-[#19f08c]" />
+                  </span>
+                  <p className="text-xs font-black text-[#19f08c]">
+                    {isEn ? "Extracting now — watch the summary build itself" : "يتم الاستخراج الآن — شاهد الملخص وهو بيتبني"}
+                  </p>
+                </div>
+                <div className="p-4 space-y-2 max-h-56 overflow-y-auto">
+                  <AnimatePresence initial={false}>
+                    {liveFeed.map((entry) => (
+                      <motion.p
+                        key={entry.id}
+                        initial={{ opacity: 0, x: -14 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-[13px] leading-7 text-[#c9d4e2] border-s-2 border-[#19f08c]/40 ps-3 whitespace-pre-line"
+                      >
+                        {entry.text}
+                      </motion.p>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
         {step === 2 && preview && (
-          <CreateCoursePreview
-            preview={preview}
-            isEn={isEn}
-            lastCost={lastCost}
-            saving={saving}
-            savedCourseId={savedCourseId}
-            editingChapters={editingChapters}
-            onSave={saveCourse}
-            onReset={resetAll}
-            onOpenSaved={() => navigate(`/course/${savedCourseId}`)}
-            onPreviewChange={setPreview}
-            onEditingChaptersChange={setEditingChapters}
-          />
+          autoPublishFailed ? (
+            /* Safety net ONLY when auto-publish throws — the manual editor
+               survives so no student loses their generated work. */
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4 text-center space-y-2">
+                <p className="text-sm font-black text-amber-300">
+                  {isEn ? "Auto-publish hit a snag — retry or save manually below" : "النشر التلقائي اتعطّل — أعد المحاولة أو احفظ يدويًا أدناه"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setAutoPublishFailed(false); autoSavingRef.current = false; void autoPublishPreview(preview); }}
+                  className="rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground cursor-pointer"
+                >
+                  {isEn ? "Retry auto-publish ⚡" : "إعادة النشر التلقائي ⚡"}
+                </button>
+              </div>
+              <CreateCoursePreview
+                preview={preview}
+                isEn={isEn}
+                lastCost={lastCost}
+                saving={saving}
+                savedCourseId={savedCourseId}
+                editingChapters={editingChapters}
+                onSave={saveCourse}
+                onReset={resetAll}
+                onOpenSaved={() => navigate(`/course/${savedCourseId}`)}
+                onPreviewChange={setPreview}
+                onEditingChaptersChange={setEditingChapters}
+              />
+            </div>
+          ) : (
+            /* Owner rule: no save gate — auto-publishing screen only. */
+            <motion.div
+              key="autopublish"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mx-auto max-w-xl rounded-3xl border border-[#19f08c]/25 bg-[#080C14] p-8 text-center space-y-5"
+              dir={isEn ? "ltr" : "rtl"}
+            >
+              <div className="relative mx-auto size-16">
+                <span className="absolute inset-0 animate-ping rounded-full bg-[#19f08c]/20 motion-reduce:animate-none" />
+                <div className="relative grid size-16 place-items-center rounded-full border border-[#19f08c]/40 bg-[#19f08c]/10 text-3xl">📘</div>
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-lg font-black text-foreground">
+                  {isEn ? "Publishing your academic summary…" : "جاري نشر تلخيصك الأكاديمي تلقائيًا…"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {isEn
+                    ? `Opening the ${getSummaryDesign(preview.summary_design)?.titleEn || "Academic Study Paper"} reader…`
+                    : `سيفتح مباشرةً على تنسيق «${getSummaryDesign(preview.summary_design)?.titleAr || "المذكرة الأكاديمية الشاملة"}»…`}
+                </p>
+              </div>
+              <div className="mx-auto h-1.5 w-56 overflow-hidden rounded-full bg-white/10">
+                <motion.div
+                  className="h-full w-full rounded-full bg-gradient-to-l from-[#19f08c] to-amber-400"
+                  style={{ transformOrigin: "left center" }}
+                  initial={{ scaleX: 0.08 }}
+                  animate={{ scaleX: publishing ? 0.82 : 0.96 }}
+                  transition={{ duration: 1.6, ease: "easeOut" }}
+                />
+              </div>
+              <p className="text-[11px] font-bold text-[#19f08c]/80">
+                {isEn ? "Saving + attaching figures + review cards…" : "بنحفظ + بنركّب الصور + بنجهّز بطاقات المراجعة…"}
+              </p>
+            </motion.div>
+          )
         )}
       </AnimatePresence>
     </div>

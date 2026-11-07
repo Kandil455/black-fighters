@@ -1,15 +1,34 @@
 /** @type {import('tailwindcss').Config} */
+const plugin = require("tailwindcss/plugin");
+
 module.exports = {
-    darkMode: ["class"],
+    darkMode: ["selector", '[data-theme="dark"], .dark'],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
   		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			// Editorial, square. Cards/panels/buttons use the scale below and become
+  			// square. `full` stays a circle on purpose (avatars, dots, status pills).
+  			// Clamped so a zero --radius never yields a negative calc().
+  			xs: '0px',
+  			sm: 'max(0px, calc(var(--radius) - 4px))',
+  			md: 'max(0px, calc(var(--radius) - 2px))',
+  			lg: 'max(0px, var(--radius))',
+  			xl: '0px',
+  			'2xl': '0px',
+  			'3xl': '0px',
+  			full: '9999px'
   		},
   		colors: {
+  			bg: 'var(--bg)',
+  			surface: {
+  				DEFAULT: 'var(--surface)',
+  				2: 'var(--surface-2)',
+  			},
+  			'text-token': {
+  				DEFAULT: 'var(--text)',
+  				2: 'var(--text-2)',
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -124,5 +143,13 @@ module.exports = {
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+	  require("tailwindcss-animate"),
+	  // Directional variants: the UI flips `dir` on <html>, so these match anywhere below it.
+	  // Used across the app as rtl:/ltr: prefixes (icons mirroring, RTL origins, positioning).
+	  plugin(({ addVariant }) => {
+	    addVariant("rtl", '[dir="rtl"] &');
+	    addVariant("ltr", '[dir="ltr"] &');
+	  }),
+	],
 }

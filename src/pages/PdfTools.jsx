@@ -14,6 +14,8 @@ import { recognizeFile } from "@/lib/ocr";
 import { SUMMARY_TEMPLATES, SUBJECT_TYPES } from "@/lib/summaryTemplates";
 import { KineticHeading, KineticParagraph } from "@/components/ui/KineticTextReveal";
 import { useLocale } from "@/lib/LocaleContext";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
+import { calculateSummaryCost } from "@/lib/economyCatalog";
 
 const RAW_TOOLS = [
   { id: "summarize", categoryAr: "AI", categoryEn: "AI", labelAr: "تلخيص PDF", labelEn: "PDF Summary", descAr: "ملخص واضح بنقاط وأهم الأفكار", descEn: "Clear bullet points with high-yield concepts", icon: BookOpen, color: "text-primary", border: "border-primary/30", glow: "hover:neon-glow-cyan", uploadHintAr: "اختار PDF أو صورة أو ملف نصي للتلخيص", uploadHintEn: "Select PDF, image, or text file to summarize" },
@@ -43,6 +45,7 @@ const ACCEPT = {
 export default function PdfTools() {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
+  const { applyOptimisticCharge, applyOptimisticRefund } = useOptimisticCharge();
   const TOOLS = React.useMemo(() => RAW_TOOLS.map(t => ({
     ...t,
     label: isEn ? t.labelEn : t.labelAr,
@@ -64,7 +67,7 @@ export default function PdfTools() {
   const abortRef = useRef(null);
 
   // إعدادات التلخيص
-  const [summaryTemplate, setSummaryTemplate] = useState("complete_study_guide");
+  const [summaryTemplate, setSummaryTemplate] = useState("exam_revision_sheet");
   const [summarySubject, setSummarySubject] = useState("auto");
   const [summaryColorLevel, setSummaryColorLevel] = useState("medium");
 
@@ -123,9 +126,14 @@ export default function PdfTools() {
         }
         if (!text || text.trim().length < 50) throw new Error("المحتوى قصير جداً أو الملف لا يحتوي على نص مفيد");
         chargedJob = { jobKey: crypto.randomUUID() };
-        const charge = await functions.invoke("chargeAiJob", {
-          action: "charge", jobKey: chargedJob.jobKey, task: "summary", charCount: text.length,
-        });
+        // Optimistic: the balance drops in the same render, then the server
+        // response reconciles it to the authoritative value.
+        const charge = await applyOptimisticCharge(
+          () => functions.invoke("chargeAiJob", {
+            action: "charge", jobKey: chargedJob.jobKey, task: "summary", charCount: text.length,
+          }),
+          { cost: calculateSummaryCost(text.length) }
+        );
         chargedJob.cost = charge.data.cost;
 
         // تحديد القالب والمادة
@@ -159,7 +167,10 @@ export default function PdfTools() {
           },
         });
         if (generated.resumed) {
-          await functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }).catch(() => {});
+          await applyOptimisticRefund(
+            () => functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }),
+            { cost: chargedJob.cost }
+          ).catch(() => {});
           toast.info("تم استرجاع النتيجة المحفوظة بدون خصم كريدتس");
         } else {
           await functions.invoke("chargeAiJob", { action: "finalize", jobKey: chargedJob.jobKey }).catch(() => {});
@@ -185,7 +196,10 @@ export default function PdfTools() {
       }
     } catch (err) {
       if (chargedJob) {
-        await functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }).catch(() => {});
+        await applyOptimisticRefund(
+          () => functions.invoke("chargeAiJob", { action: "refund", jobKey: chargedJob.jobKey, cost: chargedJob.cost }),
+          { cost: chargedJob.cost }
+        ).catch(() => {});
       }
       const msg = err.response?.data?.error || err.message;
       toast.error(msg === "NO_API_KEY" ? "خدمة المعالجة الذكية قيد التحديث المؤقت — يرجى المحاولة بعد قليل" : msg || "حصل خطأ");

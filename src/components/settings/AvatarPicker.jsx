@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { Crown, Check, Loader2, Palette, Lock, Coins, ExternalLink, Sparkles } from "lucide-react";
+import { Crown, Check, Loader2, Palette, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
-import { AVATAR_STYLES, AVATAR_FRAMES, TIER_LABELS, ownsFrame } from "@/lib/avatars";
+import { AVATAR_STYLES } from "@/lib/avatars";
 import { useLocale } from "@/lib/LocaleContext";
 import { Link } from "react-router-dom";
 
@@ -19,22 +19,14 @@ export default function AvatarPicker({ profile, onSaved }) {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
   const [avatar, setAvatar] = useState(profile?.avatar_url || "");
-  const [frame, setFrame] = useState(profile?.profile_frame || profile?.active_frame || "none");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (frame !== "none" && !ownsFrame(profile, frame)) {
-      return toast.error(
-        isEn
-          ? "Unlock this RPG frame from the Profile Armory first! 🔒"
-          : "افتح الإطار ده الأول من ترسانة البروفايل عشان تقدر تفعّله! 🔒"
-      );
-    }
     setSaving(true);
     try {
-      await base44.auth.updateMe({ avatar_url: avatar || null, profile_frame: frame, active_frame: frame });
-      toast.success(isEn ? "Profile loadout updated ✨" : "تم حفظ صورتك وإطارك المتحرك بنجاح ✨");
-      onSaved?.({ avatar_url: avatar, profile_frame: frame });
+      await base44.auth.updateMe({ avatar_url: avatar || null });
+      toast.success(isEn ? "Avatar updated ✨" : "تم حفظ صورتك بنجاح ✨");
+      onSaved?.({ avatar_url: avatar });
     } catch (e) {
       toast.error(e.message || (isEn ? "Failed to save profile" : "حصل خطأ في الحفظ"));
     } finally {
@@ -61,21 +53,21 @@ export default function AvatarPicker({ profile, onSaved }) {
       </div>
       <p className="text-sm text-muted-foreground mb-6">
         {isEn
-          ? "Preview and equip live animated dragon, phoenix, and lightning frames."
-          : "عاين وفعّل إطارات الألعاب المرسومة بالتنانين والأجنحة والصواعق المتحركة حياً."}
+          ? "Pick your photo or an energy colour — it appears everywhere in the app."
+          : "اختار صورتك أو لون الطاقة — بيظهر في كل المنصة."}
       </p>
 
       {/* Live Large Animated Preview */}
       <div className="flex flex-col items-center justify-center py-6 mb-7 rounded-2xl bg-background/60 border border-border/60">
         <AnimatedAvatar
           src={avatar}
-          frame={frame}
+          frame="none"
           size={116}
           fallback={initials}
           animate={true}
         />
         <p className="mt-4 text-xs font-black text-primary">
-          {AVATAR_FRAMES[frame]?.labelAr || AVATAR_FRAMES[frame]?.label || "بدون إطار"}
+          {isEn ? "Preview" : "معاينة"}
         </p>
       </div>
 
@@ -111,71 +103,10 @@ export default function AvatarPicker({ profile, onSaved }) {
         })}
       </div>
 
-      {/* Always-Animated RPG Frame Selector */}
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-black flex items-center gap-1.5">
-          <Sparkles className="w-4 h-4 text-amber-400" />
-          {isEn ? "Animated RPG Frames (Always Live)" : "إطارات الألعاب المتحركة (معاينة حية دائمة)"}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 mb-8">
-        {Object.entries(AVATAR_FRAMES).map(([key, f]) => {
-          const owned = key === "none" || ownsFrame(profile, key);
-          const isSelected = frame === key;
-          const tierObj = TIER_LABELS[f.tier || "vanguard"] || TIER_LABELS.vanguard;
-
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFrame(key)}
-              className={`relative flex flex-col items-center justify-between p-3.5 rounded-2xl border-2 transition-all ${
-                isSelected
-                  ? "border-primary bg-primary/10 shadow-lg"
-                  : owned
-                  ? "border-border/70 hover:border-primary/50 bg-card/50"
-                  : "border-border/40 bg-card/30 hover:border-amber-400/50"
-              }`}
-            >
-              <div className="w-full flex items-center justify-between text-[9px] font-bold mb-1">
-                <span style={{ color: tierObj.color }}>{isEn ? tierObj.labelEn : tierObj.labelAr}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-primary stroke-[3]" />}
-                {!owned && !isSelected && <Lock className="w-3 h-3 text-amber-400" />}
-              </div>
-
-              <div className="relative my-2.5 flex items-center justify-center w-20 h-20">
-                <AnimatedAvatar
-                  src={avatar}
-                  frame={key}
-                  size={58}
-                  fallback={initials}
-                  animate={true}
-                />
-              </div>
-
-              <span className={`text-[11px] font-black truncate max-w-full ${isSelected ? "text-primary" : "text-foreground"}`}>
-                {isEn ? f.label : f.labelAr || f.label}
-              </span>
-
-              {!owned ? (
-                <span className="flex items-center gap-1 text-[10px] font-black text-amber-400 mt-1 font-mono tabular-nums">
-                  <Coins className="w-3 h-3" />
-                  {f.price < 0 ? "VIP" : f.price}
-                </span>
-              ) : (
-                <span className="text-[10px] text-emerald-400 font-bold mt-1">
-                  {key === "none" ? (isEn ? "Default" : "افتراضي") : (isEn ? "Unlocked" : "مفتوح ✔")}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
 
       <Button onClick={save} disabled={saving} className="w-full h-12 font-black gap-2">
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-        {isEn ? "Save Avatar & Frame" : "حفظ الصورة والإطار"}
+        {isEn ? "Save Avatar" : "حفظ الصورة"}
       </Button>
     </div>
   );

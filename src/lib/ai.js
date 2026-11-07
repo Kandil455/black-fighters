@@ -6,60 +6,43 @@
  */
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import {
-  localAnalyzeQuizSource,
-  normalizeQuizResult,
-  reconcileQuestionAnswer,
-  matchTextAgainstOptions,
-  verifyAndPrepareQuizQuestions,
-  QUIZ_MAX_QUESTIONS,
-  detectLanguage,
-  detectSubject,
-  getRecommendedQuizLanguage,
-} from "./quizQuality.js";
-import {
-  buildArtifactKey,
-  getCachedArtifact,
-  setCachedArtifact,
-  prepareHybridQuizPlan,
-  commitHybridQuizQuestions,
-} from "./smartCache.js";
-// ─── Environment Resolver (Vite + Node safe) ─────────────────────────────────
-const env = (typeof import.meta !== "undefined" && import.meta.env) ? import.meta.env : (typeof process !== "undefined" ? process.env : {});
+import { localAnalyzeQuizSource, normalizeQuizResult, reconcileQuestionAnswer, QUIZ_MAX_QUESTIONS, detectLanguage, detectSubject, getRecommendedQuizLanguage } from "./quizQuality.js";
+// ─── Environment Resolver (Server/Node only; browser uses /api/ai proxy) ────
+const getServerEnvKey = (k) =>
+  typeof window === "undefined" && typeof process !== "undefined" && process.env
+    ? process.env[k] || ""
+    : "";
 
-const getEnvKey = (k) => env[k] || (typeof process !== "undefined" ? process.env?.[k] : "") || "";
-
-export const DEFAULT_GEMINI_KEY = getEnvKey("GEMINI_API_KEY") || getEnvKey("VITE_GEMINI_API_KEY") || "";
+export const DEFAULT_GEMINI_KEY = getServerEnvKey("GEMINI_API_KEY") || getServerEnvKey("LECTURE_GEMINI_API_KEY");
 export const GEMINI_KEYS_POOL = [
-  getEnvKey("GEMINI_API_KEY") || getEnvKey("VITE_GEMINI_API_KEY") || "",
-  ...((getEnvKey("GEMINI_BACKUP_KEYS") || getEnvKey("VITE_GEMINI_BACKUP_KEYS") || "").split(",").map(k => k.trim()))
-].filter((k) => k && !k.startsWith("AQ."));
+  getServerEnvKey("GEMINI_API_KEY"),
+  getServerEnvKey("LECTURE_GEMINI_API_KEY"),
+  ...(getServerEnvKey("GEMINI_API_KEYS").split(/[\n,;]+/).map((k) => k.replace(/^["']|["']$/g, "").trim())),
+  ...(getServerEnvKey("GEMINI_BACKUP_KEYS").split(/[\n,;]+/).map((k) => k.replace(/^["']|["']$/g, "").trim())),
+].filter((k, idx, arr) => k && k.length >= 12 && arr.indexOf(k) === idx);
 
-export const DEFAULT_ZAI_KEY = getEnvKey("ZAI_API_KEY") || (typeof process !== "undefined" ? process.env?.ZAI_API_KEY : "") || "";
+export const DEFAULT_ZAI_KEY = getServerEnvKey("ZAI_API_KEY");
 export const ZAI_BASE_URL = "https://api.z.ai/api/paas/v4";
 export const ZAI_VISION_MODEL = "glm-4.6v-flash";
 
-export const DEFAULT_APMIX_KEY = getEnvKey("APMIX_KEY") || getEnvKey("VITE_APMIX_KEY") || "";
+export const DEFAULT_APMIX_KEY = getServerEnvKey("APMIX_KEY");
 export const APMIX_BASE_URL = "https://api.apmix.ai/v1";
 
-export const DEFAULT_GROQ_KEY = getEnvKey("GROQ_API_KEY") || getEnvKey("VITE_GROQ_API_KEY");
-export const DEFAULT_DEEPSEEK_KEY = getEnvKey("DEEPSEEK_API_KEY") || getEnvKey("VITE_DEEPSEEK_API_KEY") || "";
-export const DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
-export const DEFAULT_OPENROUTER_KEY = getEnvKey("OPENROUTER_API_KEY") || getEnvKey("VITE_OPENROUTER_API_KEY");
+export const DEFAULT_GROQ_KEY = getServerEnvKey("GROQ_API_KEY");
+export const DEFAULT_OPENROUTER_KEY = getServerEnvKey("OPENROUTER_API_KEY");
 export const POLLINATIONS_BASE_URL = "https://text.pollinations.ai/openai";
 
-export const DEFAULT_CODECRAFT_KEY = env.VITE_CODECRAFT_KEY || "";
+export const DEFAULT_CODECRAFT_KEY = getServerEnvKey("CODECRAFT_KEY") || getServerEnvKey("DEEPSEEK_API_KEY");
 export const CODECRAFT_BASE_URL = "https://codecraftapi.com/v1";
 
 export const DEFAULT_MODELS = {
   groq:        "openai/gpt-oss-120b",
-  deepseek:    "DeepSeek-V4.1-Flash-1017",
   gemini:      "gemini-3.5-flash-lite",
   zai:         "glm-4.7-flash",
-  apmix:       "DeepSeek-V4.1-Flash-1017",
+  apmix:       "claude-sonnet-4-6-free",
   openrouter:  "openrouter/free",
   pollinations:"openai",
-  codecraft:   "DeepSeek-V4.1-Flash-1017",
+  codecraft:   "claude-sonnet-5",
 };
 
 export const GEMINI_ROTATION_POOL = [
@@ -81,62 +64,54 @@ Structure knowledge hierarchically: Key Concepts > Detailed Principles > Clinica
 Preserve technical terms (in English alongside Arabic translation), formulas, exceptions, contrasts, and source page markers [صفحة N].
 Follow the requested language layout and Black Fighters highlight syntax exactly.
 Coverage and deep academic mastery matter above all. Do not mention these meta instructions.`,
-  quiz: `You are Black Fighters' elite assessment engineer and exam generator.
+  quiz: `You are Black Fighters' elite assessment engineer and exam generator, powered by Claude.
 Every question must have an unambiguous correct answer, plausible distractors designed around common student misconceptions, exact options preserved from source, and full context.
 Support multi-tier questions:
 - Tier 1: Core recall and understanding.
 - Tier 2: Analytical application, clinical case scenarios, and multi-step reasoning.
 Do not split long answer choices into separate options. Preserve 2, 3, 4, 5, or 6 options exactly as present in the source text.
 If a question depends on a clinical case, scenario, or previous text, prepend the scenario context to the question stem so it is 100% self-contained.
-CRITICAL ANSWER-EXPLANATION CONSISTENCY RULE:
-1. Always generate "explanation" BEFORE "correct_answer" and "correct_index".
-2. Begin "explanation" by explicitly naming the winning option verbatim: e.g. "Correct answer: [exact option text] — ..." (in English) or "الإجابة الصحيحة: [نص الخيار الصحيح حرفياً] — ..." (in Arabic), then explain why it is right and why the other choices are wrong.
-3. Copy the EXACT verbatim text of that winning option into "correct_answer".
-4. Set "correct_index" to the 0-based position of that option in the "options" array (0 = 1st option, 1 = 2nd option, 2 = 3rd option, 3 = 4th option). Verify that options[correct_index] === correct_answer!
+Provide comprehensive explanations explaining why the correct choice is true AND why the distractors are wrong.
 Return only the requested JSON object.`,
   chat: `You are Black Fighters, a concise source-aware study assistant powered by Claude. Distinguish source facts from general knowledge, say when the supplied course does not contain an answer, and never fabricate a citation.`,
-  textExamParser: `أنت محرك استخراج وحل أسئلة امتحانات دقيق للغاية (Exam Parser & Solver). قاعدتك الأولى: الدقة العلمية التامة وعدم الخطأ في تحديد الإجابة الصحيحة أبداً.
+  textExamParser: `أنت محرك استخراج أسئلة دقيق للغاية (Exam Parser). قاعدتك الأولى: لا تُخطئ، ولا تخترع أي بيانة غير موجودة فعلياً في النص المُرسل.
 
-مهمتك: تستقبل نص خام (قد يكون امتحاناً جاهزاً بمفتاح إجابة، أو أسئلة بدون إجابات، أو خليطاً بين الاثنين) وتُخرج كل سؤال موجود فيه بصيغة JSON منظمة. التزم بالقواعد التالية حرفياً بدون استثناء:
+مهمتك: تستقبل نص خام (قد يكون امتحاناً جاهزاً بالكامل، أو مذكرة تحتاج توليد أسئلة منها، أو خليط بين الاثنين) وتُخرج كل سؤال موجود فيه بصيغة JSON منظمة. النص المدخل قد يكون بأي لغة، وقد يكون بأي تنسيق — التزم بالقواعد التالية حرفياً بدون استثناء:
 
-1. احتفظ باللغة الأصلية تماماً كما وردت في السؤال والاختيارات. لو السؤال بالإنجليزية أخرجه بالإنجليزية، ولو بالعربية أخرجه بالعربية بنفس الصياغة والمصطلحات بالضبط بدون ترجمة.
+1. احتفظ باللغة الأصلية تماماً كما وردت. لو السؤال بالعربي أخرجه بالعربي بنفس الصياغة والنبرة والمصطلحات بالضبط. ممنوع الترجمة، وممنوع "تصحيح" أي خطأ إملائي أو لغوي موجود في النص الأصلي — انسخه كما هو.
 
-2. لا تفترض عدد ثابت من الاختيارات. قد يكون للسؤال 2 أو 3 أو 4 أو 5 أو 6 اختيارات — احتفظ بجميع الاختيارات كما وردت بدون حذف أو دمج.
+2. لا تفترض عدد ثابت من الاختيارات. قد يكون للسؤال 3 اختيارات أو 5 أو 6 — تعامل مع العدد الفعلي الموجود في النص، وممنوع رفض السؤال أو حذف أي اختيار لمجرد أن عدده غير معتاد.
 
-3. تعرّف تلقائياً على أي نظام ترقيم للاختيارات:
+3. تعرّف تلقائياً على أي نظام ترقيم للاختيارات دون أن يُخبرك أحد مسبقاً بالنظام المستخدم، ومنها على سبيل المثال لا الحصر:
    - حروف إنجليزية: A) B) C) D) E)
    - أرقام: 1) 2) 3) 4)
    - حروف عربية: أ) ب) ج) د) هـ)
    - نقاط أو شرطات بدون ترقيم — رتّبها حسب ترتيب ظهورها في النص.
 
-4. الأسئلة الممتدة على أكثر من سطر أو المعتمدة على حالة إكلينيكية (Case Scenario): ادمج السطور التكميلية أو نص الحالة في بداية السؤال ليصبح كاملاً ومفهوماً.
+4. الأسئلة الممتدة على أكثر من سطر: إذا كان السطر التالي لا يبدأ برقم سؤال جديد ولا يحمل شكل اختيار واضح، اعتبره استكمالاً لنص السؤال الحالي وليس عنصراً منفصلاً.
 
-5. تحديد الإجابة الصحيحة ومطابقتها الصارمة مع الشرح (أهم قاعدة على الإطلاق):
-   - إذا كانت الإجابة الصحيحة مذكورة في النص (بجانب السؤال أو بعلامة صح/نجمة أو في مفتاح إجابات بنهاية الملف)، التزم بها حرفياً.
-   - إذا لم تكن الإجابة مذكورة في النص، قم بحل السؤال علمياً وأكاديمياً بدقة 100% وحدد الخيار الصحيح.
-   - اكتب حقل "explanation" أولاً، وابدأه دائماً بذكر نص الخيار الصحيح صراحةً:
-     • في الأسئلة العربية: "الإجابة الصحيحة: [انسخ نص الخيار الصحيح حرفياً] — لأن..."
-     • في الأسئلة الإنجليزية: "Correct answer: [exact verbatim text of the winning option] — because..."
-   - انسخ نص الخيار الصحيح حرفياً في حقل "correct_answer".
-   - ضع رمز الخيار الصحيح في "correct_answer_label" (مثل "A" أو "B" أو "أ" أو "ب")، ورقمه الصفري في "correct_index" (حيث 0 = الاختيار الأول، 1 = الاختيار الثاني، 2 = الثالث، 3 = الرابع).
-   - تأكد 100% أن الخيار المشروح في "explanation" هو نفسه المكتوب في "correct_answer" وهو نفسه الموجود في options[correct_index].
+5. استخرج الإجابة الصحيحة من أي شكل تجدها به:
+   - مذكورة مباشرة بجانب السؤال ("الإجابة: ج" / "Answer: C" / "Ans: 3").
+   - أو ضمن مفتاح إجابات منفصل في نهاية النص (مثل "1-B, 2-D, 3-A") — اربط كل رقم بسؤاله بالترتيب.
+   - إذا لم تجد أي إشارة للإجابة الصحيحة لسؤال معين، ممنوع منعاً باتاً أن تخمّنها. اجعل قيمة "correct_answer_label" تساوي null، واجعل "needs_review" تساوي true مع سبب واضح.
 
-6. إذا كان السؤال يعتمد اعتماداً كلياً على صورة غير موجودة ولا يمكن حله نصياً، ضع "needs_review": true مع توضيح السبب في "review_reason".
+6. سؤال واحد به مشكلة لا يوقف باقي الدفعة أبداً. عالج كل سؤال به مشكلة على حدة بعلامة "needs_review": true وسبب محدد، واستمر في معالجة كل الأسئلة الأخرى بأعلى دقة ممكنة. ممنوع نهائياً إرجاع رسالة عامة تفيد أن "الأسئلة كلها غير صالحة" بسبب مشكلة في سؤال واحد فقط.
 
-أخرج النتيجة بصيغة JSON فقط بدون أي نص إضافي:
+7. تجاهل أي إشارة نصية لصورة (مثل "انظر الشكل رقم 3" أو "Figure 2") تماماً بما أن هذا الوضع نصي بالكامل. إذا كان السؤال يعتمد اعتماداً كلياً على صورة غير موجودة كنص ولا يمكن فهمه بدونها، ضعه بعلامة "needs_review": true بسبب "يعتمد على صورة غير متاحة في الوضع النصي" — لا تحذفه، ولا تحاول تخمين محتوى الصورة.
+
+8. ممنوع اختلاق أو إكمال أو "تجميل" أي بيانة ناقصة من عندك. النص الناقص يبقى ناقصاً مع "needs_review": true — بيانة ناقصة وواضحة أفضل بكثير من بيانة مختلقة تبدو صحيحة.
+
+أخرج النتيجة بصيغة JSON فقط، بدون أي نص تمهيدي أو ختامي، وبدون علامات Markdown حول الكود:
 
 {
   "questions": [
     {
       "question_text": "نص السؤال كاملاً كما ورد في المصدر",
       "options": [
-        { "label": "A", "text": "نص الاختيار الأول بدون الرمز" },
-        { "label": "B", "text": "نص الاختيار الثاني بدون الرمز" }
+        { "label": "أ", "text": "نص الاختيار كما ورد" },
+        { "label": "ب", "text": "نص الاختيار كما ورد" }
       ],
-      "explanation": "الإجابة الصحيحة: نص الاختيار الثاني بدون الرمز — التفسير العلمي المختصر...",
-      "correct_answer": "نص الاختيار الثاني بدون الرمز",
-      "correct_answer_label": "B",
-      "correct_index": 1,
+      "correct_answer_label": "ب",
       "needs_review": false,
       "review_reason": null
     }
@@ -251,50 +226,6 @@ async function codecraftGenerate({ apiKey, model, messages, systemPrompt, maxTok
     maxTokens,
     temperature,
   });
-}
-
-// ─── DeepSeek / Multimodal Flash Engine (DeepSeek-V4.1-Flash-1017 + V3/R1) ──
-async function deepseekGenerate({ apiKey, model, messages, systemPrompt, maxTokens, temperature }) {
-  const effectiveKey = apiKey || DEFAULT_DEEPSEEK_KEY || DEFAULT_CODECRAFT_KEY || DEFAULT_APMIX_KEY;
-  const requestedModel = model || DEFAULT_MODELS.deepseek;
-  const cappedTokens = Math.min(Number(maxTokens) || 8192, 8192);
-
-  // Determine ordered endpoint candidates so keys from DeepSeek, CodeCraft, or APMIX all work seamlessly
-  const endpoints = String(effectiveKey).startsWith("apx_")
-    ? [APMIX_BASE_URL, CODECRAFT_BASE_URL, DEEPSEEK_BASE_URL]
-    : [DEEPSEEK_BASE_URL, CODECRAFT_BASE_URL, APMIX_BASE_URL];
-
-  const modelCandidates = [
-    requestedModel,
-    ...(requestedModel.toLowerCase() === "deepseek-v4.1-flash-1017"
-      ? ["DeepSeek-V4.1-Flash-1017", "deepseek-v4.1-flash-1017", "deepseek-chat"]
-      : ["DeepSeek-V4.1-Flash-1017", "deepseek-chat"]),
-  ].filter((v, i, a) => v && a.indexOf(v) === i);
-
-  let lastErr = null;
-  for (const baseURL of endpoints) {
-    for (const candidateModel of modelCandidates) {
-      try {
-        return await openaiCompat({
-          baseURL,
-          apiKey: effectiveKey,
-          model: candidateModel,
-          messages,
-          systemPrompt,
-          maxTokens: cappedTokens,
-          temperature,
-        });
-      } catch (err) {
-        lastErr = err;
-        const msg = String(err?.message || "");
-        // If auth failed on this host (401/403), break inner loop and try next compatible host
-        if (msg.includes("401") || msg.includes("403") || msg.includes("Unauthorized") || msg.includes("invalid") || msg.includes("Authentication")) {
-          break;
-        }
-      }
-    }
-  }
-  throw lastErr || new Error("DeepSeek generation failed");
 }
 
 // ─── Groq ────────────────────────────────────────────────────────────────────
@@ -430,12 +361,65 @@ async function apmixGenerate({ apiKey, model, messages, systemPrompt, maxTokens,
   });
 }
 
-// ─── Google Gemini (Multi-Key Rotation Pool) ──────────────────────────────────
-async function geminiGenerate({ apiKey, model, messages, systemPrompt, maxTokens, temperature }) {
+// ─── Google Gemini (Multi-Key Rotation Pool — supports AIzaSy & AQ. studio keys) ───
+async function callGeminiRestWithHeaders({ apiKey, model, messages, systemPrompt, maxTokens, temperature, mediaParts = null }) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const contents = mediaParts && mediaParts.length > 0
+    ? [
+        {
+          role: "user",
+          parts: [
+            ...mediaParts,
+            { text: typeof messages === "string" ? messages : (messages?.[messages.length - 1]?.content || "") },
+          ],
+        },
+      ]
+    : (Array.isArray(messages) ? messages : [{ role: "user", content: String(messages || "") }]).map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: String(m.content || "") }],
+      }));
+
+  const body = {
+    contents,
+    ...(systemPrompt ? { systemInstruction: { parts: [{ text: systemPrompt }] } } : {}),
+    generationConfig: {
+      ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
+      ...(temperature !== undefined ? { temperature } : {}),
+    },
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+      "User-Agent": "aistudio-build",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Gemini HTTP ${res.status}: ${errText.slice(0, 240)}`);
+  }
+
+  const data = await res.json();
+  const text = (data?.candidates?.[0]?.content?.parts || [])
+    .map((p) => p?.text || "")
+    .join("")
+    .trim();
+  if (!text) throw new Error("AI_EMPTY_RESPONSE");
+  return text;
+}
+
+async function geminiGenerate({ apiKey, apiKeys = [], model, messages, systemPrompt, maxTokens, temperature }) {
   const effectiveModel = model || DEFAULT_MODELS.gemini;
-  const rawPool = apiKey
-    ? [apiKey, ...GEMINI_KEYS_POOL.filter(k => k !== apiKey)]
-    : GEMINI_KEYS_POOL;
+  const extraKeys = Array.isArray(apiKeys) ? apiKeys.filter(Boolean) : [];
+  const rawPool = [
+    ...(apiKey ? [apiKey] : []),
+    ...extraKeys,
+    ...GEMINI_KEYS_POOL,
+  ].filter((k, idx, arr) => k && !k.includes("•") && arr.indexOf(k) === idx);
 
   const activeKeys = rawPool.filter(k => !isKeyCoolingDown(k));
   const keysToTry = activeKeys.length ? activeKeys : rawPool;
@@ -453,6 +437,17 @@ async function geminiGenerate({ apiKey, model, messages, systemPrompt, maxTokens
   let lastErr = null;
   for (const currentKey of keysToTry) {
     try {
+      if (currentKey.startsWith("AQ.")) {
+        return await callGeminiRestWithHeaders({
+          apiKey: currentKey,
+          model: effectiveModel,
+          messages,
+          systemPrompt,
+          maxTokens,
+          temperature,
+        });
+      }
+
       const genAI = new GoogleGenerativeAI(currentKey);
       const gemModel = genAI.getGenerativeModel({ model: effectiveModel, ...genOptions });
 
@@ -476,8 +471,8 @@ async function geminiGenerate({ apiKey, model, messages, systemPrompt, maxTokens
       const msg = String(err?.message || "");
       console.warn(`[geminiGenerate] Key failed for model ${effectiveModel}:`, msg);
 
-      if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
-        markKeyCooldown(currentKey, 60000);
+      if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("401") || msg.includes("403")) {
+        markKeyCooldown(currentKey, 45000);
       }
 
       // If dead model (404 / not found / deprecated), do NOT retry other keys for this dead model!
@@ -490,11 +485,76 @@ async function geminiGenerate({ apiKey, model, messages, systemPrompt, maxTokens
   throw lastErr || new Error("All Gemini API keys in pool failed.");
 }
 
+// ─── Custom Provider Generator (OpenAI Chat Completions / Anthropic / Gemini) ───
+async function customProviderGenerate({ baseURL, protocol = "openai", apiKey, apiKeys = [], model, messages, systemPrompt, maxTokens, temperature }) {
+  const keysPool = [
+    ...(apiKey ? [apiKey] : []),
+    ...(Array.isArray(apiKeys) ? apiKeys : []),
+  ].filter((k, idx, arr) => k && !k.includes("•") && arr.indexOf(k) === idx);
+
+  if (protocol === "gemini" || (baseURL && baseURL.includes("generativelanguage.googleapis.com"))) {
+    return geminiGenerate({ apiKey, apiKeys: keysPool, model, messages, systemPrompt, maxTokens, temperature });
+  }
+
+  const cleanBase = String(baseURL || CODECRAFT_BASE_URL).replace(/\/+$/, "");
+  if (!keysPool.length) throw new Error("NO_API_KEY");
+
+  let lastErr = null;
+  for (const currentKey of keysPool) {
+    try {
+      if (protocol === "anthropic") {
+        const res = await fetch(`${cleanBase}/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": currentKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: model || "claude-sonnet-4-6",
+            max_tokens: maxTokens || 4096,
+            temperature: temperature ?? 0.35,
+            ...(systemPrompt ? { system: systemPrompt } : {}),
+            messages,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err?.error?.message || `Anthropic HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const text = data?.content?.[0]?.text || "";
+        if (!text.trim()) throw new Error("AI_EMPTY_RESPONSE");
+        return text;
+      }
+
+      return await openaiCompat({
+        baseURL: cleanBase,
+        apiKey: currentKey,
+        model: model || "gpt-4o-mini",
+        messages,
+        systemPrompt,
+        maxTokens,
+        temperature,
+      });
+    } catch (err) {
+      lastErr = err;
+      const msg = String(err?.message || "");
+      if (msg.includes("429") || msg.includes("Rate Limit") || msg.includes("401") || msg.includes("403")) {
+        markKeyCooldown(currentKey, 60000);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr || new Error("فشل الاتصال بالمزوّد المخصص");
+}
+
 
 // ─── Universal Router ────────────────────────────────────────────────────────
 /**
  * Route to the correct provider.
- * @param {object} config - { provider, api_key, model }
+ * @param {object} config - { provider, api_key, api_keys, model, base_url, protocol, rotation_pool }
  * @param {Array}  messages - [{ role: "user"|"assistant", content: string }]
  * @param {string} [systemPrompt]
  * @returns {Promise<string>}
@@ -502,24 +562,59 @@ async function geminiGenerate({ apiKey, model, messages, systemPrompt, maxTokens
 export async function callAI(config, messages, systemPrompt = null) {
   let provider = config?.provider;
   let apiKey   = config?.api_key;
+  let apiKeys  = Array.isArray(config?.api_keys) ? config.api_keys : [];
   let model    = config?.model;
+  let baseUrl  = config?.base_url || config?.baseUrl || "";
+  let protocol = config?.protocol || "";
 
-  // Browser without a BYO key → route through the authenticated server proxy
-  // (keys stay server-side; usage is billed/rate-limited by /api/ai)
-  if (typeof window !== "undefined" && !apiKey) {
-    const { invokeSecureFunction } = await import("./secureFunctions");
-    const res = await invokeSecureFunction("ai", { name: "generateText", payload: { messages, systemPrompt } });
-    return res.data?.text ?? "";
+  // Browser without a BYO key → first check local cached provider pool, then
+  // route through the authenticated server proxy, with a zero-key Pollinations
+  // fallback so AI never stops even if /api/ai is unreachable.
+  if (typeof window !== "undefined" && !apiKey && !apiKeys.length) {
+    try {
+      const rawPool = window.localStorage?.getItem("bf_ai_providers_pool_v2");
+      if (rawPool) {
+        const parsedPool = JSON.parse(rawPool);
+        if (Array.isArray(parsedPool)) {
+          const activeEntry = parsedPool.find((p) => p && p.is_active !== false && (p.api_key || (Array.isArray(p.api_keys) && p.api_keys.length > 0)));
+          if (activeEntry) {
+            provider = provider || activeEntry.provider || "gemini";
+            apiKey = activeEntry.api_key || activeEntry.api_keys?.[0] || "";
+            apiKeys = Array.isArray(activeEntry.api_keys) ? activeEntry.api_keys : (apiKey ? [apiKey] : []);
+            model = model || activeEntry.model;
+            baseUrl = baseUrl || activeEntry.base_url || activeEntry.baseUrl || "";
+            protocol = protocol || activeEntry.protocol || "";
+          }
+        }
+      }
+    } catch {
+      /* ignore localStorage read errors */
+    }
+    if (!apiKey && !apiKeys.length) {
+      try {
+        const { invokeSecureFunction } = await import("./secureFunctions");
+        const res = await invokeSecureFunction("ai", { name: "generateText", payload: { messages, systemPrompt } });
+        if (res?.data?.text) return res.data.text;
+      } catch (proxyErr) {
+        console.warn("[callAI] Server proxy unreachable or failed, falling back to Pollinations:", proxyErr?.message || proxyErr);
+      }
+      return await pollinationsGenerate({
+        model: "openai",
+        fallbackModels: ["mistral", "llama"],
+        messages,
+        systemPrompt,
+        maxTokens: Math.max(256, Math.min(8192, Number(config?.max_tokens) || 8192)),
+        temperature: config?.temperature ?? 0.2,
+      });
+    }
   }
 
-  // Auto-detect DeepSeek models (including DeepSeek-V4.1-Flash-1017) vs CodeCraft models
-  const lowerModel = String(model || "").toLowerCase();
-  const isDeepSeekModel = model && (
-    lowerModel === "deepseek-v4.1-flash-1017" ||
-    lowerModel === "deepseek-chat" ||
-    lowerModel === "deepseek-reasoner"
-  );
-  const isCodeCraftModel = model && !isDeepSeekModel && (
+  // Known built-in providers vs custom provider IDs
+  const BUILTIN_PROVIDERS = new Set(["gemini", "codecraft", "zai", "apmix", "pollinations", "groq", "openrouter"]);
+  const isCustomProvider = Boolean(baseUrl || (provider && !BUILTIN_PROVIDERS.has(provider)));
+
+  // Auto-detect CodeCraft models if model is set to Claude/DeepSeek/GPT-5/Grok or provider is codecraft
+  const isCodeCraftModel = !isCustomProvider && model && (
     model.startsWith("claude-") ||
     model.startsWith("grok-") ||
     model.startsWith("gpt-5.") ||
@@ -527,13 +622,13 @@ export async function callAI(config, messages, systemPrompt = null) {
     model.startsWith("qwen3.")
   );
 
-  if (provider === "deepseek" || (isDeepSeekModel && provider !== "codecraft" && provider !== "apmix")) {
-    provider = "deepseek";
-    apiKey = apiKey || DEFAULT_DEEPSEEK_KEY || DEFAULT_CODECRAFT_KEY || DEFAULT_APMIX_KEY;
-    model = model || DEFAULT_MODELS.deepseek;
+  if (isCustomProvider) {
+    provider = provider || "custom";
+    apiKey = apiKey || apiKeys[0] || "";
+    model = model || "gpt-4o-mini";
   } else if (provider === "codecraft" || isCodeCraftModel) {
     provider = "codecraft";
-    apiKey = apiKey || DEFAULT_CODECRAFT_KEY || DEFAULT_DEEPSEEK_KEY;
+    apiKey = apiKey || DEFAULT_CODECRAFT_KEY;
     model = model || DEFAULT_MODELS.codecraft;
   } else if (provider === "zai" || (model && model.startsWith("glm-4"))) {
     provider = "zai";
@@ -541,7 +636,7 @@ export async function callAI(config, messages, systemPrompt = null) {
     model = model || DEFAULT_MODELS.zai;
   } else if (provider === "apmix" || (model && (model.includes("space-bunny") || model.includes("claude-sonnet-4-6")))) {
     provider = "apmix";
-    apiKey = apiKey || DEFAULT_APMIX_KEY || DEFAULT_DEEPSEEK_KEY;
+    apiKey = apiKey || DEFAULT_APMIX_KEY;
     model = model || DEFAULT_MODELS.apmix;
   } else if (provider === "pollinations" || (model && (model === "openai" || model === "mistral" || model === "llama") && provider === "pollinations")) {
     provider = "pollinations";
@@ -553,18 +648,14 @@ export async function callAI(config, messages, systemPrompt = null) {
   } else if (provider === "openrouter") {
     apiKey = apiKey || DEFAULT_OPENROUTER_KEY;
     model = model || DEFAULT_MODELS.openrouter;
-  } else if (DEFAULT_DEEPSEEK_KEY) {
-    provider = "deepseek";
-    apiKey = DEFAULT_DEEPSEEK_KEY;
-    model = model || "DeepSeek-V4.1-Flash-1017";
   } else {
-    // Default to Gemini
+    // Default to Gemini (Primary provider for the entire platform)
     provider = provider || "gemini";
     apiKey = apiKey || DEFAULT_GEMINI_KEY;
     model = model || DEFAULT_MODELS.gemini;
   }
 
-  // Migrate legacy model names to verified fast models
+  // Migrate phantom model names to verified fast models
   const deprecated = {
     "gemini-3.7-flash": "gemini-3.6-flash",
     "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
@@ -572,9 +663,7 @@ export async function callAI(config, messages, systemPrompt = null) {
     "gemini-2.0-flash-lite": "gemini-3.5-flash-lite",
     "gemini-1.5-flash": "gemini-3.5-flash-lite",
     "gemini-1.5-flash-8b": "gemini-3.5-flash-lite",
-    "deepseek-v4-flash-0731": "DeepSeek-V4.1-Flash-1017",
-    "deepseek-v4-flash-free": "DeepSeek-V4.1-Flash-1017",
-    "deepseek-v4.1-flash-1017": "DeepSeek-V4.1-Flash-1017",
+    "deepseek-v4-flash-free": "claude-sonnet-4-6-free",
     "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
     "google/gemma-3-27b-it:free": "openrouter/free",
     "google/gemma-2-9b-it:free": "openrouter/free",
@@ -585,10 +674,9 @@ export async function callAI(config, messages, systemPrompt = null) {
 
   if (!apiKey && provider !== "pollinations") throw new Error("NO_API_KEY");
 
-  // Define fallback chains for each provider
+  // Define fallback chains for each provider (strictly verified working free models)
   const fallbacks = {
     gemini: GEMINI_ROTATION_POOL,
-    deepseek: ["DeepSeek-V4.1-Flash-1017", "deepseek-chat", "deepseek-reasoner"],
     zai: ["glm-4.7-flash"],
     groq: [
       "openai/gpt-oss-120b",
@@ -597,7 +685,6 @@ export async function callAI(config, messages, systemPrompt = null) {
       "openai/gpt-oss-20b"
     ],
     apmix: [
-      "DeepSeek-V4.1-Flash-1017",
       "claude-sonnet-4-6-free",
       "space-bunny-free"
     ],
@@ -607,7 +694,6 @@ export async function callAI(config, messages, systemPrompt = null) {
       "inclusionai/ling-3.0-flash-sante:free"
     ],
     codecraft: [
-      "DeepSeek-V4.1-Flash-1017",
       "claude-sonnet-5",
       "claude-opus-4.6",
     ],
@@ -618,7 +704,10 @@ export async function callAI(config, messages, systemPrompt = null) {
     ],
   };
 
-  const chain = fallbacks[provider] || [];
+  const customModelsList = Array.isArray(config?.available_models)
+    ? config.available_models.map((m) => (typeof m === "string" ? m : m?.id)).filter(Boolean)
+    : [];
+  const chain = isCustomProvider ? customModelsList : (fallbacks[provider] || []);
   // Ensure the primary model is at the start of our attempt list, avoiding duplicates
   const attempts = [model, ...chain.filter(m => m !== model)];
 
@@ -629,6 +718,9 @@ export async function callAI(config, messages, systemPrompt = null) {
     const currentModel = attempts[i];
     const args = {
       apiKey,
+      apiKeys,
+      baseURL: baseUrl,
+      protocol: protocol || (provider === "gemini" ? "gemini" : "openai"),
       model: currentModel,
       messages,
       systemPrompt,
@@ -641,8 +733,10 @@ export async function callAI(config, messages, systemPrompt = null) {
     };
     try {
       console.log(`[callAI] Attempting ${provider} with model ${currentModel}...`);
+      if (isCustomProvider) {
+        return await customProviderGenerate(args);
+      }
       switch (provider) {
-        case "deepseek":    return await deepseekGenerate(args);
         case "zai":         return await zaiGenerate(args);
         case "pollinations":return await pollinationsGenerate(args);
         case "apmix":       return await apmixGenerate(args);
@@ -677,6 +771,19 @@ export async function callAI(config, messages, systemPrompt = null) {
       // Otherwise wait and try the next model in the fallback chain (wait longer if rate limited)
       const isRateLimit = errMsg.includes("429") || errMsg.includes("rate limit") || errMsg.includes("Too Many Requests");
       await new Promise(resolve => setTimeout(resolve, isRateLimit ? 1000 : 300));
+    }
+  }
+
+  // ─── Multi-Provider Rotation Pool (AdminConfig / UserSettings configured rotation) ───
+  if (Array.isArray(config?.rotation_pool) && config.rotation_pool.length > 1) {
+    for (const candidate of config.rotation_pool) {
+      if (!candidate || (candidate.id === config.id && candidate.api_key === config.api_key)) continue;
+      try {
+        console.info(`[callAI Rotation] Rotating to configured provider "${candidate.display_name || candidate.provider}" (${candidate.model})...`);
+        return await callAI({ ...candidate, rotation_pool: [] }, messages, systemPrompt);
+      } catch (rotErr) {
+        console.warn(`[callAI Rotation] Provider "${candidate.display_name || candidate.provider}" failed:`, rotErr?.message || rotErr);
+      }
     }
   }
 
@@ -786,244 +893,235 @@ export async function generateText(prompt, config, systemPrompt = null, mediaPar
 }
 
 /**
- * Multimodal vision generation — supports DeepSeek-V4.1-Flash-1017 (OpenAI-compatible image_url),
- * CodeCraft, APMIX, OpenRouter, Google Gemini Vision, Z.ai glm-4.6v-flash, and Pollinations Vision.
+ * Multimodal vision generation (e.g. Gemini Vision with image + text).
  * @param {string} prompt
  * @param {Array<{ inlineData: { data: string, mimeType: string } }>} mediaParts
  * @param {object} config
  * @param {string} [systemPrompt]
  */
-export async function generateMultimodal(prompt, mediaParts, config = {}, systemPrompt = null) {
-  let effectiveConfig = { ...(config || {}) };
-
-  // In browser, if config was passed without api_key/provider, resolve active user/admin AI config
-  if (typeof window !== "undefined" && !effectiveConfig.api_key) {
-    try {
-      const { getAiConfig } = await import("@/api/index");
-      const loaded = await getAiConfig();
-      if (loaded?.api_key) {
-        effectiveConfig = {
-          ...loaded,
-          ...effectiveConfig,
-          api_key: effectiveConfig.api_key || loaded.api_key,
-          provider: effectiveConfig.provider || loaded.provider,
-          model: effectiveConfig.model || loaded.model,
-        };
-      }
-    } catch {}
-  }
-
-  const visionMessages = [
-    {
-      role: "user",
-      content: [
-        { type: "text", text: prompt },
-        ...(mediaParts || []).map((p) => {
-          const mime = p.inlineData?.mimeType || "image/jpeg";
-          const b64 = p.inlineData?.data || "";
-          return {
-            type: "image_url",
-            image_url: { url: `data:${mime};base64,${b64}` },
-          };
-        }),
-      ],
-    },
-  ];
-
-  const maxTokens = Math.max(1024, Math.min(8192, Number(effectiveConfig?.max_tokens) || 4096));
-  const temperature = effectiveConfig?.temperature ?? 0.15;
-  let lastError = null;
-
-  // ── 1. Primary Vision Engine: DeepSeek-V4.1-Flash-1017 (DeepSeek / CodeCraft / APMIX / OpenRouter) ──
-  const activeProvider = String(effectiveConfig?.provider || "").toLowerCase();
-  const activeModel = String(effectiveConfig?.model || "");
-  const isDeepSeekOrOpenAIVision =
-    activeProvider === "deepseek" ||
-    activeProvider === "codecraft" ||
-    activeProvider === "apmix" ||
-    activeProvider === "openrouter" ||
-    activeModel.toLowerCase().includes("deepseek-v4") ||
-    Boolean(DEFAULT_DEEPSEEK_KEY || DEFAULT_CODECRAFT_KEY || DEFAULT_APMIX_KEY);
-
-  const cleanKey = (k) => String(k || "").replace(/^["']|["']$/g, "").trim();
-  const candidateOpenAIKey = cleanKey(
-    (activeProvider !== "gemini" ? effectiveConfig?.api_key : "") ||
-    DEFAULT_DEEPSEEK_KEY ||
-    DEFAULT_CODECRAFT_KEY ||
-    DEFAULT_APMIX_KEY ||
-    DEFAULT_OPENROUTER_KEY
-  );
-
-  if (isDeepSeekOrOpenAIVision && candidateOpenAIKey && candidateOpenAIKey !== "none") {
-    const orderedEndpoints =
-      activeProvider === "codecraft"
-        ? [CODECRAFT_BASE_URL, DEEPSEEK_BASE_URL, APMIX_BASE_URL]
-        : activeProvider === "apmix" || candidateOpenAIKey.startsWith("apx_")
-        ? [APMIX_BASE_URL, CODECRAFT_BASE_URL, DEEPSEEK_BASE_URL]
-        : activeProvider === "openrouter" || candidateOpenAIKey.startsWith("sk-or-")
-        ? ["https://openrouter.ai/api/v1"]
-        : [DEEPSEEK_BASE_URL, CODECRAFT_BASE_URL, APMIX_BASE_URL];
-
-    const visionModelsToTry = [
-      "DeepSeek-V4.1-Flash-1017",
-      "deepseek-v4.1-flash-1017",
-      ...(activeModel && !activeModel.includes("gemini") ? [activeModel] : []),
-    ].filter((v, i, a) => v && a.indexOf(v) === i);
-
-    for (const baseURL of orderedEndpoints) {
-      for (const visionModel of visionModelsToTry) {
-        try {
-          console.info(`[generateMultimodal] Analyzing image with ${visionModel} via ${baseURL}...`);
-          const text = await openaiCompat({
-            baseURL,
-            apiKey: candidateOpenAIKey,
-            model: visionModel,
-            messages: visionMessages,
-            systemPrompt,
-            maxTokens,
-            temperature,
-          });
-          if (text && text.trim().length > 0) return text;
-        } catch (err) {
-          lastError = err;
-          const msg = String(err?.message || "");
-          console.warn(`[generateMultimodal] ${visionModel} on ${baseURL} failed:`, msg);
-          if (msg.includes("401") || msg.includes("403") || msg.includes("Unauthorized")) {
-            break; // Try next endpoint
-          }
-        }
-      }
-    }
-  }
-
-  // ── 2. Google Gemini Vision (if a valid Gemini key is available) ──
+export async function generateMultimodal(prompt, mediaParts, config, systemPrompt = null) {
   const isCandidateGeminiKey = (k) => {
     if (!k || typeof k !== "string") return false;
     const clean = k.replace(/^["']|["']$/g, "").trim();
     if (clean.length < 15) return false;
-    if (
-      clean.startsWith("sk-") ||
-      clean.startsWith("gsk_") ||
-      clean.startsWith("sk-or-") ||
-      clean.startsWith("apx_") ||
-      clean === "none" ||
-      clean === "BF_SERVER_MANAGED_GEMINI_KEY"
-    ) return false;
+    if (clean.startsWith("gsk_") || clean.startsWith("sk-or-") || clean.startsWith("apx_") || clean === "none") return false;
     return true;
   };
 
-  const cleanConfigKey = isCandidateGeminiKey(effectiveConfig?.api_key)
-    ? effectiveConfig.api_key.replace(/^["']|["']$/g, "").trim()
-    : "";
+  const cleanConfigKey = isCandidateGeminiKey(config?.api_key) ? config.api_key.replace(/^["']|["']$/g, "").trim() : "";
+  const configKeysList = Array.isArray(config?.api_keys)
+    ? config.api_keys.map((k) => String(k || "").replace(/^["']|["']$/g, "").trim()).filter(isCandidateGeminiKey)
+    : [];
   const validPoolKeys = (GEMINI_KEYS_POOL || []).filter(isCandidateGeminiKey);
 
-  const keysToTry = cleanConfigKey
-    ? [cleanConfigKey, ...validPoolKeys.filter(k => k !== cleanConfigKey)]
-    : [...validPoolKeys];
+  const keysToTry = [
+    ...(cleanConfigKey ? [cleanConfigKey] : []),
+    ...configKeysList,
+    ...validPoolKeys,
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
 
-  if (keysToTry.length === 0 && typeof process !== "undefined" && process?.env) {
-    const envKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "").replace(/^["']|["']$/g, "").trim();
-    if (isCandidateGeminiKey(envKey)) {
-      keysToTry.push(envKey);
+  // Browser without a valid Gemini key → check localStorage pool first, then route to server proxy
+  if (typeof window !== "undefined" && keysToTry.length === 0) {
+    try {
+      const rawPool = window.localStorage?.getItem("bf_ai_providers_pool_v2");
+      if (rawPool) {
+        const parsedPool = JSON.parse(rawPool);
+        if (Array.isArray(parsedPool)) {
+          parsedPool.forEach((entry) => {
+            if (entry?.is_active === false) return;
+            const candidateList = [entry?.api_key, ...(Array.isArray(entry?.api_keys) ? entry.api_keys : [])];
+            candidateList.forEach((ck) => {
+              const cleaned = String(ck || "").replace(/^["']|["']$/g, "").trim();
+              if (isCandidateGeminiKey(cleaned) && !keysToTry.includes(cleaned)) {
+                keysToTry.push(cleaned);
+              }
+            });
+          });
+        }
+      }
+    } catch {
+      /* ignore localStorage read errors */
     }
-    const backupKeys = (process.env.GEMINI_BACKUP_KEYS || "")
-      .split(",")
-      .map(k => k.replace(/^["']|["']$/g, "").trim())
-      .filter(isCandidateGeminiKey);
-    backupKeys.forEach(k => {
-      if (!keysToTry.includes(k)) keysToTry.push(k);
-    });
+    if (keysToTry.length === 0) {
+      try {
+        const { invokeSecureFunction } = await import("./secureFunctions");
+        const res = await invokeSecureFunction("ai", {
+          name: "generateText",
+          payload: { prompt, systemPrompt, mediaParts },
+        });
+        if (res?.data?.text) return res.data.text;
+      } catch (proxyErr) {
+        console.warn("[generateMultimodal] Server proxy failed, continuing to direct vision fallbacks:", proxyErr?.message || proxyErr);
+      }
+    }
   }
 
-  if (keysToTry.length > 0) {
-    const genOptions = {
-      ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
-      generationConfig: {
-        maxOutputTokens: maxTokens,
-        temperature,
-      },
-    };
+  // Node/Server environment: if keysToTry is empty, read directly from environment
+  if (keysToTry.length === 0 && typeof window === "undefined" && typeof process !== "undefined" && process?.env) {
+    const envRaw = [
+      process.env.GEMINI_API_KEY,
+      process.env.LECTURE_GEMINI_API_KEY,
+      process.env.GEMINI_API_KEYS,
+      process.env.GEMINI_BACKUP_KEYS,
+    ]
+      .filter(Boolean)
+      .join(",");
+    envRaw
+      .split(/[\n,;]+/)
+      .map((k) => k.replace(/^["']|["']$/g, "").trim())
+      .filter(isCandidateGeminiKey)
+      .forEach((k) => {
+        if (!keysToTry.includes(k)) keysToTry.push(k);
+      });
+  }
 
-    const geminiModelsToTry = [
-      "gemini-3.5-flash-lite",
-      "gemini-flash-lite-latest",
-      "gemini-3.8-flash",
-    ];
+  const genOptions = {
+    ...(systemPrompt ? { systemInstruction: systemPrompt } : {}),
+    generationConfig: {
+      maxOutputTokens: config?.max_tokens || 8192,
+      temperature: config?.temperature ?? 0.15,
+    },
+  };
 
-    const activeKeys = keysToTry.filter(k => !isKeyCoolingDown(k));
-    const effectiveKeys = activeKeys.length ? activeKeys : keysToTry;
+  const activeModel = (config?.model && !config.model.includes("2.0") && !config.model.includes("1.5") && !config.model.includes("2.5-flash-lite"))
+    ? config.model
+    : "gemini-3.5-flash-lite";
 
-    for (const modelName of geminiModelsToTry) {
-      for (const currentKey of effectiveKeys) {
-        try {
-          const genAI = new GoogleGenerativeAI(currentKey);
-          const gemModel = genAI.getGenerativeModel({ model: modelName, ...genOptions });
-          const contents = [...(mediaParts || []), prompt];
-          const result = await gemModel.generateContent(contents);
-          const text = result.response.text();
+  const modelsToTry = [
+    activeModel,
+    "gemini-3.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-flash-lite-latest",
+    "gemini-3.8-flash",
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  let lastError = null;
+  const activeKeys = keysToTry.filter(k => !isKeyCoolingDown(k));
+  const effectiveKeys = activeKeys.length ? activeKeys : keysToTry;
+
+  for (const modelName of modelsToTry) {
+    for (const currentKey of effectiveKeys) {
+      try {
+        if (currentKey.startsWith("AQ.")) {
+          const text = await callGeminiRestWithHeaders({
+            apiKey: currentKey,
+            model: modelName,
+            messages: prompt,
+            systemPrompt,
+            maxTokens: config?.max_tokens || 8192,
+            temperature: config?.temperature ?? 0.15,
+            mediaParts,
+          });
           if (text && text.trim().length > 0) return text;
-        } catch (err) {
-          lastError = err;
-          const msg = String(err?.message || "");
-          console.warn(`[generateMultimodal] Gemini key with model ${modelName} failed:`, msg);
-          if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
-            markKeyCooldown(currentKey, 60000);
-          }
-          if (msg.includes("404") || msg.includes("not found") || msg.includes("no longer available")) {
-            break;
-          }
+        }
+        const genAI = new GoogleGenerativeAI(currentKey);
+        const gemModel = genAI.getGenerativeModel({ model: modelName, ...genOptions });
+        const contents = [...(mediaParts || []), prompt];
+        const result = await gemModel.generateContent(contents);
+        const text = result.response.text();
+        if (text && text.trim().length > 0) return text;
+      } catch (err) {
+        lastError = err;
+        const msg = String(err?.message || "");
+        console.warn(`[generateMultimodal] Key with model ${modelName} failed:`, msg);
+        if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("401") || msg.includes("403")) {
+          markKeyCooldown(currentKey, 45000);
+        }
+        if (msg.includes("404") || msg.includes("not found") || msg.includes("no longer available")) {
+          break;
         }
       }
     }
   }
 
-  // ── 3. Browser without any local vision key → try authenticated server proxy ──
-  if (typeof window !== "undefined" && !candidateOpenAIKey && keysToTry.length === 0) {
-    try {
-      const { invokeSecureFunction } = await import("./secureFunctions");
-      const res = await invokeSecureFunction("ai", {
-        name: "generateText",
-        payload: { prompt, systemPrompt, mediaParts },
-      });
-      if (res?.data?.text) return res.data.text;
-    } catch (proxyErr) {
-      lastError = proxyErr;
-    }
-  }
-
-  // ── 4. Fallback to Z.ai glm-4.6v-flash (Vision) ──
-  if (DEFAULT_ZAI_KEY && DEFAULT_ZAI_KEY !== "BF_SERVER_MANAGED_ZAI_KEY") {
-    try {
-      console.info("[generateMultimodal] Falling back to Z.ai glm-4.6v-flash...");
-      return await zaiGenerate({
-        apiKey: DEFAULT_ZAI_KEY,
-        model: ZAI_VISION_MODEL,
-        messages: visionMessages,
-        systemPrompt,
-        maxTokens,
-        temperature,
-        isVision: true,
-      });
-    } catch (zaiErr) {
-      console.warn("[generateMultimodal] Z.ai vision fallback failed:", zaiErr.message);
-    }
-  }
-
-  // ── 5. Ultimate Zero-Key Vision Fallback: Pollinations OpenAI Multimodal ──
+  // Fallback to Z.ai glm-4.6v-flash (Vision)
   try {
-    console.info("[generateMultimodal] Falling back to Pollinations OpenAI Vision...");
-    return await pollinationsGenerate({
-      model: "openai",
-      messages: visionMessages,
+    console.info("[generateMultimodal] Gemini exhausted, falling back to Z.ai glm-4.6v-flash...");
+    const zaiMessages = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          ...(mediaParts || []).map((p) => {
+            const mime = p.inlineData?.mimeType || "image/jpeg";
+            const b64 = p.inlineData?.data || "";
+            return {
+              type: "image_url",
+              image_url: { url: `data:${mime};base64,${b64}` },
+            };
+          }),
+        ],
+      },
+    ];
+
+    return await zaiGenerate({
+      apiKey: DEFAULT_ZAI_KEY,
+      model: ZAI_VISION_MODEL,
+      messages: zaiMessages,
       systemPrompt,
-      maxTokens: Math.min(maxTokens, 4096),
-      temperature,
+      maxTokens: Math.max(2048, Number(config?.max_tokens) || 8192),
+      temperature: config?.temperature ?? 0.15,
+      isVision: true,
     });
-  } catch (pollErr) {
-    console.warn("[generateMultimodal] Pollinations vision fallback failed:", pollErr.message);
+  } catch (zaiErr) {
+    console.warn("[generateMultimodal] Z.ai vision fallback failed:", zaiErr.message);
+  }
+
+  // Zero-Key Fallback 3: Pollinations OpenAI-compatible Vision API (24/7 no-key vision)
+  try {
+    console.info("[generateMultimodal] Trying Pollinations OpenAI Vision fallback...");
+    const visionContent = [
+      { type: "text", text: prompt },
+      ...(mediaParts || []).map((p) => {
+        const mime = p.inlineData?.mimeType || "image/jpeg";
+        const b64 = p.inlineData?.data || "";
+        return {
+          type: "image_url",
+          image_url: { url: `data:${mime};base64,${b64}` },
+        };
+      }),
+    ];
+    const polRes = await fetchWithTimeout(
+      POLLINATIONS_BASE_URL,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai",
+          messages: [
+            ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+            { role: "user", content: visionContent },
+          ],
+          temperature: config?.temperature ?? 0.15,
+        }),
+      },
+      45000
+    );
+    if (polRes.ok) {
+      const polData = await polRes.json();
+      const polText = polData?.choices?.[0]?.message?.content;
+      if (polText && String(polText).trim().length > 0) {
+        return String(polText).trim();
+      }
+    }
+  } catch (polVisionErr) {
+    console.warn("[generateMultimodal] Pollinations vision fallback failed:", polVisionErr?.message);
   }
 
   throw lastError || new Error("فشل تحليل الصور عبر نماذج الذكاء الاصطناعي");
+}
+
+/**
+ * Generates an on-demand 24/7 educational/scientific illustration URL using Pollinations Image API
+ * (Zero API key required, works in browser & exports).
+ */
+export function generateMedicalIllustrationUrl(topicPrompt, { width = 960, height = 540, seed = 42 } = {}) {
+  const cleanPrompt = String(topicPrompt || "Academic Diagram")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 280);
+  const fullPrompt = `Clean textbook schematic diagram illustration, high contrast, labeled educational figure, white background: ${cleanPrompt}`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(fullPrompt)}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
 }
 
 /**
@@ -1041,24 +1139,151 @@ export async function chatText(history, message, config) {
 }
 
 /**
+ * Fetch available models from a provider or custom Base URL endpoint.
+ * Normalizes responses from OpenAI `/models`, Gemini `/v1beta/models`, and Anthropic.
+ */
+export async function fetchProviderModels({ provider = "gemini", baseUrl = "", protocol = "", apiKey = "" } = {}) {
+  const cleanKey = String(apiKey || "").split(/[\n,;]+/)[0]?.replace(/["']/g, "").trim() || "";
+  const effectiveProto =
+    protocol ||
+    (provider === "gemini" || baseUrl.includes("generativelanguage.googleapis.com")
+      ? "gemini"
+      : provider === "anthropic" || baseUrl.includes("anthropic.com")
+        ? "anthropic"
+        : "openai");
+
+  const defaultBaseByProvider = {
+    gemini: "https://generativelanguage.googleapis.com/v1beta",
+    codecraft: CODECRAFT_BASE_URL,
+    groq: "https://api.groq.com/openai/v1",
+    openrouter: "https://openrouter.ai/api/v1",
+    apmix: APMIX_BASE_URL,
+    zai: ZAI_BASE_URL,
+    pollinations: POLLINATIONS_BASE_URL,
+  };
+
+  const targetBase = String(baseUrl || defaultBaseByProvider[provider] || CODECRAFT_BASE_URL).replace(/\/+$/, "");
+
+  if (effectiveProto === "gemini") {
+    if (!cleanKey || cleanKey.includes("•")) {
+      throw new Error("أدخل مفتاح Gemini API أولاً لجلب النماذج المتاحة");
+    }
+    const url = `${targetBase}/models?key=${encodeURIComponent(cleanKey)}&pageSize=100`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `فشل جلب نماذج Gemini (${res.status})`);
+    }
+    const data = await res.json();
+    const rawModels = Array.isArray(data?.models) ? data.models : [];
+    const list = rawModels
+      .map((m) => {
+        const id = String(m?.name || "").replace(/^models\//, "");
+        if (!id) return null;
+        return {
+          id,
+          name: m?.displayName ? `${m.displayName} (${id})` : id,
+          features: ["Text"],
+        };
+      })
+      .filter(Boolean);
+
+    // Ensure gemini-3.5-transcribe & gemini-3.5-flash-lite are always listed at top for convenience
+    const pinned = [
+      { id: "gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe (تفريغ المحاضرات الصوتية بالحرف)", features: ["Audio", "Transcribe"] },
+      { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash Lite (سريع جداً للتلخيص والكويزات)", features: ["Text", "Vision"] },
+    ];
+    for (const p of pinned.reverse()) {
+      if (!list.some((x) => x.id === p.id)) list.unshift(p);
+    }
+    return list;
+  }
+
+  if (effectiveProto === "anthropic") {
+    if (!cleanKey || cleanKey.includes("•")) {
+      throw new Error("أدخل مفتاح API أولاً لجلب النماذج");
+    }
+    const res = await fetch(`${targetBase}/models`, {
+      headers: {
+        "x-api-key": cleanKey,
+        "anthropic-version": "2023-06-01",
+      },
+    });
+    if (!res.ok) {
+      return [
+        { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", features: ["Text", "Vision"] },
+        { id: "claude-opus-4-6", name: "Claude Opus 4.6", features: ["Text", "Vision"] },
+      ];
+    }
+    const data = await res.json();
+    const arr = Array.isArray(data?.data) ? data.data : [];
+    return arr.map((m) => ({
+      id: m.id,
+      name: m.display_name ? `${m.display_name} (${m.id})` : m.id,
+      features: ["Text"],
+    }));
+  }
+
+  // OpenAI-compatible `/models` endpoint
+  const headers = { "Content-Type": "application/json" };
+  if (cleanKey && !cleanKey.includes("•")) {
+    headers.Authorization = `Bearer ${cleanKey}`;
+  }
+  const res = await fetch(`${targetBase}/models`, { headers });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `تعذّر جلب النماذج من ${targetBase}/models (${res.status})`);
+  }
+  const data = await res.json().catch(() => ({}));
+  const rawList = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data?.models)
+      ? data.models
+      : Array.isArray(data)
+        ? data
+        : [];
+
+  return rawList
+    .map((m) => {
+      const id = typeof m === "string" ? m : m?.id || m?.name || "";
+      if (!id) return null;
+      return {
+        id: String(id),
+        name: m?.name && m.name !== id ? `${m.name} (${id})` : String(id),
+        features: ["Text"],
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
  * Validate an API key by making a lightweight request to the provider.
  * Throws an error if invalid, returns true if valid.
  */
-export async function testAiKey(provider, apiKey) {
-  if (!apiKey) throw new Error("مفتاح الـ API فارغ");
-  if (apiKey.includes("•")) return true; // It's masked, assume it was already tested and valid
+export async function testAiKey(provider, apiKey, options = {}) {
+  const cleanKey = String(apiKey || "").split(/[\n,;]+/)[0]?.replace(/["']/g, "").trim() || "";
+  if (!cleanKey && provider !== "pollinations") throw new Error("مفتاح الـ API فارغ");
+  if (cleanKey.includes("•")) return true; // It's masked, assume it was already tested and valid
+
+  const baseUrl = String(options?.baseUrl || options?.base_url || "").replace(/\/+$/, "");
+  const protocol = options?.protocol || "";
 
   try {
+    if (baseUrl || (protocol && !["gemini", "groq", "openrouter", "apmix", "codecraft"].includes(provider))) {
+      const models = await fetchProviderModels({ provider, baseUrl, protocol, apiKey: cleanKey });
+      if (Array.isArray(models)) return true;
+    }
+
     if (provider === "codecraft") {
-      const res = await fetch("https://codecraftapi.com/v1/chat/completions", {
+      const res = await fetch(`${baseUrl || "https://codecraftapi.com/v1"}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${cleanKey}`,
           "User-Agent": "curl/7.88.1",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-5",
+          model: options?.model || "claude-sonnet-5",
           messages: [{ role: "user", content: "ping" }],
           max_tokens: 5,
         }),
@@ -1069,7 +1294,7 @@ export async function testAiKey(provider, apiKey) {
 
     if (provider === "openrouter") {
       const res = await fetch("https://openrouter.ai/api/v1/auth/key", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
+        headers: { "Authorization": `Bearer ${cleanKey}` }
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -1080,7 +1305,7 @@ export async function testAiKey(provider, apiKey) {
     
     if (provider === "groq") {
       const res = await fetch("https://api.groq.com/openai/v1/models", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
+        headers: { "Authorization": `Bearer ${cleanKey}` }
       });
       if (!res.ok) throw new Error("مفتاح Groq غير صالح");
       return true;
@@ -1088,33 +1313,14 @@ export async function testAiKey(provider, apiKey) {
 
     if (provider === "apmix") {
       const res = await fetch("https://api.apmix.ai/v1/models", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
+        headers: { "Authorization": `Bearer ${cleanKey}` }
       });
       if (!res.ok) throw new Error("مفتاح APMIX غير صالح");
       return true;
     }
 
-    if (provider === "deepseek") {
-      const r1 = await fetch("https://api.deepseek.com/v1/models", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
-      }).catch(() => ({ ok: false }));
-      if (r1.ok) return true;
-      // Also allow CodeCraft / APMIX keys that serve DeepSeek-V4.1-Flash-1017
-      const r2 = await fetch("https://codecraftapi.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: "DeepSeek-V4.1-Flash-1017", messages: [{ role: "user", content: "ping" }], max_tokens: 5 }),
-      }).catch(() => ({ ok: false }));
-      if (r2.ok) return true;
-      const r3 = await fetch("https://api.apmix.ai/v1/models", {
-        headers: { "Authorization": `Bearer ${apiKey}` }
-      }).catch(() => ({ ok: false }));
-      if (r3.ok) return true;
-      throw new Error("مفتاح DeepSeek غير صالح");
-    }
-
     if (provider === "gemini") {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
       if (!res.ok) throw new Error("مفتاح Gemini غير صالح");
       return true;
     }
@@ -1299,38 +1505,32 @@ ${text}`,
       if (hasAnswers === false) {
         // أسئلة بدون إجابات — الـ AI يحلّها من معلوماته
         if (language === "en") {
-          return `You are an elite academic professor and meticulous exam solver. Extract all exam questions from the following text into high-quality structured JSON.
+          return `You are an elite academic professor and meticulous exam parser. Extract all exam questions from the following text into high-quality structured JSON.
 CRITICAL RULES:
 1. STRICT LANGUAGE MANDATE: All questions, options, and explanations MUST BE 100% IN ENGLISH. Do NOT translate to Arabic.
-2. These questions lack an answer key in the text. Solve each question with 100% scientific/clinical accuracy.
+2. These questions lack an answer key in the text. Use your deep medical/academic domain knowledge to solve them accurately and explain the rationale in detail.
 3. Extract ALL questions without exception.
-4. Preserve the exact number of options per question (2, 3, 4, 5, or 6 options) without prefixes like "A)" or "B)". Never split long options into multiple fragments.
+4. Preserve the exact number of options per question (2, 3, 4, 5, or 6 options). Never split long options into multiple fragments.
 5. If a question depends on a scenario or clinical case, prepend the scenario to the question stem.
-6. MANDATORY ANSWER-EXPLANATION LOCK (Prevents index mismatch):
-   - Write "explanation" FIRST, starting with: "Correct answer: <exact verbatim option text> — <scientific rationale explaining why it is right and why other options are wrong>".
-   - Copy that EXACT verbatim option text into "correct_answer".
-   - Set "correct_index" to its 0-based position in "options" (0=1st option, 1=2nd option, 2=3rd option, 3=4th option). Double-check that options[correct_index] === correct_answer!
+6. Provide a comprehensive clinical/academic explanation FIRST, then copy the EXACT verbatim text of the correct option into "correct_answer", and set "correct_index" to its 0-based index (0=first option, 1=second option, 2=third option, 3=fourth option).
 
 Return STRICT JSON only:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"Correct answer: <exact winning option text> — ...","correct_answer":"<exact winning option text>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"","knowledge_based":true,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"exact verbatim text of the winning option","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"","knowledge_based":true,"answer_confidence":0.95,"needs_review":false}]}
 
 Text:
 ${text}`;
         }
-        return `أنت خبير أكاديمي محترف ومستخرج وحلّال امتحانات دقيق. المهمة: استخرج جميع الأسئلة الموجودة في النص التالي وحلّها بدقة علمية 100%.
+        return `أنت خبير أكاديمي محترف ومستخرج امتحانات دقيق. المهمة: استخرج جميع الأسئلة الموجودة في النص التالي وحوّلها لكويز متمتع بأعلى درجات الجودة.
 مهم جداً:
-1. هذه الأسئلة ليس لها مفتاح إجابة مكتوب في النص. استخدم معرفتك الأكاديمية والطبية لتحديد الإجابة الصحيحة لكل سؤال بدقة قاطعة وشرحها بالتفصيل.
+1. هذه الأسئلة ليس لها مفتاح إجابة مكتوب في النص. استخدم معرفتك الأكاديمية لتحديد الإجابة الصحيحة لكل سؤال بدقة وشرحها بالتفصيل.
 2. استخرج جميع الأسئلة بلا استثناء (مهما كان عددها: 15، 29، 30، إلخ).
-3. حافظ على عدد الاختيارات لكل سؤال كما جاء في النص (سواء 2 أو 3 أو 4 أو 5 أو 6 اختيارات) وبدون رموز الترقيم البادئة (مثل أ) أو A)). لا تحذف الخيار الخامس (E/هـ).
+3. حافظ على عدد الاختيارات لكل سؤال كما جاء في النص (سواء 2 أو 3 أو 4 أو 5 أو 6 اختيارات، مثل A/B/C/D/E). لا تحذف الخيار الخامس (E/هـ).
 4. ممنوع منعاً باتاً تقسيم الاختيار الطويل إلى خيارين مفصولين. كل خيار يجب أن يمثل إجابة واحدة كاملة كما كتبت في النص الأصل.
-5. إذا كان السؤال تكميلياً أو يعتمد على حالة/سيناريو سابق: أضف نص الحالة/السيناريو في بداية السؤال ليصبح قائماً بذاته ومفهوماً 100%.
-6. **قاعدة القفل الصارم بين الشرح والإجابة (لمنع أي تعارض بين الشرح والاختيار)**:
-   - اكتب الشرح ("explanation") أولاً، وابدأه دائماً بعبارة: "الإجابة الصحيحة: <انسخ نص الخيار الصحيح حرفياً> — لأن..." مع توضيح سبب صحة هذا الخيار وسبب استبعاد الباقي.
-   - انسخ نفس نص الخيار الصحيح حرفياً في حقل "correct_answer".
-   - حدد رقمه الصفري في "correct_index" (حيث 0 هو الخيار الأول، 1 هو الثاني، 2 هو الثالث، 3 هو الرابع). وتأكد أن options[correct_index] يطابق تماماً "correct_answer"!
+5. إذا كان السؤال تكميلياً أو يعتمد على حالة/سيناريو سابق (مثلاً: "تكملة للسؤال السابق..." أو "بناءً على حالة المريض..."): أضف نص الحالة/السيناريو في بداية السؤال ليصبح قائماً بذاته ومفهوماً 100%.
+6. اكتب الشرح الأكاديمي (explanation) أولاً، ثم انسخ نص الإجابة الصحيحة حرفياً في حقل "correct_answer"، ثم حدد رقمها الصفري في "correct_index" (حيث 0 هو الخيار الأول، 1 هو الثاني، 2 هو الثالث، 3 هو الرابع).
 
 رد بـ JSON فقط:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"الإجابة الصحيحة: <نص الخيار الصحيح حرفياً> — ...","correct_answer":"<نص الخيار الصحيح حرفياً>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"صفحة/عنوان إن وجد","source_evidence":"","knowledge_based":true,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"نص الخيار الصحيح حرفياً","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"صفحة/عنوان إن وجد","source_evidence":"","knowledge_based":true,"answer_confidence":0.9,"needs_review":false}]}
 النص:
 ${text}`;
       }
@@ -1340,16 +1540,13 @@ ${text}`;
 CRITICAL RULES:
 1. STRICT LANGUAGE MANDATE: All questions, options, and explanations MUST BE 100% IN ENGLISH. Do NOT translate to Arabic.
 2. Extract all questions present in the text without exception.
-3. Use the answer key or markings indicated in the text. If any question is missing a marking, solve it accurately.
-4. Preserve the exact number of options per question (2, 3, 4, 5, or 6 options) without prefixes like "A)" or "B)".
+3. Use the answer key or markings indicated in the text.
+4. Preserve the exact number of options per question (2, 3, 4, 5, or 6 options).
 5. If a question depends on a clinical case or previous context, prepend the scenario to the question stem.
-6. MANDATORY ANSWER-EXPLANATION LOCK:
-   - Write "explanation" FIRST, starting with: "Correct answer: <exact verbatim option text> — <rationale>".
-   - Copy the EXACT verbatim text of the winning option into "correct_answer".
-   - Set "correct_index" to its 0-based index (0=1st, 1=2nd, 2=3rd, 3=4th). Verify options[correct_index] === correct_answer!
+6. Write the explanation FIRST, then copy the EXACT verbatim text of the correct option into "correct_answer", and set "correct_index" to its 0-based index (0=1st, 1=2nd, 2=3rd, 3=4th).
 
 Return STRICT JSON only:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"Correct answer: <exact winning option text> — ...","correct_answer":"<exact winning option text>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"short quote confirming answer","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"exact verbatim text of the winning option","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"short quote confirming answer","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
 
 Text:
 ${text}`;
@@ -1357,17 +1554,14 @@ ${text}`;
       return `أنت مستخرج امتحانات دقيق وفاخر. استخرج جميع الأسئلة الموجودة في النص التالي وحولها لـ JSON:
 قواعد صارمة للاستخراج:
 1. استخرج جميع الأسئلة الموجودة في النص بلا استثناء (حتّى لو كان النص يحتوي 15 أو 29 أو 30 أو أكتر).
-2. استخدم مفتاح الإجابة أو العلامات الموضحة بالمرجع (مثل الإجابة الصحيحة أو Bold/Checkmarks)، وإذا كان هناك سؤال غير محلول في النص فقم بحله علمياً بدقة 100%.
-3. حافظ على عدد الخيارات لكل سؤال بالظبط كما في النص (سواء 2، 3، 4، 5، أو 6 خيارات) بدون رموز الترقيم البادئة. لا تحذف الخيار الخامس (E/هـ).
+2. استخدم مفتاح الإجابة أو العلامات الموضحة بالمرجع (مثل الإجابة الصحيحة أو Bold/Checkmarks).
+3. حافظ على عدد الخيارات لكل سؤال بالظبط كما في النص (سواء 2، 3، 4، 5، أو 6 خيارات). لا تحذف الخيار الخامس (E/هـ).
 4. ممنوع منعاً باتاً تقسيم الإجابة الطويلة إلى خيارين مفصولين؛ الخيار الواضح يظل خياراً واحداً كاملاً.
 5. إذا كان السؤال تكميلياً أو يعتمد على حالة/قصة أو سؤال سابق: ادمج نص الحالة في بداية رأس السؤال ليكون مفهوماً وقائماً بذاته.
-6. **قاعدة القفل الصارم بين الشرح والإجابة**:
-   - اكتب الشرح ("explanation") أولاً، وابدأه دائماً بعبارة: "الإجابة الصحيحة: <انسخ نص الخيار الصحيح حرفياً> — ..."
-   - انسخ نص الإجابة الصحيحة حرفياً في "correct_answer".
-   - ضع رقمها الصفري في "correct_index" (0 للأول، 1 للثاني، 2 للثالث، 3 للرابع). وتأكد أن options[correct_index] يطابق "correct_answer"!
+6. اكتب الشرح (explanation) أولاً، ثم انسخ نص الإجابة الصحيحة حرفياً في "correct_answer"، ثم ضع رقمها الصفري في "correct_index" (0 للأول، 1 للثاني، 2 للثالث، 3 للرابع).
 
 رد بـ JSON فقط:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"الإجابة الصحيحة: <نص الخيار الصحيح حرفياً> — ...","correct_answer":"<نص الخيار الصحيح حرفياً>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"صفحة/عنوان إن وجد","source_evidence":"عبارة قصيرة تثبت الإجابة","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"نص الخيار الصحيح حرفياً","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"صفحة/عنوان إن وجد","source_evidence":"عبارة قصيرة تثبت الإجابة","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
 النص:\n${text}`;
     }
 
@@ -1388,19 +1582,16 @@ ${text}`;
 Difficulty: ${diffMapEn[difficulty] || "Balanced"}
 Quiz Profile: ${profileMapEn[quizProfile] || profileMapEn.balanced}
 STRICT LANGUAGE REQUIREMENT: All questions, options, and explanations MUST BE 100% IN ENGLISH. Do NOT output any Arabic words, because the student is studying and testing entirely in English.
-Explanations: ${withExplanation ? "Include a high-yield academic explanation for each question explaining why the correct choice is right and others are ruled out." : "Still include a brief explanation starting with 'Correct answer: <exact option text>'."}
+Explanations: ${withExplanation ? "Include a high-yield academic explanation for each question explaining why the correct choice is right and others are ruled out." : "Without explanation."}
 QUALITY & INDEXING RULES:
-- Exactly 4 options per question (without "A)" or "B)" prefixes), and exactly ONE unambiguous correct answer.
+- Exactly 4 options per question, exactly ONE unambiguous correct answer.
 - Distractor Symmetry Rule: All 4 options must be similar in length, professional phrasing, and plausibility (within 2-3 words). Never make the correct answer significantly longer or more detailed than distractors.
 - Plausible Distractors: Must reflect real diagnostic alternatives and common misconceptions.
 - Distribute correct_index evenly across 0, 1, 2, and 3.
-- MANDATORY ANSWER-EXPLANATION LOCK:
-  1. Write "explanation" FIRST, and ALWAYS start it with: "Correct answer: <exact verbatim text of winning option> — <rationale>".
-  2. Copy the EXACT verbatim string of the winning option into "correct_answer".
-  3. Set "correct_index" to its 0-based index (0=1st option, 1=2nd option, 2=3rd option, 3=4th option). Verify that options[correct_index] === correct_answer!
+- CRITICAL ZERO-BASED VERIFICATION: Write "explanation" FIRST, then copy the EXACT verbatim string of the winning option into "correct_answer", and finally set "correct_index" to its 0-based index (0=1st option, 1=2nd option, 2=3rd option, 3=4th option). Verify that options[correct_index] === correct_answer!
 
 Return STRICT JSON only:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"Correct answer: <exact winning option text> — ...","correct_answer":"<exact winning option text>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"exact verbatim text of the winning option","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
 
 Source Content:
 ${text}`;
@@ -1421,9 +1612,9 @@ ${text}`;
 المستوى: ${diffMap[difficulty] || "متنوع"}
 نوع الكويز: ${profileMap[quizProfile] || profileMap.balanced}
 اللغة: عربي واضح مع بقاء المصطلحات والأسماء الطبية والتقنية الإنجليزية بين قوسين
-الشرح: ${withExplanation ? "أضف شرحاً مفيداً لكل سؤال" : "أضف شرحاً مختصراً يبدأ بذكر الخيار الصحيح"}
+الشرح: ${withExplanation ? "أضف شرحاً مفيداً لكل سؤال" : "بدون شرح"}
 قواعد الجودة:
-- 4 خيارات لكل سؤال (بدون حروف ترقيم بادئة مثل أ) أو ب))، وإجابة واحدة صحيحة فقط.
+- 4 خيارات لكل سؤال، وإجابة واحدة صحيحة فقط.
 - **قاعدة تماثل وتكافؤ الخيارات (Distractor Symmetry Rule - صارمة جداً)**: يجب أن تكون جميع الخيارات الـ 4 متقاربة جداً في الطول وعدد الكلمات والأسلوب اللغوي (فارق أقصاه 2 إلى 3 كلمات فقط). ممنوع منعاً باتاً كتابة إجابة صحيحة طويلة ومفصلة بينما الخيارات الخاطئة قصيرة وواضحة الخطأ، حتى لا تنكشف الإجابة بالنظر.
 - المشتتات الخاطئة (Distractors) يجب أن تكون مقنعة ومنطقية علمياً ومكتوبة بنفس درجة العمق والاحترافية.
 - وزع الأسئلة: فهم مباشر + تطبيق + مقارنة/تمييز + أخطاء شائعة.
@@ -1433,12 +1624,9 @@ ${text}`;
 - أضف source_evidence كعبارة قصيرة موجودة فعلاً في المصدر وتثبت الإجابة؛ لا تخترع اقتباساً.
 - ضع knowledge_based=false وanswer_confidence بين 0 و1 وneeds_review=true فقط عند نقص الدليل أو الشك.
 - وزع correct_index على 0 و1 و2 و3؛ لا تجعل معظم الإجابات في نفس الموضع.
-- **قاعدة القفل الصارم بين الشرح والإجابة (لمنع اختيار إجابة مخالفة للشرح)**:
-  1. اكتب الشرح ("explanation") أولاً، وابدأه دائماً بعبارة: "الإجابة الصحيحة: <انسخ نص الخيار الصحيح حرفياً> — ..." ثم اشرح السبب العلمي.
-  2. انسخ نص الإجابة الصحيحة حرفياً في حقل "correct_answer".
-  3. ضع رقمها الصفري في "correct_index" (حيث 0=الخيار الأول، 1=الثاني، 2=الثالث، 3=الرابع). وتأكد أن options[correct_index] يطابق "correct_answer"!
+- **قاعدة المطابقة الصارمة للإجابة الصحيحة**: اكتب الشرح (explanation) أولاً، ثم انسخ نص الإجابة الصحيحة حرفياً في حقل "correct_answer"، ثم ضع رقمها الصفري في "correct_index" (حيث 0=الخيار الأول، 1=الثاني، 2=الثالث، 3=الرابع).
 رد بـ JSON فقط بدون أي نص:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"الإجابة الصحيحة: <نص الخيار الصحيح حرفياً> — ...","correct_answer":"<نص الخيار الصحيح حرفياً>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"نص الخيار الصحيح حرفياً","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.9,"needs_review":false}]}
 المحتوى:\n${text}`;
   },
 
@@ -1448,15 +1636,16 @@ ${text}`;
 Synthesize exactly ${missingCount} brand new, unique questions distinct from the list below.
 CRITICAL LANGUAGE MANDATE: 100% English. Do NOT output any Arabic words.
 Difficulty: ${difficulty}. Profile: ${quizProfile}.
+${withExplanation ? "Write a clear academic rationale for each answer." : "Set explanation to empty string."}
 Each question must have 4 options, 1 correct answer, and distractor symmetry.
 Do NOT use 'all of the above' or 'none of the above'. Distribute correct_index evenly across 0, 1, 2, 3.
-Write "explanation" FIRST starting with "Correct answer: <exact winning option text> — ...", then copy the exact winning option into "correct_answer", and set 0-based "correct_index" (0..3).
+Write "explanation" FIRST, then copy the exact winning option into "correct_answer", and set 0-based "correct_index" (0..3).
 
 Existing questions that must NOT be repeated:
 ${existingQuestions.map((q, idx) => `${idx + 1}. ${q}`).join("\n") || "None"}
 
 Return STRICT JSON only:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"Correct answer: <exact winning option text> — ...","correct_answer":"<exact winning option text>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"exact verbatim text of winning option","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
 
 Source:
 ${text}`;
@@ -1467,16 +1656,17 @@ ${text}`;
 ولّد بالضبط ${missingCount} سؤالاً جديداً مختلفاً عن قائمة الأسئلة الموجودة أدناه.
 اللغة: عربي مع إبقاء المصطلحات التقنية الإنجليزية بين قوسين.
 المستوى: ${difficulty}. النمط: ${quizProfile}.
+${withExplanation ? "اكتب تفسيراً أكاديمياً واضحاً لكل إجابة." : "ضع explanation كسلسلة فارغة."}
 كل سؤال يجب أن يحتوي 4 خيارات مختلفة وإجابة واحدة صحيحة ومعلومة source_evidence قصيرة موجودة في المصدر.
 قاعدة تماثل الخيارات: يجب أن تكون جميع الخيارات الـ 4 متقاربة في الطول والأسلوب اللغوي (فارق لا يتجاوز 3 كلمات)، وتجنب جعل الإجابة الصحيحة أطول من المشتتات الخاطئة.
 لا تستخدم كل ما سبق أو لا شيء مما سبق. وزّع correct_index بين 0 و1 و2 و3.
-اكتب الشرح ("explanation") أولاً بادئاً بـ "الإجابة الصحيحة: <نص الخيار الصحيح حرفياً> — ..."، ثم انسخ نص الخيار الصحيح حرفياً في "correct_answer"، ثم حدد "correct_index" الصفري (0..3).
+اكتب الشرح (explanation) أولاً، ثم انسخ نص الخيار الصحيح حرفياً في "correct_answer"، ثم حدد "correct_index" الصفري (0..3).
 
 الأسئلة الموجودة التي يمنع تكرارها أو إعادة صياغتها:
 ${existingQuestions.map((question, index) => `${index + 1}. ${question}`).join("\n") || "لا يوجد"}
 
 رد بـ JSON فقط:
-{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"الإجابة الصحيحة: <نص الخيار الصحيح حرفياً> — ...","correct_answer":"<نص الخيار الصحيح حرفياً>","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.95,"needs_review":false}]}
+{"questions":[{"question":"...","options":["...","...","...","..."],"explanation":"...","correct_answer":"نص الخيار الصحيح حرفياً","correct_index":0,"difficulty":"easy|medium|hard","topic":"...","source_ref":"...","source_evidence":"...","knowledge_based":false,"answer_confidence":0.9,"needs_review":false}]}
 
 المصدر:
 ${text}`;
@@ -1601,14 +1791,19 @@ export async function auditQuizQuestionsWithAI(rawQuestions = [], config = {}, s
         const opts = Array.isArray(target.options) ? target.options : [];
         if (opts.length < 2) continue;
 
-        // Match by exact/normalized text first (strip optional "0: " prefix)
+        // Match by exact text first (strip optional "0: " prefix)
         const cleanAnsText = String(audit?.correct_answer || "")
           .replace(/^\s*\d+\s*[:.)\-]\s*/, "")
           .trim();
 
-        let verifiedIdx = cleanAnsText.length >= 1
-          ? matchTextAgainstOptions(cleanAnsText, opts)
-          : -1;
+        let verifiedIdx = -1;
+        if (cleanAnsText.length >= 2) {
+          const normTarget = cleanAnsText.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g, " ").trim();
+          verifiedIdx = opts.findIndex((o) => {
+            const normOpt = String(o || "").toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g, " ").trim();
+            return normOpt === normTarget || (normOpt.length >= 5 && normTarget.includes(normOpt)) || (normTarget.length >= 5 && normOpt.includes(normTarget));
+          });
+        }
 
         if (verifiedIdx < 0 && Number.isInteger(Number(audit?.correct_index))) {
           const numIdx = Number(audit.correct_index);
@@ -1675,45 +1870,27 @@ export async function runGenerateStudyContent(payload, config) {
   const { task, text, language = "ar", numQuestions = 10, difficulty = "mixed",
     withExplanation = true, summaryStyle = "complete_study_guide", summaryMaxPages = 30,
     chunkIndex = 0, totalChunks = 1, extractMode = false, quizMode = null,
-    sourceAnalysis = null, stylePrompt = "", quizProfile = "balanced", bypassCache = false } = payload;
+    sourceAnalysis = null, stylePrompt = "", quizProfile = "balanced" } = payload;
 
   if (task === "quiz_audit") {
     return await auditQuizQuestionsWithAI(payload.questions || [], config, text || "");
   }
 
   if (task === "summary_facts") {
-    const artifactKey = buildArtifactKey({ task: "summary_facts", language, summaryStyle, summaryMaxPages, chunkIndex, totalChunks });
-    if (!bypassCache && text) {
-      const cached = await getCachedArtifact(text, artifactKey);
-      if (cached && Array.isArray(cached.facts) && cached.facts.length > 0) {
-        return { ...cached, _cacheHit: true };
-      }
-    }
     const parsed = await generateJson(
       PROMPTS.summaryFacts(text, language, summaryStyle, chunkIndex, totalChunks),
       taskConfig(config, { temperature: 0.05, max_tokens: 10_000 }),
       "summary facts JSON",
       SYSTEM_PROMPTS.summary,
     );
-    const result = {
+    return {
       facts: Array.isArray(parsed?.facts) ? parsed.facts : [],
       model_actual: config?.model || "",
       chunk_index: chunkIndex,
     };
-    if (result.facts.length > 0 && text) {
-      await setCachedArtifact(text, artifactKey, result, { meta: { task: "summary_facts", language } });
-    }
-    return result;
   }
 
   if (task === "quiz_source_analysis") {
-    const artifactKey = buildArtifactKey({ task: "quiz_source_analysis", language: "auto" });
-    if (!bypassCache && text) {
-      const cached = await getCachedArtifact(text, artifactKey);
-      if (cached && cached.source_type) {
-        return { ...cached, _cacheHit: true };
-      }
-    }
     const fallback = localAnalyzeQuizSource(text);
     try {
       const parsed = await generateJson(
@@ -1728,7 +1905,7 @@ export async function runGenerateStudyContent(payload, config) {
       const sourceType = ["question_bank", "study_material", "mixed"].includes(parsed?.source_type)
         ? parsed.source_type
         : fallback.source_type;
-      const analysisOut = {
+      return {
         ...fallback,
         ...parsed,
         source_type: sourceType,
@@ -1737,55 +1914,25 @@ export async function runGenerateStudyContent(payload, config) {
         recommended_count: Math.max(1, Math.min(QUIZ_MAX_QUESTIONS, Number(parsed?.recommended_count ?? fallback.recommended_count) || 10)),
         confidence: Math.max(0, Math.min(1, Number(parsed?.confidence ?? fallback.confidence) || fallback.confidence)),
       };
-      if (text) await setCachedArtifact(text, artifactKey, analysisOut, { meta: { task: "quiz_source_analysis" } });
-      return analysisOut;
     } catch {
       return fallback;
     }
   }
 
   if (task === "summary") {
-    const artifactKey = buildArtifactKey({ task: "summary", language, summaryStyle, summaryMaxPages, chunkIndex, totalChunks });
-    if (!bypassCache && text) {
-      const cached = await getCachedArtifact(text, artifactKey);
-      if (cached?.summary_markdown) {
-        return { ...cached, _cacheHit: true };
-      }
-    }
     const prompt = PROMPTS.summary(text, summaryStyle, summaryMaxPages, language, chunkIndex, totalChunks, stylePrompt);
     const raw = await generateText(
       prompt,
       taskConfig(config, { temperature: 0.2, max_tokens: 12288 }),
       SYSTEM_PROMPTS.summary,
     );
-    const out = { summary_markdown: raw };
-    if (raw && text) {
-      await setCachedArtifact(text, artifactKey, out, { meta: { task: "summary", language, summaryStyle } });
-    }
-    return out;
+    return { summary_markdown: raw };
   }
 
   if (task === "text_exam_parser" || (task === "quiz" && (quizMode === "text_parser" || extractMode === "text_parser"))) {
-    const artifactKey = buildArtifactKey({ task: "text_exam_parser", language });
-    if (!bypassCache && text) {
-      const cached = await getCachedArtifact(text, artifactKey);
-      if (cached && Array.isArray(cached.questions) && cached.questions.length > 0) {
-        return {
-          ...cached,
-          questions: cached.questions.map((q) => reconcileQuestionAnswer(q)),
-          _cacheHit: true,
-        };
-      }
-    }
     const prompt = PROMPTS.textExamParser(text);
     const parserConfig = taskConfig(config, { temperature: 0.05, max_tokens: 16384 });
     const parsed = await generateJson(prompt, parserConfig, "universal text exam JSON", SYSTEM_PROMPTS.textExamParser);
-    if (Array.isArray(parsed?.questions)) {
-      parsed.questions = parsed.questions.map((q) => reconcileQuestionAnswer(q));
-    }
-    if (parsed?.questions?.length > 0 && text) {
-      await setCachedArtifact(text, artifactKey, parsed, { meta: { task: "text_exam_parser" } });
-    }
     return parsed;
   }
 
@@ -1796,111 +1943,29 @@ export async function runGenerateStudyContent(payload, config) {
       effectiveLanguage = getRecommendedQuizLanguage(text);
     }
 
+    // تحديد ما إذا كانت الأسئلة تحتوي على إجابات أم لا
+    const hasAnswers = sourceAnalysis?.has_answers ?? null;
+    const prompt = PROMPTS.quiz(text, numQuestions, difficulty, withExplanation, effectiveLanguage, quizMode || extractMode, hasAnswers, quizProfile);
     const desiredCount = Math.max(1, Math.min(QUIZ_MAX_QUESTIONS, Number(numQuestions) || 10));
     const mode = quizMode || extractMode || "generate";
-
-    // ─── Hybrid Smart Batch Cache Engine for Quizzes ───
-    // Pulls ~50% from the shared lecture question bank and generates ~50% fresh questions!
-    const hybridRatio = mode === "extract" ? 0.9 : 0.5;
-    const hybridPlan = (!bypassCache && text)
-      ? await prepareHybridQuizPlan({
-          text,
-          language: effectiveLanguage,
-          desiredCount,
-          difficulty,
-          hybridRatio,
-        })
-      : { cachedSlice: [], missingCount: desiredCount, existingStems: [], fullBank: [], isHybridHit: false };
-
-    const aiTargetCount = Math.max(0, hybridPlan.missingCount);
-
-    // If the cache already covers 100% (e.g. exact extraction mode with full bank)
-    if (aiTargetCount === 0 && hybridPlan.cachedSlice.length >= desiredCount) {
-      const cachedNormalized = normalizeQuizResult(
-        { questions: hybridPlan.cachedSlice.slice(0, desiredCount) },
-        {
-          desiredCount,
-          mode,
-          sourceAnalysis,
-          difficulty,
-          requireExplanation: withExplanation,
-          sourceText: text,
-        }
-      );
-      cachedNormalized.stats = {
-        ...(cachedNormalized.stats || {}),
-        cache_hit_questions: cachedNormalized.questions.length,
-        newly_generated_questions: 0,
-        smart_cache_hit: true,
-      };
-      return cachedNormalized;
-    }
-
-    const hasAnswers = sourceAnalysis?.has_answers ?? null;
-    const basePrompt = PROMPTS.quiz(
-      text,
-      aiTargetCount,
-      difficulty,
-      withExplanation,
-      effectiveLanguage,
+    const quizConfig = taskConfig(config, { temperature: 0.12, max_tokens: 12288 });
+    const parsed = await generateJson(prompt, quizConfig, "quiz JSON", SYSTEM_PROMPTS.quiz);
+    const firstPass = normalizeQuizResult(parsed, {
+      desiredCount,
       mode,
-      hasAnswers,
-      quizProfile
-    );
-    // Instruct AI not to repeat questions already in the batch cache bank
-    const exclusionNote = hybridPlan.existingStems.length > 0
-      ? effectiveLanguage === "en"
-        ? `\n\nIMPORTANT SMART CACHE RULE: Do NOT repeat or paraphrase any of these ${hybridPlan.existingStems.length} previously cached questions:\n${hybridPlan.existingStems.slice(0, 25).map((s, idx) => `${idx + 1}. ${s}`).join("\n")}\n`
-        : `\n\nقاعدة الكاش الذكي: يمنع تكرار أو إعادة صياغة أي من الأسئلة التالية المحفوظة مسبقاً في بنك المحاضرة:\n${hybridPlan.existingStems.slice(0, 25).map((s, idx) => `${idx + 1}. ${s}`).join("\n")}\n`
-      : "";
-    const prompt = basePrompt + exclusionNote;
+      sourceAnalysis,
+      difficulty,
+      requireExplanation: withExplanation,
+      sourceText: text,
+    });
 
-    const quizConfig = taskConfig(config, { temperature: 0.15, max_tokens: 12288 });
-    let firstPass = { questions: [], stats: {} };
-
-    try {
-      const parsed = await generateJson(prompt, quizConfig, "quiz JSON", SYSTEM_PROMPTS.quiz);
-      firstPass = normalizeQuizResult(parsed, {
-        desiredCount: aiTargetCount,
-        mode,
-        sourceAnalysis,
-        difficulty,
-        requireExplanation: withExplanation,
-        sourceText: text,
-      });
-    } catch (aiErr) {
-      // Resilient fallback: if AI provider is rate-limited/down and we have cached questions in the bank, serve them!
-      if (hybridPlan.fullBank.length >= 2) {
-        console.warn("[quiz] AI call failed, serving from Smart Batch Cache Question Bank:", aiErr?.message);
-        const fallbackResult = normalizeQuizResult(
-          { questions: hybridPlan.fullBank.slice(0, desiredCount) },
-          {
-            desiredCount,
-            mode,
-            sourceAnalysis,
-            difficulty,
-            requireExplanation: withExplanation,
-            sourceText: text,
-          }
-        );
-        fallbackResult.stats = {
-          ...(fallbackResult.stats || {}),
-          cache_hit_questions: fallbackResult.questions.length,
-          newly_generated_questions: 0,
-          smart_cache_fallback: true,
-        };
-        return fallbackResult;
-      }
-      throw aiErr;
-    }
-
-    let newlyGeneratedResult = firstPass;
-    if (mode !== "extract" && firstPass.questions.length < aiTargetCount) {
-      const missingCount = aiTargetCount - firstPass.questions.length;
+    let finalResult = firstPass;
+    if (mode !== "extract" && firstPass.questions.length < desiredCount) {
+      const missingCount = desiredCount - firstPass.questions.length;
       const topUpPrompt = PROMPTS.quizTopUp(
         text,
         missingCount,
-        [...hybridPlan.existingStems.slice(0, 15), ...firstPass.questions.map((question) => question.question)],
+        firstPass.questions.map((question) => question.question),
         difficulty,
         withExplanation,
         effectiveLanguage,
@@ -1909,7 +1974,7 @@ export async function runGenerateStudyContent(payload, config) {
       try {
         const topUp = await generateJson(topUpPrompt, quizConfig, "quiz top-up JSON", SYSTEM_PROMPTS.quiz);
         const completed = normalizeQuizResult({ questions: [...firstPass.questions, ...(topUp?.questions || [])] }, {
-          desiredCount: aiTargetCount,
+          desiredCount,
           mode,
           sourceAnalysis,
           difficulty,
@@ -1918,23 +1983,23 @@ export async function runGenerateStudyContent(payload, config) {
         });
         completed.stats.first_pass_accepted = firstPass.questions.length;
         completed.stats.top_up_requested = missingCount;
-        newlyGeneratedResult = completed;
+        finalResult = completed;
       } catch (error) {
         console.warn("[quiz] Quality top-up failed; returning the valid first-pass questions", error);
         firstPass.stats.top_up_requested = missingCount;
         firstPass.stats.top_up_failed = true;
-        newlyGeneratedResult = firstPass;
+        finalResult = firstPass;
       }
     }
 
-    // Multi-Agent Verification Pass on newly generated questions (cached questions are already audited!)
-    if (payload.autoAudit !== false && newlyGeneratedResult.questions.length > 0) {
+    // Multi-Agent Verification Pass: Automatically verify and fix any questionable answers
+    if (payload.autoAudit !== false && finalResult.questions.length > 0) {
       try {
-        const audited = await auditQuizQuestionsWithAI(newlyGeneratedResult.questions, config, text);
-        if (Array.isArray(audited?.questions) && audited.questions.length === newlyGeneratedResult.questions.length) {
-          newlyGeneratedResult.questions = audited.questions;
-          newlyGeneratedResult.stats = {
-            ...(newlyGeneratedResult.stats || {}),
+        const audited = await auditQuizQuestionsWithAI(finalResult.questions, config, text);
+        if (Array.isArray(audited?.questions) && audited.questions.length === finalResult.questions.length) {
+          finalResult.questions = audited.questions;
+          finalResult.stats = {
+            ...(finalResult.stats || {}),
             multi_agent_audited: true,
             multi_agent_corrections: audited.correctedCount || 0,
             needs_review: audited.questions.filter((q) => q.needs_review).length,
@@ -1945,82 +2010,22 @@ export async function runGenerateStudyContent(payload, config) {
       }
     }
 
-    // Commit new questions to the shared Question Bank and blend with cached slice
-    const committed = text
-      ? await commitHybridQuizQuestions({
-          textOrHash: hybridPlan.contentHash || text,
-          language: effectiveLanguage,
-          cachedSlice: hybridPlan.cachedSlice,
-          newQuestions: newlyGeneratedResult.questions,
-          desiredCount,
-          isAlreadyHashed: Boolean(hybridPlan.contentHash),
-        })
-      : {
-          questions: newlyGeneratedResult.questions,
-          bankSize: newlyGeneratedResult.questions.length,
-          cachedUsedCount: 0,
-          newlyGeneratedCount: newlyGeneratedResult.questions.length,
-        };
-
-    const finalHybrid = normalizeQuizResult(
-      { questions: committed.questions },
-      {
-        desiredCount,
-        mode,
-        sourceAnalysis,
-        difficulty,
-        requireExplanation: withExplanation,
-        sourceText: text,
-      }
-    );
-
-    finalHybrid.stats = {
-      ...(newlyGeneratedResult.stats || {}),
-      ...(finalHybrid.stats || {}),
-      cache_hit_questions: committed.cachedUsedCount,
-      newly_generated_questions: committed.newlyGeneratedCount,
-      total_bank_size: committed.bankSize,
-      smart_cache_hit: committed.cachedUsedCount > 0,
-    };
-
-    return finalHybrid;
+    return finalResult;
   }
 
   if (task === "flashcards") {
-    const artifactKey = buildArtifactKey({ task: "flashcards", language });
-    if (!bypassCache && text) {
-      const cached = await getCachedArtifact(text, artifactKey);
-      if (cached && Array.isArray(cached.cards) && cached.cards.length > 0) {
-        return { ...cached, _cacheHit: true };
-      }
-    }
     const prompt = PROMPTS.flashcards(text, language);
-    const out = await generateJson(prompt, taskConfig(config, { temperature: 0.14 }), "flashcards JSON");
-    if (out?.cards?.length > 0 && text) {
-      await setCachedArtifact(text, artifactKey, out, { meta: { task: "flashcards", language } });
-    }
-    return out;
+    return generateJson(prompt, taskConfig(config, { temperature: 0.14 }), "flashcards JSON");
   }
 
   if (task === "generic_summary" || task === "organize") {
-    const artifactKey = buildArtifactKey({ task, language });
-    if (!bypassCache && text) {
-      const cached = await getCachedArtifact(text, artifactKey);
-      if (cached?.summary_markdown) {
-        return { ...cached, _cacheHit: true };
-      }
-    }
     const prompt = PROMPTS.summary(text, task === "organize" ? "complete_study_guide" : "exam_revision_sheet", 10, language);
     const raw = await generateText(
       prompt,
       taskConfig(config, { temperature: 0.18, max_tokens: 12288 }),
       SYSTEM_PROMPTS.summary,
     );
-    const out = { text: raw, summary_markdown: raw };
-    if (raw && text) {
-      await setCachedArtifact(text, artifactKey, out, { meta: { task, language } });
-    }
-    return out;
+    return { text: raw, summary_markdown: raw };
   }
 
   throw new Error(`Unknown task: ${task}`);

@@ -8,6 +8,8 @@ export const EXTRACTABLE_EXTENSIONS = [...TEXT_EXTENSIONS, ...IMAGE_EXTENSIONS, 
 // Guarantees any uploaded lecture file is processed ONCE and never re-parsed or re-OCR'd.
 const EXTRACTION_CACHE = new Map();
 const IN_FLIGHT_EXTRACTIONS = new Map();
+// One-session flags for quiet, single-shot console notes.
+const fileProcessingJsFlags = { workerFallbackNoted: false };
 
 function getFileCacheKey(file) {
   if (!file || typeof file !== 'object') return '';
@@ -185,7 +187,13 @@ export async function extractTextFromFile(file, { onProgress } = {}) {
             resultText = await extractFileInWorker(sharedBuffer, ext, onProgress);
           } catch (workerError) {
             if (workerError.message === 'scanned_pdf') throw workerError;
-            console.warn('File worker failed; using the compatibility path:', workerError);
+            // The compatibility path is a fully working equivalent, not an
+            // error state — the scary red console line the owner saw made it
+            // look broken. Log once, quietly.
+            if (!fileProcessingJsFlags.workerFallbackNoted) {
+              fileProcessingJsFlags.workerFallbackNoted = true;
+              console.info('استخراج الملف بالمسار الاحتياطي — آمن وطبيعي والنتيجة واحدة.');
+            }
           }
         }
         if (!resultText) {

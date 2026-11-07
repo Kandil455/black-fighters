@@ -118,13 +118,18 @@ export function mergeCourseParts(parts, fallbackTitle = "كورس جديد") {
   const first = valid[0];
   const isMulti = valid.length > 1;
 
-  const chapters = valid.flatMap((part, pi) =>
+  const rawChapters = valid.flatMap((part, pi) =>
     (part.chapters || []).map((ch, ci) => ({
       title: ch.title || `فصل ${pi + ci + 1}`,
       content: ch.content || "",
       ...(isMulti ? { source_part: pi + 1 } : {}),
     }))
   );
+
+  // Owner rule: previews are study sections, not pipeline chunks. Condense many
+  // micro-chapters into a scaled set (3..9) so a huge lecture reads as a few
+  // substantial parts instead of 20+ fragments with "فصل N" scaffolding.
+  const chapters = condenseChapters(rawChapters);
 
   return {
     title: first.title || fallbackTitle,
@@ -135,6 +140,37 @@ export function mergeCourseParts(parts, fallbackTitle = "كورس جديد") {
     doc_type: first.doc_type || "study",
     chapters,
   };
+}
+
+const GENERIC_CHAPTER_RE = /^(?:فصل|الفصل|chapter|part|الجزء|جزء)\s*\d*\.?\s*$/i;
+
+function chapterDisplayTitle(rawTitle, content, index) {
+  const title = String(rawTitle || "").trim();
+  if (title && !GENERIC_CHAPTER_RE.test(title)) return title;
+  const snippet = String(content || "").replace(/\s+/g, " ").trim().split(/\s+/).slice(0, 8).join(" ");
+  return snippet ? `${snippet}…` : `فصل ${index + 1}`;
+}
+
+/**
+ * Contiguously merges raw chapters into a scaled set: target = ceil(n/3),
+ * bounded 3..9 (mirrors the summary assembler's proportional chapter rule).
+ */
+export function condenseChapters(rawChapters) {
+  const chapters = (Array.isArray(rawChapters) ? rawChapters : []).filter((ch) => ch && (ch.content || ch.title));
+  if (chapters.length <= 9) {
+    return chapters.map((ch, i) => ({ ...ch, title: chapterDisplayTitle(ch.title, ch.content, i) }));
+  }
+  const targetCount = Math.max(3, Math.min(9, Math.ceil(chapters.length / 3)));
+  const groups = Array.from({ length: targetCount }, () => []);
+  chapters.forEach((ch, i) => {
+    const bucket = Math.min(targetCount - 1, Math.floor((i * targetCount) / chapters.length));
+    groups[bucket].push(ch);
+  });
+  return groups.filter((g) => g.length).map((group, gi) => ({
+    title: chapterDisplayTitle(group[0].title, group[0].content, gi),
+    content: group.map((ch) => ch.content).filter(Boolean).join("\n\n"),
+    ...(group.some((ch) => ch.source_part) ? { source_part: Math.min(...group.map((ch) => ch.source_part || Infinity)) } : {}),
+  }));
 }
 
 /** Converts a final Markdown study sheet to course chapters without dropping text. */

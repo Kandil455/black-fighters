@@ -29,6 +29,43 @@ function isTextual(contentType) {
   return TEXTUAL_CONTENT_TYPES.some((prefix) => type.startsWith(prefix));
 }
 
+/**
+ * CORS: production serves the app from blackfighters.site while the functions live
+ * on a separate API host, so every call is cross-origin and the browser sends a
+ * preflight. Handlers never emitted Access-Control-Allow-Origin, so the preflight
+ * failed and every real call was blocked as a network error. We echo the origin
+ * only when it is explicitly allowed (never `*`, because requests carry a bearer
+ * token), and always allow the headers the client actually sends.
+ */
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://blackfighters.site",
+  "https://www.blackfighters.site",
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+];
+
+function allowedOriginList() {
+  const fromEnv = String(process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+  return fromEnv.length ? fromEnv : DEFAULT_ALLOWED_ORIGINS;
+}
+
+export function corsHeaders(request) {
+  const origin = request?.headers?.get?.("origin") || "";
+  if (!origin) return {};
+  const allowed = allowedOriginList();
+  if (!allowed.includes(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, content-type, x-requested-with, accept",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin",
+  };
+}
+
 export function adaptNetlifyHandler(handler) {
   return async function handleVercelRequest(request) {
     const method = request.method || "GET";
@@ -65,7 +102,10 @@ export function adaptNetlifyHandler(handler) {
 
     return new Response(responseBody, {
       status: result?.statusCode || 200,
-      headers: result?.headers || { "Content-Type": "application/json; charset=utf-8" },
+      headers: {
+        ...(result?.headers || { "Content-Type": "application/json; charset=utf-8" }),
+        ...corsHeaders(request),
+      },
     });
   };
 }

@@ -22,7 +22,6 @@ import {
   getRecommendedQuizLanguage,
   verifyAndPrepareQuizQuestions,
 } from "@/lib/quizQuality";
-import { prepareHybridQuizPlan, commitHybridQuizQuestions } from "@/lib/smartCache";
 import { tryOfflineExtraction } from "@/lib/offlineExamParser";
 import { extractTextFromFile } from "@/lib/fileProcessing";
 import { QuizReviewStudio } from "@/components/quiz/QuizReviewStudio";
@@ -30,6 +29,8 @@ import CreditCostBadge from "@/components/CreditCostBadge";
 import ShimmerButton from "@/components/ui/ShimmerButton";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
+import { quoteAiJobCost } from "@/lib/optimisticCredits";
 
 const DIFFICULTIES = [
   { id: "easy", labelAr: "سهل", labelEn: "Easy" },
@@ -51,6 +52,7 @@ export default function QuizGeneratorPanel() {
   const queryMode = new URLSearchParams(location.search).get("mode");
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
+  const { applyOptimisticCharge, applyOptimisticRefund } = useOptimisticCharge();
   const fileRef = useRef(null);
   const [mode, setMode] = useState("text"); // text | file
   const [title, setTitle] = useState("");
@@ -166,28 +168,22 @@ export default function QuizGeneratorPanel() {
         ? Math.max(1, Math.min(QUIZ_MAX_QUESTIONS, Number(analysis.question_count || analysis.recommended_count || targetQuestionCount) || targetQuestionCount))
         : targetQuestionCount;
       const jobKey = crypto.randomUUID();
-      const charge = await base44.functions.invoke("chargeAiJob", {
+      const chargePayload = {
         action: "charge",
         jobKey,
         task: "quiz",
         questionCount: requestedQuestions,
-      });
+      };
+      // Optimistic: balance drops in the same render; the server response
+      // then reconciles it with the authoritative value.
+      const charge = await applyOptimisticCharge(
+        () => base44.functions.invoke("chargeAiJob", chargePayload),
+        { cost: quoteAiJobCost(chargePayload) }
+      );
       chargedJob = { jobKey, cost: charge.data.cost };
       const actualRequestedQs = requestedQuestions;
-      const effectiveLanguage = quizLanguage === "auto" ? recommendedLang : quizLanguage;
-
-      // Check full-document Hybrid Quiz Cache first
-      const hybridPlan = await prepareHybridQuizPlan({
-        text,
-        language: effectiveLanguage,
-        desiredCount: actualRequestedQs,
-        difficulty,
-        hybridRatio: selectedMode === "extract" ? 0.85 : 0.5,
-      });
-
-      const aiTargetCount = Math.max(2, hybridPlan.missingCount);
-      const chunkBuild = buildQuizChunks(text, { mode: selectedMode, targetQuestions: aiTargetCount });
-      const questionPlan = allocateQuizQuestions(aiTargetCount, chunkBuild.chunks);
+      const chunkBuild = buildQuizChunks(text, { mode: selectedMode, targetQuestions: actualRequestedQs });
+      const questionPlan = allocateQuizQuestions(actualRequestedQs, chunkBuild.chunks);
       const chunkTasks = chunkBuild.chunks
         .map((chunk, index) => ({
           ...chunk,
@@ -196,47 +192,44 @@ export default function QuizGeneratorPanel() {
             : (questionPlan[index] || 0),
         }))
         .filter((chunk) => chunk.questionCount > 0);
-      if (!chunkTasks.length && !hybridPlan.cachedSlice.length) throw new Error("NO_QUESTIONS");
-      if (chunkTasks.length) {
-        setGenerationProgress({ completed: 0, total: chunkTasks.length, label: chunkTasks[0].label });
-      }
+      if (!chunkTasks.length) throw new Error("NO_QUESTIONS");
+      setGenerationProgress({ completed: 0, total: chunkTasks.length, label: chunkTasks[0].label });
+      const effectiveLanguage = quizLanguage === "auto" ? recommendedLang : quizLanguage;
 
-      const pool = chunkTasks.length
-        ? await runQuizChunkPool(chunkTasks, async (chunk) => {
-            const res = await base44.functions.invoke("generateStudyContent", {
-              task: "quiz",
-              text: chunk.text,
-              numQuestions: chunk.questionCount,
-              difficulty,
-              quizProfile,
-              withExplanation: showExplanations,
-              quizMode: selectedMode,
-              sourceAnalysis: { ...analysis, question_count: chunk.questionCount },
-              language: effectiveLanguage,
-            });
-            return normalizeQuizResult(res?.data?.result, {
-              desiredCount: chunk.questionCount,
-              mode: selectedMode,
-              sourceAnalysis: { ...analysis, question_count: chunk.questionCount },
-              difficulty,
-              requireExplanation: showExplanations,
-              sourceText: chunk.text,
-              defaultSourceRef: chunk.sourceRef,
-            });
-          }, {
-            concurrency: 4,
-            retries: 2,
-            shouldCancel: () => cancelRequestedRef.current,
-            onProgress: ({ completed, total, index }) => setGenerationProgress({
-              completed,
-              total,
-              label: chunkTasks[Math.min(index + 1, chunkTasks.length - 1)]?.label || "",
-            }),
-          })
-        : { cancelled: false, values: [], failures: [] };
+      const pool = await runQuizChunkPool(chunkTasks, async (chunk) => {
+        const res = await base44.functions.invoke("generateStudyContent", {
+          task: "quiz",
+          text: chunk.text,
+          numQuestions: chunk.questionCount,
+          difficulty,
+          quizProfile,
+          withExplanation: showExplanations,
+          quizMode: selectedMode,
+          sourceAnalysis: { ...analysis, question_count: chunk.questionCount },
+          language: effectiveLanguage,
+        });
+        return normalizeQuizResult(res?.data?.result, {
+          desiredCount: chunk.questionCount,
+          mode: selectedMode,
+          sourceAnalysis: { ...analysis, question_count: chunk.questionCount },
+          difficulty,
+          requireExplanation: showExplanations,
+          sourceText: chunk.text,
+          defaultSourceRef: chunk.sourceRef,
+        });
+      }, {
+        concurrency: 4,
+        retries: 2,
+        shouldCancel: () => cancelRequestedRef.current,
+        onProgress: ({ completed, total, index }) => setGenerationProgress({
+          completed,
+          total,
+          label: chunkTasks[Math.min(index + 1, chunkTasks.length - 1)]?.label || "",
+        }),
+      });
       if (pool.cancelled) throw new Error("QUIZ_CANCELLED");
 
-      const newlyGeneratedQuestions = pool.values.flatMap((result) => result?.questions || []);
+      const allQuestions = pool.values.flatMap((result) => result?.questions || []);
       const failedChunks = pool.failures.length;
       const totalStats = pool.values.reduce((total, result) => {
         if (!total) return { ...result.stats };
@@ -248,16 +241,7 @@ export default function QuizGeneratorPanel() {
         return total;
       }, null);
 
-      const committed = await commitHybridQuizQuestions({
-        textOrHash: hybridPlan.contentHash || text,
-        language: effectiveLanguage,
-        cachedSlice: hybridPlan.cachedSlice,
-        newQuestions: newlyGeneratedQuestions,
-        desiredCount: actualRequestedQs,
-        isAlreadyHashed: Boolean(hybridPlan.contentHash),
-      });
-
-      const finalQuality = normalizeQuizResult({ questions: committed.questions }, {
+      const finalQuality = normalizeQuizResult({ questions: allQuestions }, {
         desiredCount: actualRequestedQs,
         mode: selectedMode,
         sourceAnalysis: analysis,
@@ -276,9 +260,6 @@ export default function QuizGeneratorPanel() {
         first_pass_stats: totalStats,
         evidence_coverage_rate: finalQuality.stats.evidence_coverage_rate,
         needs_review: verifiedQuestions.filter((q) => q.needs_review).length,
-        cache_hit_questions: committed.cachedUsedCount,
-        newly_generated_questions: committed.newlyGeneratedCount,
-        total_bank_size: committed.bankSize,
       };
 
       if (chargedJob) {
@@ -313,7 +294,10 @@ export default function QuizGeneratorPanel() {
       );
       navigate(`/q/${quiz.id}`);
     } catch (err) {
-      if (chargedJob) await base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }).catch(() => {});
+      if (chargedJob) await applyOptimisticRefund(
+        () => base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }),
+        { cost: chargedJob.cost }
+      ).catch(() => {});
       const code = err?.response?.data?.error || err.message || "";
       if (/QUIZ_CANCELLED/i.test(code)) toast.info("تم إلغاء الكويز واسترداد الكريدتس");
       else if (/QUOTA|429|RATE.?LIMIT/i.test(code)) toast.error("الـ AI وصل للحد الأقصى دلوقتي، جرب بعد شوية");

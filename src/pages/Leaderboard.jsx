@@ -7,7 +7,6 @@ import { Swords, Crown, Shield, Sparkles, Zap, Gift, Target, BookOpen, Flame } f
 import { motion } from "framer-motion";
 import LeaderboardRow from "@/components/leaderboard/LeaderboardRow";
 import AnimatedAvatar from "@/components/AnimatedAvatar";
-import AnimatedTitle from "@/components/profile/AnimatedTitle";
 import { TrophyIcon } from "@/components/ui/icons";
 import { useLocale } from "@/lib/LocaleContext";
 import { isOwnerEmail, OWNER_EMAILS } from "@/lib/permissions";
@@ -222,10 +221,6 @@ export default function Leaderboard() {
                 {admin.full_name || "Ibrahim Kandil (Alpha 👑)"}
                 <span className="text-[#3DDC97] text-lg">⚡</span>
               </h2>
-
-              <div className="mt-1 flex justify-center sm:justify-start">
-                <AnimatedTitle titleKey={admin.profile_title_key || "owner"} size="sm" animate={true} />
-              </div>
 
               <p className="mt-2 text-xs text-white/60 max-w-md leading-relaxed">
                 {isEn

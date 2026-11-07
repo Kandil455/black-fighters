@@ -274,7 +274,7 @@ export default function SearchDialog({ open, onClose }) {
                 {results.quizzes.map((qz) => (
                   <button
                     key={qz.id}
-                    onClick={() => go(`/shared-quiz/${qz.share_code}`)}
+                    onClick={() => go(`/q/${qz.id}`)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/70 transition-colors text-start group cursor-pointer"
                   >
                     <div className="size-8 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0">

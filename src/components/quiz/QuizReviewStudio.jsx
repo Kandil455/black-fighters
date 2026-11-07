@@ -17,6 +17,7 @@ import { playClick, playSuccess } from "@/lib/sounds";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/LocaleContext";
+import { useOptimisticCharge } from "@/lib/useOptimisticCharge";
 
 export function QuizReviewStudio({
   initialQuestions = [],
@@ -30,6 +31,7 @@ export function QuizReviewStudio({
 }) {
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
+  const { applyOptimisticCharge, applyOptimisticRefund } = useOptimisticCharge();
   const [title, setTitle] = useState(quizTitle || (isEn ? "New Study Quiz" : "كويز دراسي جديد"));
   const [questions, setQuestions] = useState(() =>
     verifyAndPrepareQuizQuestions(initialQuestions, sourceText).map((q, idx) => ({
@@ -76,19 +78,24 @@ export function QuizReviewStudio({
     let chargedJob = null;
     const toastId = toast.loading(
       isEn
-        ? `Charging ${aiReviewCost} Cr & auditing ${questions.length} questions with Multi-Agent AI... 🧠⚡`
-        : `جاري فحص وتصحيح الـ ${questions.length} سؤال بالـ AI (${aiReviewCost} كريدت)... 🧠⚡`
+        ? `Auditing ${questions.length} questions with Multi-Agent AI... 🧠⚡`
+        : `جاري فحص وتصحيح الـ ${questions.length} سؤال بالـ AI... 🧠⚡`
     );
     try {
       const jobKey = `quiz_audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const charge = await base44.functions.invoke("chargeAiJob", {
-        action: "charge",
-        jobKey,
-        task: "quiz_audit",
-        cost: aiReviewCost,
-        amount: aiReviewCost,
-        questionCount: questions.length,
-      });
+      // Optimistic: balance drops in the same render; the server response
+      // then reconciles it with the authoritative value.
+      const charge = await applyOptimisticCharge(
+        () => base44.functions.invoke("chargeAiJob", {
+          action: "charge",
+          jobKey,
+          task: "quiz_audit",
+          cost: aiReviewCost,
+          amount: aiReviewCost,
+          questionCount: questions.length,
+        }),
+        { cost: aiReviewCost }
+      );
       chargedJob = { jobKey, cost: charge?.data?.cost ?? aiReviewCost };
 
       const res = await base44.functions.invoke("generateStudyContent", {
@@ -125,19 +132,22 @@ export function QuizReviewStudio({
       if (fixedCount > 0) {
         toast.success(
           isEn
-            ? `Multi-Agent AI audited all questions and corrected ${fixedCount} answer(s) (${aiReviewCost} Cr deducted)! 🧠✅`
-            : `تم تدقيق الكويز وتصحيح إجابات ${fixedCount} سؤال بدقة 100% (تم خصم ${aiReviewCost} كريدت)! 🧠✅`
+            ? `Multi-Agent AI audited all questions and corrected ${fixedCount} answer(s)! 🧠✅`
+            : `تم تدقيق الكويز وتصحيح إجابات ${fixedCount} سؤال بدقة 100%! 🧠✅`
         );
       } else {
         toast.success(
           isEn
-            ? `All ${questions.length} questions verified 100% accurate by Multi-Agent AI (${aiReviewCost} Cr deducted)! ✅⚡`
-            : `تم فحص جميع الـ ${questions.length} سؤال — كل الإجابات والشروحات صحيحة 100% (تم خصم ${aiReviewCost} كريدت)! ✅⚡`
+            ? `All ${questions.length} questions verified 100% accurate by Multi-Agent AI! ✅⚡`
+            : `تم فحص جميع الـ ${questions.length} سؤال — كل الإجابات والشروحات صحيحة 100%! ✅⚡`
         );
       }
     } catch (err) {
       if (chargedJob) {
-        await base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }).catch(() => {});
+        await applyOptimisticRefund(
+          () => base44.functions.invoke("chargeAiJob", { action: "refund", ...chargedJob }),
+          { cost: chargedJob.cost }
+        ).catch(() => {});
       }
       toast.dismiss(toastId);
       toast.error(err?.message || (isEn ? "AI Audit failed — no credits deducted" : "حدث خطأ أثناء الفحص بالـ AI — لم يتم خصم أي كريدت"));

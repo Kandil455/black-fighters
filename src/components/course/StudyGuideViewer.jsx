@@ -1,15 +1,17 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Check, Download, Printer, LayoutTemplate, Table2, FileSpreadsheet, ListOrdered, Layers, Maximize2, Minimize2, ExternalLink } from "lucide-react";
+import { Check, Download, Printer, LayoutTemplate, Table2, FileSpreadsheet, ListOrdered, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { renderStudyGuideHtml, STUDY_GUIDE_TEMPLATES, GUIDE_PALETTES } from "@/lib/summaryStudyGuide";
+import { downloadHtmlFile, printHtmlFile, readStoredTemplate, storeTemplate } from "@/lib/summary/exportGuide";
+import { downloadSummaryPptx } from "@/lib/summaryExport";
 import { useLocale } from "@/lib/LocaleContext";
 import { cn } from "@/lib/utils";
 
 const TEMPLATE_ICONS = {
-  modules_red: LayoutTemplate,
+  modules_green: LayoutTemplate,
   cram_amber: FileSpreadsheet,
   cards_navy: Layers,
-  outline_green: ListOrdered,
+  outline_red: ListOrdered,
   tables_navy: Table2,
 };
 
@@ -26,32 +28,14 @@ export default function StudyGuideViewer({
   onTemplateChange,
   showToolbar = true,
   className = "",
+  figures = [],
 }) {
   const { isEn } = useLocale();
   const [localTemplate, setLocalTemplate] = useState(
-    () => templateId || readStoredTemplate() || "modules_red"
+    () => templateId || readStoredTemplate() || "modules_green"
   );
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const activeTemplate = templateId || localTemplate;
   const iframeRef = useRef(null);
-
-  const openInNewTab = () => {
-    try {
-      const exportHtml = renderStudyGuideHtml({
-        document: doc,
-        markdown,
-        title,
-        templateId: activeTemplate,
-        forExport: false,
-      });
-      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener,noreferrer");
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      toast.error(isEn ? "Failed to open in new tab" : "تعذر فتح الملخص في نافذة جديدة");
-    }
-  };
 
   const selectTemplate = (id) => {
     setLocalTemplate(id);
@@ -67,82 +51,60 @@ export default function StudyGuideViewer({
         title,
         templateId: activeTemplate,
         forExport: false,
+        figures,
       }),
-    [doc, markdown, title, activeTemplate]
+    [doc, markdown, title, activeTemplate, figures]
   );
 
   const downloadHtml = () => {
-    try {
-      const exportHtml = renderStudyGuideHtml({
-        document: doc,
-        markdown,
-        title,
-        templateId: activeTemplate,
-        forExport: true,
-      });
-      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = window.document.createElement("a");
-      const safeName =
-        String(title || "study-guide")
-          .replace(/[\\/:*?"<>|]+/g, "-")
-          .trim() || "study-guide";
-      link.href = url;
-      link.download = `${safeName}.html`;
-      window.document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    const exportHtml = renderStudyGuideHtml({
+      document: doc,
+      markdown,
+      title,
+      templateId: activeTemplate,
+      forExport: true,
+      figures,
+    });
+    if (downloadHtmlFile(exportHtml, title, "study-guide")) {
       toast.success(
         isEn
           ? "Study guide downloaded (HTML)"
           : "تم تحميل ملف المذاكرة (HTML) جاهز للفتح والطباعة"
       );
-    } catch {
+    } else {
       toast.error(isEn ? "Failed to download file" : "تعذر تحميل الملف");
     }
   };
 
   const printGuide = () => {
-    try {
-      const exportHtml = renderStudyGuideHtml({
-        document: doc,
-        markdown,
-        title,
-        templateId: activeTemplate,
-        forExport: true,
-      });
-      const blob = new Blob([exportHtml], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const printWin = window.open(url, "_blank");
-      if (!printWin) {
-        iframeRef.current?.contentWindow?.print();
-        URL.revokeObjectURL(url);
-        return;
-      }
-      printWin.addEventListener("load", () => {
-        setTimeout(() => {
-          try {
-            printWin.focus();
-            printWin.print();
-          } catch {}
-        }, 250);
-      });
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
+    const exportHtml = renderStudyGuideHtml({
+      document: doc,
+      markdown,
+      title,
+      templateId: activeTemplate,
+      forExport: true,
+      figures,
+    });
+    if (!printHtmlFile(exportHtml)) {
       toast.error(isEn ? "Failed to open print window" : "تعذر فتح نافذة الطباعة");
     }
   };
 
+  const downloadPptx = async () => {
+    try {
+      await downloadSummaryPptx({
+        document: doc,
+        markdown,
+        title: title || "الملخص الذكي",
+      });
+      toast.success(isEn ? "PowerPoint downloaded!" : "تم تحميل عرض البوربوينت (.pptx) بنجاح!");
+    } catch {
+      toast.error(isEn ? "Failed to export PowerPoint" : "تعذر تصدير البوربوينت");
+    }
+  };
+
   return (
-    <div
-      className={cn(
-        "space-y-4",
-        isFullscreen &&
-          "fixed inset-0 z-50 bg-background/98 backdrop-blur-md p-3 sm:p-6 overflow-y-auto",
-        className
-      )}
-    >
+    <div className={cn("space-y-4", className)}>
       {showToolbar && (
         <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -159,31 +121,6 @@ export default function StudyGuideViewer({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsFullscreen((v) => !v)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition cursor-pointer"
-              >
-                {isFullscreen ? (
-                  <>
-                    <Minimize2 className="w-3.5 h-3.5" />
-                    {isEn ? "Exit Fullscreen" : "تصغير الشاشة"}
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    {isEn ? "Fullscreen" : "تكبير لملء الشاشة ⛶"}
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={openInNewTab}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary/80 transition cursor-pointer"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                {isEn ? "Open Full Page" : "فتح في صفحة مستقلة"}
-              </button>
-              <button
-                type="button"
                 onClick={printGuide}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-95 transition cursor-pointer"
               >
@@ -197,6 +134,14 @@ export default function StudyGuideViewer({
               >
                 <Download className="w-3.5 h-3.5" />
                 {isEn ? "Download HTML" : "تحميل HTML"}
+              </button>
+              <button
+                type="button"
+                onClick={downloadPptx}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary px-3.5 py-2 text-xs font-bold text-foreground hover:bg-secondary/80 transition cursor-pointer"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                {isEn ? "PowerPoint (.pptx)" : "تحميل PowerPoint"}
               </button>
             </div>
           </div>
@@ -212,11 +157,7 @@ export default function StudyGuideViewer({
           srcDoc={html}
           sandbox="allow-same-origin allow-modals"
           className="block w-full border-0"
-          style={{
-            height: isFullscreen ? "84vh" : "78vh",
-            minHeight: "540px",
-            background: "#f0f2f5",
-          }}
+          style={{ height: "78vh", minHeight: "540px", background: "#f0f2f5" }}
         />
       </div>
     </div>
@@ -265,7 +206,7 @@ export function TemplatePicker({ activeId, onSelect, isEn = false }) {
                 {isEn ? t.nameEn : t.nameAr}
               </p>
               <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
-                {t.descAr}
+                {isEn ? t.descEn || t.nameEn : t.descAr}
               </p>
             </div>
           </button>
@@ -275,21 +216,7 @@ export function TemplatePicker({ activeId, onSelect, isEn = false }) {
   );
 }
 
-const STORAGE_KEY = "bf_guide_template";
-function readStoredTemplate() {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-function storeTemplate(id) {
-  try {
-    localStorage.setItem(STORAGE_KEY, id);
-  } catch {}
-}
-
-export function StudyGuidePreview({ templateId = "modules_red", height = 140 }) {
+export function StudyGuidePreview({ templateId = "modules_green", height = 140 }) {
   const tpl =
     STUDY_GUIDE_TEMPLATES.find((t) => t.id === templateId) || STUDY_GUIDE_TEMPLATES[0];
   const palette = GUIDE_PALETTES[tpl.palette] || GUIDE_PALETTES.clinical_navy;
@@ -314,7 +241,7 @@ export function StudyGuidePreview({ templateId = "modules_red", height = 140 }) 
         <div className="h-2 w-full rounded bg-secondary/70" />
         <div className="h-2 w-2/3 rounded bg-secondary/50" />
       </div>
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground px-1">
+      <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
         <span className="truncate">{tpl.descAr}</span>
       </div>
     </div>

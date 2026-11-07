@@ -69,6 +69,9 @@ export const handler = async (event) => {
     if (dedupe.duplicate) {
       return json(200, { ok: true, duplicate: true, update_id: dedupe.updateId });
     }
+
+    // Unified single-brain Telegram Bot: 100% of updates run through the
+    // platform's telegram-engine.mjs (no dual-bot upstream split).
     const result = await processTelegramWebhookUpdate(body);
     return json(200, { ok: true, result });
   } catch (error) {

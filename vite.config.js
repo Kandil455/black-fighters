@@ -1,7 +1,7 @@
-import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 import devApiPlugin from './vite-plugin-dev-api.mjs'
+import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     logLevel: 'error',
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
+      },
+    },
     define: {
       'import.meta.env.VITE_FUNCTIONS_BASE_URL': JSON.stringify(functionsBase),
       // SECURITY: AI provider keys (Gemini/Z.ai/Groq/OpenRouter/APMIX) are SERVER-ONLY.
@@ -55,13 +60,6 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       devApiPlugin(),
-      base44({
-        legacySDKImports: process.env.BASE44_LEGACY_SDK_IMPORTS === 'true',
-        hmrNotifier: true,
-        navigationNotifier: true,
-        analyticsTracker: false,
-        visualEditAgent: true
-      }),
       react(),
       {
         name: 'youtube-transcript-dev-server',

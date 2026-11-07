@@ -148,7 +148,11 @@ export const Users = {
         credits_used: 0,
         referral_code: referralCode,
         referrals_count: 0,
-        is_locked: false, createdAt: serverTimestamp(), ...userData,
+        is_locked: false,
+        createdAt: serverTimestamp(),
+        created_at: serverTimestamp(),
+        created_date: new Date().toISOString(),
+        ...userData,
       }, { merge: true });
 
       // Process referral bonus for the inviter (5 credits + 5,000 tokens)
@@ -221,13 +225,18 @@ export const Users = {
     const max = Number(maxResults) > 0 ? Number(maxResults) : null;
 
     try {
+      const skipServerDateOrder = orderField === 'created_date' || orderField === 'created_at';
       const constraints = [...conditions];
-      if (orderField) constraints.push(orderBy(orderField, desc ? 'desc' : 'asc'));
-      if (max) constraints.push(limit(max));
+      if (orderField && !skipServerDateOrder) constraints.push(orderBy(orderField, desc ? 'desc' : 'asc'));
+      if (max && !skipServerDateOrder) constraints.push(limit(max));
       const snap = await getDocs(constraints.length ? query(collection(db, 'users'), ...constraints) : collection(db, 'users'));
       let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      if (rows.length === 0 && orderField && !skipServerDateOrder) {
+        const fallbackSnap = await getDocs(conditions.length ? query(collection(db, 'users'), ...conditions) : collection(db, 'users'));
+        rows = fallbackSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
       // Secondary in-memory filter for anything Firestore could not express.
-      if (!orderField && sortOrder) {
+      if ((!orderField || skipServerDateOrder) && sortOrder) {
         rows = this.sortInMemory(rows, sortOrder);
       }
       return max ? rows.slice(0, max) : rows;
@@ -247,7 +256,20 @@ export const Users = {
     const key = String(sortOrder || '').trim().replace(/^[+-]/, '');
     const desc = String(sortOrder || '').trim().startsWith('-');
     if (!key) return rows;
+    const resolveTimestampMs = (row) => {
+      const raw = row?.[key] ?? row?.created_date ?? row?.created_at ?? row?.createdAt;
+      if (!raw) return 0;
+      if (typeof raw?.toMillis === 'function') return raw.toMillis();
+      if (typeof raw?.seconds === 'number') return raw.seconds * 1000;
+      const parsed = Date.parse(String(raw));
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
     return [...rows].sort((a, b) => {
+      if (key === 'created_date' || key === 'created_at' || key === 'createdAt') {
+        const am = resolveTimestampMs(a);
+        const bm = resolveTimestampMs(b);
+        return desc ? bm - am : am - bm;
+      }
       const av = a?.[key] ?? 0;
       const bv = b?.[key] ?? 0;
       if (typeof av === 'number' || typeof bv === 'number') {

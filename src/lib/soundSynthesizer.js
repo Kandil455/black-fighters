@@ -9,6 +9,7 @@ class SoundSynthesizer {
     this.ctx = null;
     this.enabled = true;
     this.volume = 0.35; // Gentle default volume
+    this.hadGesture = false; // Chrome autoplay: never construct pre-gesture
     this.initSettings();
     this.registerGestureUnlock();
   }
@@ -26,6 +27,11 @@ class SoundSynthesizer {
   getAudioContext() {
     if (typeof window === "undefined") return null;
     if (!this.ctx) {
+      // Creating an AudioContext BEFORE the first real user gesture makes
+      // Chrome log "The AudioContext was not allowed to start" — the exact
+      // console error the owner saw. Stay silent until a gesture happened;
+      // every play* caller already no-ops safely on a null context.
+      if (!this.hadGesture) return null;
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
         try {
@@ -55,6 +61,7 @@ class SoundSynthesizer {
   registerGestureUnlock() {
     if (typeof window === "undefined") return;
     const unlock = () => {
+      this.hadGesture = true;
       this.getAudioContext();
       if (this.ctx && this.ctx.state === "suspended") {
         this.ctx.resume().catch(() => {});

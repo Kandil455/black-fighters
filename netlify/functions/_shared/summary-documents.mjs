@@ -14,6 +14,10 @@ const SAFE_TEMPLATE_IDS = new Set([
   "comparison_classification",
   "qa_tutor",
   "visual_concepts_formulas",
+  // Owner visual designs (kept in sync with src/lib/summaryDesigns.js so a
+  // Royal/Capsule summary can actually be saved instead of failing validation).
+  "royal_study",
+  "capsule_sheet",
 ]);
 const SAFE_LANGUAGE_MODES = new Set(["ar", "en", "bilingual"]);
 const SAFE_COLOR_LEVELS = new Set(["none", "medium", "rich"]);
@@ -35,15 +39,44 @@ export function jobKey(uid, idempotencyKey) {
   return crypto.createHash("sha256").update(`${uid}:${key}`).digest("hex");
 }
 
+const TEMPLATE_ALIASES = {
+  atlas_foundational: "foundational_bilingual",
+  foundational: "foundational_bilingual",
+  standard: "foundational_bilingual",
+  detailed: "complete_study_guide",
+  condensed: "atlas_cram",
+  exam_capsules: "atlas_cram",
+  cram_sheet: "atlas_cram",
+  comparisons: "comparison_classification",
+  ultra_multi_agent: "bilingual_lecture",
+  lecture_exact: "complete_study_guide",
+  complete: "complete_study_guide",
+  revision_sheet: "exam_revision_sheet",
+  key_points: "exam_revision_sheet",
+  equations_only: "visual_concepts_formulas",
+  bilingual_blocks: "bilingual_lecture",
+  simple_overview: "complete_study_guide",
+  compact: "exam_revision_sheet",
+  qa_notes: "qa_tutor",
+  comparison_tables: "comparison_classification",
+  concept_map: "visual_concepts_formulas",
+  timeline: "visual_concepts_formulas",
+  organized_original: "complete_study_guide",
+  format_only: "complete_study_guide",
+  royal: "royal_study",
+  capsule: "capsule_sheet",
+};
+
 export function safeJobConfig(input = {}) {
-  const templateId = SAFE_TEMPLATE_IDS.has(input.templateId) ? input.templateId : "bilingual_lecture";
+  const resolvedTemplate = TEMPLATE_ALIASES[input.templateId] || input.templateId;
+  const templateId = SAFE_TEMPLATE_IDS.has(resolvedTemplate) ? resolvedTemplate : "foundational_bilingual";
   const languageMode = SAFE_LANGUAGE_MODES.has(input.languageMode) ? input.languageMode : "bilingual";
   const colorLevel = SAFE_COLOR_LEVELS.has(input.colorLevel) ? input.colorLevel : "medium";
   return {
     templateId,
     languageMode,
     colorLevel,
-    maxPages: Math.max(1, Math.min(100, Number(input.maxPages) || 12)),
+    maxPages: Math.max(1, Math.min(200, Number(input.maxPages) || 20)),
     inputChars: Math.max(0, Math.min(5_000_000, Number(input.inputChars) || 0)),
     pipelineVersion: String(input.pipelineVersion || "summary-v3").slice(0, 40),
   };
@@ -84,8 +117,61 @@ export function validateSummaryDocument(document) {
       throw new Error("INVALID_IMAGE_SOURCE_PAGE");
     }
   }
-  return { document: JSON.parse(serialized), bytes: Buffer.byteLength(serialized) };
+  const parsed = JSON.parse(serialized);
+  // Firestore rejects map KEYS containing '.', '~', '*', '[', ']', '/',
+  // backticks or '__' prefixes with an opaque "invalid nested entity". AI
+  // glossaries/tables love terms like "v2.2" or "1.5mg/kg" — sanitize keys
+  // and fail with a NAMED path when something can't be represented.
+  return { document: assertAndSanitizeFirestoreDoc(parsed), bytes: Buffer.byteLength(serialized) };
 }
+
+const BAD_KEY_RE = /[.~*/[\]`]/;
+
+export function assertAndSanitizeFirestoreDoc(value, path = "document", depth = 0) {
+  if (depth > 60) return value;
+  if (Array.isArray(value)) {
+    const mapped = value.map((item, i) => assertAndSanitizeFirestoreDoc(item, `${path}[${i}]`, depth + 1));
+    // Firestore REJECTS arrays containing arrays ("invalid nested entity").
+    // AI tables/annotations love [[...],[...]] — wrap each nested array in a
+    // plain map so the write can never be rejected again.
+    return mapped.map((item) => (Array.isArray(item) ? { values: item } : item));
+  }
+  if (value && typeof value === "object") {
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== Object.prototype && proto !== null) {
+      const err = new Error(`FIRESTORE_INVALID_FIELD::${path} non-plain object`);
+      err.code = "FIRESTORE_INVALID_FIELD";
+      throw err;
+    }
+    const out = {};
+    for (const [key, sub] of Object.entries(value)) {
+      const trimmed = String(key).trim();
+      if (!trimmed) {
+        out._ = assertAndSanitizeFirestoreDoc(sub, `${path}._`, depth + 1);
+        continue;
+      }
+      if (BAD_KEY_RE.test(key) || key.startsWith("__") || key.length > 1500) {
+        const safeKey = key.replace(/[.~*/[\]`]/g, "·").replace(/^__/, "_").slice(0, 1500);
+        out[safeKey] = assertAndSanitizeFirestoreDoc(sub, `${path}.${safeKey}`, depth + 1);
+        continue;
+      }
+      // Firestore caps nesting at ~20 levels — collapse pathological subtrees
+      // into a JSON string instead of letting the whole write fail.
+      if (depth > 14) {
+        out[trimmed] = JSON.stringify(sub);
+        continue;
+      }
+      out[trimmed] = assertAndSanitizeFirestoreDoc(sub, `${path}.${trimmed}`, depth + 1);
+    }
+    return out;
+  }
+  if (typeof value === "number" && !Number.isFinite(value)) return 0;
+  if (value === null || ["string", "boolean", "number"].includes(typeof value)) return value;
+  const err = new Error(`FIRESTORE_INVALID_FIELD::${path} type ${typeof value}`);
+  err.code = "FIRESTORE_INVALID_FIELD";
+  throw err;
+}
+
 
 function validateJsonPayload(value, maxBytes, errorCode) {
   if (value === undefined || value === null) return null;
@@ -95,7 +181,7 @@ function validateJsonPayload(value, maxBytes, errorCode) {
   if (/<\s*(?:script|iframe|object|embed|svg)[\s>]/i.test(serialized) || /javascript\s*:/i.test(serialized)) {
     throw new Error("UNSAFE_SUMMARY_CONTENT");
   }
-  return JSON.parse(serialized);
+  return assertAndSanitizeFirestoreDoc(JSON.parse(serialized));
 }
 
 export function validateChunkOutput(value) {

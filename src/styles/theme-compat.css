@@ -1,0 +1,217 @@
+/**
+ * theme-compat.css — makes legacy hard-coded colours follow the active theme.
+ *
+ * WHY THIS FILE EXISTS
+ * The app grew ~300 hard-coded colours that assume a DARK background, e.g.
+ * `text-[#f5f7fa]` (white text) and `bg-[#090c11]` (black panel). On the light
+ * theme those produced the owner's exact complaint: white text on a white
+ * screen, and icons that never changed with the theme.
+ *
+ * Rewriting 300 call sites by hand in a live app is a large, risky diff. This
+ * file instead re-points those exact utility classes at theme variables, so:
+ *   • every screen keeps its current look on the dark theme (same value), and
+ *   • on the light theme those colours flip to readable equivalents.
+ *
+ * Selectors use `[class*="..."]` so they apply to the generated Tailwind class
+ * without needing to edit each JSX file. `!important` is required because
+ * Tailwind's utilities are emitted after this file.
+ *
+ * New code should use the semantic tokens directly (bg-background, text-foreground,
+ * bg-card, text-muted-foreground). This layer is a compatibility bridge, not a plan.
+ */
+
+/* ───────────────────────── light theme overrides ───────────────────────── */
+:root[data-theme="light"] {
+  --bf-compat-text-strong: 222 47% 11%;   /* near-black text      */
+  --bf-compat-text-soft: 215 16% 40%;     /* grey secondary text  */
+  --bf-compat-text-faint: 215 16% 55%;    /* tertiary text        */
+  --bf-compat-surface-solid: 0 0% 100%;   /* white panel          */
+  --bf-compat-surface-sunken: 210 40% 96%;/* light grey panel     */
+  --bf-compat-surface-deep: 214 32% 91%;  /* slightly darker grey */
+}
+
+/* dark theme keeps historical values so nothing visibly changes there */
+:root[data-theme="dark"] {
+  --bf-compat-text-strong: 210 20% 97%;
+  --bf-compat-text-soft: 215 15% 65%;
+  --bf-compat-text-faint: 215 15% 50%;
+  --bf-compat-surface-solid: 210 29% 5%;
+  --bf-compat-surface-sunken: 218 31% 7%;
+  --bf-compat-surface-deep: 218 28% 9%;
+}
+
+/* ─────────────────────────── TEXT colours ──────────────────────────────── */
+/* White/near-white body text → the theme's primary text colour. */
+:root[data-theme="light"] [class*="text-[#f5f7fa]"],
+:root[data-theme="light"] [class*="text-[#F5F7FA]"],
+:root[data-theme="light"] [class*="text-[#F2F3F5]"],
+:root[data-theme="light"] [class*="text-[#F3F7FC]"],
+:root[data-theme="light"] [class*="text-[#ffffff]"]:not([class*="on-color"]),
+:root[data-theme="light"] [class*="text-[#fff]"]:not([class*="on-color"]),
+:root[data-theme="light"] [class*="text-white"]:not([class*="on-color"]) {
+  color: hsl(var(--bf-compat-text-strong)) !important;
+}
+
+/* ── text-white ON A COLOURED SURFACE must stay white ─────────────────────
+   `text-white` is used for two different jobs: (a) light text on the dark
+   canvas — which must flip on the light theme, and (b) a label on a saturated
+   emerald/primary/red button — which must NOT flip, or it becomes dark text on
+   dark green. These rules run later and re-assert white for every coloured
+   fill the app actually uses. */
+:root[data-theme="light"] [class*="bg-emerald-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-emerald-500"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-emerald-700"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-green-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-primary"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-red-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-red-500"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-rose-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-blue-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-indigo-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-purple-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-amber-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-orange-600"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-[#19f08c]"] [class*="text-white"],
+:root[data-theme="light"] [class*="bg-[#19f08c]"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-[#3DDC97]"] [class*="text-white"],
+:root[data-theme="light"] [class*="bg-[#3DDC97]"][class*="text-white"] {
+  color: #ffffff !important;
+}
+/* …except the pale emerald brand fill, whose label is intentionally ink-dark. */
+:root[data-theme="light"] [class*="bg-[#19f08c]"][class*="text-white"],
+:root[data-theme="light"] [class*="bg-[#3DDC97]"][class*="text-white"] {
+  color: #03150c !important;
+}
+
+/* Light grey secondary text → readable grey on white. */
+:root[data-theme="light"] [class*="text-[#9aa4b2]"],
+:root[data-theme="light"] [class*="text-[#9AA0AE]"],
+:root[data-theme="light"] [class*="text-[#646e7d]"],
+:root[data-theme="light"] [class*="text-[#5A6B7D]"],
+:root[data-theme="light"] [class*="text-gray-400"],
+:root[data-theme="light"] [class*="text-slate-400"],
+:root[data-theme="light"] [class*="text-zinc-400"] {
+  color: hsl(var(--bf-compat-text-soft)) !important;
+}
+
+/* Near-black text written for light panels → stays dark on light, flips on dark. */
+:root[data-theme="dark"] [class*="text-[#0B1F33]"],
+:root[data-theme="dark"] [class*="text-[#03150c]"],
+:root[data-theme="dark"] [class*="text-black"]:not([class*="bg-[#19f08c]"]) {
+  color: hsl(var(--bf-compat-text-strong)) !important;
+}
+
+/* ─────────────────────────── BACKGROUND colours ────────────────────────── */
+/* Near-black panels → white card on the light theme. */
+:root[data-theme="light"] [class*="bg-[#05070a]"],
+:root[data-theme="light"] [class*="bg-[#05070A]"],
+:root[data-theme="light"] [class*="bg-[#090c11]"],
+:root[data-theme="light"] [class*="bg-[#090C11]"],
+:root[data-theme="light"] [class*="bg-[#0a0b12]"],
+:root[data-theme="light"] [class*="bg-[#0A0B12]"],
+:root[data-theme="light"] [class*="bg-[#0e131b]"],
+:root[data-theme="light"] [class*="bg-[#0E1117]"],
+:root[data-theme="light"] [class*="bg-[#07080C]"],
+:root[data-theme="light"] [class*="bg-[#0d0f17]"],
+:root[data-theme="light"] [class*="bg-[#090a10]"],
+:root[data-theme="light"] [class*="bg-[#080C14]"],
+:root[data-theme="light"] [class*="bg-[#0a0e15]"],
+:root[data-theme="light"] [class*="bg-black"] {
+  background-color: hsl(var(--bf-compat-surface-solid)) !important;
+}
+
+/* White panels written for the dark theme's contrast → sunken grey on light. */
+:root[data-theme="dark"] [class*="bg-white"]:not([class*="bg-white/"]),
+:root[data-theme="dark"] [class*="bg-[#ffffff]"],
+:root[data-theme="dark"] [class*="bg-[#fff]"] {
+  background-color: hsl(var(--bf-compat-surface-sunken)) !important;
+}
+
+/* ───────────────────── alpha-white overlays on light ───────────────────── */
+/* bg-white/[0.04] etc. is an invisible on-white overlay; give it a tint. */
+:root[data-theme="light"] [class*="bg-white/["],
+:root[data-theme="light"] [class*="bg-white/1"],
+:root[data-theme="light"] [class*="bg-white/2"],
+:root[data-theme="light"] [class*="bg-white/3"],
+:root[data-theme="light"] [class*="bg-white/4"],
+:root[data-theme="light"] [class*="bg-white/5"] {
+  background-color: rgb(15 23 42 / 0.04) !important;
+}
+:root[data-theme="light"] [class*="hover:bg-white/"]:hover {
+  background-color: rgb(15 23 42 / 0.07) !important;
+}
+
+/* ───────────────────── borders that vanish on light ────────────────────── */
+:root[data-theme="light"] [class*="border-white"] {
+  border-color: rgb(15 23 42 / 0.12) !important;
+}
+:root[data-theme="dark"] [class*="border-black"] {
+  border-color: rgb(255 255 255 / 0.12) !important;
+}
+
+/* ─────────────────────── icons follow the text colour ──────────────────── */
+/* lucide-react renders <svg stroke="currentColor">, so inheriting is enough;
+   these rules catch icons whose colour was pinned to a legacy hex. */
+:root[data-theme="light"] svg[class*="text-[#f5f7fa]"],
+:root[data-theme="light"] svg[class*="text-[#9aa4b2]"],
+:root[data-theme="light"] svg[class*="text-white"] {
+  color: hsl(var(--bf-compat-text-strong)) !important;
+}
+
+/* ─────────────── inputs & placeholders written for dark ────────────────── */
+:root[data-theme="light"] input[class*="bg-[#0"],
+:root[data-theme="light"] textarea[class*="bg-[#0"],
+:root[data-theme="light"] select[class*="bg-[#0"] {
+  background-color: #fff !important;
+  color: hsl(var(--bf-compat-text-strong)) !important;
+}
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: hsl(var(--bf-compat-text-faint)) !important;
+}
+
+/* ─────────── gradients built from near-black keep their shape ──────────── */
+:root[data-theme="light"] [class*="from-[#05070a]"],
+:root[data-theme="light"] [class*="from-[#090c11]"],
+:root[data-theme="light"] [class*="via-[#0"],
+:root[data-theme="light"] [class*="to-[#05070a]"],
+:root[data-theme="light"] [class*="to-[#090c11]"] {
+  --tw-gradient-from: hsl(var(--bf-compat-surface-solid)) !important;
+  --tw-gradient-to: hsl(var(--bf-compat-surface-sunken)) !important;
+}
+
+/* ─────────── emerald TEXT: unreadable on white (1.51:1) ─────────────────── */
+/* #19f08c is the brand emerald. It is superb on the dark canvas (12.95:1) and
+   catastrophic on white (1.51:1) — measured on /login, where "AI Study Platform",
+   "نسيت كلمة المرور؟" and "إنشاء حساب جديد" were effectively invisible.
+   On the light theme only the TEXT colour is darkened; solid emerald fills
+   (buttons, chips) keep the brand green because their label is dark. */
+:root[data-theme="light"] [class*="text-[#19f08c]"],
+:root[data-theme="light"] [class*="text-[#19F08C]"],
+:root[data-theme="light"] [class*="text-[#3DDC97]"],
+:root[data-theme="light"] [class*="text-[#3ddc97]"],
+:root[data-theme="light"] [class*="text-emerald-400"],
+:root[data-theme="light"] [class*="text-emerald-300"] {
+  color: #047857 !important; /* 5.48:1 on white */
+}
+
+/* Green text sitting on a solid emerald fill must stay dark for contrast. */
+:root[data-theme="light"] [class*="bg-[#19f08c]"] [class*="text-[#19f08c]"],
+:root[data-theme="light"] [class*="bg-[#3DDC97]"] [class*="text-[#3DDC97]"] {
+  color: #03150c !important;
+}
+
+/* ─────────── amber / red / blue legacy text also fail on white ──────────── */
+:root[data-theme="light"] [class*="text-[#f59e0b]"],
+:root[data-theme="light"] [class*="text-[#f5b83d]"] {
+  color: #b45309 !important; /* amber-700, 4.8:1 */
+}
+:root[data-theme="light"] [class*="text-[#ef4444]"],
+:root[data-theme="light"] [class*="text-[#ff5d6c]"] {
+  color: #b91c1c !important; /* red-700, 5.9:1 */
+}
+
+/* Muted greys that fell below 4.5:1 on white. */
+:root[data-theme="light"] [class*="text-[#03150c]"] {
+  color: #03412a !important;
+}

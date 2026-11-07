@@ -2,7 +2,7 @@ import { adminDb, requireUser } from "./_shared/firebase-admin.mjs";
 import { handleError, json, parseBody } from "./_shared/http.mjs";
 import {
   cleanChunkStatus, cleanJobStatus, getJobArtifacts, getOwnedJob, serializeSnapshot,
-  validateChunkOutput, validateJobResult, FieldValue,
+  validateChunkOutput, validateJobResult, assertAndSanitizeFirestoreDoc, FieldValue,
 } from "./_shared/summary-documents.mjs";
 import { notifySummaryReady } from "./_shared/telegram-sync.mjs";
 
@@ -59,7 +59,7 @@ export const handler = async (event) => {
         progress: chunks.length ? Math.round((completed / chunks.length) * 100) : 0,
         model_actual: body.model ? String(body.model).slice(0, 120) : data.model_actual || "",
         error: status === "failed" ? String(body.error || "SUMMARY_JOB_FAILED").slice(0, 1000) : null,
-        quality: body.quality && typeof body.quality === "object" ? body.quality : data.quality || null,
+        quality: body.quality && typeof body.quality === "object" ? assertAndSanitizeFirestoreDoc(body.quality) : data.quality || null,
         updated_at: FieldValue.serverTimestamp(),
         ...(status === "completed" ? { completed_at: FieldValue.serverTimestamp(), progress: 100 } : {}),
       });

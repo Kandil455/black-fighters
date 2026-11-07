@@ -44,6 +44,8 @@ export function geminiKeysPool(overrideKeys = []) {
   }
   addKey(process.env.LECTURE_GEMINI_API_KEY);
   addKey(process.env.GEMINI_API_KEY);
+  const extraList = String(process.env.GEMINI_API_KEYS || "").split(/[\n,;]+/);
+  for (const k of extraList) addKey(k);
   const backups = String(process.env.GEMINI_BACKUP_KEYS || "").split(/[\n,;]+/);
   for (const b of backups) addKey(b);
   return pool;
@@ -71,6 +73,7 @@ export async function uploadAudio({ bytes, mimeType, displayName, apiKeys }) {
       method: "POST",
       headers: {
         "x-goog-api-key": key,
+        "User-Agent": "aistudio-build",
         "X-Goog-Upload-Protocol": "raw",
         "Content-Type": mimeType || "audio/mp3",
       },
@@ -186,7 +189,11 @@ export async function transcribeFile({
     try {
       res = await fetch(url, {
         method: "POST",
-        headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+        headers: {
+          "x-goog-api-key": key,
+          "User-Agent": "aistudio-build",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(buildRequestBody({ fileUri, mimeType, languageCodes, mode, customVocabulary })),
       });
     } catch (error) {

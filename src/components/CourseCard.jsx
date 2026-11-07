@@ -95,7 +95,7 @@ export default function CourseCard({
       }}
       className="h-full"
     >
-      <div className="group relative h-full flex flex-col justify-between rounded-[1.25rem] glass p-5 hover:border-[#19f08c]/45 transition-colors duration-200">
+      <div className="bf-card-hover group relative h-full flex flex-col justify-between rounded-[1.25rem] glass p-5 hover:border-[#19f08c]/45 transition-colors duration-200">
         <div>
           {/* Top Row: Subject Meta + Actions Dropdown */}
           <div className="flex items-start justify-between gap-2 mb-3.5">

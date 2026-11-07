@@ -7,24 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
-  Shield, Check, Trash2, Loader2, BookOpen, Users,
+  Shield, Check, Loader2, BookOpen, Users,
   Crown, Key, Search, ChevronDown, ChevronUp, Lock, Unlock,
   BarChart3, RefreshCw, Calendar, Zap, Wand2, Coins, Copy, Ticket, Wallet,
-  Filter, Flag, ShieldAlert, ArrowRight,
+  Filter, Flag, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PROVIDERS } from "@/lib/models";
 import { testAiKey } from "@/lib/ai";
-import ProviderModelPicker from "@/components/settings/ProviderModelPicker";
+import AiModelsAndProvidersManager from "@/components/settings/AiModelsAndProvidersManager";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import ActivationCodesManager from "@/components/admin/ActivationCodesManager";
 import PaymentRequestsManager from "@/components/admin/PaymentRequestsManager";
-import EmergencyContentManager from "@/components/admin/EmergencyContentManager";
 import { AdminFunnelView, AdminFlaggedQuestionsView } from "@/components/admin/AdminFunnelAndQuality";
 import BottomSheetSelect from "@/components/ui/BottomSheetSelect";
 import { LineChart, ExternalLink } from "lucide-react";
 import { db } from "@/lib/firebaseDb";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, query, limit } from "firebase/firestore";
 
 const COLORS = {
   gold: "border-yellow-400/40 text-yellow-400",
@@ -70,7 +69,6 @@ const ADMIN_GROUPS = [
     labelEn: "Content & quality",
     tabs: [
       { id: "flags", labelAr: "بلاغات الأسئلة", labelEn: "Question flags", icon: Flag, badgeKey: "flags" },
-      { id: "emergency", labelAr: "محتوى الطوارئ", labelEn: "Emergency", icon: ShieldAlert },
       { id: "keys", labelAr: "مفاتيح الـ AI", labelEn: "AI keys", icon: Key },
     ],
   },
@@ -422,9 +420,9 @@ export default function Admin() {
   const queryClient = useQueryClient();
   const { profile, isAdmin } = useAuth();
   const [tab, setTab] = useState("overview");
-  const [provider, setProvider] = useState("deepseek");
+  const [provider, setProvider] = useState("gemini");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("DeepSeek-V4.1-Flash-1017");
+  const [model, setModel] = useState("");
   const [savingKey, setSavingKey] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -444,8 +442,9 @@ export default function Admin() {
     queryKey: ["adminAllPayments"],
     queryFn: async () => {
       try {
-        const q = query(collection(db, "paymentRequests"), orderBy("created_date", "desc"), limit(300));
-        const snap = await getDocs(q);
+        const list = await base44.entities.PaymentRequest.list("-created_date", 300);
+        if (Array.isArray(list) && list.length > 0) return list;
+        const snap = await getDocs(query(collection(db, "paymentRequests"), limit(300)));
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (e) {
         return [];
@@ -472,16 +471,16 @@ export default function Admin() {
     queryKey: ["adminStats"],
     queryFn: async () => {
       const [courses, users, payments, transactions] = await Promise.all([
-        base44.entities.Course.filter({}, "-created_date", 1000),
-        base44.entities.User.list("-created_date", 1000),
-        base44.entities.PaymentRequest.list("-created_date", 1000),
-        base44.entities.CreditTransaction.filter({ transaction_type: "spend" }, "-created_date", 1000),
+        base44.entities.Course.filter({}, "-created_date", 1000).catch(() => []),
+        base44.entities.User.list("-created_date", 1000).catch(() => []),
+        base44.entities.PaymentRequest.list("-created_date", 1000).catch(() => []),
+        base44.entities.CreditTransaction.filter({ transaction_type: "spend" }, "-created_date", 1000).catch(() => []),
       ]);
       const today = new Date().toISOString().slice(0, 10);
       return {
         courses: courses.length,
         users: users.length,
-        premium: users.filter(u => u.subscription_plan === "premium").length,
+        premium: users.filter(u => u.subscription_plan === "premium" || u.subscription_plan === "supreme" || u.is_pro).length,
         active: users.filter(u => (u.last_active_date || "").slice(0, 10) === today).length,
         locked: users.filter(u => u.is_locked).length,
         courseSales: Math.abs(transactions.filter(t => t.course_id).reduce((sum, t) => sum + Number(t.amount || 0), 0)),
@@ -493,13 +492,13 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    const existing = configs.find(c => c.provider === provider) || configs.find(c => c.is_active) || configs[0];
+    const existing = configs.find(c => c.provider === provider);
     if (existing) {
-      setModel("DeepSeek-V4.1-Flash-1017");
+      setModel(existing.model || "");
       setApiKey(existing.api_key ? "••••••••••••••••" : "");
     } else {
       setApiKey("");
-      setModel("DeepSeek-V4.1-Flash-1017");
+      setModel("");
     }
   }, [provider, configs]);
 
@@ -509,7 +508,7 @@ export default function Admin() {
   const filteredUsers = allUsers.filter(u => !search || u.email?.toLowerCase().includes(search.toLowerCase()) || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.id?.toLowerCase().includes(search.toLowerCase()));
 
   const saveKey = async () => {
-    const existing = configs.find(c => c.provider === "deepseek") || configs.find(c => c.is_active) || configs[0];
+    const existing = configs.find(c => c.provider === provider);
     let keyToSave = apiKey.trim();
     if (keyToSave.includes("•")) {
       keyToSave = existing?.api_key || "";
@@ -518,19 +517,14 @@ export default function Admin() {
 
     setSavingKey(true);
     try {
-      await testAiKey("deepseek", keyToSave);
+      // Test the key before saving
+      await testAiKey(provider, keyToSave);
 
-      const data = {
-        provider: "deepseek",
-        api_key: keyToSave,
-        model: "DeepSeek-V4.1-Flash-1017",
-        enabled_models: ["DeepSeek-V4.1-Flash-1017"],
-        is_active: true,
-      };
+      const data = { provider, api_key: keyToSave, model: model || PROVIDERS[provider]?.models?.[0]?.id, enabled_models: existing?.enabled_models || PROVIDERS[provider]?.models?.map(m => m.id), is_active: true };
       if (existing) await base44.entities.AdminConfig.update(existing.id, data);
       else await base44.entities.AdminConfig.create(data);
       queryClient.invalidateQueries({ queryKey: ["adminConfigs"] });
-      toast.success("تم حفظ مفتاح DeepSeek-V4.1-Flash-1017 بنجاح وهو قيد العمل الآن ✅");
+      toast.success("تم حفظ مفتاح الـ AI بنجاح وهو قيد العمل الآن ✅");
     } catch (e) {
       toast.error(e.message || "لم يتم حفظ المفتاح");
     } finally {
@@ -686,21 +680,11 @@ export default function Admin() {
       )}
 
       {tab === "keys" && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="glass-card rounded-3xl p-6 border border-primary/30">
-            <h2 className="font-extrabold text-lg mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-primary" />إضافة / تحديث API Key</h2>
-            <ProviderModelPicker provider={provider} model={model} onProviderChange={(p) => { setProvider(p); setModel(""); }} onModelChange={setModel} />
-            <div className="mt-5"><label className="text-sm font-semibold mb-2 block">API Key</label><Input dir="ltr" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="AIza... / sk-or-..." /></div>
-            <Button onClick={saveKey} disabled={savingKey} className="w-full mt-5 gap-2">{savingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}حفظ المفتاح</Button>
-          </div>
-          <div className="space-y-3">
-            {configs.map(c => <div key={c.id} className="glass-card rounded-2xl p-4 border border-border flex items-center justify-between gap-3"><div><p className="font-bold">{PROVIDERS[c.provider]?.name || c.provider}</p><p className="text-xs text-muted-foreground">{c.model || "Default"} — {c.is_active ? "نشط" : "متوقف"}</p></div><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => toggleConfig(c)}>{c.is_active ? "إيقاف" : "تشغيل"}</Button><Button size="sm" variant="ghost" onClick={() => removeConfig(c)} className="text-destructive"><Trash2 className="w-4 h-4" /></Button></div></div>)}
-            {!configs.length && !configsLoading && <div className="glass-card rounded-2xl p-6 border border-border text-center text-muted-foreground">لا توجد مفاتيح محفوظة بعد</div>}
-          </div>
-        </div>
+        <AiModelsAndProvidersManager
+          isAdmin={true}
+          onConfigUpdated={() => queryClient.invalidateQueries({ queryKey: ["adminConfigs"] })}
+        />
       )}
-
-      {tab === "emergency" && <EmergencyContentManager />}
     </div>
   );
 }

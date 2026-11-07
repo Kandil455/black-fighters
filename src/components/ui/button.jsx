@@ -10,33 +10,33 @@ const buttonVariants = cva(
   // transition-colors — a blanket transition drags every property (including
   // framer mount transforms on asChild wrappers) into the hover path. Hover
   // feedback = colors + subtle 150ms transition. NO hover:scale.
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2B8A9E]/40 disabled:pointer-events-none disabled:opacity-40 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
+  "apple-glass-btn inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out active:scale-[0.98] active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:pointer-events-none disabled:opacity-45 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none",
   {
     variants: {
       variant: {
         default:
-          "bg-[#0B1F33] text-white font-semibold hover:bg-[#071624] shadow-[0_1px_2px_rgba(11,31,51,0.12)]",
+          "apple-glass-primary text-white font-semibold",
         destructive:
-          "bg-[#FCECEF] text-[#B42318] hover:bg-[#F9D7DC] border border-[#F3B4BC]",
-        // NO backdrop-filter on the button itself
+          "apple-glass-destructive text-[#B42318] font-semibold",
+        // NO backdrop-filter on the button itself in JSX
         outline:
-          "border border-[#D5DEE7] bg-white text-[#0B1F33] hover:bg-[#EEF2F5] hover:border-[#B8CBD6]",
+          "apple-glass-outline text-foreground",
         secondary:
-          "border border-[#D5DEE7] bg-[#EEF2F5] text-[#0B1F33] hover:bg-[#E3EAF0]",
+          "apple-glass-secondary text-foreground",
         ghost:
-          "text-[#5A6B7D] hover:bg-[#EEF2F5] hover:text-[#0B1F33]",
+          "apple-glass-ghost text-muted-foreground hover:text-foreground",
         link:
-          "text-[#2B8A9E] underline-offset-4 hover:underline",
+          "text-emerald-600 dark:text-emerald-400 underline-offset-4 hover:underline",
         glass:
-          "border border-[#D5DEE7] bg-white text-[#0B1F33] hover:bg-[#EEF2F5] hover:border-[#B8CBD6]",
+          "apple-glass-surface text-foreground",
         success:
-          "bg-[#0B1F33] text-white font-semibold hover:bg-[#071624]",
+          "apple-glass-primary text-white font-semibold",
       },
       size: {
-        default: "h-11 px-5 py-2 rounded-md",
-        sm: "h-9 rounded-md px-3.5 text-sm",
-        lg: "h-[52px] rounded-md px-[26px] text-[17px]",
-        icon: "h-10 w-10 rounded-md",
+        default: "h-11 px-5 py-2 rounded-xl",
+        sm: "h-9 rounded-xl px-3.5 text-sm",
+        lg: "h-[52px] rounded-2xl px-[26px] text-[16px]",
+        icon: "h-10 w-10 rounded-xl",
       },
     },
     defaultVariants: {

@@ -14,8 +14,6 @@ import { applyOwnerPrivileges } from '@/lib/permissions';
 import { uploadFile } from '@/lib/storage';
 import { PLANS, planCredits, planPrice } from '@/lib/plans';
 import { canUserAccessModel, getModelTier, TIER_INFO } from '@/lib/models';
-import { AVATAR_FRAMES, ORBIT_EFFECTS, PROFILE_BANNERS, PROFILE_TITLES } from '@/lib/avatars';
-import { MASCOT_SKINS } from '@/lib/mascotSkins';
 import { invokeSecureFunction } from '@/lib/secureFunctions';
 import { calculateSummaryCost, getPurchasableProduct } from '@/lib/economyCatalog';
 import { db } from '@/lib/firebaseDb';
@@ -235,10 +233,10 @@ export const entities = {
   AdminConfig: {
     filter: async () => AdminConfig.getAll(),
     get: (id) => AdminConfig.get(id),
-    create: (payload) => AdminConfig.set(payload.provider || 'default', payload),
+    create: (payload) => AdminConfig.set(payload.id || payload.provider_id || payload.provider || 'default', payload),
     update: (id, payload) => AdminConfig.set(id, payload),
     delete: (id) => AdminConfig.delete(id),
-    upsert: (payload) => AdminConfig.set(payload.provider || 'default', payload),
+    upsert: (payload) => AdminConfig.set(payload.id || payload.provider_id || payload.provider || 'default', payload),
   },
 
   User: {
@@ -336,65 +334,107 @@ export const entities = {
 // Keep the AI SDK out of the login/dashboard startup bundle. It is loaded only
 // when the user actually runs an AI action.
 const DEFAULT_MODELS = {
-  groq:       'DeepSeek-V4.1-Flash-1017',
-  deepseek:   'DeepSeek-V4.1-Flash-1017',
-  gemini:     'DeepSeek-V4.1-Flash-1017',
-  codecraft:  'DeepSeek-V4.1-Flash-1017',
-  apmix:      'DeepSeek-V4.1-Flash-1017',
-  openrouter: 'DeepSeek-V4.1-Flash-1017',
+  groq:       'openai/gpt-oss-120b',
+  gemini:     'gemini-3.5-flash-lite',
+  codecraft:  'claude-sonnet-5',
+  openrouter: 'openrouter/free',
 };
 
-// SECURITY: no hardcoded provider keys in client code. Client-side AI is for BYO-key users
+// SECURITY: no provider keys in client code. Client-side AI is for BYO-key users
 // (their own UserSettings key or AdminConfig); everyone else goes through /api/ai server-side.
-const DEFAULT_DEEPSEEK_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || import.meta.env.VITE_CODECRAFT_KEY || import.meta.env.VITE_APMIX_KEY || "";
+const DEFAULT_GROQ_KEY = "";
+const DEFAULT_GEMINI_KEY = "";
 
-function normalizeSelectedModel(_provider, _rawModel) {
-  return "DeepSeek-V4.1-Flash-1017";
+function normalizeProviderEntry(entry) {
+  if (!entry) return null;
+  const rawKeys = [];
+  if (Array.isArray(entry.api_keys)) {
+    for (const k of entry.api_keys) {
+      if (typeof k === "string" && k.trim() && !k.includes("•")) rawKeys.push(k.trim());
+    }
+  }
+  if (typeof entry.api_key === "string" && entry.api_key.trim() && !entry.api_key.includes("•")) {
+    for (const part of entry.api_key.split(/[\n,;]+/)) {
+      if (part.trim() && !rawKeys.includes(part.trim())) rawKeys.push(part.trim());
+    }
+  }
+  const primaryKey = rawKeys[0] || "";
+  if (!primaryKey && entry.provider !== "pollinations") return null;
+  const p = entry.provider || "gemini";
+  return {
+    id: entry.id || entry.provider_id || p,
+    provider: p,
+    display_name: entry.display_name || p,
+    protocol: entry.protocol || (p === "gemini" ? "gemini" : "openai"),
+    base_url: entry.base_url || "",
+    purpose: entry.purpose || "all",
+    api_key: primaryKey,
+    api_keys: rawKeys,
+    model: entry.selected_model || entry.model || DEFAULT_MODELS[p] || "gemini-3.5-flash-lite",
+    available_models: Array.isArray(entry.available_models) ? entry.available_models : [],
+    priority: Number(entry.priority ?? 50),
+    is_primary: Boolean(entry.is_primary),
+    is_active: entry.is_active !== false,
+  };
 }
 
 /**
  * AI config priority:
- * Exclusively uses DeepSeek-V4.1-Flash-1017 across the platform.
+ * 1. User's personal key / rotation pool (UserSettings) — if they set their own key
+ * 2. Admin's active config & rotation pool (AdminConfig collection — multi-provider)
+ * 3. Server-side proxy (/api/ai) when api_key is empty
  */
 export async function getAiConfig() {
+  const rotationPool = [];
+
   try {
-    // 1️⃣ User's own key (premium users can set their own)
+    // 1️⃣ User's own settings (supports custom providers + rotation pool)
     const userSettings = await UserSettings.get().catch(() => null);
-    if (userSettings?.api_key && !userSettings.api_key.includes("•")) {
-      return {
-        provider: "deepseek",
-        api_key:  userSettings.api_key,
-        model:    "DeepSeek-V4.1-Flash-1017",
-      };
+    if (Array.isArray(userSettings?.custom_providers)) {
+      for (const cp of userSettings.custom_providers) {
+        const norm = normalizeProviderEntry(cp);
+        if (norm && norm.is_active && (norm.purpose === "all" || !norm.purpose)) {
+          rotationPool.push(norm);
+        }
+      }
+    }
+    const directUser = normalizeProviderEntry(userSettings);
+    if (directUser) {
+      rotationPool.unshift({ ...directUser, is_primary: true });
     }
   } catch {}
 
   try {
-    // 2️⃣ Admin active configs
+    // 2️⃣ Admin active configs (sorted by is_primary desc, priority asc)
     const configs = await AdminConfig.getAll().catch(() => []);
-    const activeConfig = configs.find(c => c.is_active) || configs.find(c => c.id === 'default');
-    
-    if (activeConfig?.api_key && !String(activeConfig.api_key).includes("•")) {
-      return {
-        provider: "deepseek",
-        api_key:  activeConfig.api_key,
-        model:    "DeepSeek-V4.1-Flash-1017",
-      };
+    const normalizedAdmin = configs
+      .map(normalizeProviderEntry)
+      .filter((c) => c && c.is_active && (c.purpose === "all" || !c.purpose))
+      .sort((a, b) => {
+        if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
+        return a.priority - b.priority;
+      });
+    for (const adm of normalizedAdmin) {
+      if (!rotationPool.some((r) => r.id === adm.id && r.api_key === adm.api_key)) {
+        rotationPool.push(adm);
+      }
     }
   } catch {}
 
-  // 3️⃣ Client-accessible Environment Variables Fallback
-  const viteEnv = import.meta.env || {};
-  const envKey =
-    viteEnv.VITE_DEEPSEEK_API_KEY ||
-    viteEnv.VITE_CODECRAFT_KEY ||
-    viteEnv.VITE_APMIX_KEY ||
-    DEFAULT_DEEPSEEK_KEY;
+  if (rotationPool.length > 0) {
+    const primary = rotationPool.find((r) => r.is_primary) || rotationPool[0];
+    return {
+      ...primary,
+      rotation_pool: rotationPool,
+    };
+  }
 
+  // 3️⃣ Default: empty api_key routes through /api/ai server-side proxy
   return {
-    provider: "deepseek",
-    api_key:  envKey,
-    model:    "DeepSeek-V4.1-Flash-1017",
+    provider: "groq",
+    api_key:  DEFAULT_GROQ_KEY,
+    model:    "openai/gpt-oss-120b",
+    rotation_pool: [],
   };
 }
 
@@ -552,15 +592,13 @@ export const functions = {
             }
           }
 
-          const quoted = payload.task === "summary_edit"
-            ? 3
-            : payload.task === "quiz"
-              ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 5))
-              : payload.task === "quiz_audit"
-                ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 10))
-                : payload.task === "flashcards"
-                  ? Math.max(1, Math.min(10, Math.ceil((Number(payload.charCount) || 1) / 40_000)))
-                  : calculateSummaryCost(payload.charCount || 0);
+          const quoted = payload.task === "quiz"
+            ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 5))
+            : payload.task === "quiz_audit"
+              ? Math.max(1, Math.ceil((Number(payload.questionCount) || 10) / 10))
+              : payload.task === "flashcards"
+                ? Math.max(1, Math.min(10, Math.ceil((Number(payload.charCount) || 1) / 40_000)))
+                : calculateSummaryCost(payload.charCount || 0);
           const cost = Number(payload.cost ?? payload.amount) || quoted;
 
           if (payload.action === "refund") {
@@ -611,7 +649,7 @@ export const functions = {
           const u = await Users.me().catch(() => null);
           const userPlan = (u?.subscription_plan || "free").toLowerCase();
           const isAdmin = u?.role === "admin" || u?.email === "ibrahimkandil000@gmail.com";
-          const targetModel = aiConfig?.model || "DeepSeek-V4.1-Flash-1017";
+          const targetModel = aiConfig?.model || "gemini-3.6-flash";
           if (!isAdmin && !canUserAccessModel(targetModel, userPlan)) {
             const tierMeta = TIER_INFO[getModelTier(targetModel)] || { name: "أعلى" };
             throw new Error(`نموذج [${targetModel}] يتطلب باقة [${tierMeta.nameAr || tierMeta.name}]. يرجى ترقية باقتك للوصول لهذا النموذج!`);
@@ -630,7 +668,7 @@ export const functions = {
           const u = await Users.me().catch(() => null);
           const userPlan = (u?.subscription_plan || "free").toLowerCase();
           const isAdmin = u?.role === "admin" || u?.email === "ibrahimkandil000@gmail.com";
-          const targetModel = aiConfig?.model || "DeepSeek-V4.1-Flash-1017";
+          const targetModel = aiConfig?.model || "gemini-3.6-flash";
           if (!isAdmin && !canUserAccessModel(targetModel, userPlan)) {
             const tierMeta = TIER_INFO[getModelTier(targetModel)] || { name: "أعلى" };
             throw new Error(`نموذج [${targetModel}] يتطلب باقة [${tierMeta.nameAr || tierMeta.name}]. يرجى ترقية باقتك للوصول لهذا النموذج!`);
@@ -809,10 +847,10 @@ export const functions = {
           const u = await Users.me();
           const today = new Date().toISOString().slice(0, 10);
           if (u?.last_skin_daily_reward === today) return { data: { success: true, granted: 0, duplicate: true } };
-          const { getSkin } = await import("@/lib/mascotSkins");
-          const skin = getSkin(u?.active_mascot_skin);
-          const reward = Math.max(0, Number(skin?.dailyCredits) || 0);
-          if (!reward) throw new Error("الشكل الحالي لا يمنح مكافأة يومية");
+          // Mascot skins are gone, but students who were earning a daily credit
+          // must keep it: flat reward instead of a per-skin value.
+          const DAILY_REWARD = 1;
+          const reward = DAILY_REWARD;
           await Users.updateMe({
             credits: (Number(u.credits) || 0) + reward,
             last_skin_daily_reward: today,
@@ -831,71 +869,15 @@ export const functions = {
           return { data: { success: true, deducted: res.data?.credits ?? 0, server: true } };
         }
 
-        // ── Cosmetics (Frames / Banners / Titles) ─────────────────────────
+        // ── Cosmetics: RETIRED ────────────────────────────────────────────
+        // Frames, banners, titles, orbit gems and mascot skins were removed from
+        // the product (owner decision, Nov 2026 — this is a study platform, not
+        // a game). Anything that still calls this path gets a clear message
+        // instead of being charged credits for an item they cannot equip.
         case "purchaseCosmetic": {
-          const u = await Users.me();
-          if (!u) throw new Error("سجّل دخولك أولاً");
-          const isAdmin = u.role === "admin" || u.email === "ibrahimkandil000@gmail.com";
-
-          const catalogs = {
-            frame: { items: AVATAR_FRAMES, field: "owned_frames", activeField: "active_frame" },
-            banner: { items: PROFILE_BANNERS, field: "owned_banners", activeField: "active_banner" },
-            title: { items: PROFILE_TITLES, field: "owned_titles", activeField: "active_title" },
-            orbit: { items: ORBIT_EFFECTS, field: "owned_orbit_effects", activeField: "active_orbit_effect" },
-            mascot: {
-              items: Object.fromEntries(MASCOT_SKINS.map((item) => [item.id, item])),
-              field: "owned_mascot_skins",
-              activeField: "active_mascot_skin",
-            },
-          };
-          const catalog = catalogs[payload.type];
-          const item = catalog?.items?.[payload.key];
-
-          if (!catalog || !item) {
-            throw new Error("العنصر غير موجود");
-          }
-
-          const owned = Array.isArray(u[catalog.field]) ? u[catalog.field] : [];
-          const cost = Math.max(0, Number(item.price || 0));
-          const credits = Number(u.credits || 0);
-
-          // If already owned or free
-          if (owned.includes(payload.key) || cost === 0) {
-            const nextOwned = Array.from(new Set([...owned, payload.key]));
-            const updates = { [catalog.field]: nextOwned };
-            if (catalog.activeField) updates[catalog.activeField] = payload.key;
-            await Users.updateMe(updates).catch(() => {});
-            return { data: { success: true, credits, [catalog.field]: nextOwned } };
-          }
-
-          // Balance check (admins can test with their credits, non-admins must have enough)
-          if (!isAdmin && credits < cost) {
-            throw new Error(`رصيدك غير كافي — محتاج ${cost} كريدت`);
-          }
-
-          const nextCredits = Math.max(0, credits - cost);
-          const nextOwned = Array.from(new Set([...owned, payload.key]));
-          const updates = {
-            credits: nextCredits,
-            [catalog.field]: nextOwned,
-          };
-          if (catalog.activeField) updates[catalog.activeField] = payload.key;
-
-          await Users.updateMe(updates).catch((err) => console.warn("[purchaseCosmetic] updateMe error:", err));
-
-          if (cost > 0) {
-            await CreditTransactions.create({
-              user_id: u.id,
-              amount: -cost,
-              transaction_type: "spend",
-              description: `شراء ${payload.type}: ${item.label || payload.key}`,
-            }).catch((err) => console.warn("[CreditTransactions] Permission or write error ignored:", err));
-          }
-
-          return { data: { success: true, credits: nextCredits, [catalog.field]: nextOwned } };
+          throw new Error("عناصر التخصيص دي اتشالت من التطبيق — مفيش خصم لأي كريدت.");
         }
 
-        // ── Reminders ─────────────────────────────────────────────────────
         case "addStudyReminder": {
           await CourseReminders.create({ ...payload, user_id: firebaseAuth?.currentUser?.uid });
           return { data: { success: true } };

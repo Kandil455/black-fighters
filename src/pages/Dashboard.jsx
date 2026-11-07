@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react";
 import CourseCard from "@/components/CourseCard";
+import TelegramIdentityHint from "@/components/dashboard/TelegramIdentityHint";
 import CourseSection from "@/components/dashboard/CourseSection";
 import DailyOrderSheet from "@/components/atlas/DailyOrderSheet";
 import {
@@ -289,8 +290,8 @@ export default function Dashboard() {
         <PageHeader
           eyebrow={
             isEn
-              ? "BLACK FIGHTERS ACADEMIC COMMAND CENTER"
-              : "مركز القيادة الأكاديمي · BLACK FIGHTERS"
+              ? "BLACK FIGHTERS STUDY HUB"
+              : "مساحة المذاكرة الذكية · BLACK FIGHTERS"
           }
           title={
             isEn
@@ -299,15 +300,15 @@ export default function Dashboard() {
           }
           subtitle={
             isEn
-              ? "Track your daily study order, review due FSRS cards, and manage your verified lecture library."
-              : "تابع خطة مذاكرتك اليومية، راجع بطاقات الذاكرة المتباعدة، وافتح ملخصاتك المدققة."
+              ? "Track your daily study order, transcribe audio lectures, and review your summaries and flashcards."
+              : "تابع خطة مذاكرتك اليومية، فرّغ محاضراتك الصوتية بالحرف، وراجع ملخصاتك وبطاقاتك."
           }
           actions={
             <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setPromoOpen(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 text-xs sm:text-sm font-bold text-blue-300 transition cursor-pointer whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 text-xs sm:text-sm font-bold text-blue-300 transition-colors cursor-pointer whitespace-nowrap"
               >
                 <Play className="w-4 h-4 fill-current text-blue-400" />
                 <span>
@@ -315,12 +316,12 @@ export default function Dashboard() {
                 </span>
               </button>
               <Link
-                to="/planner"
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[#19f08c]/40 bg-[#19f08c]/12 hover:bg-[#19f08c]/20 text-xs sm:text-sm font-bold text-[#19f08c] transition cursor-pointer whitespace-nowrap"
+                to="/review"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/[0.08] text-xs sm:text-sm font-bold text-[#f5f7fa] transition-colors cursor-pointer whitespace-nowrap"
               >
                 <Layers className="w-4 h-4 text-[#19f08c]" />
                 <span>
-                  {isEn ? "Block Vault & AI Planner" : "حافظة البلوكات وجدول المذاكرة 🎙️"}
+                  {isEn ? "Smart Review" : "المراجعة الذكية"}
                 </span>
               </Link>
               <Link
@@ -329,23 +330,25 @@ export default function Dashboard() {
               >
                 <Plus className="w-4 h-4" />
                 <span>
-                  {isEn ? "Upload New Lecture" : "رفع محاضرة جديدة"}
+                  {isEn ? "Upload New Lecture" : "رفع وتلخيص محاضرة"}
                 </span>
               </Link>
             </div>
           }
         />
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        <TelegramIdentityHint />
+
+        <div className="bf-stagger-children grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
           <StatCard
             label={isEn ? "Total Lectures" : "إجمالي المذكرات"}
             numericValue={courses.length}
-            sub={isEn ? "In your personal vault" : "في مكتبتك الخاصة"}
+            sub={isEn ? "In your personal library" : "في مكتبتك الخاصة"}
             icon={BookOpen}
             accent="emerald"
           />
           <StatCard
-            label={isEn ? "Due Today (FSRS)" : "بطاقات مستحقة اليوم"}
+            label={isEn ? "Due Today" : "بطاقات مستحقة اليوم"}
             numericValue={dueCardsCount}
             sub={
               dueCardsCount > 0
@@ -369,7 +372,7 @@ export default function Dashboard() {
             accent="emerald"
           />
           <StatCard
-            label={isEn ? "Vault Credits" : "رصيد الكريدت"}
+            label={isEn ? "Available Credits" : "رصيد النقاط"}
             numericValue={Number(profile?.credits ?? 10)}
             sub={`${Number(profile?.xp || 0).toLocaleString()} XP`}
             icon={Coins}
@@ -714,7 +717,7 @@ export default function Dashboard() {
             })}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bf-stagger-children grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {displayedCourses.map((course, idx) => (
               <CourseCard
                 key={course.id}

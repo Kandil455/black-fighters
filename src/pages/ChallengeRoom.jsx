@@ -38,7 +38,7 @@ export default function ChallengeRoom() {
         if (!active) return;
         setMe(meData);
 
-        // Fetch challenge document with Firestore direct + base44 fallback + localStorage mirror
+        // Fetch challenge document with Firestore direct + base44 fallback + retry
         let ch = null;
         for (let attempt = 0; attempt < 3; attempt++) {
           if (db) {
@@ -57,14 +57,6 @@ export default function ChallengeRoom() {
             if (ch) break;
             const list = await base44.entities.Challenge.filter({ id });
             if (list?.[0]) { ch = list[0]; break; }
-          } catch {}
-
-          try {
-            const rawLocal = localStorage.getItem(`bf_challenge_mirror_${id}`);
-            if (rawLocal) {
-              ch = JSON.parse(rawLocal);
-              if (ch) break;
-            }
           } catch {}
 
           // Brief delay before retry in case document was just written
@@ -128,9 +120,6 @@ export default function ChallengeRoom() {
             },
           ];
           ch = { ...ch, participants: updated };
-          try {
-            localStorage.setItem(`bf_challenge_mirror_${id}`, JSON.stringify(ch));
-          } catch {}
           if (db) {
             updateDoc(doc(db, "challenges", id), { participants: updated, updated_at: new Date().toISOString() }).catch(() => {});
           } else {
@@ -149,9 +138,6 @@ export default function ChallengeRoom() {
             (snap) => {
               if (snap.exists() && active) {
                 const liveData = { id: snap.id, ...snap.data() };
-                try {
-                  localStorage.setItem(`bf_challenge_mirror_${id}`, JSON.stringify(liveData));
-                } catch {}
                 setChallenge(liveData);
               }
             },
@@ -179,13 +165,7 @@ export default function ChallengeRoom() {
 
   const handleSetTime = useCallback(async (minutes) => {
     const patch = { time_limit_minutes: minutes, updated_at: new Date().toISOString() };
-    setChallenge((c) => {
-      const next = c ? { ...c, ...patch } : c;
-      if (next) {
-        try { localStorage.setItem(`bf_challenge_mirror_${id}`, JSON.stringify(next)); } catch {}
-      }
-      return next;
-    });
+    setChallenge((c) => (c ? { ...c, ...patch } : c));
     if (db) {
       await updateDoc(doc(db, "challenges", id), patch).catch(() => {});
     } else {
@@ -197,13 +177,7 @@ export default function ChallengeRoom() {
     setStarting(true);
     const nowIso = new Date().toISOString();
     const startData = { status: "active", started_at: nowIso, updated_at: nowIso };
-    setChallenge((c) => {
-      const next = c ? { ...c, ...startData } : c;
-      if (next) {
-        try { localStorage.setItem(`bf_challenge_mirror_${id}`, JSON.stringify(next)); } catch {}
-      }
-      return next;
-    });
+    setChallenge((c) => (c ? { ...c, ...startData } : c));
     if (db) {
       await updateDoc(doc(db, "challenges", id), startData).catch(() => {});
     } else {
@@ -234,12 +208,6 @@ export default function ChallengeRoom() {
     if (!fresh) {
       fresh = await base44.entities.Challenge.get(id).catch(() => null);
     }
-    if (!fresh) {
-      try {
-        const rawLocal = localStorage.getItem(`bf_challenge_mirror_${id}`);
-        if (rawLocal) fresh = JSON.parse(rawLocal);
-      } catch {}
-    }
     if (!fresh && challenge) fresh = challenge;
     if (!fresh) return;
 
@@ -269,13 +237,7 @@ export default function ChallengeRoom() {
       ...(allDone ? { status: "finished", finished_at: nowIso, ...(winnerId ? { winner_id: winnerId } : {}) } : {}),
     };
 
-    setChallenge((c) => {
-      const next = c ? { ...c, ...updateData } : c;
-      if (next) {
-        try { localStorage.setItem(`bf_challenge_mirror_${id}`, JSON.stringify(next)); } catch {}
-      }
-      return next;
-    });
+    setChallenge((c) => (c ? { ...c, ...updateData } : c));
     if (db) {
       await updateDoc(doc(db, "challenges", id), updateData).catch(() => {});
     } else {

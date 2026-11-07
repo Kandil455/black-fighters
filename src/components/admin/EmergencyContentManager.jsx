@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { invokeSecureFunction } from "@/lib/secureFunctions";
 import { uploadMedia } from "@/lib/mediaUpload";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, limit } from "firebase/firestore";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/LocaleContext";
 
@@ -52,8 +54,19 @@ export default function EmergencyContentManager() {
       const res = await invokeSecureFunction("emergency-content", { action: "list" });
       if (res?.data?.items) {
         setItems(res.data.items);
+        return;
       }
     } catch (err) {
+      if (db) {
+        try {
+          const snap = await getDocs(query(collection(db, "emergencyContent"), limit(200)));
+          const localItems = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setItems(localItems);
+          return;
+        } catch {
+          // ignore secondary error
+        }
+      }
       toast.error(err.message || "تعذر جلب محتوى الطوارئ");
     } finally {
       setLoading(false);
@@ -161,8 +174,24 @@ export default function EmergencyContentManager() {
         isActive,
       };
 
-      const res = await invokeSecureFunction("emergency-content", payload);
-      if (res?.data?.ok) {
+      let savedOk = false;
+      try {
+        const res = await invokeSecureFunction("emergency-content", payload);
+        savedOk = Boolean(res?.data?.ok);
+      } catch (fnErr) {
+        if (db) {
+          const { action: _action, ...docData } = payload;
+          await addDoc(collection(db, "emergencyContent"), {
+            ...docData,
+            createdAt: serverTimestamp(),
+            created_date: new Date().toISOString(),
+          });
+          savedOk = true;
+        } else {
+          throw fnErr;
+        }
+      }
+      if (savedOk) {
         toast.success("تم نشر محتوى الطوارئ بنجاح! 🚀");
         setShowModal(false);
         // Reset form
@@ -174,7 +203,7 @@ export default function EmergencyContentManager() {
         setQuizId("");
         fetchItems();
       } else {
-        throw new Error(res?.data?.message || "فشل الحفظ");
+        throw new Error("فشل الحفظ");
       }
     } catch (err) {
       toast.error(err.message || "حصل خطأ أثناء حفظ المحتوى");
@@ -185,12 +214,23 @@ export default function EmergencyContentManager() {
 
   const handleToggle = async (id, currentStatus) => {
     try {
-      const res = await invokeSecureFunction("emergency-content", {
-        action: "toggle",
-        contentId: id,
-        isActive: !currentStatus,
-      });
-      if (res?.data?.ok) {
+      let toggledOk = false;
+      try {
+        const res = await invokeSecureFunction("emergency-content", {
+          action: "toggle",
+          contentId: id,
+          isActive: !currentStatus,
+        });
+        toggledOk = Boolean(res?.data?.ok);
+      } catch (fnErr) {
+        if (db) {
+          await updateDoc(doc(db, "emergencyContent", id), { isActive: !currentStatus });
+          toggledOk = true;
+        } else {
+          throw fnErr;
+        }
+      }
+      if (toggledOk) {
         setItems((prev) =>
           prev.map((item) => (item.id === id ? { ...item, isActive: !currentStatus } : item))
         );
@@ -204,11 +244,22 @@ export default function EmergencyContentManager() {
   const handleDelete = async (id, itemTitle) => {
     if (!confirm(`هل أنت متأكد من حذف "${itemTitle}" نهائياً؟`)) return;
     try {
-      const res = await invokeSecureFunction("emergency-content", {
-        action: "delete",
-        contentId: id,
-      });
-      if (res?.data?.ok) {
+      let deletedOk = false;
+      try {
+        const res = await invokeSecureFunction("emergency-content", {
+          action: "delete",
+          contentId: id,
+        });
+        deletedOk = Boolean(res?.data?.ok);
+      } catch (fnErr) {
+        if (db) {
+          await deleteDoc(doc(db, "emergencyContent", id));
+          deletedOk = true;
+        } else {
+          throw fnErr;
+        }
+      }
+      if (deletedOk) {
         setItems((prev) => prev.filter((item) => item.id !== id));
         toast.success("تم حذف المحتوى");
       }

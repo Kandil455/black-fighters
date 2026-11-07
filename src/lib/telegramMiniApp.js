@@ -7,7 +7,11 @@
  * verification endpoint existed the whole time and had no caller.
  */
 
-const AUTH_ENDPOINT = "/api/telegram-miniapp-auth";
+// Must follow the API base: in production the functions live on another origin, so
+// a relative "/api/..." call hit the web host and 404'd (the API host has the route).
+import { apiUrl } from "./apiBase";
+
+const AUTH_ENDPOINT = apiUrl("telegram-miniapp-auth");
 const SDK_SRC = "https://telegram.org/js/telegram-web-app.js";
 
 export function getTelegramWebApp() {
@@ -118,11 +122,16 @@ export async function bootstrapTelegramSession({ signInWithCustomToken, auth } =
     if (!res.ok || !payload?.ok) {
       return { status: "error", error: payload?.error || `HTTP ${res.status}` };
     }
+    if (payload.notLinked) {
+      // Telegram is never a signup path: this account must be linked from the
+      // site's Settings first. The Mini App will show the linking guide.
+      return { status: "unlinked", telegramUser: payload.telegramUser || null };
+    }
   } catch (err) {
     return { status: "error", error: err?.message || "NETWORK_ERROR" };
   }
 
-  // A custom token means the server resolved (or created) a platform account for
+  // A custom token means the server resolved the platform account linked to
   // this Telegram user. Signing in makes every Firestore read/write the norm.
   if (payload.customToken && auth && typeof signInWithCustomToken === "function") {
     try {

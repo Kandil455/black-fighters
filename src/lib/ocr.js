@@ -33,7 +33,7 @@ export async function recognizeImageFile(file, { onProgress, signal } = {}) {
     
     onProgress?.(50);
     const aiText = await ocrImageWithVisionAI(dataUrl, {
-      model: "DeepSeek-V4.1-Flash-1017",
+      model: "gemini-3.5-flash-lite",
       max_tokens: 2500,
     });
 
@@ -96,6 +96,9 @@ export async function recognizePdfFile(file, { onProgress, signal } = {}) {
   try {
     // Process in lightweight chunks of 2 pages for optimal parallelism and speed
     const CHUNK_SIZE = 2;
+    // Economy latch: once the vision-allowance (5 free pages) burns out, stop
+    // firing paid calls page-after-page — fall back to local OCR silently.
+    let visionExhausted = false;
     for (let i = 1; i <= maxOcrPages; i += CHUNK_SIZE) {
       if (signal?.aborted) throw new DOMException("تم الإلغاء", "AbortError");
 
@@ -118,15 +121,25 @@ export async function recognizePdfFile(file, { onProgress, signal } = {}) {
 
             const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
-            // Try fast AI vision OCR first (DeepSeek-V4.1-Flash-1017)
+            // Try fast AI vision OCR first (unless the allowance already lapsed)
             let pageResult = "";
-            try {
-              pageResult = await ocrImageWithVisionAI(dataUrl, {
-                model: "DeepSeek-V4.1-Flash-1017",
-                max_tokens: 2000,
-              });
-            } catch (pageAiErr) {
-              console.warn(`[OCR Page ${pageIndex}] AI Vision failed:`, pageAiErr?.message);
+            if (!visionExhausted) {
+              try {
+                pageResult = await ocrImageWithVisionAI(dataUrl, {
+                  model: "gemini-3.5-flash-lite",
+                  max_tokens: 2000,
+                });
+              } catch (pageAiErr) {
+                const msg = String(pageAiErr?.message || "");
+                if (/رصيد|كريدت|insufficient|quota/i.test(msg)) {
+                  visionExhausted = true;
+                  console.info(
+                    "ℹ️ [OCR] Free vision allowance used (5 pages) — remaining image pages read locally with Tesseract in the background."
+                  );
+                } else {
+                  console.warn(`[OCR Page ${pageIndex}] AI Vision failed:`, msg);
+                }
+              }
             }
 
             // Fallback to Tesseract if AI vision failed

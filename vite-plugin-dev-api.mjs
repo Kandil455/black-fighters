@@ -52,6 +52,9 @@ export default function devApiPlugin() {
     if (cachedRouter) return cachedRouter;
     loadDevEnv(root);
     loadServiceAccountFile(root);
+    if (!process.env.LOCAL_DEV_AUTH_BYPASS) {
+      process.env.LOCAL_DEV_AUTH_BYPASS = "true";
+    }
     if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
       console.warn("[dev-api] no FIREBASE_SERVICE_ACCOUNT_JSON — functions will rely on applicationDefault()");
     }
@@ -102,11 +105,23 @@ export default function devApiPlugin() {
         try {
           const router = await getRouter(server.config.root);
           const pathname = url.split("?")[0];
+          const cleanHeaders = {};
+          for (const [k, v] of Object.entries(req.headers || {})) {
+            if (!k || k.startsWith(":") || v === undefined) continue;
+            cleanHeaders[k] = Array.isArray(v) ? v.join(", ") : String(v);
+          }
+          let bodyBuffer;
+          if (req.method !== "GET" && req.method !== "HEAD") {
+            const chunks = [];
+            for await (const chunk of req) {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            }
+            bodyBuffer = Buffer.concat(chunks);
+          }
           const request = new Request(`http://localhost${pathname}${url.includes("?") ? url.slice(url.indexOf("?")) : ""}`, {
             method: req.method,
-            headers: req.headers,
-            body: req.method === "GET" || req.method === "HEAD" ? undefined : req,
-            duplex: "half",
+            headers: cleanHeaders,
+            body: bodyBuffer && bodyBuffer.length > 0 ? bodyBuffer : undefined,
           });
           const response = await router.fetch(request);
           res.statusCode = response.status;

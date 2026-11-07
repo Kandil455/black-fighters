@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocale } from "@/lib/LocaleContext";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,31 @@ import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 import { authErrorMessage } from "@/lib/authErrors";
 import OtpVerify from "@/components/auth/OtpVerify";
-import TelegramLoginButton from "@/components/auth/TelegramLoginButton";
+import GoogleIcon from "@/components/GoogleIcon";
 
 export default function Register() {
-  const { register, verifyOtp, resendOtp, resendVerificationLink } = useAuth();
-  const [searchParams] = useSearchParams();
+  const { register, verifyOtp, resendOtp, resendVerificationLink, loginWithGoogle, isAuthenticated } = useAuth();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated) navigate("/dashboard", { replace: true });
+  }, [isAuthenticated, navigate]);
+
+  const handleGoogle = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (err) {
+      toast.error(
+        authErrorMessage(
+          err,
+          err.message ||
+            (isEn ? "Google signup failed" : "حصل خطأ في التسجيل بـ Google")
+        )
+      );
+    }
+  };
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,17 +102,7 @@ export default function Register() {
   const handleVerify = async (otpCode) => {
     await verifyOtp({ email, otpCode, password, fullName: name });
     toast.success(isEn ? "Account verified successfully!" : "تم تأكيد حسابك!");
-    let redirectTarget = searchParams.get("redirect");
-    try {
-      if (!redirectTarget) {
-        redirectTarget = sessionStorage.getItem("bf_post_auth_redirect");
-      }
-      sessionStorage.removeItem("bf_post_auth_redirect");
-    } catch {}
-    window.location.href =
-      redirectTarget && redirectTarget.startsWith("/")
-        ? redirectTarget
-        : "/dashboard";
+    window.location.href = "/dashboard";
   };
 
   return (
@@ -200,7 +208,15 @@ export default function Register() {
                 </p>
               </div>
 
-              <TelegramLoginButton className="mb-5" />
+              <Button
+                type="button"
+                onClick={handleGoogle}
+                variant="outline"
+                className="w-full h-11 gap-2.5 mb-4 font-semibold"
+              >
+                <GoogleIcon className="w-4 h-4" />
+                {isEn ? "Continue with Google" : "إنشاء حساب بـ Google"}
+              </Button>
 
               <div className="flex items-center gap-3 mb-5">
                 <div className="flex-1 h-px bg-[#1E222B]" />

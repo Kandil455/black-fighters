@@ -10,7 +10,7 @@ const LANGUAGE_OPTIONS = [
 ];
 
 const STYLE_OPTIONS = [
-  { value: "ultra_multi_agent", label: "👑 مِسطرة المذكرات (Ultra 5-Agent)", desc: "أعلى دقة، 5 وكلاء ذكاء اصطناعي، صناديق ذهبية وسريرية وشيت غش", icon: Zap },
+  { value: "ultra_multi_agent", label: "📘 المذكرة الأكاديمية الشاملة", desc: "أعلى دقة، شرح عربي وإنجليزي منظم، تنبيهات امتحانية وجداول مقارنة", icon: Zap },
   { value: "bilingual_lecture", label: "Bilingual Lecture", desc: "English points ونقاط شرح عربي منظمة لكل قسم", icon: Languages },
   { value: "complete_study_guide", label: "Complete Study Guide", desc: "شرح شامل وتعريفات وأمثلة مرتبة", icon: BookOpen },
   { value: "exam_revision_sheet", label: "Exam Revision Sheet", desc: "نقاط مركزة وتحذيرات للمراجعة السريعة", icon: ListChecks },

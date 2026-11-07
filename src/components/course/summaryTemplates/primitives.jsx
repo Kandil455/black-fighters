@@ -121,7 +121,15 @@ export function Block({ block, variant = "default", compact = false }) {
 
   if (type === "heading") {
     return (
-      <h3 dir={dir} className={cn("font-black leading-snug text-foreground", compact ? "mt-4 text-base" : "mt-6 text-lg")}>
+      <h3
+        dir={dir}
+        className={cn(
+          "font-black leading-snug text-[#f3f7fc]",
+          compact
+            ? "mt-4 text-base"
+            : "mt-8 border-b border-[#19f08c]/20 pb-2 text-lg",
+        )}
+      >
         <Rich value={block.content ?? text} />
       </h3>
     );
@@ -130,15 +138,15 @@ export function Block({ block, variant = "default", compact = false }) {
   if (type === "bullet_list" || type === "ordered_list") {
     const items = Array.isArray(block.items) ? block.items : [];
     const ordered = type === "ordered_list";
+    const ListTag = ordered ? "ol" : "ul";
     return (
-      <ul dir={dir} className={cn("space-y-1.5", ordered && "list-decimal ps-5", !ordered && "list-none ps-0")}>
+      <ListTag dir={dir} className={cn("my-3 space-y-2", ordered ? "bf-olist" : "bf-ulist")}>
         {items.map((item, index) => (
-          <li key={item?.id || index} className="flex gap-2.5 text-[13.5px] leading-7">
-            {!ordered && <span aria-hidden="true" className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary/70" />}
+          <li key={item?.id || index} className="text-[15px] leading-8">
             <span className="min-w-0 flex-1"><Rich value={item} /></span>
           </li>
         ))}
-      </ul>
+      </ListTag>
     );
   }
 
@@ -147,13 +155,13 @@ export function Block({ block, variant = "default", compact = false }) {
     const headers = Array.isArray(table.headers) ? table.headers : [];
     const rows = Array.isArray(table.rows) ? table.rows : [];
     return (
-      <div className="my-4 overflow-x-auto rounded-2xl border border-border">
-        <table className="w-full min-w-[560px] border-collapse text-[13px]">
+      <div className="bf-table-shell my-4">
+        <table className="text-[13.5px]">
           {headers.length > 0 && (
             <thead>
-              <tr className="bg-white/[0.04]">
+              <tr>
                 {headers.map((cell, cellIndex) => (
-                  <th key={cell?.id || cellIndex} className="border-b border-border px-3.5 py-2.5 text-start font-black text-foreground">
+                  <th key={cell?.id || cellIndex} className="border-e border-white/[0.06] last:border-e-0">
                     <Rich value={cell} />
                   </th>
                 ))}
@@ -162,9 +170,9 @@ export function Block({ block, variant = "default", compact = false }) {
           )}
           <tbody>
             {rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="even:bg-white/[0.02]">
+              <tr key={rowIndex}>
                 {(Array.isArray(row) ? row : row?.cells || []).map((cell, cellIndex) => (
-                  <td key={cell?.id || cellIndex} className="border-b border-border/60 px-3.5 py-2.5 align-top text-muted-foreground">
+                  <td key={cell?.id || cellIndex} className="border-e border-white/[0.06] last:border-e-0">
                     <Rich value={cell} />
                   </td>
                 ))}
@@ -219,8 +227,23 @@ export function Block({ block, variant = "default", compact = false }) {
     );
   }
 
+  // 🔖 "Term: definition" paragraphs become term cards — emerald term + body.
+  const contentObj = block?.content && typeof block.content === "object" ? block.content : null;
+  const annotated = Array.isArray(contentObj?.annotations) && contentObj.annotations.length > 0;
+  if (!annotated) {
+    const match = /^([^\n:：]{2,70})[:：]\s*(.+)$/s.exec(text);
+    if (match && text.length <= 900) {
+      return (
+        <div dir={dir} className="bf-term-card my-3">
+          <span className="bf-term"><Bidi>{match[1]}</Bidi></span>
+          <p className="leading-8 text-[#e9eef6]/90 whitespace-pre-wrap"><Bidi>{match[2]}</Bidi></p>
+        </div>
+      );
+    }
+  }
+
   return (
-    <p dir={dir} className="whitespace-pre-wrap text-[13.5px] leading-7 text-muted-foreground">
+    <p dir={dir} className="whitespace-pre-wrap text-[15px] leading-8 text-[#cdd5e0]">
       <Rich value={block.content ?? text} />
     </p>
   );

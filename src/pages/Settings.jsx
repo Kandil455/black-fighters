@@ -1,14 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { base44 } from '@/api/base44Client';
+import React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from '@/lib/AuthContext';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Key, Check, Trash2, Loader2, ExternalLink } from "lucide-react";
-import { toast } from "sonner";
-import { PROVIDERS, getDefaultModel } from "@/lib/models";
-import { testAiKey } from "@/lib/ai";
-import ProviderModelPicker from "@/components/settings/ProviderModelPicker";
+import AiModelsAndProvidersManager from "@/components/settings/AiModelsAndProvidersManager";
 import AvatarPicker from "@/components/settings/AvatarPicker";
 import ThemePicker from "@/components/settings/ThemePicker";
 import DeleteAccountCard from "@/components/settings/DeleteAccountCard";
@@ -20,14 +13,6 @@ import LanguageSettings from "@/components/settings/LanguageSettings";
 import SwitchShowcase from "@/components/settings/SwitchShowcase";
 import { useLocale } from "@/lib/LocaleContext";
 
-/**
- * A labelled block of settings.
- *
- * The page used to be eight cards separated only by `mt-8`, so there was no way
- * to tell where "appearance" ended and "account deletion" began — and the
- * destructive card sat one scroll away from the theme swatches with nothing
- * marking it apart.
- */
 function SettingsSection({ title, hint, children }) {
   return (
     <section className="mt-8">
@@ -45,61 +30,10 @@ export default function Settings() {
   const { profile, refreshProfile, isAdmin } = useAuth();
   const { locale, dir } = useLocale();
   const isEn = locale === "en";
-  const [provider, setProvider] = useState("deepseek");
-  const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("DeepSeek-V4.1-Flash-1017");
-  const [saving, setSaving] = useState(false);
-
-  const { data: settings = [], isLoading } = useQuery({
-    queryKey: ["userSettings"],
-    queryFn: () => base44.entities.UserSettings.filter({}, "-created_date", 10),
-  });
 
   const isAlphaAdmin = profile?.role === "admin" || String(profile?.email || "").toLowerCase() === "ibrahimkandil000@gmail.com";
-  const current = settings[0];
-
-  useEffect(() => {
-    if (current && isAlphaAdmin) {
-      setProvider("deepseek");
-      setModel("DeepSeek-V4.1-Flash-1017");
-      setApiKey(current.api_key ? "••••••••••••••••" : "");
-    }
-  }, [current, isAlphaAdmin]);
 
   if (!profile) return <PageLoader message={isEn ? "Loading settings..." : "جاري التحميل..."} />;
-
-  const save = async () => {
-    let keyToSave = apiKey.trim();
-    if (keyToSave.includes("•")) {
-      keyToSave = current?.api_key || "";
-    }
-    if (!keyToSave) return toast.error("اكتب الـ API Key الأول");
-
-    setSaving(true);
-    try {
-      await testAiKey("deepseek", keyToSave);
-
-      const data = { provider: "deepseek", api_key: keyToSave, model: "DeepSeek-V4.1-Flash-1017", is_active: true };
-      if (current) {
-        await base44.entities.UserSettings.update(current.id, data);
-      } else {
-        await base44.entities.UserSettings.create(data);
-      }
-      queryClient.invalidateQueries({ queryKey: ["userSettings"] });
-      toast.success("اتحفظ مفتاح DeepSeek-V4.1-Flash-1017 بنجاح! ✅");
-    } catch (e) {
-      toast.error(e.message || "المفتاح غير صالح");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const remove = async () => {
-    await base44.entities.UserSettings.delete(current.id);
-    queryClient.invalidateQueries({ queryKey: ["userSettings"] });
-    setApiKey("");
-    toast.success("اتمسح — هنرجع نستخدم المفتاح الافتراضي");
-  };
 
   return (
     <div dir={dir} className="max-w-3xl mx-auto space-y-8">
@@ -113,70 +47,15 @@ export default function Settings() {
       </header>
 
       {isAlphaAdmin && (
-        <>
-          {current && (
-            <div className="glass-card neon-glow-green rounded-2xl p-5 border border-[hsl(152,100%,50%)]/30 mb-8 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Check className="w-5 h-5 text-[hsl(152,100%,50%)]" />
-                <div>
-                  <p className="font-bold">{isEn ? "Custom API Key Active" : "مفتاحك الشخصي شغال"}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {PROVIDERS[current.provider]?.name} — {current.model}
-                  </p>
-                </div>
-              </div>
-              <Button variant="ghost" size="icon" onClick={remove} className="text-muted-foreground hover:text-destructive">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-
-          <div className="glass-card rounded-3xl p-8 border border-primary/30 mb-8">
-            <h2 className="font-extrabold text-lg mb-6 flex items-center gap-2">
-              <Key className="w-5 h-5 text-primary" /> {current ? (isEn ? "Change API Key" : "تغيير المفتاح") : (isEn ? "Add Custom API Key" : "إضافة مفتاح جديد")}
-            </h2>
-
-            <ProviderModelPicker
-              provider={provider}
-              model={model}
-              enabledModels={current?.enabled_models}
-              onProviderChange={(p) => {
-                setProvider(p);
-                setModel("");
-                if (current && current.provider === p && current.api_key) {
-                  setApiKey("••••••••••••••••");
-                } else {
-                  setApiKey("");
-                }
-              }}
-              onModelChange={setModel}
-            />
-
-            <div className="mt-6">
-              <label className="text-sm font-semibold mb-2 block">{isEn ? "API Key Secret" : "الـ API Key"}</label>
-              <Input
-                dir="ltr"
-                type="password"
-                placeholder="AIza... / gsk_... / sk-or-..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <a
-                href={PROVIDERS.deepseek.keyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1"
-              >
-                <ExternalLink className="w-3 h-3" /> {isEn ? "Get API key here" : "احصل على مفتاح API من هنا"}
-              </a>
-            </div>
-
-            <Button onClick={save} disabled={saving} className="w-full h-12 font-bold mt-6 gap-2">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {isEn ? "Save API Key" : "حفظ"}
-            </Button>
-          </div>
-        </>
+        <SettingsSection
+          title={isEn ? "Custom Model API & AI Rotation" : "إعدادات الـ API والنماذج والتبديل التلقائي"}
+          hint={isEn ? "Add custom model APIs, fetch models, and rotate keys" : "أضف أي API مخصص أو جاهز، واجلب النماذج المتاحة واحفظها وبدّل بينها في أي وقت"}
+        >
+          <AiModelsAndProvidersManager
+            isAdmin={true}
+            onConfigUpdated={() => queryClient.invalidateQueries({ queryKey: ["userSettings"] })}
+          />
+        </SettingsSection>
       )}
 
       <SettingsSection title={isEn ? "Appearance" : "الشكل والمظهر"} hint={isEn ? "Theme, avatar, frame and motion" : "الثيم، الصورة، الإطار، وحركة الواجهة"}>

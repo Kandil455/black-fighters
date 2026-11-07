@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useMemo, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { PLANS, planPrice, planCredits } from "@/lib/plans";
-import { CREDIT_PACKS, resolveCreditPack } from "@/lib/economyCatalog";
+import { CREDIT_PACKS } from "@/lib/economyCatalog";
 import { PAYMENT_INFO } from "@/lib/paymentInfo";
 import { optimizeImageToDataUrl } from "@/lib/storage";
 import PlanCard from "@/components/subscriptions/PlanCard";
@@ -45,30 +44,29 @@ const PLAN_COMPARISON_ROWS = [
     featureAr: "رصيد الكريدتس الشهري",
     featureEn: "Monthly AI Credits",
     free: "10",
-    starter: "100",
-    pro: "250",
-    supreme: "500",
+    starter: "350",
+    pro: "900",
+    supreme: "2,500",
   },
   {
-    featureAr: "تلخيص المحاضرات والكتب PDF (صغير · متوسط · كبير)",
-    featureEn: "PDF Lecture & Book Summaries (Small · Medium · Large)",
-    freeAr: "محدود",
-    freeEn: "Limited",
+    featureAr: "تلخيص المحاضرات والكتب PDF (1–1,000 صفحة)",
+    featureEn: "PDF Lecture & Book Summaries (1–1,000p)",
+    free: "محدود",
     starter: "✔",
     pro: "✔",
     supreme: "✔",
   },
   {
-    featureAr: "اختيار لغة الملخص (Bilingual · إنجليزي · عربي)",
-    featureEn: "Summary Output Language (Bilingual · EN · AR)",
-    free: "✔",
+    featureAr: "مراجعة الأرقام والجرعات مع رقم الصفحة + جداول مراجعة ذكية",
+    featureEn: "Dosage & Number Verification + Smart Review Tables",
+    free: "—",
     starter: "✔",
     pro: "✔",
     supreme: "✔",
   },
   {
-    featureAr: "معمل العملي والصور والكويزات التفاعلية",
-    featureEn: "Practical Lab & Interactive Quizzes",
+    featureAr: "معمل العملي والصور (OSCE / OSPE)",
+    featureEn: "Practical Lab & Image Quizzes",
     free: "—",
     starter: "✔",
     pro: "✔",
@@ -93,7 +91,6 @@ const PLAN_COMPARISON_ROWS = [
 ];
 
 export default function Subscriptions() {
-  const [searchParams] = useSearchParams();
   const { profile, user, isAdmin } = useAuth();
   const currentAccount = profile || user;
   const isSubscribed =
@@ -117,41 +114,10 @@ export default function Subscriptions() {
   const isEn = locale === "en";
 
   const [billing, setBilling] = useState("monthly");
-  const [selectedPlan, setSelectedPlan] = useState(() => {
-    const rawParam = (searchParams.get("plan") || "").toLowerCase();
-    const normalizedKey = rawParam === "elite" ? "supreme" : rawParam;
-    if (normalizedKey && normalizedKey !== "free") {
-      const matched = PLANS.find((p) => p.key === normalizedKey && p.key !== "free" && p.tier !== "free");
-      if (matched) return matched;
-    }
-    return PLANS.find((plan) => plan.popular && plan.key !== "free") || PLANS.find((p) => p.key !== "free");
-  });
+  const [selectedPlan, setSelectedPlan] = useState(
+    PLANS.find((plan) => plan.popular) || PLANS[1] || PLANS[0]
+  );
   const [selectedPack, setSelectedPack] = useState(null);
-
-  useEffect(() => {
-    const rawParam = (searchParams.get("plan") || "").toLowerCase();
-    const normalizedKey = rawParam === "elite" ? "supreme" : rawParam;
-    if (normalizedKey && normalizedKey !== "free") {
-      const matched = PLANS.find((p) => p.key === normalizedKey && p.key !== "free" && p.tier !== "free");
-      if (matched) {
-        setSelectedPlan(matched);
-        setTimeout(() => {
-          document
-            .getElementById("smart-terminal")
-            ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }, 150);
-      }
-    }
-    const creditsParam = Number(searchParams.get("credits") || 0);
-    if (creditsParam >= 50) {
-      const preset = CREDIT_PACKS.find((c) => c.credits === creditsParam);
-      const resolved = preset || resolveCreditPack(`custom_${creditsParam}`);
-      if (resolved) {
-        setSelectedPack(resolved);
-        if (!normalizedKey) setSelectedPlan(null);
-      }
-    }
-  }, [searchParams]);
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [checkoutWindow, setCheckoutWindow] = useState(() => {
     const start = Date.now();
@@ -173,17 +139,7 @@ export default function Subscriptions() {
   const paymentInfo = PAYMENT_INFO[method];
 
   const selectPlan = (plan) => {
-    if (!plan || plan.key === "free" || plan.tier === "free") {
-      toast.info(
-        isEn
-          ? "The Free Tier is automatically active on sign-up and cannot be purchased."
-          : "الباقة المجانية مفعّلة تلقائياً عند التسجيل ولا يتم الدفع لها."
-      );
-      return;
-    }
-    setSelectedPlan((prev) =>
-      prev?.key === plan.key && selectedPack ? null : plan
-    );
+    setSelectedPlan(plan);
   };
 
   const toggleCreditPack = (pack) => {
@@ -191,13 +147,11 @@ export default function Subscriptions() {
   };
 
   const handleSelectCustomPack = (customPack) => {
-    const verifiedPack = resolveCreditPack(customPack?.key) || customPack;
-    setSelectedPack(verifiedPack);
-    setSelectedPlan(null);
+    setSelectedPack(customPack);
     toast.success(
       isEn
-        ? `Selected ${verifiedPack.credits.toLocaleString()} custom credits (${verifiedPack.price} EGP)`
-        : `تم تجهيز فاتورة شحن ${verifiedPack.credits.toLocaleString()} نقطة (${verifiedPack.price} ج.م)`
+        ? `Added ${customPack.credits.toLocaleString()} custom credits to invoice`
+        : `تمت إضافة ${customPack.credits.toLocaleString()} نقطة مخصصة إلى الفاتورة`
     );
     document
       .getElementById("smart-terminal")
@@ -329,27 +283,11 @@ export default function Subscriptions() {
 
     setSubmitting(true);
     try {
-      const isSub = Boolean(
-        selectedPlan &&
-          selectedPlan.key !== "free" &&
-          selectedPlan.tier !== "free"
-      );
-      if (!isSub && !selectedPack) {
-        throw new Error(
-          isEn
-            ? "Please select a paid plan or credit pack first"
-            : "يرجى اختيار باقة مدفوعة أو باقة شحن كريدتس أولاً"
-        );
-      }
+      const isSub = selectedPlan && selectedPlan.key !== "free";
       const productType = isSub ? "subscription" : "credits";
       const productKey = isSub
         ? selectedPlan.key
         : selectedPack?.key || "credits_50";
-      const extraPackKey = isSub && selectedPack ? selectedPack.key : "";
-      const upgradeFromPlanKey =
-        isSub && isUpgradingMainPlan && currentMainPlan
-          ? currentMainPlan.key
-          : "";
 
       const compositeNote = [
         note.trim(),
@@ -364,8 +302,6 @@ export default function Subscriptions() {
       await base44.functions.invoke("submitPayment", {
         productType,
         productKey,
-        extraPackKey,
-        upgradeFromPlanKey,
         billing,
         method,
         senderNumber: cleanedNumber,
@@ -402,14 +338,14 @@ export default function Subscriptions() {
       <PageHeader
         badge={
           isEn
-            ? "Double-Entry Credit Ledger · Instant Quote"
-            : "دفتر رصيد مزدوج القيد · تسعير شفاف حسب الكمية"
+            ? "Transparent Credit Pricing · Instant Activation"
+            : "الرصيد والباقات · تسعير واضح وتفعيل فوري"
         }
         title={isEn ? "Plans & Credit Configurator" : "الرصيد والباقات"}
         description={
           isEn
             ? "Pick a semester plan or configure your exact credit volume. Credits are reserved safely and refunded 100% if any job fails."
-            : "اختر باقة فصلية جاهزة أو أعدّ كمية الكريدتس التي تحتاجها بالضبط. الرصيد محمي بالكامل ولا ينتهي."
+            : "اختر باقة فصلية جاهزة أو حدد عدد النقاط الذي تحتاجه بالضبط. الرصيد محمي بالكامل ولا يُخصم أبداً إذا لم يكتمل التلخيص."
         }
         action={
           <div className="glass inline-flex items-center gap-1 p-1 rounded-xl">
@@ -525,7 +461,7 @@ export default function Subscriptions() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-[#f5f7fa] truncate">
-                        {isEn ? pack.nameEn || pack.name : pack.name}
+                        {pack.name}
                       </span>
                       <span
                         className={cn(
@@ -598,11 +534,7 @@ export default function Subscriptions() {
                       {isEn ? row.featureEn : row.featureAr}
                     </td>
                     <td className="py-3 px-3 text-center font-mono tabular text-[#9aa4b2]">
-                      {row.freeEn || row.freeAr
-                        ? isEn
-                          ? row.freeEn
-                          : row.freeAr
-                        : row.free}
+                      {row.free}
                     </td>
                     <td className="py-3 px-3 text-center font-mono tabular text-[#f5f7fa]">
                       {row.starter}
@@ -666,56 +598,46 @@ export default function Subscriptions() {
                 </div>
 
                 <div className="space-y-3">
-                  {selectedPlan && (
-                    <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm text-[#f5f7fa]">
-                          {selectedPlan?.nameAr && !isEn
-                            ? `${selectedPlan.name} (${selectedPlan.nameAr})`
-                            : selectedPlan?.name}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono tabular font-semibold text-sm text-[#f5f7fa]">
-                            {planCost} {isEn ? "EGP" : "ج.م"}
-                          </span>
-                          {selectedPack && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedPlan(null)}
-                              title={isEn ? "Remove plan (buy credits only)" : "إزالة الباقة وشحن كريدتس فقط"}
-                              className="p-1 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] transition-colors cursor-pointer"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-[#9aa4b2] pt-1.5 border-t border-white/[0.07]">
-                        <span>
-                          {isEn ? "Included Credits" : "رصيد الكريدتس المرفق"}
-                        </span>
-                        <span className="font-mono tabular text-[#19f08c] font-semibold">
-                          +{includedCredits.toLocaleString()}
-                        </span>
-                      </div>
-                      {isUpgradingMainPlan && (
-                        <div className="flex items-center justify-between text-xs text-[#19f08c] pt-1.5 border-t border-white/[0.07]">
-                          <span>
-                            {isEn ? "Upgrade Difference Discount" : "خصم فرق الترقية"}
-                          </span>
-                          <span className="font-mono tabular">
-                            -{upgradeDiscount} {isEn ? "EGP" : "ج.م"}
-                          </span>
-                        </div>
-                      )}
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm text-[#f5f7fa]">
+                        {selectedPlan?.nameAr && !isEn
+                          ? `${selectedPlan.name} (${selectedPlan.nameAr})`
+                          : selectedPlan?.name}
+                      </span>
+                      <span className="font-mono tabular font-semibold text-sm text-[#f5f7fa]">
+                        {planCost === 0
+                          ? isEn
+                            ? "Free"
+                            : "مجاناً"
+                          : `${planCost} ${isEn ? "EGP" : "ج.م"}`}
+                      </span>
                     </div>
-                  )}
+                    <div className="flex items-center justify-between text-xs text-[#9aa4b2] pt-1.5 border-t border-white/[0.07]">
+                      <span>
+                        {isEn ? "Included Credits" : "رصيد الكريدتس المرفق"}
+                      </span>
+                      <span className="font-mono tabular text-[#19f08c] font-semibold">
+                        +{includedCredits.toLocaleString()}
+                      </span>
+                    </div>
+                    {isUpgradingMainPlan && (
+                      <div className="flex items-center justify-between text-xs text-[#19f08c] pt-1.5 border-t border-white/[0.07]">
+                        <span>
+                          {isEn ? "Upgrade Difference Discount" : "خصم فرق الترقية"}
+                        </span>
+                        <span className="font-mono tabular">
+                          -{upgradeDiscount} {isEn ? "EGP" : "ج.م"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
                   {selectedPack && (
                     <div className="p-3.5 rounded-2xl bg-[#19f08c]/[0.07] border border-[#19f08c]/35 flex items-center justify-between gap-2">
                       <div>
                         <span className="text-xs font-semibold text-[#f5f7fa] block">
-                          {isEn ? selectedPack.nameEn || selectedPack.name : selectedPack.name}
+                          {selectedPack.name}
                         </span>
                         <span className="text-xs font-mono tabular text-[#19f08c]">
                           +{selectedPack.credits.toLocaleString()}{" "}
@@ -728,16 +650,8 @@ export default function Subscriptions() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedPack(null);
-                            if (!selectedPlan) {
-                              setSelectedPlan(
-                                PLANS.find((p) => p.popular && p.key !== "free") ||
-                                  PLANS.find((p) => p.key !== "free")
-                              );
-                            }
-                          }}
-                          className="p-1 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] transition-colors cursor-pointer"
+                          onClick={() => setSelectedPack(null)}
+                          className="p-1 rounded-lg text-[#9aa4b2] hover:text-[#ef4444] cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -843,12 +757,12 @@ export default function Subscriptions() {
                       )}
                     >
                       <span>{m.icon}</span>
-                      <span>{isEn ? m.labelEn || m.label : m.label}</span>
+                      <span>{m.label}</span>
                     </button>
                   ))}
                 </div>
 
-                {/* CopyField for Exact Amount & Transfer Number */}
+                {/* LineVault CopyField for Exact Amount & Transfer Number */}
                 <CopyField
                   label={isEn ? "Send Exact Amount" : "أرسل بالضبط"}
                   value={String(totalPrice)}
@@ -861,7 +775,7 @@ export default function Subscriptions() {
                 <CopyField
                   label={
                     isEn
-                      ? `Transfer Number (${paymentInfo.labelEn || paymentInfo.label})`
+                      ? `Transfer Number (${paymentInfo.label})`
                       : `رقم التحويل (${paymentInfo.label})`
                   }
                   value={paymentInfo.number}

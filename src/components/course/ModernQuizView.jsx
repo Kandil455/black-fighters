@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -25,7 +26,7 @@ import { awardXP } from "@/lib/xpSystem";
 import { toast } from "sonner";
 import QuizPrep from "@/components/course/QuizPrep";
 import { useBadges } from "@/lib/BadgeContext";
-import { buildQuizPerformance, reconcileQuestionAnswer } from "@/lib/quizQuality";
+import { buildQuizPerformance } from "@/lib/quizQuality";
 import {
   getMistakeVaultItems,
   recordMistake,
@@ -56,10 +57,7 @@ const getOptionStyle = (i, correct, selected, answered) => {
 
 export default function ModernQuizView({ quiz, course, onJumpToSummary }) {
   const { showBadges } = useBadges();
-  const allQuestions = React.useMemo(
-    () => (quiz?.questions || []).map((q) => reconcileQuestionAnswer(q)),
-    [quiz?.questions]
-  );
+  const allQuestions = quiz?.questions || [];
   const [questions, setQuestions] = useState(allQuestions);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -304,7 +302,9 @@ export default function ModernQuizView({ quiz, course, onJumpToSummary }) {
       if (q.explanation) lines.push(`   💡 ${q.explanation}`);
       lines.push("");
     });
-    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    // Prepend a UTF-8 BOM so Arabic never decodes as legacy codepage
+    // (mojibake) when the .txt file is opened in Excel or legacy editors.
+    const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `quiz-${course?.title || "results"}.txt`;
@@ -504,6 +504,15 @@ export default function ModernQuizView({ quiz, course, onJumpToSummary }) {
                         {q.explanation}
                       </p>
                     </div>
+                  )}
+                  {!isCorrect && course?.id && (
+                    <Link
+                      to={`/course/${course.id}?q=${encodeURIComponent(String(q.topic || q.question || "").slice(0, 90))}`}
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[#19f08c]/40 bg-[#19f08c]/10 px-3 py-1.5 text-[11px] font-black text-[#19f08c] hover:bg-[#19f08c]/20 transition-colors"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      راجع النقطة دي في الملخص 📖
+                    </Link>
                   )}
                 </div>
               );
