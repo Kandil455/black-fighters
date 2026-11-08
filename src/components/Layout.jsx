@@ -109,8 +109,6 @@ export default function Layout() {
       items: [
         { to: "/dashboard", label: locale === "ar" ? "اليوم والمقررات" : "Today & Courses", icon: DocumentIcon },
         { to: "/create", label: locale === "ar" ? "رفع وتلخيص محاضرة" : "Upload & Summarize", icon: SummaryNoteIcon },
-        // Lecture transcriber is behind FEATURE_LECTURES (currently off) — the
-        // link must disappear together with its routes, never lead to a 404.
         ...(LECTURE_CONFIG.FEATURE_LECTURES
           ? [{ to: "/lectures", label: locale === "ar" ? "تفريغ المحاضرات الصوتية" : "Audio Lecture Transcriber", icon: Headphones }]
           : []),

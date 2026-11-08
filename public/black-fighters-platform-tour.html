@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>فيديو ودليل منصة Black Fighters الشامل ⚡</title>
+<style>
+  :root {
+    --bg: #070a12;
+    --card: #0d121f;
+    --border: #1e293b;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #19f08c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", Tahoma, sans-serif;
+    line-height: 1.6;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .player-box {
+    width: 100%;
+    max-width: 900px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+  }
+  .timeline-bar {
+    display: flex;
+    gap: 8px;
+    padding: 16px 24px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .timeline-seg {
+    flex: 1;
+    min-width: 90px;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+  }
+  .timeline-seg.active .fill {
+    height: 100%;
+    background: var(--accent);
+    width: 100%;
+    transition: width 0.1s linear;
+  }
+  .timeline-seg.done .fill {
+    height: 100%;
+    background: var(--accent);
+    width: 100%;
+  }
+  .slide-stage {
+    padding: 36px 32px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: radial-gradient(circle at top right, rgba(25,240,140,0.1), transparent 70%);
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: bold;
+    background: rgba(25,240,140,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(25,240,140,0.3);
+    margin-bottom: 12px;
+  }
+  h2 { font-size: 26px; font-weight: 900; margin-bottom: 8px; }
+  p.sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+  ul.points { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+  ul.points li {
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .player-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background: rgba(0,0,0,0.4);
+    border-top: 1px solid var(--border);
+  }
+  .btn {
+    cursor: pointer;
+    padding: 10px 20px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: bold;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-outline { background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+<div class="player-box">
+  <div class="player-header">
+    <div style="font-weight:900;font-size:16px">⚡ فيديو وجولة منصة Black Fighters</div>
+    <div id="slide-counter" style="font-size:12px;color:var(--muted)">1 / 5</div>
+  </div>
+  <div class="timeline-bar" id="timeline-bar"></div>
+  <div class="slide-stage" id="slide-stage">
+    <div>
+      <span class="badge" id="badge"></span>
+      <h2 id="title"></h2>
+      <p class="sub" id="subtitle"></p>
+      <ul class="points" id="points"></ul>
+    </div>
+  </div>
+  <div class="player-footer">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" id="prev-btn" onclick="prevSlide()">السابق</button>
+      <button class="btn btn-outline" id="play-btn" onclick="togglePlay()">إيقاف مؤقت ⏸️</button>
+      <button class="btn btn-primary" id="next-btn" onclick="nextSlide()">التالي ◀</button>
+    </div>
+    <a href="https://blackfighters.site" target="_blank" class="btn btn-outline" style="text-decoration:none">فتح المنصة الآن 🚀</a>
+  </div>
+</div>
+<script>
+  const slides = [
+    {
+      "id": "overview",
+      "badge": "مقدمة المنصة",
+      "title": "مرحباً بك في Black Fighters ⚡",
+      "subtitle": "المنصة الأكاديمية الذكية الشاملة لدراسة الطب وجميع الكليات في مكان واحد",
+      "accent": "#19f08c",
+      "highlights": [
+        "تفريغ المحاضرات الصوتية بالحرف مع إرجاع المصطلحات الإنجليزية وكلام الدكتور",
+        "تلخيص أكاديمي احترافي بنمط Post-Mortem مع جداول مقارنات ورسومات توضيحية SVG",
+        "استخراج ودمج صور وسلايدز الدكتور داخل التلخيص مع زرار إظهار/إخفاء الصور",
+        "بنك كويزات تفاعلي مربوط مباشرة ببوت التليجرام لإرسال الأسئلة كـ Polls للدفعة",
+        "تثبيت الحفظ بخوارزمية التكرار المتباعد الذكية FSRS v4.5"
+      ]
+    },
+    {
+      "id": "transcription",
+      "badge": "ميزة التفريغ الصوتي",
+      "title": "تفريغ المحاضرات الصوتية الذكي 🎙️",
+      "subtitle": "سجل من المايك أو ارفع ريكورد المحاضرة ليتحول إلى تفريغ طبي فائق الدقة",
+      "accent": "#38bdf8",
+      "highlights": [
+        "🎙️ تسجيل مباشر من المايك لايف داخل المحاضرة أو رفع أي ملف صوت/فيديو حتى 200MB",
+        "🇬🇧 استرجاع المصطلحات الطبية المنطوقة بالإنجليزية تلقائياً مهما كانت لهجة الشرح",
+        "💬 صندوق «قال الدكتور:» بإطار منقّط لحفظ كلمات الدكتور الحرفية وتنبيهاته",
+        "📄 توليد مذكرة Post-Mortem كاملة (إنجليزي + شرح عربي + رسومات SVG + تجميعة الامتحان)",
+        "📎 إمكانية إرفاق ملف PDF / سلايدز الدكتور لدمجها واستخراج صورها مع التفريغ"
+      ]
+    },
+    {
+      "id": "summary_postmortem",
+      "badge": "نمط Post-Mortem & الصور",
+      "title": "التلخيص الأكاديمي بنمط Post-Mortem 📄",
+      "subtitle": "نفس تنسيق المذكرات المعتمد مع دمج صور الدكتور وإمكانية إخفائها بضغطة زر",
+      "accent": "#f59e0b",
+      "highlights": [
+        "🟨 تظليل أصفر تلقائي على العناوين والجرعات والأرقام والمصطلحات في الجمل الإنجليزية",
+        "⬛ شرح عربي تفصيلي في صندوق أنيق بحد أيمن عريض لتحقيق أقصى فهم",
+        "🖼️ زرار التحكم في صور الملف: إظهار أو إخفاء صور الملف الأصلي في أي وقت",
+        "📊 رسومات SVG تخطيطية لكل آلية وجداول مقارنات سوداء محددة للامتحان",
+        "🖨️ تصدير بجميع الصيغ: مذكرة HTML تفاعلية، أو كتاب PDF (A4) للطباعة، أو عرض PowerPoint"
+      ]
+    },
+    {
+      "id": "quiz_telegram",
+      "badge": "الكويزات وبوت التليجرام",
+      "title": "بنك الكويزات التفاعلي وبوت التليجرام 🎯",
+      "subtitle": "امتحن على أي محاضرة فوراً، وشارك الكويزات مع زملائك على تليجرام كـ Polls",
+      "accent": "#a855f7",
+      "highlights": [
+        "🎯 توليد كويزات MCQ وحالات سريرية مخصصة من تفريغ المحاضرة أو الملخص",
+        "🚀 صفحة مستقلة لكل امتحان (/q/:id) برابط مباشر للمشاركة مع الدفعة",
+        "✈️ إرسال الكويز بضغطة زر إلى بوت التليجرام لإنشاء استطلاعات تفاعلية (Polls)",
+        "💡 تفسير فوري لكل إجابة صحيحة أو خاطئة مع توضيح السبب العلمي",
+        "📊 بنك أسئلة تراكمي لأسئلة النظري والعملي لمراجعتها ليلة الامتحان"
+      ]
+    },
+    {
+      "id": "fsrs_mastery",
+      "badge": "المراجعة الذكية والأدوات",
+      "title": "المراجعة والتثبيت FSRS v4.5 واستوديو الأدوات 🧠",
+      "subtitle": "لا تنسى معلومة أبداً بفضل جدول المراجعة المتباعدة المخصص",
+      "accent": "#10b981",
+      "highlights": [
+        "🧠 خوارزمية FSRS v4.5 لحساب موعد التسميع المثالي لكل بطاقة استذكار",
+        "📺 استوديو يوتيوب AI: تلخيص فيديوهات الشرح واستخراج الأسئلة منها",
+        "🛠️ استوديو أدوات PDF: دمج، تقسيم، ضغط، وترقيم الملفات بدون إنترنت",
+        "🔬 معمل العملي والصور لتحويل صور الأشعة والشرائح إلى امتحانات عملي (OSCE)",
+        "🏆 لوحة الشرف ونظام الإنجازات لمتابعة التقدم والتنافس الأكاديمي"
+      ]
+    }
+  ];
+  let current = 0;
+  let playing = true;
+  let timer = null;
+
+  function renderTimeline() {
+    const bar = document.getElementById("timeline-bar");
+    bar.innerHTML = "";
+    slides.forEach((s, idx) => {
+      const seg = document.createElement("div");
+      seg.className = "timeline-seg " + (idx === current ? "active" : idx < current ? "done" : "");
+      seg.onclick = () => goTo(idx);
+      seg.innerHTML = '<div class="fill"></div>';
+      bar.appendChild(seg);
+    });
+  }
+
+  function renderSlide() {
+    const s = slides[current];
+    document.getElementById("badge").innerText = s.badge;
+    document.getElementById("title").innerText = s.title;
+    document.getElementById("subtitle").innerText = s.subtitle;
+    document.getElementById("slide-counter").innerText = (current + 1) + " / " + slides.length;
+    const pts = document.getElementById("points");
+    pts.innerHTML = "";
+    s.highlights.forEach(h => {
+      const li = document.createElement("li");
+      li.innerText = h;
+      pts.appendChild(li);
+    });
+    renderTimeline();
+  }
+
+  function nextSlide() {
+    current = (current + 1) % slides.length;
+    renderSlide();
+  }
+
+  function prevSlide() {
+    current = (current - 1 + slides.length) % slides.length;
+    renderSlide();
+  }
+
+  function goTo(idx) {
+    current = idx;
+    renderSlide();
+  }
+
+  function togglePlay() {
+    playing = !playing;
+    document.getElementById("play-btn").innerText = playing ? "إيقاف مؤقت ⏸️" : "تشغيل ▶️";
+    if (playing) startTimer();
+    else clearInterval(timer);
+  }
+
+  function startTimer() {
+    clearInterval(timer);
+    timer = setInterval(() => {
+      if (playing) nextSlide();
+    }, 7000);
+  }
+
+  renderSlide();
+  startTimer();
+</script>
+</body>
+</html>

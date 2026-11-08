@@ -19,6 +19,7 @@ import {
   Play,
   Pencil,
   Trash2,
+  Headphones,
 } from "lucide-react";
 import CourseCard from "@/components/CourseCard";
 import TelegramIdentityHint from "@/components/dashboard/TelegramIdentityHint";
@@ -308,13 +309,22 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setPromoOpen(true)}
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 text-xs sm:text-sm font-bold text-blue-300 transition-colors cursor-pointer whitespace-nowrap"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-blue-500/40 bg-blue-500/15 hover:bg-blue-500/25 text-xs sm:text-sm font-bold text-blue-300 transition-colors cursor-pointer whitespace-nowrap shadow-[0_0_12px_rgba(59,130,246,0.18)]"
               >
                 <Play className="w-4 h-4 fill-current text-blue-400" />
                 <span>
                   {isEn ? "Platform Video" : "فيديو المنصة"}
                 </span>
               </button>
+              <Link
+                to="/lectures"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-sky-500/40 bg-sky-500/15 hover:bg-sky-500/25 text-xs sm:text-sm font-bold text-sky-300 transition-colors cursor-pointer whitespace-nowrap shadow-[0_0_15px_rgba(56,189,248,0.18)]"
+              >
+                <Headphones className="w-4 h-4 text-sky-400" />
+                <span>
+                  {isEn ? "Audio Transcriber" : "🎙️ تفريغ المحاضرات"}
+                </span>
+              </Link>
               <Link
                 to="/review"
                 className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] hover:bg-white/[0.08] text-xs sm:text-sm font-bold text-[#f5f7fa] transition-colors cursor-pointer whitespace-nowrap"
