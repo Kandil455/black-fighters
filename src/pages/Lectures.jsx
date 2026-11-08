@@ -41,6 +41,11 @@ import "@/features/lectures/styles/lecture-doc.css";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AiModelsAndProvidersManager from "@/components/settings/AiModelsAndProvidersManager";
 import ModernQuizView from "@/components/course/ModernQuizView";
+import AiStudyGuideModal, {
+  buildAiPromptWithTranscript,
+  AI_SERVICES,
+} from "@/features/lectures/ui/AiStudyGuideModal";
+import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { generateText } from "@/lib/ai";
 import { extractTextFromFile } from "@/lib/fileProcessing";
@@ -128,6 +133,9 @@ export default function Lectures() {
 
   // Copy full transcript & PPTX export state
   const [copiedTranscript, setCopiedTranscript] = useState(false);
+  const [copiedForAi, setCopiedForAi] = useState(false);
+  const [showAiGuideModal, setShowAiGuideModal] = useState(false);
+  const [convertingToCourse, setConvertingToCourse] = useState(false);
   const [pptxBusy, setPptxBusy] = useState(false);
 
   // Main Website Quiz Engine state (uses platform's StandaloneQuiz + ModernQuizView)
@@ -500,11 +508,62 @@ export default function Lectures() {
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopiedTranscript(true);
+      toast.success("تم نسخ كامل النص الحرفي للتفريغ 📋");
       setTimeout(() => setCopiedTranscript(false), 2500);
     } catch {
       // Fallback copy
     }
   }, [docModel, showOfftopic]);
+
+  // ─── Copy Full Transcript with AI Study Prompt (Step 1 of AI workflow) ───────
+  const handleCopyForAi = useCallback(
+    async (openModalAfterCopy = true) => {
+      if (!docModel) return;
+      const plain = renderPlainText(docModel, { includeOfftopic: showOfftopic });
+      const promptText = buildAiPromptWithTranscript(docModel, plain);
+      try {
+        await navigator.clipboard.writeText(promptText);
+        setCopiedForAi(true);
+        toast.success("تم نسخ التفريغ والبرومبت بنجاح! جاهز للصق في شات الـ AI 🚀📋");
+        setTimeout(() => setCopiedForAi(false), 3000);
+        if (openModalAfterCopy) {
+          setShowAiGuideModal(true);
+        }
+      } catch {
+        toast.error("تعذر النسخ التلقائي للحافظة");
+      }
+    },
+    [docModel, showOfftopic],
+  );
+
+  // ─── Convert Lecture into Full Platform Course ────────────────────────────
+  const handleConvertToCourse = useCallback(async () => {
+    if (!docModel || !profile?.id || convertingToCourse) return;
+    setConvertingToCourse(true);
+    try {
+      const plain = renderPlainText(docModel, { includeOfftopic: showOfftopic });
+      const courseTitle = docModel.meta.title || "محاضرة مفرغة";
+      const courseSubject = docModel.meta.subject || "عام";
+      const newCourse = await base44.entities.Course.create({
+        user_id: profile.id,
+        title: courseTitle,
+        subject: courseSubject,
+        source_text: plain.slice(0, 50_000),
+        summary: plain.slice(0, 10_000),
+        folder: "محاضرات مفرغة",
+        created_date: new Date().toISOString(),
+      });
+      toast.success("تم إنشاء المقرر بنجاح في حسابك! جارٍ نقلك لصفحة المذاكرة ⚡");
+      setShowAiGuideModal(false);
+      if (newCourse?.id) {
+        navigate(`/courses/${newCourse.id}`);
+      }
+    } catch (err) {
+      toast.error(err?.message || "تعذر تحويل المحاضرة لمقرر");
+    } finally {
+      setConvertingToCourse(false);
+    }
+  }, [docModel, profile?.id, convertingToCourse, showOfftopic, navigate]);
 
   // ─── PowerPoint (.pptx) Export ────────────────────────────────────────────
   const handleExportPowerPoint = useCallback(
@@ -1174,15 +1233,103 @@ ${transcriptExcerpt}${pdfExcerpt}`;
           {/* Tab 1: Verbatim Organized Transcript */}
           {activeTab === "transcript" ? (
             <div className="lecture-reading-column">
-              {/* Top Transcript Utility Banner: Copy Full Text + Masterpiece Study Sheet CTA */}
-              <div className="lecture-section-card !py-4 mb-5 flex flex-wrap items-center justify-between gap-3 border border-[#19f08c]/30">
+              {/* Top AI Study Guide Banner — Step-by-Step AI Synthesis */}
+              <div className="rounded-2xl border-2 border-indigo-500/40 bg-gradient-to-r from-indigo-950/50 via-purple-950/30 to-[#0e131b] p-4 sm:p-5 mb-6 shadow-xl space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/25 text-indigo-300 border border-indigo-500/40">
+                        ⚡ خطة المذاكرة الذكية مع الـ AI
+                      </span>
+                      <span className="text-xs text-white font-bold">
+                        جاهز للمشاركة مع السلايدز
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-white">
+                      كيف تحول هذا التفريغ إلى أقوى مذكرة مذاكرة؟ 📄🤖
+                    </h3>
+                    <p className="text-xs text-[#9aa4b2] max-w-2xl leading-relaxed">
+                      انسخ التفريغ ببرومبت المذاكرة الشامل بنقرة واحدة، وارفعه مع ملف الـ PDF (سلايدز الدكتور) في أي AI (ChatGPT / Claude / DeepSeek) ليقوم بدمج الصور مع كلام الدكتور الحرفي وعمل مذكرة Post-Mortem.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyForAi(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white text-xs sm:text-sm font-black shadow-lg cursor-pointer transition-transform hover:scale-[1.02] whitespace-nowrap"
+                    >
+                      {copiedForAi ? "✅ تم النسخ! جاهز للصق 🚀" : "📋 نسخ التفريغ + برومبت الـ AI"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAiGuideModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-white/15 bg-white/[0.05] hover:bg-white/[0.1] text-xs font-bold text-[#f5f7fa] cursor-pointer transition-colors"
+                    >
+                      💡 عرض الخطوات والنماذج
+                    </button>
+                    {profile?.id ? (
+                      <button
+                        type="button"
+                        onClick={handleConvertToCourse}
+                        disabled={convertingToCourse}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#19f08c]/40 bg-[#19f08c]/15 hover:bg-[#19f08c]/25 text-xs font-bold text-[#19f08c] cursor-pointer transition-colors disabled:opacity-50"
+                      >
+                        ⚡ تحويل لمقرر داخل المنصة
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Quick 4 Steps Ribbon */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-white/[0.08]">
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.02]">
+                    <span className="grid size-5 shrink-0 place-items-center rounded bg-indigo-500/20 text-indigo-300 text-[11px] font-black">1</span>
+                    <span className="text-[11px] text-[#f5f7fa] font-semibold truncate">انسخ التفريغ والبرومبت</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.02]">
+                    <span className="grid size-5 shrink-0 place-items-center rounded bg-sky-500/20 text-sky-300 text-[11px] font-black">2</span>
+                    <span className="text-[11px] text-[#f5f7fa] font-semibold truncate">افتح شات الـ AI (ChatGPT/Claude)</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.02]">
+                    <span className="grid size-5 shrink-0 place-items-center rounded bg-amber-500/20 text-amber-300 text-[11px] font-black">3</span>
+                    <span className="text-[11px] text-[#f5f7fa] font-semibold truncate">أرفق ملف السلايدز (PDF)</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-white/[0.02]">
+                    <span className="grid size-5 shrink-0 place-items-center rounded bg-emerald-500/20 text-emerald-300 text-[11px] font-black">4</span>
+                    <span className="text-[11px] text-[#f5f7fa] font-semibold truncate">استلم مذكرتك الشاملة</span>
+                  </div>
+                </div>
+
+                {/* Quick AI Launch Shortcuts */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-[#9aa4b2]">
+                  <span>فتح سريع للنماذج:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {AI_SERVICES.map((s) => (
+                      <a
+                        key={s.id}
+                        href={s.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white hover:text-[#19f08c] transition-colors"
+                      >
+                        <span>{s.name}</span>
+                        <span className="text-[9px] text-[#9aa4b2]">↗</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Secondary Toolbar: Plain Text Copy + Refine View */}
+              <div className="lecture-section-card !py-3 mb-5 flex flex-wrap items-center justify-between gap-3 border border-white/10">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={handleCopyFullTranscript}
                     className="rounded-xl border border-white/15 bg-white/[0.06] hover:bg-white/[0.12] px-3.5 py-2 text-xs font-bold text-[#f5f7fa] cursor-pointer"
                   >
-                    {copiedTranscript ? "✅ تم نسخ النص الكامل!" : "📋 نسخ كامل النص"}
+                    {copiedTranscript ? "✅ تم نسخ النص!" : "📋 نسخ النص الحرفي فقط"}
                   </button>
                   <button
                     type="button"
@@ -1948,6 +2095,16 @@ ${transcriptExcerpt}${pdfExcerpt}`;
           </ul>
         )}
       </section>
+
+      <AiStudyGuideModal
+        open={showAiGuideModal}
+        onClose={() => setShowAiGuideModal(false)}
+        docModel={docModel}
+        copied={copiedForAi}
+        onCopy={() => handleCopyForAi(false)}
+        onConvertToCourse={profile?.id ? handleConvertToCourse : null}
+        converting={convertingToCourse}
+      />
 
       <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#090c11] border border-white/10 text-[#f5f7fa] p-4 sm:p-6 rounded-3xl" dir="rtl">
