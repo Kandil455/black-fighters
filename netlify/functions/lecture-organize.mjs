@@ -73,6 +73,12 @@ export const handler = async (event) => {
       used_fallback: result.usedFallback,
       validation_passed: result.validation.passed,
       attempts: result.attempts,
+      organization: {
+        job_id: jobId,
+        user_id: user.uid,
+        plan: result.plan,
+        created_at: new Date(),
+      },
     });
   } catch (error) {
     if (error?.message === "NOT_FOUND") return json(404, { error: "NOT_FOUND" });

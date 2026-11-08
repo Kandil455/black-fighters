@@ -15,8 +15,24 @@ export const handler = async (event) => {
     const user = await requireUser(event);
     const body = parseBody(event);
     const action = String(body.action || "").trim();
-    const jobId = String(body.job_id || "").trim();
-    if (!jobId || !action) return json(400, { error: "INVALID_REQUEST" });
+    const jobId = String(body.job_id || body.jobId || "").trim();
+    if (!action) return json(400, { error: "INVALID_REQUEST" });
+
+    if (action === "listLectures") {
+      const snap = await adminDb
+        .collection("lectureJobs")
+        .where("user_id", "==", user.uid)
+        .get();
+      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      rows.sort((a, b) => {
+        const bSec = b.created_date?.seconds || (b.created_date ? new Date(b.created_date).getTime() / 1000 : 0);
+        const aSec = a.created_date?.seconds || (a.created_date ? new Date(a.created_date).getTime() / 1000 : 0);
+        return bSec - aSec;
+      });
+      return json(200, { ok: true, jobs: rows });
+    }
+
+    if (!jobId) return json(400, { error: "INVALID_REQUEST" });
 
     const jobRef = adminDb.collection("lectureJobs").doc(jobId);
     const snap = await jobRef.get();
@@ -24,6 +40,19 @@ export const handler = async (event) => {
     const data = snap.data();
     if (data.user_id !== user.uid && data.ownerUid !== user.uid) {
       return json(401, { error: "UNAUTHORIZED" });
+    }
+
+    if (action === "getLectureData") {
+      const [tSnap, oSnap] = await Promise.all([
+        adminDb.collection("lectureTranscripts").doc(jobId).get().catch(() => ({ exists: false })),
+        adminDb.collection("lectureOrganizations").doc(jobId).get().catch(() => ({ exists: false })),
+      ]);
+      return json(200, {
+        ok: true,
+        job: { id: snap.id, ...data },
+        transcript: tSnap.exists ? tSnap.data() : null,
+        organization: oSnap.exists ? oSnap.data() : null,
+      });
     }
 
     if (action === "retryFailedChunks") {

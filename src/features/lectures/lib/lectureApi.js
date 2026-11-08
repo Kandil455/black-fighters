@@ -42,6 +42,12 @@ export const lectureApi = {
   summary(jobId, kind = "summary", level = "detailed") {
     return callLectureFn("lecture-summary", { job_id: jobId, kind, level });
   },
+  getLectureData(jobId) {
+    return callLectureFn("lecture-actions", { action: "getLectureData", job_id: jobId });
+  },
+  listLectures() {
+    return callLectureFn("lecture-actions", { action: "listLectures" });
+  },
   retryFailedChunks(jobId) {
     return callLectureFn("lecture-actions", { action: "retryFailedChunks", job_id: jobId });
   },

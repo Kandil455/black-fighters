@@ -117,6 +117,14 @@ export const handler = async (event) => {
       gaps: gaps.length,
       chunks_done: done.length,
       chunks_failed: chunks.length - done.length,
+      transcript: {
+        job_id: jobId,
+        user_id: user.uid,
+        word_count: transcript.word_count,
+        sentence_count: transcript.sentence_count,
+        gaps,
+        sentences: transcript.sentences,
+      },
     });
   } catch (error) {
     if (error?.message === "NOT_FOUND") return json(404, { error: "NOT_FOUND" });

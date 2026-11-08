@@ -163,6 +163,23 @@ export default function Lectures() {
   const cancelledRef = useRef(false);
 
   // ─── live list of my lectures ─────────────────────────────────────────────
+  const refreshJobsList = useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const res = await lectureApi.listLectures();
+      const list = res?.jobs || res?.data?.jobs || [];
+      if (Array.isArray(list) && list.length > 0) {
+        setJobs(list);
+      }
+    } catch {
+      // Ignored: onSnapshot will handle or retry
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    refreshJobsList();
+  }, [refreshJobsList]);
+
   useEffect(() => {
     if (!profile?.id) return undefined;
     const q = query(collection(db, "lectureJobs"), where("user_id", "==", profile.id));
@@ -173,10 +190,13 @@ export default function Lectures() {
         rows.sort((a, b) => (b.created_date?.seconds || 0) - (a.created_date?.seconds || 0));
         setJobs(rows);
       },
-      () => setJobs([]),
+      () => {
+        // Fallback to server API if Firestore client is blocked by browser extension
+        refreshJobsList();
+      },
     );
     return () => unsub();
-  }, [profile?.id]);
+  }, [profile?.id, refreshJobsList]);
 
   // ─── live progress of the active job ─────────────────────────────────────
   useEffect(() => {
@@ -196,6 +216,24 @@ export default function Lectures() {
   const openViewer = useCallback(async (jobId) => {
     if (!jobId) return;
     setActiveJobId(jobId);
+
+    // 1. Resilient server proxy first (immune to browser adblockers and Dot Bypasser extensions)
+    try {
+      const res = await lectureApi.getLectureData(jobId);
+      const payload = res?.data || res;
+      if (payload?.job || payload?.transcript) {
+        setViewerData({
+          job: payload.job || null,
+          transcript: payload.transcript || null,
+          organization: payload.organization || null,
+        });
+        return;
+      }
+    } catch (apiErr) {
+      console.warn("[lectures] server getLectureData fallback to Firestore:", apiErr?.message);
+    }
+
+    // 2. Direct Firestore fallback
     try {
       const [jobSnap, tSnap, oSnap] = await Promise.all([
         getDoc(doc(db, "lectureJobs", jobId)),
@@ -278,6 +316,13 @@ export default function Lectures() {
         throw new Error("INVALID_REQUEST");
       }
       setActiveJobId(jobId);
+      setActiveJob({
+        id: jobId,
+        title: title.trim() || file.name.replace(/\.[^.]+$/, ""),
+        subject: subject.trim(),
+        lecturer: lecturer.trim(),
+        status: "transcribing",
+      });
       setPhase("transcribe");
       setProgress({ done: 0, total: prep.chunks.length, label: copy.progress.heading });
 
@@ -345,18 +390,36 @@ export default function Lectures() {
         throw new Error("TRANSCRIBE_FAILED");
       }
       setProgress({ done: prep.chunks.length, total: prep.chunks.length, label: copy.progress.done });
-      await lectureApi.finalize(jobId);
-      await lectureApi.organize(jobId).catch((err) => {
+      const finRes = await lectureApi.finalize(jobId);
+      const orgRes = await lectureApi.organize(jobId).catch((err) => {
         console.warn("[lectures] organize failed:", err?.message);
+        return null;
       });
+      const transcriptData = finRes?.transcript || finRes?.data?.transcript || null;
+      const orgData = orgRes?.organization || orgRes?.data?.organization || null;
+      if (transcriptData) {
+        setViewerData({
+          job: {
+            id: jobId,
+            title: title.trim() || file.name.replace(/\.[^.]+$/, ""),
+            subject: subject.trim(),
+            lecturer: lecturer.trim(),
+            duration_sec: Math.round(prep.durationSec),
+            created_date: new Date(),
+          },
+          transcript: transcriptData,
+          organization: orgData,
+        });
+      }
       setPhase("done");
       await openViewer(jobId);
+      refreshJobsList();
     } catch (err) {
       console.warn("[lectures] pipeline failed:", err?.message);
       setError(copy.errors[err?.message] || copy.errors.GENERIC);
       setPhase("confirm");
     }
-  }, [prep, file, title, subject, lecturer, glossaryInput, openViewer]);
+  }, [prep, file, title, subject, lecturer, glossaryInput, openViewer, refreshJobsList]);
 
   const docModel = useMemo(() => {
     if (!viewerData?.transcript) return null;
