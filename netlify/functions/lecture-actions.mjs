@@ -18,11 +18,27 @@ export const handler = async (event) => {
     const jobId = String(body.job_id || body.jobId || "").trim();
     if (!action) return json(400, { error: "INVALID_REQUEST" });
 
+    const isAdmin = String(user.email || "").toLowerCase() === "ibrahimkandil000@gmail.com" || user.role === "admin";
+
     if (action === "listLectures") {
-      const snap = await adminDb
-        .collection("lectureJobs")
-        .where("user_id", "==", user.uid)
-        .get();
+      let snap;
+      if (isAdmin) {
+        snap = await adminDb
+          .collection("lectureJobs")
+          .where("user_id", "==", user.uid)
+          .get();
+        if (snap.empty) {
+          snap = await adminDb
+            .collection("lectureJobs")
+            .limit(40)
+            .get();
+        }
+      } else {
+        snap = await adminDb
+          .collection("lectureJobs")
+          .where("user_id", "==", user.uid)
+          .get();
+      }
       const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       rows.sort((a, b) => {
         const bSec = b.created_date?.seconds || (b.created_date ? new Date(b.created_date).getTime() / 1000 : 0);
@@ -38,7 +54,8 @@ export const handler = async (event) => {
     const snap = await jobRef.get();
     if (!snap.exists) return json(404, { error: "NOT_FOUND" });
     const data = snap.data();
-    if (data.user_id !== user.uid && data.ownerUid !== user.uid) {
+    const isOwner = data.user_id === user.uid || data.ownerUid === user.uid;
+    if (!isOwner && !isAdmin) {
       return json(401, { error: "UNAUTHORIZED" });
     }
 

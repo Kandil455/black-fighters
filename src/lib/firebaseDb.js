@@ -11,7 +11,7 @@ let database = null;
 if (isReady && app) {
   try {
     database = initializeFirestore(app, {
-      experimentalAutoDetectLongPolling: true,
+      experimentalForceLongPolling: true,
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     });
   } catch (error) {

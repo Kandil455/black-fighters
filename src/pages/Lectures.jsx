@@ -176,49 +176,69 @@ export default function Lectures() {
     try {
       const res = await lectureApi.listLectures();
       const list = res?.jobs || res?.data?.jobs || [];
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         setJobs(list);
       }
     } catch {
-      // Ignored: onSnapshot will handle or retry
+      // Ignored
     }
   }, [profile?.id]);
 
-  useEffect(() => {
-    refreshJobsList();
-  }, [refreshJobsList]);
-
+  // Periodic background sync via server proxy (immune to adblockers and Dot Bypasser extensions)
   useEffect(() => {
     if (!profile?.id) return undefined;
-    const q = query(collection(db, "lectureJobs"), where("user_id", "==", profile.id));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        rows.sort((a, b) => (b.created_date?.seconds || 0) - (a.created_date?.seconds || 0));
-        setJobs(rows);
-      },
-      () => {
-        // Fallback to server API if Firestore client is blocked by browser extension
-        refreshJobsList();
-      },
-    );
-    return () => unsub();
+    refreshJobsList();
+    const intervalMs = jobs.some((j) => j.status === "transcribing" || j.status === "organizing") ? 4000 : 20000;
+    const timer = setInterval(refreshJobsList, intervalMs);
+    return () => clearInterval(timer);
+  }, [profile?.id, refreshJobsList, jobs]);
+
+  useEffect(() => {
+    if (!profile?.id || !db) return undefined;
+    let unsub = () => {};
+    try {
+      const q = query(collection(db, "lectureJobs"), where("user_id", "==", profile.id));
+      unsub = onSnapshot(
+        q,
+        (snap) => {
+          const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          rows.sort((a, b) => (b.created_date?.seconds || 0) - (a.created_date?.seconds || 0));
+          setJobs(rows);
+        },
+        () => {
+          // Teardown snapshot immediately so browser extensions (Dot Bypasser) don't trigger infinite reconnect loops
+          try { unsub(); } catch {}
+          refreshJobsList();
+        },
+      );
+    } catch {
+      refreshJobsList();
+    }
+    return () => {
+      try { unsub(); } catch {}
+    };
   }, [profile?.id, refreshJobsList]);
 
   // ─── live progress of the active job ─────────────────────────────────────
   useEffect(() => {
-    if (!activeJobId || !profile?.id) return undefined;
-    const unsub = onSnapshot(
-      doc(db, "lectureJobs", activeJobId),
-      (snap) => {
-        if (snap.exists()) setActiveJob({ id: snap.id, ...snap.data() });
-      },
-      () => {
-        // Non-critical: latency delay absorbed silently
-      }
-    );
-    return () => unsub();
+    if (!activeJobId || !profile?.id || !db) return undefined;
+    let unsub = () => {};
+    try {
+      unsub = onSnapshot(
+        doc(db, "lectureJobs", activeJobId),
+        (snap) => {
+          if (snap.exists()) setActiveJob({ id: snap.id, ...snap.data() });
+        },
+        () => {
+          try { unsub(); } catch {}
+        }
+      );
+    } catch {
+      // Ignored
+    }
+    return () => {
+      try { unsub(); } catch {}
+    };
   }, [activeJobId, profile?.id]);
 
   const openViewer = useCallback(async (jobId) => {
@@ -241,29 +261,30 @@ export default function Lectures() {
       console.warn("[lectures] server getLectureData fallback to Firestore:", apiErr?.message);
     }
 
-    // 2. Direct Firestore fallback
-    try {
-      const [jobSnap, tSnap, oSnap] = await Promise.all([
-        getDoc(doc(db, "lectureJobs", jobId)),
-        getDoc(doc(db, "lectureTranscripts", jobId)),
-        getDoc(doc(db, "lectureOrganizations", jobId)),
-      ]);
-      setViewerData({
-        job: jobSnap.exists() ? { id: jobSnap.id, ...jobSnap.data() } : null,
-        transcript: tSnap.exists() ? tSnap.data() : null,
-        organization: oSnap.exists() ? oSnap.data() : null,
-      });
-    } catch (err) {
-      // `permission-denied` means the signed-in account is not the owner of this
-      // job (rules: resource.data.user_id == request.auth.uid) — a stale
-      // bookmark or a shared link. That is an expected outcome, not a crash:
-      // show an empty viewer instead of a console warning the owner sees as a bug.
-      const code = err?.code || "";
-      if (code === "permission-denied") {
-        setViewerData(null);
-        return;
+    // 2. Direct Firestore fallback (safely guarded with catch handlers)
+    if (db) {
+      try {
+        const [jobSnap, tSnap, oSnap] = await Promise.all([
+          getDoc(doc(db, "lectureJobs", jobId)).catch(() => null),
+          getDoc(doc(db, "lectureTranscripts", jobId)).catch(() => null),
+          getDoc(doc(db, "lectureOrganizations", jobId)).catch(() => null),
+        ]);
+        if (jobSnap?.exists?.()) {
+          setViewerData({
+            job: { id: jobSnap.id, ...jobSnap.data() },
+            transcript: tSnap?.exists?.() ? tSnap.data() : null,
+            organization: oSnap?.exists?.() ? oSnap.data() : null,
+          });
+          return;
+        }
+      } catch (err) {
+        const code = err?.code || "";
+        if (code === "permission-denied") {
+          setViewerData(null);
+          return;
+        }
+        console.warn("[lectures] viewer direct load failed:", err?.message);
       }
-      console.warn("[lectures] viewer load failed:", err?.message);
     }
   }, []);
 
