@@ -166,11 +166,25 @@ export default function Login() {
             type="button"
             onClick={handleGoogle}
             variant="outline"
-            className="w-full h-11 gap-2.5 mb-4 font-semibold"
+            className="w-full h-11 gap-2.5 mb-3 font-semibold"
           >
             <GoogleIcon className="w-4 h-4" />
             {isEn ? "Continue with Google" : "دخول سريع بـ Google"}
           </Button>
+
+          <a
+            href="/walkthrough/index.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full h-10 mb-4 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 transition-colors flex items-center justify-center gap-2 text-xs font-bold"
+          >
+            <span>🎬</span>
+            <span>
+              {isEn
+                ? "Watch 5-Min Animated Platform Guide (With Voiceover)"
+                : "شاهد فيديو شرح المنصة بالصوت والأنيميشن (5 دقائق)"}
+            </span>
+          </a>
 
           <div className="flex items-center gap-3 mb-5">
             <div className="flex-1 h-px bg-[#1E222B]" />

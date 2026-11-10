@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0 --port 3000",
     "dev:local": "vite --host 127.0.0.1",
     "prebuild": "node scripts/verify-app-identity.mjs",
     "build": "vite build && node scripts/generate-pwa-precache.mjs",

@@ -1,14 +1,48 @@
 /**
- * admin-keys.mjs — Server-side helper to load dynamic AI keys & custom provider
- * settings saved by the Admin in Firestore `adminConfig`, with safe try/catch
- * and a 30-second in-memory cache so server endpoints never fail if Firestore
- * is unreachable or in offline tests.
+ * admin-keys.mjs — Server-side helper to load user-provided Gemini keys (highest
+ * priority) and dynamic AI keys & custom provider settings saved by the Admin in
+ * Firestore `adminConfig`, with safe try/catch and a 30-second in-memory cache.
  */
 import { adminDb } from "../firebase-admin.mjs";
 
 let cachedDocs = null;
 let cachedAt = 0;
 const CACHE_TTL_MS = 30_000;
+
+function isValidGeminiKeyFormat(raw) {
+  const clean = String(raw || "").trim();
+  return /^AIza[0-9A-Za-z_-]{25,60}$/.test(clean);
+}
+
+export async function extractUserGeminiKey({ event, body, uid } = {}) {
+  const headerKey =
+    event?.headers?.["x-user-gemini-key"] ||
+    event?.headers?.["X-User-Gemini-Key"] ||
+    "";
+  const bodyKey = body?.user_gemini_key || body?.userGeminiKey || "";
+  const directCandidate = String(bodyKey || headerKey || "").trim();
+  if (isValidGeminiKeyFormat(directCandidate)) {
+    return directCandidate;
+  }
+
+  if (uid) {
+    try {
+      const snap = await Promise.race([
+        adminDb.collection("userSettings").doc(uid).get(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 1500)),
+      ]);
+      if (snap?.exists) {
+        const stored = String(snap.data()?.gemini_api_key || "").trim();
+        if (isValidGeminiKeyFormat(stored)) {
+          return stored;
+        }
+      }
+    } catch {
+      // ignore Firestore lookup failure
+    }
+  }
+  return "";
+}
 
 async function fetchAdminConfigDocs() {
   const now = Date.now();
@@ -44,7 +78,18 @@ function extractKeysFromDoc(doc) {
   return keys;
 }
 
-export async function getAdminTranscribeKeys() {
+export async function getAdminTranscribeKeys(userContext = {}) {
+  const userKey = await extractUserGeminiKey(userContext);
+  const mode = String(
+    userContext?.body?.ai_key_preference ||
+      userContext?.event?.headers?.["x-user-gemini-mode"] ||
+      "auto_fallback",
+  );
+
+  if (mode === "user_only" && userKey) {
+    return [userKey];
+  }
+
   const docs = await fetchAdminConfigDocs();
   const active = docs
     .filter((d) => d.is_active !== false)
@@ -58,6 +103,9 @@ export async function getAdminTranscribeKeys() {
     .sort((a, b) => Number(a.priority ?? 99) - Number(b.priority ?? 99));
 
   const keys = [];
+  if (userKey) {
+    keys.push(userKey);
+  }
   for (const doc of active) {
     for (const k of extractKeysFromDoc(doc)) {
       if (!keys.includes(k)) keys.push(k);
@@ -66,7 +114,18 @@ export async function getAdminTranscribeKeys() {
   return keys;
 }
 
-export async function getAdminOrganizerConfig() {
+export async function getAdminOrganizerConfig(userContext = {}) {
+  const userKey = await extractUserGeminiKey(userContext);
+  const mode = String(
+    userContext?.body?.ai_key_preference ||
+      userContext?.event?.headers?.["x-user-gemini-mode"] ||
+      "auto_fallback",
+  );
+
+  if (mode === "user_only" && userKey) {
+    return { apiKeys: [userKey], baseUrl: null, model: null };
+  }
+
   const docs = await fetchAdminConfigDocs();
   const active = docs
     .filter((d) => d.is_active !== false)
@@ -80,6 +139,9 @@ export async function getAdminOrganizerConfig() {
     .sort((a, b) => Number(a.priority ?? 99) - Number(b.priority ?? 99));
 
   const keys = [];
+  if (userKey) {
+    keys.push(userKey);
+  }
   let baseUrl = null;
   let model = null;
   for (const doc of active) {

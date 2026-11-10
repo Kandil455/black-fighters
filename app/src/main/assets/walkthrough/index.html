@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>الدليل التفاعلي المصور بالصوت والأنيميشن — Black Fighters</title>
+  <style>
+    :root {
+      --bg-deep: #060911;
+      --bg-card: #0f1624;
+      --bg-card-elevated: #162033;
+      --border-subtle: rgba(255, 255, 255, 0.09);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.45);
+      --cyan: #06b6d4;
+      --gold: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #111c33 0%, #060911 70%);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Arabic", Tahoma, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .video-header {
+      height: 58px;
+      padding: 0 18px;
+      background: rgba(10, 15, 26, 0.92);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--emerald), var(--cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      color: #04130e;
+      box-shadow: 0 0 18px var(--emerald-glow);
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--emerald);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+      animation: pulseDot 1.4s infinite ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.45); opacity: 0.55; }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .voice-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #6ee7b7;
+    }
+
+    .eq-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 13px;
+    }
+
+    .eq-bar {
+      width: 3px;
+      background: var(--emerald);
+      border-radius: 2px;
+      height: 4px;
+      transition: height 0.12s ease;
+    }
+
+    .eq-bars.playing .eq-bar:nth-child(1) { animation: eqAnim 0.55s infinite alternate; }
+    .eq-bars.playing .eq-bar:nth-child(2) { animation: eqAnim 0.40s 0.12s infinite alternate; }
+    .eq-bars.playing .eq-bar:nth-child(3) { animation: eqAnim 0.65s 0.2s infinite alternate; }
+    .eq-bars.playing .eq-bar:nth-child(4) { animation: eqAnim 0.48s 0.05s infinite alternate; }
+
+    @keyframes eqAnim {
+      0% { height: 3px; }
+      100% { height: 13px; }
+    }
+
+    .chapter-strip {
+      display: flex;
+      gap: 6px;
+      padding: 8px 14px;
+      background: rgba(9, 13, 22, 0.85);
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      z-index: 95;
+      scrollbar-width: none;
+    }
+    .chapter-strip::-webkit-scrollbar { display: none; }
+
+    .chapter-chip {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chapter-chip:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: var(--text-main);
+    }
+
+    .chapter-chip.active {
+      background: rgba(16, 185, 129, 0.18);
+      color: #fff;
+      border-color: var(--emerald);
+      box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+    }
+
+    .chapter-num {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .chapter-chip.active .chapter-num {
+      background: var(--emerald);
+      color: #04130e;
+      font-weight: 900;
+    }
+
+    .cinema-stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      perspective: 1200px;
+    }
+
+    .camera-rig {
+      width: 100%;
+      max-width: 960px;
+      height: 100%;
+      max-height: 540px;
+      background: #0b101b;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.75), 0 0 40px rgba(16, 185, 129, 0.08);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: center center;
+    }
+
+    .sim-topbar {
+      height: 52px;
+      background: #0f172a;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      transition: filter 0.45s ease, opacity 0.45s ease;
+    }
+
+    .sim-app-brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 800;
+      font-size: 13.5px;
+    }
+
+    .sim-app-badge {
+      padding: 3px 9px;
+      border-radius: 99px;
+      font-size: 10.5px;
+      background: rgba(16, 185, 129, 0.16);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .sim-top-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sim-icon-btn {
+      padding: 5px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.35s ease;
+    }
+
+    .focus-item {
+      transition: filter 0.45s ease, opacity 0.45s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease, border-color 0.45s ease;
+    }
+
+    .cinema-stage.spotlight-mode .focus-item:not(.is-focused) {
+      filter: blur(4.5px) brightness(0.42);
+      opacity: 0.42;
+      transform: scale(0.98);
+    }
+
+    .cinema-stage.spotlight-mode .focus-item.is-focused {
+      filter: none !important;
+      opacity: 1 !important;
+      position: relative;
+      z-index: 30;
+      box-shadow: 0 0 0 3px var(--emerald), 0 0 32px rgba(16, 185, 129, 0.55) !important;
+      transform: scale(1.035);
+    }
+
+    .focus-callout {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 65;
+      background: linear-gradient(135deg, #059669, #0284c7);
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65), 0 0 20px rgba(16, 185, 129, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .focus-callout.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(4px);
+    }
+
+    .sim-body {
+      flex: 1;
+      padding: 18px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+    }
+
+    .scene-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      width: 100%;
+      align-items: stretch;
+    }
+
+    .col-12 { grid-column: span 12; }
+    .col-7 { grid-column: span 7; }
+    .col-6 { grid-column: span 6; }
+    .col-5 { grid-column: span 5; }
+    .col-4 { grid-column: span 4; }
+
+    @media (max-width: 720px) {
+      .col-7, .col-6, .col-5, .col-4 { grid-column: span 12; }
+      .camera-rig { max-height: none; height: 100%; }
+    }
+
+    .ui-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+    }
+
+    .ui-card-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ui-card-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .sim-btn {
+      padding: 11px 16px;
+      border-radius: 13px;
+      font-weight: 800;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .sim-btn-google {
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.12);
+    }
+
+    .sim-btn-primary {
+      background: linear-gradient(135deg, var(--emerald), #059669);
+      color: #04130e;
+    }
+
+    .sim-btn-outline {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.15);
+      color: var(--text-main);
+    }
+
+    .sim-input {
+      background: #070b14;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 10px 13px;
+      font-size: 12.5px;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 40px;
+    }
+
+    .typing-caret {
+      display: inline-block;
+      width: 2px;
+      height: 14px;
+      background: var(--emerald);
+      margin-right: 3px;
+      animation: blinkCaret 0.7s infinite;
+    }
+
+    @keyframes blinkCaret {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .sim-badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .sim-pill {
+      padding: 5px 10px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.12);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .flashcard-3d-wrap {
+      perspective: 900px;
+      height: 150px;
+      width: 100%;
+    }
+
+    .flashcard-3d-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .flashcard-3d-inner.flipped {
+      transform: rotateY(180deg);
+    }
+
+    .flashcard-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .flashcard-front {
+      background: linear-gradient(135deg, #111c30, #0b1322);
+    }
+
+    .flashcard-back {
+      background: linear-gradient(135deg, #064e3b, #0f172a);
+      transform: rotateY(180deg);
+    }
+
+    .virtual-cursor {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      pointer-events: none;
+      z-index: 80;
+      transition: top 0.65s cubic-bezier(0.22, 1, 0.36, 1), left 0.65s cubic-bezier(0.22, 1, 0.36, 1), transform 0.2s ease;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.85));
+    }
+
+    .virtual-cursor.clicking {
+      transform: scale(0.82);
+    }
+
+    .click-ripple {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 3px solid var(--emerald);
+      opacity: 0;
+      transform: scale(0.3);
+      pointer-events: none;
+    }
+
+    .virtual-cursor.clicking .click-ripple {
+      animation: rippleOut 0.65s ease-out forwards;
+    }
+
+    @keyframes rippleOut {
+      0% { opacity: 1; transform: scale(0.3); }
+      100% { opacity: 0; transform: scale(2.1); }
+    }
+
+    .subtitle-banner {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 92%;
+      max-width: 820px;
+      background: rgba(6, 10, 19, 0.92);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 16px;
+      padding: 11px 18px;
+      text-align: center;
+      font-size: 13.5px;
+      font-weight: 700;
+      line-height: 1.6;
+      color: #f1f5f9;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.8);
+      z-index: 90;
+      backdrop-filter: blur(10px);
+    }
+
+    .subtitle-speaker {
+      color: var(--emerald);
+      font-size: 11px;
+      font-weight: 900;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .player-controls {
+      background: rgba(8, 12, 22, 0.96);
+      border-top: 1px solid var(--border-subtle);
+      padding: 10px 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .timeline-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .time-label {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      min-width: 78px;
+      text-align: center;
+    }
+
+    .timeline-track {
+      flex: 1;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 99px;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .timeline-fill {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(90deg, var(--cyan), var(--emerald));
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.2s linear;
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ctrl-btn {
+      padding: 7px 14px;
+      border-radius: 11px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .ctrl-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .ctrl-btn.primary-play {
+      background: var(--emerald);
+      color: #04130e;
+      border-color: var(--emerald);
+      box-shadow: 0 0 18px var(--emerald-glow);
+    }
+
+    .start-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.94) 0%, rgba(6, 9, 17, 0.98) 100%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      backdrop-filter: blur(14px);
+      transition: opacity 0.4s ease;
+    }
+
+    .start-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .start-card {
+      max-width: 520px;
+      background: #0f172a;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 26px;
+      padding: 28px 24px;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 50px rgba(16, 185, 129, 0.2);
+    }
+
+    .big-play-btn {
+      margin: 20px auto 0;
+      padding: 14px 28px;
+      border-radius: 16px;
+      border: none;
+      background: linear-gradient(135deg, var(--emerald), var(--cyan));
+      color: #04130e;
+      font-size: 15px;
+      font-weight: 900;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 12px 30px rgba(16, 185, 129, 0.45);
+      transition: transform 0.2s ease;
+    }
+
+    .big-play-btn:hover {
+      transform: scale(1.04);
+    }
+  </style>
+</head>
+<body>
+
+  <audio id="voAudio" preload="auto"></audio>
+
+  <div id="startOverlay" class="start-overlay">
+    <div class="start-card">
+      <div style="width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#10b981,#06b6d4);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 30px rgba(16,185,129,0.5);">
+        🎬
+      </div>
+      <h1 style="font-size:20px;font-weight:900;margin-bottom:8px;">جولة الفيديو الشاملة بالصوت والأنيميشن (5:00 دقائق)</h1>
+      <p style="font-size:13px;color:#94a3b8;line-height:1.65;">
+        شرح عملي حماسي بالصوت البشري والتركيز البصري (Zoom + عزل الخلفية) لكل ميزة في المنصة:
+        تسجيل الدخول بـ Google، وضع مفتاح Gemini الشخصي، تفريغ المحاضرات الصوتية والنصية، الملخصات، الاختبارات، البطاقات، والمساعد الذكي.
+      </p>
+      <button id="startTourBtn" class="big-play-btn">
+        <span>▶ تشغيل الفيديو بالصوت الآن</span>
+      </button>
+    </div>
+  </div>
+
+  <header class="video-header">
+    <div class="brand-group">
+      <div class="brand-logo">BF</div>
+      <div>
+        <div class="brand-title">دليل استخدام المنصة التفاعلي · Black Fighters</div>
+        <div class="brand-sub">
+          <span class="live-dot"></span>
+          <span id="currentSceneBadge">المشهد 1 من 8: تسجيل الدخول بـ Google</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="voice-pill">
+        <div id="eqBars" class="eq-bars">
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+          <div class="eq-bar"></div>
+        </div>
+        <span id="voiceStatusText">تعليق صوتي استوديو</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="chapter-strip" id="chapterStrip"></nav>
+
+  <main class="cinema-stage" id="cinemaStage">
+    <div id="focusCallout" class="focus-callout">
+      <span>🎯</span>
+      <span id="focusCalloutText">تركيز الشاشة</span>
+    </div>
+
+    <div class="camera-rig" id="cameraRig">
+      <div class="sim-topbar">
+        <div class="sim-app-brand">
+          <span style="color:var(--emerald);">⚡</span>
+          <span>IIIAK · Black Fighters</span>
+          <span class="sim-app-badge" id="simTopModeBadge">واجهة الطالب النظيفة</span>
+        </div>
+        <div class="sim-top-icons">
+          <div class="sim-icon-btn focus-item" id="topKeyBtn">🔑 مفتاح Gemini</div>
+          <div class="sim-icon-btn focus-item" id="topNotifBtn">🔔 الإشعارات (2)</div>
+          <div class="sim-icon-btn focus-item" id="topThemeBtn">🌙 المظهر</div>
+        </div>
+      </div>
+
+      <div class="sim-body" id="simBody"></div>
+
+      <div id="virtualCursor" class="virtual-cursor" style="top: 50%; left: 50%;">
+        <div class="click-ripple"></div>
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+          <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87c.45 0 .67-.53.35-.85L6.35 2.86a.5.5 0 0 0-.85.35Z" fill="#10b981" stroke="#ffffff" stroke-width="1.8"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="subtitle-banner">
+      <span class="subtitle-speaker" id="subtitleSpeaker">🎙️ المعلق الصوتي — المشهد الأول</span>
+      <span id="subtitleText">اضغط على تشغيل لبدء الجولة المصورة بالصوت والأنيميشن...</span>
+    </div>
+  </main>
+
+  <footer class="player-controls">
+    <div class="timeline-wrap">
+      <span class="time-label" id="timeElapsed">00:00</span>
+      <div class="timeline-track" id="timelineTrack">
+        <div class="timeline-fill" id="timelineFill"></div>
+      </div>
+      <span class="time-label" id="timeTotal">05:00</span>
+    </div>
+
+    <div class="controls-row">
+      <div class="btn-group">
+        <button class="ctrl-btn primary-play" id="playPauseBtn">⏸ إيقاف مؤقت</button>
+        <button class="ctrl-btn" id="prevSceneBtn">⏮ المشهد السابق</button>
+        <button class="ctrl-btn" id="nextSceneBtn">⏭ المشهد التالي</button>
+      </div>
+
+      <div class="btn-group">
+        <button class="ctrl-btn" id="toggleSpotlightBtn">🔍 عزل الخلفية (Blur): مفعّل</button>
+        <button class="ctrl-btn" id="speedBtn">⚡ السرعة: 1x</button>
+        <button class="ctrl-btn" id="muteBtn">🔊 الصوت: مفعّل</button>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const SCENES = [
+      {
+        id: 1,
+        title: "1. تسجيل الدخول بـ Google",
+        durationSec: 38,
+        audio: "./audio/scene_1.mp3",
+        badge: "المشهد 1 من 8 · تسجيل الدخول السريع والواجهة النظيفة",
+        speaker: "🎙️ المشهد 1: البداية وتسجيل الدخول بحساب Google",
+        subtitles: [
+          { at: 0, text: "أهلاً بك يا بطل في منصة بلاك فايترز! دليلك الذكي للمذاكرة وتنظيم المحاضرات في أي تخصص تدرسه." },
+          { at: 9, text: "بمجرد فتح المنصة ستظهر لك واجهة تسجيل دخول بسيطة ونظيفة تماماً بدون أي تعقيد." },
+          { at: 18, text: "نكبّر الشاشة الآن ونعزل الخلفية على زر «تسجيل الدخول السريع باستخدام Google» بضغطة واحدة!" },
+          { at: 28, text: "أو يمكنك إنشاء حساب جديد بالبريد الإلكتروني وكلمة المرور والانتقال فوراً للرئيسية." }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-5 ui-card focus-item" id="s1_hero">
+              <div class="ui-card-title">🎓 أهلاً بك في Black Fighters</div>
+              <div class="ui-card-sub">منصة المذاكرة الذكية لكل الكليات والتخصصات (تجارة، هندسة، علوم، حاسبات، آداب وغيرها) بدون أي أمثلة مفروضة.</div>
+              <div class="sim-badge-row">
+                <span class="sim-pill">✨ واجهة سريعة</span>
+                <span class="sim-pill">🔒 حماية كاملة</span>
+                <span class="sim-pill">☁️ مزامنة فورية</span>
+              </div>
+            </div>
+            <div class="col-7 ui-card focus-item" id="s1_auth_box">
+              <div class="ui-card-title">
+                <span>تسجيل الدخول أو إنشاء حساب</span>
+                <span class="sim-pill">خطوة 1</span>
+              </div>
+              <div class="sim-btn sim-btn-google focus-item" id="s1_google_btn">
+                <span style="background:#4285F4;color:#fff;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:900;">G</span>
+                <span>تسجيل الدخول السريع باستخدام Google</span>
+              </div>
+              <div class="sim-input focus-item" id="s1_email_input">
+                <span id="s1_email_text">student@university.edu</span>
+                <span style="font-size:11px;color:var(--emerald);">✉️ البريد الجامعي</span>
+              </div>
+              <div class="sim-btn sim-btn-primary focus-item" id="s1_submit_btn">
+                <span>🚀 دخول فوري إلى لوحة المذاكرة</span>
+              </div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.05, focusId: null, zoom: "scale(1) translate3d(0,0,0)", cursor: { top: "55%", left: "50%" }, callout: null },
+          { progress: 0.22, focusId: "s1_google_btn", zoom: "scale(1.26) translate3d(10%, 4%, 0)", cursor: { top: "43%", left: "34%" }, callout: "تكبير وعزل الخلفية: زر الدخول السريع بـ Google", click: true },
+          { progress: 0.58, focusId: "s1_email_input", zoom: "scale(1.24) translate3d(10%, -6%, 0)", cursor: { top: "61%", left: "36%" }, callout: "أو التسجيل بالبريد الإلكتروني في ثوانٍ", click: true },
+          { progress: 0.82, focusId: "s1_submit_btn", zoom: "scale(1.18) translate3d(8%, -10%, 0)", cursor: { top: "77%", left: "35%" }, callout: "الانتقال المباشر إلى لوحة التحكم", click: true }
+        ]
+      },
+      {
+        id: 2,
+        title: "2. مفتاح Gemini الشخصي",
+        durationSec: 38,
+        audio: "./audio/scene_2.mp3",
+        badge: "المشهد 2 من 8 · أولوية مفتاح Gemini الشخصي والبديل التلقائي",
+        speaker: "🎙️ المشهد 2: إعداد مفتاح Gemini الشخصي في الإعدادات",
+        subtitles: [
+          { at: 0, text: "الخطوة الثانية والأهم هي التحكم الكامل في مفتاح الذكاء الاصطناعي Gemini الخاص بك." },
+          { at: 9, text: "من أيقونة المفتاح في الشريط العلوي أو صفحة الإعدادات، نفتح بطاقة مفتاح Gemini الشخصي." },
+          { at: 18, text: "نلصق المفتاح الذي يبدأ بـ AIza ونضغط «حفظ وتفعيل» ليُحفظ في حسابك ومتصفحك بأولوية قصوى." },
+          { at: 28, text: "وإذا تركته فارغاً؟ تعمل المنصة تلقائياً بمفتاح المنصة الاحتياطي بدون أي توقف!" }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-7 ui-card focus-item" id="s2_key_card">
+              <div class="ui-card-title">
+                <span>🔑 مفتاح Gemini API الشخصي للمحاضرات</span>
+                <span class="sim-pill" id="s2_status_pill">الأولوية: مفتاحك الشخصي</span>
+              </div>
+              <div class="ui-card-sub">يُحفظ في localStorage ويُعطى الأولوية القصوى في تفريغ وتلخيص المحاضرات قبل مفتاح المنصة الافتراضي.</div>
+              <div class="sim-input focus-item" id="s2_key_input" dir="ltr">
+                <span id="s2_typed_key" style="font-family:monospace;color:#6ee7b7;">AIzaSyD9-PersonalStudentKey_2025<span class="typing-caret"></span></span>
+                <span style="font-size:11px;color:var(--emerald);">مشفّر محلياً</span>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <div class="sim-btn sim-btn-primary focus-item" id="s2_save_btn" style="flex:1;">💾 حفظ وتفعيل المفتاح</div>
+                <div class="sim-btn sim-btn-outline focus-item" id="s2_test_btn">⚡ اختبار الاتصال</div>
+              </div>
+            </div>
+            <div class="col-5 ui-card focus-item" id="s2_fallback_card">
+              <div class="ui-card-title">🛡️ نظام الأولوية الذكي</div>
+              <div class="ui-card-sub">
+                1️⃣ <b>أولاً:</b> مفتاح المستخدم الشخصي في حال إدخاله.<br/><br/>
+                2️⃣ <b>ثانياً:</b> مفتاح المنصة الاحتياطي يعمل تلقائياً إذا لم تدخل مفتاحك.
+              </div>
+              <div class="sim-pill">✅ اتصال Gemini 2.5 جاهز 100%</div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.06, focusId: "topKeyBtn", zoom: "scale(1.22) translate3d(-16%, 18%, 0)", cursor: { top: "9%", left: "26%" }, callout: "نضغط على زر إعدادات مفتاح Gemini في الأعلى", click: true },
+          { progress: 0.28, focusId: "s2_key_input", zoom: "scale(1.28) translate3d(-10%, 0%, 0)", cursor: { top: "55%", left: "58%" }, callout: "إدخال مفتاح AIzaSy الشخصي وحفظه في localStorage", click: true },
+          { progress: 0.62, focusId: "s2_save_btn", zoom: "scale(1.24) translate3d(-8%, -8%, 0)", cursor: { top: "74%", left: "66%" }, callout: "حفظ وتفعيل المفتاح كأولوية للمحاضرات", click: true },
+          { progress: 0.84, focusId: "s2_fallback_card", zoom: "scale(1.18) translate3d(14%, 0%, 0)", cursor: { top: "52%", left: "24%" }, callout: "البديل التلقائي يعمل فوراً عند عدم وجود مفتاح شخصي" }
+        ]
+      },
+      {
+        id: 3,
+        title: "3. تفريغ المحاضرات",
+        durationSec: 40,
+        audio: "./audio/scene_3.mp3",
+        badge: "المشهد 3 من 8 · قسم المحاضرات وتفريغ الصوتيات والنصوص",
+        speaker: "🎙️ المشهد 3: تفريغ المحاضرات الصوتية والنصية بالذكاء الاصطناعي",
+        subtitles: [
+          { at: 0, text: "ننتقل الآن إلى قسم المحاضرات وتفريغها بالذكاء الاصطناعي." },
+          { at: 9, text: "سواء كان لديك تسجيل صوتي للمحاضرة أو نص خام، اختر «رفع ملف صوتي» أو «لصق نص محاضرة»." },
+          { at: 20, text: "يقوم المحرك بتحويل الصوت والنص إلى تفريغ منظم، مع استخراج أهم النقاط والتعريفات وأسئلة المراجعة." },
+          { at: 30, text: "وبضغطة زر يمكنك تحويل المحاضرة إلى ملخص كامل أو اختبار تفاعلي فوراً!" }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-5 ui-card focus-item" id="s3_upload_box">
+              <div class="ui-card-title">🎙️ تفريغ محاضرة جديدة</div>
+              <div class="sim-btn sim-btn-primary focus-item" id="s3_audio_btn">🎵 رفع ملف صوتي (MP3 / WAV / M4A)</div>
+              <div class="sim-btn sim-btn-outline focus-item" id="s3_text_btn">📝 أو لصق نص المحاضرة وتنظيمه</div>
+              <div class="ui-card-sub">يرسل الصوت أو النص مباشرة إلى Gemini لتحويله إلى عناصر مرتبة وواضحة.</div>
+            </div>
+            <div class="col-7 ui-card focus-item" id="s3_result_box">
+              <div class="ui-card-title">
+                <span>📄 المحاضرة بعد التفريغ والتنظيم</span>
+                <span class="sim-pill">مكتمل 100%</span>
+              </div>
+              <div class="ui-card-sub" style="background:#080d18;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.07);">
+                • <b>المحور الأول:</b> المفاهيم الأساسية للمحاضرة مرتبة في نقاط واضحة.<br/>
+                • <b>التعريفات المهمة:</b> استخلاص المصطلحات الأساسية بدقة.<br/>
+                • <b>أسئلة المراجعة:</b> 3 أسئلة متوقعة في الامتحان من نفس المحاضرة.
+              </div>
+              <div style="display:flex;gap:8px;">
+                <div class="sim-btn sim-btn-outline focus-item" id="s3_to_summary" style="flex:1;">📚 تحويل لملخص</div>
+                <div class="sim-btn sim-btn-outline focus-item" id="s3_to_quiz" style="flex:1;">🧪 توليد اختبار</div>
+              </div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.08, focusId: "s3_audio_btn", zoom: "scale(1.28) translate3d(-14%, 6%, 0)", cursor: { top: "43%", left: "72%" }, callout: "رفع ملف صوتي للمحاضرة لتفريغه بالكامل", click: true },
+          { progress: 0.36, focusId: "s3_text_btn", zoom: "scale(1.25) translate3d(-14%, -4%, 0)", cursor: { top: "58%", left: "72%" }, callout: "أو لصق نص المحاضرة لتنظيمه", click: true },
+          { progress: 0.65, focusId: "s3_result_box", zoom: "scale(1.2) translate3d(12%, 0%, 0)", cursor: { top: "50%", left: "34%" }, callout: "استخراج النقاط الأساسية والتعريفات وأسئلة المراجعة" },
+          { progress: 0.86, focusId: "s3_to_quiz", zoom: "scale(1.26) translate3d(14%, -10%, 0)", cursor: { top: "76%", left: "24%" }, callout: "تحويل المحاضرة بضغطة واحدة إلى ملخص أو اختبار", click: true }
+        ]
+      },
+      {
+        id: 4,
+        title: "4. الملخصات والقراءة",
+        durationSec: 38,
+        audio: "./audio/scene_4.mp3",
+        badge: "المشهد 4 من 8 · الملخصات الدراسية ووضع القراءة المريحة",
+        speaker: "🎙️ المشهد 4: توليد الملخصات في أي مادة وتكبير الخط",
+        subtitles: [
+          { at: 0, text: "في قسم الملخصات الدراسية، لن تجد أي أمثلة مفروضة لا تخص تخصصك." },
+          { at: 9, text: "اكتب اسم أي موضوع تدرسه في كليتك — سواء محاسبة، إدارة، برمجة، أو هندسة — واضغط «توليد الملخص»." },
+          { at: 20, text: "سيظهر لك الملخص مقسماً إلى فقرات نظيفة بدون أي تداخل في النصوص." },
+          { at: 29, text: "ويمكنك تكبير أو تصغير حجم الخط A+ و A- وحفظ الملخص في المفضلة للمراجعة السريعة." }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-5 ui-card focus-item" id="s4_create_card">
+              <div class="ui-card-title">✨ إنشاء ملخص في تخصصك</div>
+              <div class="sim-input focus-item" id="s4_topic_input">
+                <span>مبادئ المحاسبة المالية وإدارة الأعمال</span>
+              </div>
+              <div class="sim-btn sim-btn-primary focus-item" id="s4_gen_btn">⚡ توليد الملخص المنظم</div>
+              <div class="sim-badge-row">
+                <span class="sim-pill">بدون أمثلة مفروضة</span>
+                <span class="sim-pill">مناسب لكل الكليات</span>
+              </div>
+            </div>
+            <div class="col-7 ui-card focus-item" id="s4_reader_card">
+              <div class="ui-card-title">
+                <span>📖 عارض القراءة المريح</span>
+                <div style="display:flex;gap:6px;" class="focus-item" id="s4_font_controls">
+                  <span class="sim-pill">A+ تكبير</span>
+                  <span class="sim-pill">A- تصغير</span>
+                  <span class="sim-pill">⭐ مفضلة</span>
+                </div>
+              </div>
+              <div class="ui-card-sub" style="font-size:13.5px;line-height:1.75;color:#e2e8f0;background:#080d18;padding:12px;border-radius:12px;">
+                <b>1. القوائم المالية الأساسية:</b> توضح المركز المالي للمؤسسة وصافي الربح أو الخسارة خلال الفترة المحاسبية بوضوح.<br/>
+                <b>2. معادلة الميزانية:</b> الأصول = الالتزامات + حقوق الملكية، وهي القاعدة الذهبية لتوازن الحسابات.
+              </div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.1, focusId: "s4_topic_input", zoom: "scale(1.26) translate3d(-14%, 4%, 0)", cursor: { top: "45%", left: "72%" }, callout: "اكتب أي موضوع في كليتك أو تخصصك بحرية", click: true },
+          { progress: 0.35, focusId: "s4_gen_btn", zoom: "scale(1.26) translate3d(-14%, -4%, 0)", cursor: { top: "61%", left: "72%" }, callout: "توليد ملخص منظم ومرتب فوراً", click: true },
+          { progress: 0.65, focusId: "s4_reader_card", zoom: "scale(1.18) translate3d(10%, 0%, 0)", cursor: { top: "55%", left: "36%" }, callout: "فقرات مرتبة وواضحة بدون أي تداخل" },
+          { progress: 0.85, focusId: "s4_font_controls", zoom: "scale(1.3) translate3d(16%, 14%, 0)", cursor: { top: "32%", left: "24%" }, callout: "تحكم كامل في حجم الخط A+ / A- والمفضلة", click: true }
+        ]
+      },
+      {
+        id: 5,
+        title: "5. الاختبارات الذكية",
+        durationSec: 38,
+        audio: "./audio/scene_5.mp3",
+        badge: "المشهد 5 من 8 · الاختبارات التفاعلية والتفسير الفوري",
+        speaker: "🎙️ المشهد 5: بنك الاختبارات الذكية وتفسير الإجابات",
+        subtitles: [
+          { at: 0, text: "بعد المذاكرة، حان وقت قياس مستواك في قسم الاختبارات الذكية!" },
+          { at: 9, text: "اطلب من الذكاء الاصطناعي توليد اختبار في أي فصل درسته، واختر إجابتك بضغطة واحدة." },
+          { at: 19, text: "ستظهر لك النتيجة فوراً مع تفسير علمي مبسط يوضح لماذا هذه الإجابة صحيحة." },
+          { at: 29, text: "كما يتم حفظ الأسئلة التي أخطأت فيها داخل قسم «أخطائي للمراجعة» لتضمن التفوق." }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-7 ui-card focus-item" id="s5_quiz_card">
+              <div class="ui-card-title">
+                <span>🧪 سؤال تطبيقي سريع</span>
+                <span class="sim-pill">+25 XP</span>
+              </div>
+              <div style="font-size:13.5px;font-weight:700;color:#fff;">ما هي الخطوة الأكثر فاعلية لتثبيت المعلومات في الذاكرة طويلة المدى؟</div>
+              <div class="sim-input focus-item" id="s5_opt_correct" style="border-color:var(--emerald);background:rgba(16,185,129,0.14);">
+                <span>✅ الاسترجاع النشط وحل الأسئلة المتدرجة (Active Recall)</span>
+                <span class="sim-pill">إجابة صحيحة</span>
+              </div>
+              <div class="sim-input">
+                <span>قراءة النص بشكل صامت لمرة واحدة فقط</span>
+              </div>
+            </div>
+            <div class="col-5 ui-card focus-item" id="s5_explain_card">
+              <div class="ui-card-title">💡 التفسير الفوري وأخطائي</div>
+              <div class="ui-card-sub">
+                الاسترجاع النشط يحفز الدماغ على بناء مسارات عصبية قوية ويضاعف ثبات المعلومة قبل الامتحان.
+              </div>
+              <div class="sim-btn sim-btn-outline focus-item" id="s5_mistakes_btn">📌 فلتر: أخطائي للمراجعة (0)</div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.12, focusId: "s5_quiz_card", zoom: "scale(1.18) translate3d(-10%, 0%, 0)", cursor: { top: "48%", left: "64%" }, callout: "أسئلة اختيار من متعدد في مادتك الدراسية" },
+          { progress: 0.42, focusId: "s5_opt_correct", zoom: "scale(1.28) translate3d(-12%, -4%, 0)", cursor: { top: "58%", left: "62%" }, callout: "تصحيح فوري باللون الأخضر مع نقاط XP", click: true },
+          { progress: 0.75, focusId: "s5_explain_card", zoom: "scale(1.22) translate3d(14%, 0%, 0)", cursor: { top: "54%", left: "25%" }, callout: "شرح تفصيلي للإجابة + قسم أخطائي للمراجعة", click: true }
+        ]
+      },
+      {
+        id: 6,
+        title: "6. البطاقات التفاعلية",
+        durationSec: 36,
+        audio: "./audio/scene_6.mp3",
+        badge: "المشهد 6 من 8 · بطاقات المراجعة السريعة (Flashcards)",
+        speaker: "🎙️ المشهد 6: البطاقات التفاعلية والتكرار المتباعد",
+        subtitles: [
+          { at: 0, text: "لتثبيت المصطلحات والقوانين، وفرنا لك قسم البطاقات التفاعلية Flashcards." },
+          { at: 9, text: "اضغط على البطاقة لتدور بنعومة وتكشف لك الإجابة المختصرة على الوجه الخلفي." },
+          { at: 19, text: "قيّم مدى سهولة البطاقة (سهل، متوسط، أو يحتاج مراجعة) ليرتبها النظام لك تلقائياً." },
+          { at: 28, text: "ويمكنك إضافة بطاقاتك الخاصة في أي مادة بضغطة زر!" }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-7 ui-card focus-item" id="s6_card_box">
+              <div class="ui-card-title">
+                <span>🃏 بطاقات المراجعة الذكية</span>
+                <span class="sim-pill">اضغط لقلب البطاقة 3D</span>
+              </div>
+              <div class="flashcard-3d-wrap focus-item" id="s6_flip_target">
+                <div class="flashcard-3d-inner" id="s6_flip_inner">
+                  <div class="flashcard-face flashcard-front">
+                    <div style="font-size:11px;color:var(--emerald);margin-bottom:6px;">الوجه الأمامي · سؤال المفهوم</div>
+                    <div style="font-size:15px;font-weight:800;">ما الفرق بين التكاليف الثابتة والتكاليف المتغيرة؟</div>
+                  </div>
+                  <div class="flashcard-face flashcard-back">
+                    <div style="font-size:11px;color:#6ee7b7;margin-bottom:6px;">الوجه الخلفي · الإجابة المختصرة</div>
+                    <div style="font-size:13.5px;font-weight:700;">الثابتة لا تتغير بحجم الإنتاج (مثل الإيجار)، بينما المتغيرة تزيد وتنقص مع حجم الإنتاج.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-5 ui-card focus-item" id="s6_rate_box">
+              <div class="ui-card-title">⏱️ تقييم التكرار المتباعد</div>
+              <div class="sim-btn sim-btn-primary focus-item" id="s6_easy_btn">🟢 سهل — ذكرني بعد 4 أيام</div>
+              <div class="sim-btn sim-btn-outline">🟡 متوسط — ذكرني غداً</div>
+              <div class="sim-btn sim-btn-outline">➕ إضافة بطاقة جديدة لمادتك</div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.12, focusId: "s6_flip_target", zoom: "scale(1.24) translate3d(-10%, 0%, 0)", cursor: { top: "55%", left: "62%" }, callout: "اضغط على البطاقة لقلبها ورؤية الإجابة", click: true, flipCard: false },
+          { progress: 0.42, focusId: "s6_flip_target", zoom: "scale(1.26) translate3d(-10%, 0%, 0)", cursor: { top: "55%", left: "62%" }, callout: "دوران ثلاثي الأبعاد يعرض الإجابة المختصرة", click: true, flipCard: true },
+          { progress: 0.76, focusId: "s6_easy_btn", zoom: "scale(1.24) translate3d(14%, -2%, 0)", cursor: { top: "46%", left: "24%" }, callout: "تحديد موعد المراجعة القادمة بالتكرار المتباعد", click: true, flipCard: true }
+        ]
+      },
+      {
+        id: 7,
+        title: "7. المساعد الذكي والمؤقت",
+        durationSec: 37,
+        audio: "./audio/scene_7.mp3",
+        badge: "المشهد 7 من 8 · المساعد الذكي المفتوح ومؤقت بومودورو",
+        speaker: "🎙️ المشهد 7: المساعد الأكاديمي الذكي ومؤقت التركيز",
+        subtitles: [
+          { at: 0, text: "لو واجهتك أي نقطة غير واضحة أثناء المذاكرة، افتح قسم المساعد الذكي." },
+          { at: 9, text: "اكتب سؤالك بحرية تامة في أي مجال تدرسه، وسيجيبك بشرح مبسط ومنظم." },
+          { at: 20, text: "وبجانبه ستجد مؤقت التركيز بومودورو 25 دقيقة في الشاشة الرئيسية لتنظيم جلسات مذاكرتك." },
+          { at: 29, text: "كل جلسة مذاكرة تمنحك نقاط خبرة XP وترفع مستواك الأكاديمي على المنصة." }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-7 ui-card focus-item" id="s7_tutor_box">
+              <div class="ui-card-title">
+                <span>🤖 المساعد الأكاديمي الذكي</span>
+                <span class="sim-pill">إجابة فورية منظمة</span>
+              </div>
+              <div class="sim-input focus-item" id="s7_q_input">
+                <span>اشرح لي قانون العرض والطلب بأسلوب مبسط مع مثال عملي</span>
+              </div>
+              <div class="ui-card-sub" style="background:#080d18;padding:11px;border-radius:12px;color:#e2e8f0;">
+                <b>الإجابة الذكية:</b> كلما ارتفع سعر السلعة قلّت الكمية المطلوبة منها (علاقة عكسية)، بينما تزداد الكمية المعروضة من المنتجين (علاقة طردية) حتى نصل لنقطة التوازن.
+              </div>
+            </div>
+            <div class="col-5 ui-card focus-item" id="s7_pomo_box">
+              <div class="ui-card-title">⏱️ مؤقت التركيز (Pomodoro)</div>
+              <div style="font-size:32px;font-weight:900;color:var(--emerald);text-align:center;padding:8px 0;">24:58</div>
+              <div class="sim-btn sim-btn-primary focus-item" id="s7_pomo_btn">▶ بدء جلسة تركيز 25 دقيقة</div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.14, focusId: "s7_q_input", zoom: "scale(1.26) translate3d(-10%, 4%, 0)", cursor: { top: "44%", left: "62%" }, callout: "اسأل المساعد الذكي في أي تخصص تدرسه", click: true },
+          { progress: 0.50, focusId: "s7_tutor_box", zoom: "scale(1.18) translate3d(-10%, -2%, 0)", cursor: { top: "64%", left: "60%" }, callout: "شرح منظم ومفهوم في ثوانٍ" },
+          { progress: 0.80, focusId: "s7_pomo_btn", zoom: "scale(1.26) translate3d(14%, -4%, 0)", cursor: { top: "66%", left: "24%" }, callout: "تشغيل مؤقت التركيز بومودورو 25 دقيقة", click: true }
+        ]
+      },
+      {
+        id: 8,
+        title: "8. الإشعارات والختام",
+        durationSec: 35,
+        audio: "./audio/scene_8.mp3",
+        badge: "المشهد 8 من 8 · الإشعارات، المظهر الليلي والنهاري، والجاهزية الكاملة",
+        speaker: "🎙️ المشهد 8: مركز الإشعارات والمظهر والختام",
+        subtitles: [
+          { at: 0, text: "وأخيراً، من الشريط العلوي يمكنك فتح مركز الإشعارات لمتابعة تنبيهات المذاكرة وإشعارات المنصة." },
+          { at: 10, text: "كما يمكنك التبديل بلمسة واحدة بين الوضع الليلي المريح للعين والوضع النهاري الساطع." },
+          { at: 20, text: "منصة بلاك فايترز أصبحت الآن جاهزة بالكامل، سريعة، آمنة، ومنظمة." },
+          { at: 28, text: "سجّل دخولك الآن، وانطلق نحو التفوق! بالتوفيق يا بطل!" }
+        ],
+        renderHTML: () => `
+          <div class="scene-grid">
+            <div class="col-6 ui-card focus-item" id="s8_notif_card">
+              <div class="ui-card-title">
+                <span>🔔 مركز الإشعارات الفوري</span>
+                <span class="sim-pill">مزامنة حية</span>
+              </div>
+              <div class="ui-card-sub">
+                • <b>تذكير مذاكرة:</b> حان موعد مراجعة ملخص المحاضرة الثالثة.<br/>
+                • <b>إشعار المنصة:</b> تم تفعيل مفتاح Gemini وتحديث بنك الأسئلة بنجاح.
+              </div>
+              <div class="sim-btn sim-btn-outline focus-item" id="s8_send_test">📲 إرسال إشعار تذكير فوري</div>
+            </div>
+            <div class="col-6 ui-card focus-item" id="s8_ready_card">
+              <div class="ui-card-title">🚀 المنصة جاهزة بالكامل!</div>
+              <div class="ui-card-sub">
+                تمت تجربة وتأكيد عمل جميع الأقسام: تسجيل الدخول بـ Google، مفتاح Gemini الشخصي، تفريغ المحاضرات، الملخصات، الاختبارات، البطاقات، والإشعارات.
+              </div>
+              <div class="sim-badge-row">
+                <span class="sim-pill">✅ سرعة فائقة</span>
+                <span class="sim-pill">✅ بدون أخطاء</span>
+                <span class="sim-pill">✅ حماية تامة</span>
+              </div>
+            </div>
+          </div>
+        `,
+        keyframes: [
+          { progress: 0.10, focusId: "topNotifBtn", zoom: "scale(1.24) translate3d(-6%, 18%, 0)", cursor: { top: "9%", left: "16%" }, callout: "فتح مركز الإشعارات من الشريط العلوي", click: true },
+          { progress: 0.38, focusId: "s8_notif_card", zoom: "scale(1.22) translate3d(-12%, 0%, 0)", cursor: { top: "58%", left: "70%" }, callout: "تنبيهات المذاكرة وإشعارات المنصة الفورية", click: true },
+          { progress: 0.68, focusId: "topThemeBtn", zoom: "scale(1.24) translate3d(6%, 18%, 0)", cursor: { top: "9%", left: "8%" }, callout: "التبديل الفوري بين الوضع الليلي والنهاري", click: true },
+          { progress: 0.88, focusId: null, zoom: "scale(1) translate3d(0,0,0)", cursor: { top: "50%", left: "50%" }, callout: "المنصة جاهزة بالكامل — انطلق الآن!" }
+        ]
+      }
+    ];
+
+    const TOTAL_DURATION = SCENES.reduce((acc, s) => acc + s.durationSec, 0);
+
+    const voAudio = document.getElementById("voAudio");
+    const startOverlay = document.getElementById("startOverlay");
+    const startTourBtn = document.getElementById("startTourBtn");
+    const chapterStrip = document.getElementById("chapterStrip");
+    const cinemaStage = document.getElementById("cinemaStage");
+    const cameraRig = document.getElementById("cameraRig");
+    const simBody = document.getElementById("simBody");
+    const virtualCursor = document.getElementById("virtualCursor");
+    const focusCallout = document.getElementById("focusCallout");
+    const focusCalloutText = document.getElementById("focusCalloutText");
+    const currentSceneBadge = document.getElementById("currentSceneBadge");
+    const subtitleSpeaker = document.getElementById("subtitleSpeaker");
+    const subtitleText = document.getElementById("subtitleText");
+    const timeElapsed = document.getElementById("timeElapsed");
+    const timeTotal = document.getElementById("timeTotal");
+    const timelineTrack = document.getElementById("timelineTrack");
+    const timelineFill = document.getElementById("timelineFill");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const prevSceneBtn = document.getElementById("prevSceneBtn");
+    const nextSceneBtn = document.getElementById("nextSceneBtn");
+    const toggleSpotlightBtn = document.getElementById("toggleSpotlightBtn");
+    const speedBtn = document.getElementById("speedBtn");
+    const muteBtn = document.getElementById("muteBtn");
+    const eqBars = document.getElementById("eqBars");
+
+    let currentSceneIndex = 0;
+    let isPlaying = false;
+    let spotlightEnabled = true;
+    let playbackRate = 1.0;
+    let isMuted = false;
+    let fallbackSceneElapsed = 0;
+    let lastKeyframeIdx = -1;
+
+    function formatTime(sec) {
+      const s = Math.max(0, Math.floor(sec));
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      return `${String(m).padStart(2, "0")}:${String(rem).padStart(2, "0")}`;
+    }
+
+    timeTotal.textContent = formatTime(TOTAL_DURATION);
+
+    function renderChapters() {
+      chapterStrip.innerHTML = SCENES.map((sc, idx) => `
+        <button class="chapter-chip ${idx === currentSceneIndex ? "active" : ""}" data-idx="${idx}">
+          <span class="chapter-num">${idx + 1}</span>
+          <span>${sc.title.replace(/^\d+\.\s*/, "")}</span>
+        </button>
+      `).join("");
+
+      chapterStrip.querySelectorAll(".chapter-chip").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.getAttribute("data-idx"));
+          loadScene(idx, true);
+        });
+      });
+    }
+
+    function clearFocusStates() {
+      document.querySelectorAll(".focus-item").forEach((el) => el.classList.remove("is-focused"));
+      cinemaStage.classList.remove("spotlight-mode");
+      focusCallout.classList.remove("visible");
+    }
+
+    function triggerClickRipple() {
+      virtualCursor.classList.remove("clicking");
+      void virtualCursor.offsetWidth;
+      virtualCursor.classList.add("clicking");
+      setTimeout(() => virtualCursor.classList.remove("clicking"), 650);
+    }
+
+    function applyKeyframe(scene, kf) {
+      cameraRig.style.transform = kf.zoom || "scale(1) translate3d(0,0,0)";
+      if (kf.cursor) {
+        virtualCursor.style.top = kf.cursor.top;
+        virtualCursor.style.left = kf.cursor.left;
+      }
+
+      document.querySelectorAll(".focus-item").forEach((el) => el.classList.remove("is-focused"));
+
+      if (spotlightEnabled && kf.focusId) {
+        const target = document.getElementById(kf.focusId);
+        if (target) {
+          cinemaStage.classList.add("spotlight-mode");
+          target.classList.add("is-focused");
+        }
+      } else {
+        cinemaStage.classList.remove("spotlight-mode");
+      }
+
+      if (kf.callout) {
+        focusCalloutText.textContent = kf.callout;
+        focusCallout.classList.add("visible");
+      } else {
+        focusCallout.classList.remove("visible");
+      }
+
+      if (kf.click) {
+        triggerClickRipple();
+      }
+
+      if (scene.id === 6) {
+        const flipInner = document.getElementById("s6_flip_inner");
+        if (flipInner) {
+          if (kf.flipCard) flipInner.classList.add("flipped");
+          else flipInner.classList.remove("flipped");
+        }
+      }
+    }
+
+    function loadScene(index, autoPlay = true) {
+      currentSceneIndex = Math.max(0, Math.min(SCENES.length - 1, index));
+      const scene = SCENES[currentSceneIndex];
+      lastKeyframeIdx = -1;
+      fallbackSceneElapsed = 0;
+
+      renderChapters();
+      currentSceneBadge.textContent = scene.badge;
+      subtitleSpeaker.textContent = scene.speaker;
+      subtitleText.textContent = scene.subtitles[0].text;
+      simBody.innerHTML = scene.renderHTML();
+      clearFocusStates();
+
+      voAudio.src = scene.audio;
+      voAudio.playbackRate = playbackRate;
+      voAudio.muted = isMuted;
+
+      if (autoPlay) {
+        isPlaying = true;
+        updatePlayUI();
+        voAudio.play().catch(() => {});
+      }
+    }
+
+    function updatePlayUI() {
+      playPauseBtn.innerHTML = isPlaying ? "⏸ إيقاف مؤقت" : "▶ استئناف التشغيل";
+      if (isPlaying && !isMuted) {
+        eqBars.classList.add("playing");
+      } else {
+        eqBars.classList.remove("playing");
+      }
+    }
+
+    function getSceneStartOffset(index) {
+      let sum = 0;
+      for (let i = 0; i < index; i++) sum += SCENES[i].durationSec;
+      return sum;
+    }
+
+    function tickTimeline() {
+      if (!isPlaying) return;
+      const scene = SCENES[currentSceneIndex];
+      const audioDur = (voAudio.duration && isFinite(voAudio.duration) && voAudio.duration > 5)
+        ? voAudio.duration
+        : scene.durationSec;
+
+      const currentSec = (!voAudio.paused && voAudio.currentTime > 0)
+        ? voAudio.currentTime
+        : fallbackSceneElapsed;
+
+      const progress = Math.min(1, currentSec / audioDur);
+
+      const mappedSec = progress * scene.durationSec;
+      let activeSub = scene.subtitles[0].text;
+      for (const sub of scene.subtitles) {
+        if (mappedSec >= sub.at) activeSub = sub.text;
+      }
+      subtitleText.textContent = activeSub;
+
+      let activeKfIdx = -1;
+      scene.keyframes.forEach((kf, i) => {
+        if (progress >= kf.progress) activeKfIdx = i;
+      });
+      if (activeKfIdx !== -1 && activeKfIdx !== lastKeyframeIdx) {
+        lastKeyframeIdx = activeKfIdx;
+        applyKeyframe(scene, scene.keyframes[activeKfIdx]);
+      }
+
+      const globalSec = getSceneStartOffset(currentSceneIndex) + mappedSec;
+      timeElapsed.textContent = formatTime(globalSec);
+      const pct = Math.min(100, (globalSec / TOTAL_DURATION) * 100);
+      timelineFill.style.width = `${pct}%`;
+
+      if (voAudio.paused) {
+        fallbackSceneElapsed += 0.2 * playbackRate;
+        if (fallbackSceneElapsed >= scene.durationSec) {
+          advanceNextScene();
+        }
+      }
+    }
+
+    function advanceNextScene() {
+      if (currentSceneIndex < SCENES.length - 1) {
+        loadScene(currentSceneIndex + 1, true);
+      } else {
+        isPlaying = false;
+        clearFocusStates();
+        cameraRig.style.transform = "scale(1) translate3d(0,0,0)";
+        updatePlayUI();
+      }
+    }
+
+    voAudio.addEventListener("ended", () => {
+      advanceNextScene();
+    });
+
+    setInterval(tickTimeline, 200);
+
+    startTourBtn.addEventListener("click", () => {
+      startOverlay.classList.add("hidden");
+      loadScene(0, true);
+    });
+
+    playPauseBtn.addEventListener("click", () => {
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        voAudio.play().catch(() => {});
+      } else {
+        voAudio.pause();
+      }
+      updatePlayUI();
+    });
+
+    prevSceneBtn.addEventListener("click", () => {
+      loadScene(Math.max(0, currentSceneIndex - 1), true);
+    });
+
+    nextSceneBtn.addEventListener("click", () => {
+      loadScene(Math.min(SCENES.length - 1, currentSceneIndex + 1), true);
+    });
+
+    toggleSpotlightBtn.addEventListener("click", () => {
+      spotlightEnabled = !spotlightEnabled;
+      toggleSpotlightBtn.textContent = spotlightEnabled
+        ? "🔍 عزل الخلفية (Blur): مفعّل"
+        : "🔍 عزل الخلفية (Blur): متوقف";
+      if (!spotlightEnabled) clearFocusStates();
+    });
+
+    speedBtn.addEventListener("click", () => {
+      playbackRate = playbackRate === 1.0 ? 1.25 : 1.0;
+      voAudio.playbackRate = playbackRate;
+      speedBtn.textContent = `⚡ السرعة: ${playbackRate}x`;
+    });
+
+    muteBtn.addEventListener("click", () => {
+      isMuted = !isMuted;
+      voAudio.muted = isMuted;
+      muteBtn.textContent = isMuted ? "🔇 الصوت: مكتوم" : "🔊 الصوت: مفعّل";
+      updatePlayUI();
+    });
+
+    timelineTrack.addEventListener("click", (e) => {
+      const rect = timelineTrack.getBoundingClientRect();
+      const isRtl = document.documentElement.dir === "rtl";
+      const clickRatio = isRtl
+        ? (rect.right - e.clientX) / rect.width
+        : (e.clientX - rect.left) / rect.width;
+      const targetGlobalSec = Math.max(0, Math.min(TOTAL_DURATION - 1, clickRatio * TOTAL_DURATION));
+
+      let acc = 0;
+      for (let i = 0; i < SCENES.length; i++) {
+        if (targetGlobalSec <= acc + SCENES[i].durationSec || i === SCENES.length - 1) {
+          const offsetInScene = targetGlobalSec - acc;
+          loadScene(i, true);
+          setTimeout(() => {
+            if (voAudio.duration && isFinite(voAudio.duration)) {
+              voAudio.currentTime = (offsetInScene / SCENES[i].durationSec) * voAudio.duration;
+            }
+            fallbackSceneElapsed = offsetInScene;
+          }, 120);
+          break;
+        }
+        acc += SCENES[i].durationSec;
+      }
+    });
+
+    loadScene(0, false);
+  </script>
+</body>
+</html>

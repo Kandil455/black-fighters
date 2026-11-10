@@ -123,7 +123,7 @@ export const handler = async (event) => {
     const tSnap = await adminDb.collection("lectureTranscripts").doc(jobId).get();
     if (!tSnap.exists) return json(409, { error: "TRANSCRIPT_NOT_READY" });
     const transcript = tSnap.data();
-    const orgCfg = await getAdminOrganizerConfig();
+    const orgCfg = await getAdminOrganizerConfig({ event, body, uid: user.uid });
 
     // Handle Phase 7 structured modes (`study_notes`, `summary_detailed`, `summary_medium`, `summary_quick`)
     if (kind === "study_notes" || kind.startsWith("summary_")) {

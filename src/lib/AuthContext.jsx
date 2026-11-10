@@ -11,75 +11,29 @@ function createBootstrapProfile(firebaseUser) {
   return applyOwnerPrivileges({
     id: firebaseUser.uid,
     email: firebaseUser.email || '',
-    full_name: firebaseUser.displayName || 'Student',
+    full_name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'طالب جامعي',
     role: 'user',
     subscription_plan: 'free',
     subscription_status: 'inactive',
-    credits: 0,
-    token_balance: 0,
+    credits: 25,
+    token_balance: 25000,
     app_theme: 'clinical',
   });
 }
 
-const IS_LOCAL_TRIAL = Boolean(import.meta.env.DEV);
-
-const LOCAL_TRIAL_PROFILE = applyOwnerPrivileges({
-  id: "up3y6pub7IgB1PpEMTcMASO2ei33",
-  email: "ibrahimkandil000@gmail.com",
-  full_name: "Alpha ⚡ (نسخة تجريبية)",
-  role: "admin",
-  subscription_plan: "supreme",
-  subscription_plan_key: "supreme",
-  subscription_plan_name: "Supreme Commander (Local Trial)",
-  subscription_status: "active",
-  is_pro: true,
-  premium_notified: true,
-  credits: 999999,
-  token_balance: 99999999,
-  tokens_used: 0,
-  credits_used: 0,
-  streak_days: 30,
-  current_streak: 30,
-  longest_streak: 30,
-  xp: 50000,
-  total_xp: 50000,
-  referral_code: "ALPHA777",
-  referrals_count: 99,
-  app_theme: "clinical",
-  is_locked: false,
-});
-
-function mergeWithLocalTrial(profileObj) {
-  if (!IS_LOCAL_TRIAL) return applyOwnerPrivileges(profileObj);
-  const base = applyOwnerPrivileges({
-    ...LOCAL_TRIAL_PROFILE,
-    ...(profileObj || {}),
-    email: "ibrahimkandil000@gmail.com",
-    role: "admin",
-    subscription_plan: "supreme",
-    subscription_status: "active",
-    is_pro: true,
-    premium_notified: true,
-    is_locked: false,
-  });
-  base.credits = Math.max(Number(profileObj?.credits || 0), 999999);
-  base.token_balance = Math.max(Number(profileObj?.token_balance || 0), 99999999);
-  return base;
-}
-
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => (IS_LOCAL_TRIAL ? LOCAL_TRIAL_PROFILE : null));
-  const [profile, setProfile] = useState(() => (IS_LOCAL_TRIAL ? LOCAL_TRIAL_PROFILE : null));
-  const [isAuthenticated, setIsAuthenticated] = useState(() => IS_LOCAL_TRIAL);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(() => !IS_LOCAL_TRIAL);
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authError, setAuthError] = useState(null);
-  const [authChecked, setAuthChecked] = useState(() => IS_LOCAL_TRIAL);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const fetchProfile = useCallback(async ({ keepExistingSession = false } = {}) => {
     try {
       const me = await authService.me();
       if (me) {
-        const privileged = mergeWithLocalTrial(me);
+        const privileged = applyOwnerPrivileges(me);
         await setOfflineSnapshot('auth:profile', privileged).catch(() => {});
         setUser(privileged);
         setProfile(privileged);
@@ -89,12 +43,6 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (e) {
       console.warn('fetchProfile failed:', e.message);
-    }
-    if (IS_LOCAL_TRIAL) {
-      setUser((prev) => prev || LOCAL_TRIAL_PROFILE);
-      setProfile((prev) => prev || LOCAL_TRIAL_PROFILE);
-      setIsAuthenticated(true);
-      return LOCAL_TRIAL_PROFILE;
     }
     if (!keepExistingSession) {
       setUser(null);
@@ -108,14 +56,6 @@ export const AuthProvider = ({ children }) => {
     let unsubscribe = () => {};
     let mounted = true;
     const init = async () => {
-      if (IS_LOCAL_TRIAL) {
-        applyTheme(LOCAL_TRIAL_PROFILE.app_theme || 'clinical');
-        setUser((prev) => prev || LOCAL_TRIAL_PROFILE);
-        setProfile((prev) => prev || LOCAL_TRIAL_PROFILE);
-        setIsAuthenticated(true);
-        setIsLoadingAuth(false);
-        setAuthChecked(true);
-      }
       try {
         const fb = await import('@/lib/firebase');
         const firebaseAuth = fb.auth;
@@ -128,22 +68,13 @@ export const AuthProvider = ({ children }) => {
         unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
           if (!mounted) return;
           if (firebaseUser) {
-            const bootstrap = IS_LOCAL_TRIAL
-              ? mergeWithLocalTrial(createBootstrapProfile(firebaseUser))
-              : createBootstrapProfile(firebaseUser);
+            const bootstrap = createBootstrapProfile(firebaseUser);
             setUser(bootstrap);
             setProfile(bootstrap);
             setIsAuthenticated(true);
             setIsLoadingAuth(false);
             setAuthChecked(true);
             fetchProfile({ keepExistingSession: true });
-            return;
-          } else if (IS_LOCAL_TRIAL) {
-            setUser(LOCAL_TRIAL_PROFILE);
-            setProfile(LOCAL_TRIAL_PROFILE);
-            setIsAuthenticated(true);
-            setIsLoadingAuth(false);
-            setAuthChecked(true);
             return;
           } else {
             setUser(null);
@@ -239,27 +170,20 @@ export const AuthProvider = ({ children }) => {
     catch (e) { return { sent: false, error: e.message }; }
   };
   const logout = async () => {
-    if (IS_LOCAL_TRIAL) {
-      setUser(LOCAL_TRIAL_PROFILE);
-      setProfile(LOCAL_TRIAL_PROFILE);
-      setIsAuthenticated(true);
-      window.location.href = '/dashboard';
-      return;
-    }
     try { await authService.logout(); } catch (e) { console.warn('logout failed:', e.message); }
     finally { setUser(null); setProfile(null); setIsAuthenticated(false); window.location.href = '/login'; }
   };
   const forgotPassword = async (email) => authService.resetPasswordRequest(email);
 
-  const me = useCallback(async () => { if (profile) return profile; return (await fetchProfile()) || (IS_LOCAL_TRIAL ? LOCAL_TRIAL_PROFILE : null); }, [profile, fetchProfile]);
+  const me = useCallback(async () => { if (profile) return profile; return await fetchProfile(); }, [profile, fetchProfile]);
   const updateMe = useCallback(async (updates) => {
-    const base = profile || (IS_LOCAL_TRIAL ? LOCAL_TRIAL_PROFILE : {});
-    const updatedLocal = mergeWithLocalTrial({ ...base, ...updates });
+    const base = profile || {};
+    const updatedLocal = applyOwnerPrivileges({ ...base, ...updates });
     setUser(updatedLocal); setProfile(updatedLocal);
     if (updates.app_theme) applyTheme(updates.app_theme);
     try {
       const saved = await authService.updateMe(updates);
-      const privileged = mergeWithLocalTrial(saved || updatedLocal);
+      const privileged = applyOwnerPrivileges(saved || updatedLocal);
       setUser(privileged); setProfile(privileged);
       await setOfflineSnapshot('auth:profile', privileged).catch(() => {});
       return privileged;
@@ -270,11 +194,6 @@ export const AuthProvider = ({ children }) => {
     await fetchProfile({ keepExistingSession: true });
   }, [fetchProfile]);
 
-  // Local-only profile patch — applies INSTANTLY to both `user` and `profile`
-  // (they are kept identical), so every reader of the shared balance
-  // (Layout credit chip, Dashboard metric, stores, image extractor…) updates
-  // in the same render. Used by optimistic credit charges; the authoritative
-  // server value still lands afterwards via refreshProfile/updateMe.
   const patchProfile = useCallback((patchOrFn) => {
     setProfile((prev) => {
       if (!prev) return prev;
@@ -288,10 +207,6 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const navigateToLogin = useCallback((nextUrl) => {
-    if (IS_LOCAL_TRIAL) {
-      window.location.href = nextUrl || '/dashboard';
-      return;
-    }
     const target = nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login';
     window.location.href = target;
   }, []);

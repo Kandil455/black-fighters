@@ -130,7 +130,7 @@ export const handler = async (event) => {
     const customVocabulary = Array.isArray(data?.settings?.glossaryTerms)
       ? data.settings.glossaryTerms.slice(0, 100)
       : [];
-    const adminKeys = await getAdminTranscribeKeys();
+    const adminKeys = await getAdminTranscribeKeys({ event, body, uid: user.uid });
 
     // ─── the single global gate: 3 requests/minute across the whole project ───
     const started = Date.now();

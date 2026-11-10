@@ -1,4 +1,5 @@
 import { auth } from "./firebase";
+import { getUserGeminiKeySync, getUserGeminiModeSync } from "./integrations";
 
 function defaultFunctionsBase() {
   const viteEnv = import.meta.env || {};
@@ -14,15 +15,35 @@ export async function invokeSecureFunction(name, payload = {}) {
   if (!user) throw new Error("سجّل دخولك أولاً");
   const token = await user.getIdToken();
 
+  const userGeminiKey = String(payload?.user_gemini_key || getUserGeminiKeySync() || "").trim();
+  const userGeminiMode = String(payload?.ai_key_preference || getUserGeminiModeSync() || "auto_fallback").trim();
+
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+  if (userGeminiKey) {
+    headers["X-User-Gemini-Key"] = userGeminiKey;
+  }
+  if (userGeminiMode) {
+    headers["X-User-Gemini-Mode"] = userGeminiMode;
+  }
+
+  const enrichedPayload =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? {
+          ...payload,
+          ...(userGeminiKey && !payload.user_gemini_key ? { user_gemini_key: userGeminiKey } : {}),
+          ...(userGeminiMode && !payload.ai_key_preference ? { ai_key_preference: userGeminiMode } : {}),
+        }
+      : payload;
+
   let response;
   try {
     response = await fetch(`${FUNCTIONS_BASE}/${name}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
+      headers,
+      body: JSON.stringify(enrichedPayload),
     });
   } catch (networkError) {
     // Mark transport failures so callers can tell "the server is unreachable"
@@ -46,13 +67,10 @@ export async function invokeSecureFunction(name, payload = {}) {
       err.status = 504;
       throw err;
     }
-    // Prefer the human-readable message (Arabic guidance) over raw error codes
-    // like NO_TELEGRAM_LINKED when the server provides both.
     const errMessage = data.message || data.error || `تعذر تنفيذ العملية (${response.status})`;
     const err = new Error(errMessage);
     err.status = response.status;
     err.code = data.error;
-    // 5xx is a server-side fault where a client fallback may legitimately help.
     err.isTransport = response.status >= 500;
     throw err;
   }

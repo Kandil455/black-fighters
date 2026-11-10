@@ -31,7 +31,7 @@ export const handler = async (event) => {
     if (!jobId) return json(400, { error: "INVALID_REQUEST" });
 
     const { jobRef, transcript } = await loadOwned(jobId, user.uid);
-    const orgCfg = await getAdminOrganizerConfig();
+    const orgCfg = await getAdminOrganizerConfig({ event, body, uid: user.uid });
 
     const result = await buildOrganizationPlan(transcript, {
       callModel: async ({ system, user: userPrompt }) =>

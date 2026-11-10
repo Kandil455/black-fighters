@@ -23,7 +23,6 @@ async function loadCosmeticAllowlists() {
   const { AVATAR_FRAMES, PROFILE_BANNERS, PROFILE_TITLES, ORBIT_EFFECTS } = await import(
     "../../src/lib/avatars.js"
   );
-  const { MASCOT_SKINS } = await import("../../src/lib/mascotSkins.js");
   // Catalogs are id→item objects; accept arrays too for future-proofing
   const ids = (catalog) => {
     const raw = Array.isArray(catalog)
@@ -36,7 +35,7 @@ async function loadCosmeticAllowlists() {
     banners: ids(PROFILE_BANNERS),
     titles: ids(PROFILE_TITLES),
     orbits: ids(ORBIT_EFFECTS),
-    mascots: ids(MASCOT_SKINS),
+    mascots: new Set(),
   };
 }
 

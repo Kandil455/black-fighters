@@ -567,6 +567,26 @@ export async function callAI(config, messages, systemPrompt = null) {
   let baseUrl  = config?.base_url || config?.baseUrl || "";
   let protocol = config?.protocol || "";
 
+  // Browser: First check if the user has configured their own personal Gemini API key in localStorage.
+  // If present, prioritize the user's key first; only fall back to the admin/platform key pool when missing.
+  if (typeof window !== "undefined" && !apiKey && !apiKeys.length) {
+    try {
+      const userPersonalGeminiKey = (
+        window.localStorage?.getItem("bf_user_gemini_api_key") ||
+        window.localStorage?.getItem("gemini_api_key") ||
+        ""
+      ).trim();
+      if (userPersonalGeminiKey && /^AIza[0-9A-Za-z_-]{20,60}$/.test(userPersonalGeminiKey)) {
+        provider = "gemini";
+        apiKey = userPersonalGeminiKey;
+        apiKeys = [userPersonalGeminiKey];
+        model = model || "gemini-2.5-flash";
+      }
+    } catch {
+      /* ignore localStorage read errors */
+    }
+  }
+
   // Browser without a BYO key → first check local cached provider pool, then
   // route through the authenticated server proxy, with a zero-key Pollinations
   // fallback so AI never stops even if /api/ai is unreachable.
@@ -920,9 +940,17 @@ export async function generateMultimodal(prompt, mediaParts, config, systemPromp
     ...validPoolKeys,
   ].filter((v, i, a) => v && a.indexOf(v) === i);
 
-  // Browser without a valid Gemini key → check localStorage pool first, then route to server proxy
+  // Browser without a valid Gemini key → check user's personal localStorage Gemini key first, then provider pool, then server proxy
   if (typeof window !== "undefined" && keysToTry.length === 0) {
     try {
+      const userPersonalGeminiKey = (
+        window.localStorage?.getItem("bf_user_gemini_api_key") ||
+        window.localStorage?.getItem("gemini_api_key") ||
+        ""
+      ).trim();
+      if (isCandidateGeminiKey(userPersonalGeminiKey) && !keysToTry.includes(userPersonalGeminiKey)) {
+        keysToTry.unshift(userPersonalGeminiKey);
+      }
       const rawPool = window.localStorage?.getItem("bf_ai_providers_pool_v2");
       if (rawPool) {
         const parsedPool = JSON.parse(rawPool);

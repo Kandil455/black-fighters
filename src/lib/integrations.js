@@ -9,9 +9,55 @@
 import { base44 } from '@/api/base44Client';
 
 // ─── SETTINGS HELPERS ───────────────────────────────────────────────────────
+const USER_GEMINI_KEY_STORAGE = "bf_user_gemini_api_key";
+const LEGACY_GEMINI_KEY_STORAGE = "gemini_api_key";
+const USER_GEMINI_MODE_STORAGE = "bf_user_gemini_mode";
+
+export function getUserGeminiKeySync() {
+  if (typeof window === "undefined") return "";
+  try {
+    return (
+      window.localStorage.getItem(USER_GEMINI_KEY_STORAGE) ||
+      window.localStorage.getItem(LEGACY_GEMINI_KEY_STORAGE) ||
+      ""
+    ).trim();
+  } catch {
+    return "";
+  }
+}
+
+export function getUserGeminiModeSync() {
+  if (typeof window === "undefined") return "auto_fallback";
+  try {
+    return window.localStorage.getItem(USER_GEMINI_MODE_STORAGE) || "auto_fallback";
+  } catch {
+    return "auto_fallback";
+  }
+}
+
+export function setUserGeminiKeyLocal(apiKey, mode = "auto_fallback") {
+  if (typeof window === "undefined") return;
+  try {
+    const clean = String(apiKey || "").trim();
+    if (clean) {
+      window.localStorage.setItem(USER_GEMINI_KEY_STORAGE, clean);
+      window.localStorage.setItem(LEGACY_GEMINI_KEY_STORAGE, clean);
+    } else {
+      window.localStorage.removeItem(USER_GEMINI_KEY_STORAGE);
+      window.localStorage.removeItem(LEGACY_GEMINI_KEY_STORAGE);
+    }
+    window.localStorage.setItem(USER_GEMINI_MODE_STORAGE, mode || "auto_fallback");
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
 export async function getIntegrationSettings() {
   try {
     const s = await base44.entities.UserSettings.get();
+    if (s?.gemini_api_key) {
+      setUserGeminiKeyLocal(s.gemini_api_key, s.ai_key_preference || "auto_fallback");
+    }
     return s || {};
   } catch {
     return {};
@@ -19,6 +65,9 @@ export async function getIntegrationSettings() {
 }
 
 export async function saveIntegrationSettings(patch) {
+  if (patch && "gemini_api_key" in patch) {
+    setUserGeminiKeyLocal(patch.gemini_api_key, patch.ai_key_preference || getUserGeminiModeSync());
+  }
   // UserSettings.set merges, so we only send the changed keys
   await base44.entities.UserSettings.upsert(patch);
 }

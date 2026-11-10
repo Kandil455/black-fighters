@@ -10,7 +10,7 @@ import {
   Shield, Check, Loader2, BookOpen, Users,
   Crown, Key, Search, ChevronDown, ChevronUp, Lock, Unlock,
   BarChart3, RefreshCw, Calendar, Zap, Wand2, Coins, Copy, Ticket, Wallet,
-  Filter, Flag, ArrowRight,
+  Filter, Flag, ArrowRight, Bell, Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PROVIDERS } from "@/lib/models";
@@ -70,6 +70,7 @@ const ADMIN_GROUPS = [
     tabs: [
       { id: "flags", labelAr: "بلاغات الأسئلة", labelEn: "Question flags", icon: Flag, badgeKey: "flags" },
       { id: "keys", labelAr: "مفاتيح الـ AI", labelEn: "AI keys", icon: Key },
+      { id: "notifications", labelAr: "إرسال إشعارات", labelEn: "Broadcast", icon: Bell },
     ],
   },
 ];
@@ -502,6 +503,19 @@ export default function Admin() {
     }
   }, [provider, configs]);
 
+  const isStudentMobileShell = typeof navigator !== "undefined" && (
+    /BlackFightersStudentApp/i.test(navigator.userAgent || "") ||
+    (typeof window !== "undefined" && window.Capacitor?.isNativePlatform?.())
+  );
+  if (isStudentMobileShell) {
+    return (
+      <div className="max-w-md mx-auto my-20 p-6 rounded-2xl border border-destructive/40 bg-destructive/10 text-center space-y-2">
+        <Shield className="w-8 h-8 mx-auto text-destructive" />
+        <p className="font-bold text-foreground">لوحة تحكم المسؤول معزولة تماماً عن تطبيق الطلاب 🔒</p>
+        <p className="text-xs text-muted-foreground">يُسمح بالوصول للوحة الإدارة فقط عبر بوابة الويب المستقلة الخاصة بالمسؤول.</p>
+      </div>
+    );
+  }
   if (!profile) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   if (!isAdmin) return <p className="text-center text-muted-foreground py-20">هذه الصفحة للمدير فقط 🔒</p>;
 
@@ -685,6 +699,102 @@ export default function Admin() {
           onConfigUpdated={() => queryClient.invalidateQueries({ queryKey: ["adminConfigs"] })}
         />
       )}
+
+      {tab === "notifications" && (
+        <AdminBroadcastNotificationsPanel users={allUsers} />
+      )}
     </div>
   );
 }
+
+function AdminBroadcastNotificationsPanel({ users = [] }) {
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [targetEmail, setTargetEmail] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const handleSendBroadcast = async () => {
+    if (!title.trim() || !message.trim()) {
+      toast.error("يرجى كتابة عنوان ونص الإشعار أولاً");
+      return;
+    }
+    setSending(true);
+    try {
+      const recipients = targetEmail.trim()
+        ? users.filter((u) => u.email?.toLowerCase() === targetEmail.trim().toLowerCase())
+        : users.slice(0, 200);
+
+      if (recipients.length === 0) {
+        await base44.entities.Notification.create({
+          user_id: "broadcast_all",
+          title: title.trim(),
+          message: message.trim(),
+          type: "admin_broadcast",
+          is_read: false,
+          created_date: new Date().toISOString(),
+        });
+      } else {
+        await Promise.all(
+          recipients.map((u) =>
+            base44.entities.Notification.create({
+              user_id: u.id,
+              user_email: u.email,
+              title: title.trim(),
+              message: message.trim(),
+              type: "admin_broadcast",
+              is_read: false,
+              created_date: new Date().toISOString(),
+            }).catch(() => null)
+          )
+        );
+      }
+      toast.success("تم إرسال الإشعار للطلاب بنجاح 🔔");
+      setTitle("");
+      setMessage("");
+    } catch (e) {
+      toast.error(e?.message || "تعذر إرسال الإشعار");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-6 space-y-4">
+      <div className="flex items-center gap-2">
+        <Bell className="w-5 h-5 text-primary" />
+        <h2 className="text-lg font-black">بث إشعارات فورية للطلاب والتطبيق</h2>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        أرسل تنبيهات أكاديمية، مواعيد اختبارات، أو تحديثات للمحاضرات لتصل فوراً إلى جرس الإشعارات وتنبيهات الأندرويد لدى الطلاب.
+      </p>
+      <div className="space-y-3">
+        <Field label="عنوان الإشعار">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="مثال: تنبيه هام بخصوص محاضرة الباطنة وراوند الطوارئ"
+          />
+        </Field>
+        <Field label="نص الإشعار التفصيلي">
+          <Input
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="اكتب رسالة الإشعار التي ستظهر للطلاب..."
+          />
+        </Field>
+        <Field label="بريد طالب محدد (اتركه فارغاً للإرسال لجميع الطلاب)">
+          <Input
+            value={targetEmail}
+            onChange={(e) => setTargetEmail(e.target.value)}
+            placeholder="اختياري: student@example.com"
+          />
+        </Field>
+        <Button onClick={handleSendBroadcast} disabled={sending} className="gap-2">
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          إرسال الإشعار الآن
+        </Button>
+      </div>
+    </div>
+  );
+}
+

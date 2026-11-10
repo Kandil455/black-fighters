@@ -42,6 +42,8 @@ const DEFAULT_ALLOWED_ORIGINS = [
   "https://www.blackfighters.site",
   "http://127.0.0.1:5173",
   "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://localhost:3000",
 ];
 
 function allowedOriginList() {
@@ -56,7 +58,8 @@ export function corsHeaders(request) {
   const origin = request?.headers?.get?.("origin") || "";
   if (!origin) return {};
   const allowed = allowedOriginList();
-  if (!allowed.includes(origin)) return {};
+  const isRunApp = /^https:\/\/[a-z0-9-]+\.[a-z0-9-]+\.run\.app$/i.test(origin);
+  if (!allowed.includes(origin) && !isRunApp) return {};
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
