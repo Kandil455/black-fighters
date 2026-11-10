@@ -20,13 +20,21 @@ import java.net.URL
 
 object GeminiAiClient {
 
+    private fun readBuildConfigString(fieldName: String): String {
+        return runCatching {
+            val field = BuildConfig::class.java.getDeclaredField(fieldName)
+            field.isAccessible = true
+            (field.get(null) as? String)?.trim().orEmpty()
+        }.getOrDefault("")
+    }
+
     private fun extractAdminKeys(): List<String> {
         val keys = mutableListOf<String>()
-        val primary = BuildConfig.GEMINI_API_KEY.trim()
+        val primary = readBuildConfigString("GEMINI_API_KEY")
         if (StudentAppSecurityGuard.isValidGeminiKeyFormat(primary)) {
             keys.add(primary)
         }
-        val backups = BuildConfig.GEMINI_BACKUP_KEYS
+        val backups = readBuildConfigString("GEMINI_BACKUP_KEYS")
             .split(",", "\n", ";", " ")
             .map { it.trim() }
             .filter { StudentAppSecurityGuard.isValidGeminiKeyFormat(it) }

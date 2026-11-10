@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
@@ -59,6 +60,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,6 +83,7 @@ import site.blackfighters.app.ui.screens.NotificationsCenterDialog
 import site.blackfighters.app.ui.screens.QuizzesScreen
 import site.blackfighters.app.ui.screens.SettingsScreen
 import site.blackfighters.app.ui.screens.SummariesScreen
+import site.blackfighters.app.ui.screens.WalkthroughVideoDialog
 import site.blackfighters.app.ui.theme.BlackFightersTheme
 import site.blackfighters.app.viewmodel.AcademicViewModel
 
@@ -140,6 +145,14 @@ fun MainAcademicShell(
 
     BackHandler(enabled = uiState.currentTab != MainTab.HOME) {
         viewModel.selectTab(MainTab.HOME)
+    }
+
+    var showWalkthroughVideo by remember { mutableStateOf(false) }
+
+    if (showWalkthroughVideo) {
+        WalkthroughVideoDialog(
+            onDismiss = { showWalkthroughVideo = false }
+        )
     }
 
     if (uiState.showKeySettingsDialog) {
@@ -221,6 +234,22 @@ fun MainAcademicShell(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            IconButton(
+                                onClick = { showWalkthroughVideo = true },
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .size(38.dp)
+                                    .testTag("top_open_walkthrough_video_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayCircle,
+                                    contentDescription = "فيديو شرح المنصة (5 دقائق)",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
                             IconButton(
                                 onClick = { viewModel.toggleKeySettingsDialog(true) },
                                 modifier = Modifier

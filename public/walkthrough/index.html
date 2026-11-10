@@ -1482,8 +1482,14 @@
       }
     });
 
-    // Initialize first scene preview behind the start overlay
-    loadScene(0, false);
+    // Initialize first scene and auto-start if browser permits audio
+    loadScene(0, true);
+    voAudio.play().then(() => {
+      startOverlay.classList.add("hidden");
+    }).catch(() => {
+      isPlaying = false;
+      updatePlayUI();
+    });
   </script>
 </body>
 </html>

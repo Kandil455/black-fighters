@@ -467,7 +467,7 @@ fun AiTutorAndPortalScreen(
 ) {
     if (uiState.showCloudPortal) {
         BackHandler { onToggleCloudPortal(false) }
-        val portalUrl = BuildConfig.APP_BASE_URL.takeIf { it.isNotBlank() } ?: "https://blackfighters.site"
+        val portalUrl = "https://blackfighters.site"
         Column(modifier = Modifier.fillMaxSize()) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),

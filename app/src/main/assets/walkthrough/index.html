@@ -1448,7 +1448,15 @@
       }
     });
 
-    loadScene(0, false);
+    // Auto-start playback immediately when opened (works automatically in Android WebView)
+    loadScene(0, true);
+    voAudio.play().then(() => {
+      startOverlay.classList.add("hidden");
+    }).catch(() => {
+      // Browser requires user gesture: keep startOverlay visible so user can tap Play
+      isPlaying = false;
+      updatePlayUI();
+    });
   </script>
 </body>
 </html>

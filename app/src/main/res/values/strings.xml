@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Black Fighters — المنصة الذكية للمذاكرة والامتحانات</string>
+    <string name="app_name">Black Fighters</string>
     <string name="platform_title">IIIAK · Black Fighters</string>
     <string name="platform_subtitle">المنصة الأكاديمية الذكية للمذاكرة والامتحانات</string>
     <string name="nav_home">الرئيسية</string>

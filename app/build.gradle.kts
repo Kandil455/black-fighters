@@ -46,6 +46,11 @@ android {
     }
 }
 
+val defaultEnvExampleFile = rootProject.file(".env.example")
+if (!defaultEnvExampleFile.exists()) {
+    defaultEnvExampleFile.writeText("# Optional platform secrets\n")
+}
+
 secrets {
     propertiesFileName = ".env"
     defaultPropertiesFileName = ".env.example"
